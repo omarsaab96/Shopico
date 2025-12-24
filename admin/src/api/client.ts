@@ -36,8 +36,8 @@ export const fetchCategories = async () => {
   return res.data.data;
 };
 
-export const fetchProducts = async () => {
-  const res = await api.get<{ data: Product[] }>("/products");
+export const fetchProducts = async (params?: { q?: string; category?: string }) => {
+  const res = await api.get<{ data: Product[] }>("/products", { params });
   return res.data.data;
 };
 
