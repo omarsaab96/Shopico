@@ -199,19 +199,53 @@ const ProductsPage = () => {
           </thead>
           <tbody>
             {products.map((product) => (
-              <tr key={product._id}>
+              <tr key={product._id} className="productRow">
                 <td>
-                  {product.images?.[0]?.url ? (
-                    <div className="listImage" >
-                      <img src={product.images[0].url} alt={product.name} />
-                    </div>
-                  ) : (
-                    <div className="defaultImage">
-                      <img src="productIcon.png" alt="" className="medium" />
-                    </div>
-                  )}
-                </td>
+                  {editingId === product._id ? (
+                    <>
+                      <div className="uploadDiv">
+                        <label htmlFor={`prodImg${product._id}`} className="uploadBtn">
+                          {editUploadingId === product._id ? 'Uploading...' : 'Upload'}
+                        </label>
+                        <input
+                          type="file"
+                          id={`prodImg${product._id}`}
+                          className="uploadForm"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setEditUploadingId(product._id);
+                              uploadToImageKit(
+                                file,
+                                (img) =>
+                                  setEditDraft((prev) => ({
+                                    ...prev,
+                                    images: [...((prev.images as ProductImage[]) || []), img],
+                                  })),
+                                (flag) => (flag ? setEditUploadingId(product._id) : setEditUploadingId(null)),
+                                (msg) => setEditError(msg)
+                              );
+                            }
+                          }}
+                          disabled={editUploadingId === product._id}
+                        />
+                      </div>
 
+                    </>
+                  ) : (
+                    product.images?.[0]?.url ? (
+                      <div className="listImage" >
+                        <img src={product.images[0].url} alt={product.name} />
+                      </div>
+                    ) : (
+                      <div className="defaultImage">
+                        <img src="productIcon.png" alt="" className="medium" />
+                      </div>
+                    )
+                  )}
+
+                </td>
                 <td>
                   {editingId === product._id ? (
                     <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
@@ -241,36 +275,18 @@ const ProductsPage = () => {
                     product.stock
                   )}
                 </td>
+
                 <td style={{}}>
                   {editingId === product._id ? (
                     <>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setEditUploadingId(product._id);
-                            uploadToImageKit(
-                              file,
-                              (img) =>
-                                setEditDraft((prev) => ({
-                                  ...prev,
-                                  images: [...((prev.images as ProductImage[]) || []), img],
-                                })),
-                              (flag) => (flag ? setEditUploadingId(product._id) : setEditUploadingId(null)),
-                              (msg) => setEditError(msg)
-                            );
-                          }
-                        }}
-                        disabled={editUploadingId === product._id}
-                      />
-                      {editUploadingId === product._id && <span className="pill">Uploading...</span>}
-                      <button className="ghost-btn" onClick={saveEdit}>
+                      <button className="ghost-btn mr-10" onClick={saveEdit}>
                         Save
                       </button>
-                      <button className="ghost-btn" onClick={cancelEdit}>
+                      <button className="ghost-btn mr-10" onClick={cancelEdit}>
                         Cancel
+                      </button>
+                      <button className="ghost-btn danger" onClick={() => deleteProduct(product._id).then(load)}>
+                        Delete
                       </button>
                       {editError && <div className="error">{editError}</div>}
                     </>
