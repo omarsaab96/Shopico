@@ -52,8 +52,8 @@ export const saveProduct = async (payload: Partial<Product>) => {
 
 export const deleteProduct = async (id: string) => api.delete(`/products/${id}`);
 
-export const fetchOrders = async () => {
-  const res = await api.get<{ data: Order[] }>("/orders/admin");
+export const fetchOrders = async (params?: { q?: string; status?: string; paymentStatus?: string }) => {
+  const res = await api.get<{ data: Order[] }>("/orders/admin", { params });
   return res.data.data;
 };
 
@@ -62,8 +62,8 @@ export const updateOrderStatus = async (id: string, status: string, paymentStatu
   return res.data.data;
 };
 
-export const fetchTopUps = async () => {
-  const res = await api.get<{ data: WalletTopUp[] }>("/wallet/topups/admin");
+export const fetchTopUps = async (params?: { status?: string; method?: string; q?: string }) => {
+  const res = await api.get<{ data: WalletTopUp[] }>("/wallet/topups/admin", { params });
   return res.data.data;
 };
 

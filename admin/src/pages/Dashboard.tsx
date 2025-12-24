@@ -45,16 +45,22 @@ const DashboardPage = () => {
             </tr>
           </thead>
           <tbody>
-            {orders.slice(0, 5).map((order) => (
-              <tr key={order._id}>
-                <td>{order._id.slice(-6)}</td>
-                <td>{typeof order.user === "string" ? order.user : order.user.email}</td>
-                <td>
-                  <StatusPill value={order.status} />
-                </td>
-                <td>{order.total.toLocaleString()} SYP</td>
+            {orders.length == 0 ? (
+              <tr>
+                <td colSpan={6} className="muted">No orders</td>
               </tr>
-            ))}
+            ) : (
+              orders.slice(0, 5).map((order) => (
+                <tr key={order._id}>
+                  <td>{order._id.slice(-6)}</td>
+                  <td>{typeof order.user === "string" ? order.user : order.user.email}</td>
+                  <td>
+                    <StatusPill value={order.status} />
+                  </td>
+                  <td>{order.total.toLocaleString()} SYP</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </Card>

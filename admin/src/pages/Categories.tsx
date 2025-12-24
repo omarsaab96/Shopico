@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import Card from "../components/Card";
 import type { Category } from "../types/api";
 import api, { fetchCategories, getImageKitAuth } from "../api/client";
+import { useI18n } from "../context/I18nContext";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
 
@@ -17,6 +18,7 @@ const CategoriesPage = () => {
   const [editError, setEditError] = useState("");
   const [newUploading, setNewUploading] = useState(false);
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
+  const { t } = useI18n();
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -125,11 +127,11 @@ const CategoriesPage = () => {
   };
 
   const removeNewImage = () => {
-    setDraft((prev) => ({ ...prev, imageUrl: undefined }));
+    setDraft((prev) => ({ ...prev, imageUrl: null }));
   };
 
   const removeEditImage = () => {
-    setEditDraft((prev) => ({ ...prev, imageUrl: "" }));
+    setEditDraft((prev) => ({ ...prev, imageUrl: null }));
   };
 
   return (
@@ -138,151 +140,166 @@ const CategoriesPage = () => {
         <div className="filters">
           <input
             className="filter-input"
-            placeholder="Search name or description"
+            placeholder={t("searchCategory")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <button className="ghost-btn" type="button" onClick={applyFilters}>
-            Filter
+            {t("filter")}
           </button>
           <button className="ghost-btn" type="button" onClick={clearFilters}>
-            Clear
+            {t("clear")}
           </button>
         </div>
         <button className="primary" onClick={openNewModal}>
-          Add category
+          {t("addCategory")}
         </button>
       </div>
 
       <div className="grid single-col">
-        <Card title="Categories" subTitle={`(${categories.length})`}>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Image</th>
-              <th>Name</th>
-              <th>Description</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map((cat) => (
-              <tr key={cat._id} className="productRow">
-                <td className="prodImgCell">
-                  {editingId === cat._id ? (
-                    <div className="thumb-row">
-                      {(editDraft.imageUrl ?? cat.imageUrl) ? (
-                        <div className="listImage">
-                          <img src={(editDraft.imageUrl ?? cat.imageUrl) || ""} alt={cat.name} />
-                          <button type="button" className="removeImageBtn" onClick={removeEditImage}>
-                            <img src="deleteIcon.png" alt="" />
-                          </button>
+        <Card title={t("nav.categories")} subTitle={`(${categories.length})`}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>{t("image")}</th>
+                <th>{t("name")}</th>
+                <th>{t("description")}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {categories.length == 0 ? (
+                <tr>
+                  <td colSpan={6} className="muted">{t("noCategories")}</td>
+                </tr>
+              ) : (
+                categories.map((cat) => (
+                  <tr key={cat._id} className="productRow">
+                    <td className="prodImgCell">
+                      {editingId === cat._id ? (
+                        <div className="thumb-row">
+                          {(() => {
+                            const currentImage = editDraft.imageUrl !== undefined ? editDraft.imageUrl : cat.imageUrl;
+                            return currentImage ? (
+                              <div className="listImage">
+                                <img src={currentImage} alt={cat.name} />
+                                <button type="button" className="removeImageBtn" onClick={removeEditImage}>
+                                  <img src="deleteIcon.png" alt="" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="defaultImage">
+                                <img src="categoryIcon.png" alt="" className="small" />
+                              </div>
+                            );
+                          })()}
+                          <div className="uploadDiv" style={{ marginBottom: 10 }}>
+                            <label htmlFor={`catImg${cat._id}`} className="uploadBtn">
+                              {editUploadingId === cat._id ? <img src="loading.gif" className="noFilter" /> : <img src="plusIcon.png" />}
+                            </label>
+                            <input
+                              id={`catImg${cat._id}`}
+                              type="file"
+                              accept="image/*"
+                              className="uploadForm"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setEditUploadingId(cat._id);
+                                  uploadToImageKit(
+                                    file,
+                                    (url) => setEditDraft((prev) => ({ ...prev, imageUrl: url })),
+                                    (flag) => (flag ? setEditUploadingId(cat._id) : setEditUploadingId(null)),
+                                    (msg) => setEditError(msg)
+                                  );
+                                }
+                              }}
+                              disabled={editUploadingId === cat._id}
+                            />
+                          </div>
+                        </div>
+                      ) : cat.imageUrl ? (
+                        <div className="listImage" >
+                          <img src={cat.imageUrl} alt={cat.name} />
                         </div>
                       ) : (
                         <div className="defaultImage">
                           <img src="categoryIcon.png" alt="" className="small" />
                         </div>
                       )}
-                      <div className="uploadDiv" style={{ marginBottom: 10 }}>
-                        <label htmlFor={`catImg${cat._id}`} className="uploadBtn">
-                          {editUploadingId === cat._id ? <img src="loading.gif" /> : <img src="plusIcon.png" />}
-                        </label>
+                    </td>
+                    <td>
+                      {editingId === cat._id ? (
+                        <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
+                      ) : (
+                        cat.name
+                      )}
+                    </td>
+                    <td>
+                      {editingId === cat._id ? (
                         <input
-                          id={`catImg${cat._id}`}
-                          type="file"
-                          accept="image/*"
-                          className="uploadForm"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setEditUploadingId(cat._id);
-                              uploadToImageKit(
-                                file,
-                                (url) => setEditDraft((prev) => ({ ...prev, imageUrl: url })),
-                                (flag) => (flag ? setEditUploadingId(cat._id) : setEditUploadingId(null)),
-                                (msg) => setEditError(msg)
-                              );
-                            }
-                          }}
-                          disabled={editUploadingId === cat._id}
+                          value={editDraft.description || ""}
+                          onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
                         />
-                      </div>
-                    </div>
-                  ) : cat.imageUrl ? (
-                    <div className="listImage" >
-                      <img src={cat.imageUrl} alt={cat.name} />
-                    </div>
-                  ) : (
-                    <div className="defaultImage">
-                      <img src="categoryIcon.png" alt="" className="small" />
-                    </div>
-                  )}
-                </td>
-                <td>
-                  {editingId === cat._id ? (
-                    <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
-                  ) : (
-                    cat.name
-                  )}
-                </td>
-                <td>
-                  {editingId === cat._id ? (
-                    <input
-                      value={editDraft.description || ""}
-                      onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
-                    />
-                  ) : (
-                    cat.description
-                  )}
-                </td>
-                <td style={{}}>
-                  {editingId === cat._id ? (
-                    <>
-                      <button className="ghost-btn mr-10" onClick={saveEdit}>
-                        Save
-                      </button>
-                      <button className="ghost-btn mr-10" onClick={cancelEdit}>
-                        Cancel
-                      </button>
-                      {editError && <div className="error">{editError}</div>}
-                    </>
-                  ) : (
-                    <>
-                      <button className="ghost-btn mr-10" onClick={() => startEdit(cat)}>
-                        Edit
-                      </button>
-                      <button
-                        className="ghost-btn danger"
-                        onClick={() => api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+                      ) : (
+                        cat.description
+                      )}
+                    </td>
+                    <td style={{}}>
+                      {editingId === cat._id ? (
+                        <div className="flex">
+                          <button className="ghost-btn mr-10" onClick={saveEdit}>
+                            {t("save")}
+                          </button>
+                          <button className="ghost-btn mr-10" onClick={cancelEdit}>
+                            {t("cancel")}
+                          </button>
+                          <button
+                            className="ghost-btn danger"
+                            onClick={() => api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
+                          >
+                            {t("delete")}
+                          </button>
+                          {editError && <div className="error">{editError}</div>}
+                        </div>
+                      ) : (
+                        <div className="flex">
+                          <button className="ghost-btn mr-10" onClick={() => startEdit(cat)}>
+                            {t("edit")}
+                          </button>
+                          <button
+                            className="ghost-btn danger"
+                            onClick={() => api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
+                          >
+                            {t("delete")}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </Card>
       </div>
 
       {showNewModal && (
         <div className="modal-backdrop" onClick={closeNewModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">New Category</div>
+              <div className="modal-title">{t("newCategory")}</div>
               <button className="ghost-btn" type="button" onClick={closeNewModal}>
-                Close
+                {t("cancel")}
               </button>
             </div>
             <form className="form productRow" onSubmit={submit}>
               <label>
-                Name
+                {t("name")}
                 <input value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
               </label>
               <label>
-                Description
+                {t("description")}
                 <input
                   value={draft.description || ""}
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
@@ -290,57 +307,57 @@ const CategoriesPage = () => {
                 />
               </label>
               <label style={{ margin: 0 }}>
-                Image
+                {t("image")}
               </label>
 
               <div className="thumb-row prodImgCell">
-                  {draft.imageUrl ? (
-                    <div className="thumb listImage newThumb">
-                      <img src={draft.imageUrl} alt="preview" />
-                      <button
-                        type="button"
-                        className="removeImageBtn"
-                        onClick={removeNewImage}
-                      >
-                        <img src="deleteIcon.png" alt="" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="defaultImage big">
-                      <img src="categoryIcon.png" alt="" className="small" />
-                    </div>
-                  )}
-
-                  <div className="uploadDiv">
-                    <label htmlFor="catImgUpload" className="uploadBtn">
-                      {newUploading ? <img src="loading.gif" /> : draft.imageUrl ? <img src="editIcon.png"/> : <img src="plusIcon.png"/>}
-                    </label>
-                    <input
-                      id="catImgUpload"
-                      type="file"
-                      accept="image/*"
-                      className="uploadForm"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file)
-                          uploadToImageKit(
-                            file,
-                            (url) => setDraft({ ...draft, imageUrl: url }),
-                            setNewUploading,
-                            (msg) => setFormError(msg)
-                          );
-                      }}
-                      disabled={newUploading}
-                    />
+                {draft.imageUrl ? (
+                  <div className="thumb listImage newThumb">
+                    <img src={draft.imageUrl} alt="preview" />
+                    <button
+                      type="button"
+                      className="removeImageBtn"
+                      onClick={removeNewImage}
+                    >
+                      <img src="deleteIcon.png" alt="" />
+                    </button>
                   </div>
+                ) : (
+                  <div className="defaultImage big">
+                    <img src="categoryIcon.png" alt="" className="small" />
+                  </div>
+                )}
+
+                <div className="uploadDiv">
+                  <label htmlFor="catImgUpload" className="uploadBtn">
+                    {newUploading ? <img src="loading.gif" className="noFilter" /> : draft.imageUrl ? <img src="editIcon.png" /> : <img src="plusIcon.png" />}
+                  </label>
+                  <input
+                    id="catImgUpload"
+                    type="file"
+                    accept="image/*"
+                    className="uploadForm"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file)
+                        uploadToImageKit(
+                          file,
+                          (url) => setDraft({ ...draft, imageUrl: url }),
+                          setNewUploading,
+                          (msg) => setFormError(msg)
+                        );
+                    }}
+                    disabled={newUploading}
+                  />
                 </div>
+              </div>
               {formError && <div className="error">{formError}</div>}
               <div className="modal-actions">
                 <button className="ghost-btn" type="button" onClick={closeNewModal}>
-                  Cancel
+                  {t("cancel")}
                 </button>
                 <button className="primary" type="submit">
-                  Save Category
+                  {t("save")}
                 </button>
               </div>
             </form>

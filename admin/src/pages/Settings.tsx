@@ -3,15 +3,17 @@ import type { FormEvent } from "react";
 import Card from "../components/Card";
 import type { Settings } from "../types/api";
 import { fetchSettings, updateSettings } from "../api/client";
+import { useI18n } from "../context/I18nContext";
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     fetchSettings().then(setSettings);
   }, []);
 
-  if (!settings) return <div>Loading settings...</div>;
+  if (!settings) return <div>{t("loadingSettings")}</div>;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -24,17 +26,17 @@ const SettingsPage = () => {
   return (
     <>
       <form className="form" onSubmit={submit}>
-        <Card title="Operational Settings" subTitle="">
+        <Card title={t("settings.operational")} subTitle="">
           <label>
-            Store latitude
+            {t("storeLat")}
             <input type="number" value={settings.storeLat} onChange={(e) => updateField("storeLat", Number(e.target.value))} />
           </label>
           <label>
-            Store longitude
+            {t("storeLng")}
             <input type="number" value={settings.storeLng} onChange={(e) => updateField("storeLng", Number(e.target.value))} />
           </label>
           <label>
-            Free delivery distance (Km)
+            {t("deliveryFreeKm")}
             <input
               type="number"
               value={settings.deliveryFreeKm}
@@ -42,7 +44,7 @@ const SettingsPage = () => {
             />
           </label>
           <label>
-            Delivery rate per Km (SYP)
+            {t("deliveryRatePerKm")}
             <input
               type="number"
               value={settings.deliveryRatePerKm}
@@ -50,7 +52,7 @@ const SettingsPage = () => {
             />
           </label>
           <label>
-            Membership grace days
+            {t("membershipGraceDays")}
             <input
               type="number"
               value={settings.membershipGraceDays}
@@ -59,13 +61,13 @@ const SettingsPage = () => {
           </label>
         </Card>
 
-        <Card title="Membership Settings" subTitle="">
+        <Card title={t("settings.membership")} subTitle="">
           <label className="thresholds">
-            <label>Levels (SYP)</label>
+            <label>{t("levelsLabel")}</label>
             <div className="grid row">
               {(["silver", "gold", "platinum", "diamond"] as const).map((level) => (
                 <label key={level}>
-                  <span className="subLabel">{level}</span>
+                  <span className="subLabel">{t(`level.${level}`)}</span>
                   <input
                     type="number"
                     value={settings.membershipThresholds[level]}
@@ -82,7 +84,7 @@ const SettingsPage = () => {
           </label>
 
           <label>
-            Point cost (SYP per point)
+            {t("pointsPerAmount")}
             <input
               type="number"
               value={settings.pointsPerAmount}
@@ -90,7 +92,7 @@ const SettingsPage = () => {
             />
           </label>
           <label>
-            Reward threshold (points)
+            {t("rewardThresholdPoints")}
             <input
               type="number"
               value={settings.rewardThresholdPoints}
@@ -98,7 +100,7 @@ const SettingsPage = () => {
             />
           </label>
           <label>
-            Reward value (SYP)
+            {t("rewardValue")}
             <input
               type="number"
               value={settings.rewardValue}
@@ -107,7 +109,7 @@ const SettingsPage = () => {
           </label>
         </Card>
 
-        <button className="primary">Save Settings</button>
+        <button className="primary">{t("saveSettings")}</button>
       </form>
     </>
   );

@@ -18,8 +18,21 @@ export const requestTopUp = async (userId: Types.ObjectId, amount: number, metho
   return topUp;
 };
 
-export const listTopUps = async (status?: string) => {
-  const query = status ? { status } : {};
+export const listTopUps = async (status?: string, method?: string, q?: string) => {
+  const query: Record<string, unknown> = {};
+  if (status) query.status = status;
+  if (method) query.method = method;
+  if (q) {
+    const users = await User.find({
+      $or: [
+        { email: { $regex: q, $options: "i" } },
+        { name: { $regex: q, $options: "i" } },
+      ],
+    }).select("_id");
+    const ids = users.map((u) => u._id);
+    if (ids.length) query.user = { $in: ids };
+    else query.user = null; // force empty if no user matches
+  }
   return TopUpRequest.find(query).sort({ createdAt: -1 }).populate("user");
 };
 

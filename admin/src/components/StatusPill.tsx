@@ -8,11 +8,14 @@ const colors: Record<string, string> = {
   REJECTED: "var(--red-500)",
 };
 
+import { useI18n } from "../context/I18nContext";
+
 const StatusPill = ({ value }: { value: string }) => {
+  const { tStatus } = useI18n();
   const color = colors[value] || "var(--gray-600)";
   return (
     <span className="status-pill" style={{ background: color + "22", color }}>
-      {value}
+      {tStatus(value)}
     </span>
   );
 };

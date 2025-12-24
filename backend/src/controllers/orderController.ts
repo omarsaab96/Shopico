@@ -9,8 +9,9 @@ export const listOrders = catchAsync(async (req: AuthRequest, res) => {
   sendSuccess(res, orders);
 });
 
-export const listOrdersAdmin = catchAsync(async (_req, res) => {
-  const orders = await getAllOrders();
+export const listOrdersAdmin = catchAsync(async (req, res) => {
+  const { q, status, paymentStatus } = req.query as { q?: string; status?: string; paymentStatus?: string };
+  const orders = await getAllOrders({ q, status, paymentStatus });
   sendSuccess(res, orders);
 });
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Card from "../components/Card";
 import api from "../api/client";
 import type { ApiUser } from "../types/api";
+import { useI18n } from "../context/I18nContext";
 
 interface UserDetails {
   user: ApiUser;
@@ -13,9 +14,21 @@ interface UserDetails {
 const UsersPage = () => {
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [selected, setSelected] = useState<UserDetails | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const { t } = useI18n();
+
+  const getFilterParams = () => ({
+    q: searchTerm.trim() || undefined,
+    role: roleFilter || undefined,
+  });
+
+  const loadUsers = () => {
+    api.get<{ data: ApiUser[] }>("/users", { params: getFilterParams() }).then((res) => setUsers(res.data.data));
+  };
 
   useEffect(() => {
-    api.get<{ data: ApiUser[] }>("/users").then((res) => setUsers(res.data.data));
+    loadUsers();
   }, []);
 
   const loadDetails = async (id: string) => {
@@ -25,14 +38,44 @@ const UsersPage = () => {
 
   return (
     <div className="grid">
-      <Card title="Users"  subTitle={`(${users.length})`}>
+      <Card title={t("titles.users")}  subTitle={`(${users.length})`}>
+        <div className="page-header" style={{ padding: 0, marginBottom: 12 }}>
+          <div className="filters">
+            <input
+              className="filter-input"
+              placeholder={t("searchNameEmail")}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <select className="filter-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+              <option value="">{t("role")}</option>
+              <option value="customer">{t("role.customer")}</option>
+              <option value="admin">{t("role.admin")}</option>
+              <option value="staff">{t("role.staff")}</option>
+            </select>
+            <button className="ghost-btn" type="button" onClick={loadUsers}>
+              {t("filter")}
+            </button>
+            <button
+              className="ghost-btn"
+              type="button"
+              onClick={() => {
+                setSearchTerm("");
+                setRoleFilter("");
+                api.get<{ data: ApiUser[] }>("/users").then((res) => setUsers(res.data.data));
+              }}
+            >
+              {t("clear")}
+            </button>
+          </div>
+        </div>
         <table className="table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Membership</th>
+              <th>{t("name")}</th>
+              <th>{t("email")}</th>
+              <th>{t("role")}</th>
+              <th>{t("membership")}</th>
               <th></th>
             </tr>
           </thead>
@@ -41,11 +84,11 @@ const UsersPage = () => {
               <tr key={u._id}>
                 <td>{u.name}</td>
                 <td>{u.email}</td>
-                <td>{u.role}</td>
+                <td>{t(`role.${u.role}`) || u.role}</td>
                 <td>{u.membershipLevel}</td>
                 <td>
                   <button className="ghost-btn" onClick={() => loadDetails(u._id)}>
-                    View
+                    {t("view")}
                   </button>
                 </td>
               </tr>
@@ -54,20 +97,20 @@ const UsersPage = () => {
         </table>
       </Card>
       {selected && (
-        <Card title="User Detail" subTitle="">
+        <Card title={t("titles.userDetail")} subTitle="">
           <div className="detail-grid">
             <div>
-              <div className="muted">Wallet Balance</div>
+              <div className="muted">{t("walletBalance")}</div>
               <div className="stat-value">{selected.wallet?.balance?.toLocaleString() || 0} SYP</div>
             </div>
             <div>
-              <div className="muted">Points</div>
+              <div className="muted">{t("points")}</div>
               <div className="stat-value">{selected.user.points || 0}</div>
             </div>
           </div>
           <div className="two-col">
             <div>
-              <h4>Wallet Ledger</h4>
+              <h4>{t("walletLedger")}</h4>
               <ul className="list">
                 {selected.walletTx?.map((tx, idx) => (
                   <li key={idx}>
@@ -77,7 +120,7 @@ const UsersPage = () => {
               </ul>
             </div>
             <div>
-              <h4>Points Ledger</h4>
+              <h4>{t("pointsLedger")}</h4>
               <ul className="list">
                 {selected.pointTx?.map((tx, idx) => (
                   <li key={idx}>

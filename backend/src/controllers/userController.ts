@@ -5,8 +5,17 @@ import { PointsTransaction } from "../models/PointsTransaction";
 import { WalletTransaction } from "../models/WalletTransaction";
 import { sendSuccess } from "../utils/response";
 
-export const listUsers = catchAsync(async (_req, res) => {
-  const users = await User.find().select("-password").sort({ createdAt: -1 });
+export const listUsers = catchAsync(async (req, res) => {
+  const { q, role } = req.query as { q?: string; role?: string };
+  const filter: Record<string, unknown> = {};
+  if (role) filter.role = role;
+  if (q) {
+    filter.$or = [
+      { name: { $regex: q, $options: "i" } },
+      { email: { $regex: q, $options: "i" } },
+    ];
+  }
+  const users = await User.find(filter).select("-password").sort({ createdAt: -1 });
   sendSuccess(res, users);
 });
 

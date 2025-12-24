@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import Card from "../components/Card";
 import type { Category, Product, ProductImage } from "../types/api";
 import { deleteProduct, fetchCategories, fetchProducts, getImageKitAuth, saveProduct } from "../api/client";
+import { useI18n } from "../context/I18nContext";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
 
@@ -19,6 +20,7 @@ const ProductsPage = () => {
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
+  const { t } = useI18n();
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -165,12 +167,12 @@ const ProductsPage = () => {
         <div className="filters">
           <input
             className="filter-input"
-            placeholder="Search name"
+            placeholder={t("searchName")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <select className="filter-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-            <option value="">All categories</option>
+            <option value="">{t("category")}</option>
             {categories.map((c) => (
               <option key={c._id} value={c._id}>
                 {c.name}
@@ -178,193 +180,199 @@ const ProductsPage = () => {
             ))}
           </select>
           <button className="ghost-btn" type="button" onClick={applyFilters}>
-            Filter
+            {t("filter")}
           </button>
           <button className="ghost-btn" type="button" onClick={resetFilters}>
-            Clear
+            {t("clear")}
           </button>
         </div>
         <button className="primary" onClick={openNewModal}>
-          Add product
+          {t("addProduct")}
         </button>
       </div>
 
       <div className="grid single-col">
-        <Card title="Products" subTitle={`(${products.length})`}>
+        <Card title={t("nav.products")} subTitle={`(${products.length})`}>
           <table className="table">
             <thead>
               <tr>
-                <th>Image/s</th>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th>Stock</th>
+                <th>{t("images")}</th>
+                <th>{t("name")}</th>
+                <th>{t("description")}</th>
+                <th>{t("category")}</th>
+                <th>{t("price")}</th>
+                <th>{t("stock")}</th>
                 <th></th>
               </tr>
             </thead>
 
             <tbody>
-              {products.map((product) => (
-                <tr key={product._id} className="productRow">
-                  <td className="prodImgCell">
-                    {editingId === product._id ? (
-                      <div className="thumb-row">
-                        {((editDraft.images as ProductImage[]) || []).length > 0 && (
-                          ((editDraft.images as ProductImage[]) || []).map((img) => (
-                            <div key={img.fileId} className="thumb">
-                              <div className="listImage">
-                                <img src={img.url} alt="" />
-                                <button
-                                  type="button"
-                                  className="removeImageBtn"
-                                  style={{}}
-                                  onClick={() => removeEditImage(img.fileId)}
-                                >
-                                  <img src="deleteIcon.png" alt="" />
-                                </button>
+              {products.length == 0 ? (
+                <tr>
+                  <td colSpan={6} className="muted">No products</td>
+                </tr>
+              ) : (
+                products.map((product) => (
+                  <tr key={product._id} className="productRow">
+                    <td className="prodImgCell">
+                      {editingId === product._id ? (
+                        <div className="thumb-row">
+                          {((editDraft.images as ProductImage[]) || []).length > 0 && (
+                            ((editDraft.images as ProductImage[]) || []).map((img) => (
+                              <div key={img.fileId} className="thumb">
+                                <div className="listImage">
+                                  <img src={img.url} alt="" />
+                                  <button
+                                    type="button"
+                                    className="removeImageBtn"
+                                    style={{}}
+                                    onClick={() => removeEditImage(img.fileId)}
+                                  >
+                                    <img src="deleteIcon.png" alt="" />
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          ))
-                        )}
+                            ))
+                          )}
 
-                        <div className="uploadDiv" style={{}}>
-                          <label htmlFor={`prodImg${product._id}`} className="uploadBtn">
-                            {editUploadingId === product._id ?
-                              <img src="loading.gif" />
-                              :
-                              <img src="plusIcon.png" />
-                            }
-                          </label>
-                          <input
-                            type="file"
-                            id={`prodImg${product._id}`}
-                            className="uploadForm"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                setEditUploadingId(product._id);
-                                uploadToImageKit(
-                                  file,
-                                  (img) =>
-                                    setEditDraft((prev) => ({
-                                      ...prev,
-                                      images: [...((prev.images as ProductImage[]) || []), img],
-                                    })),
-                                  (flag) => (flag ? setEditUploadingId(product._id) : setEditUploadingId(null)),
-                                  (msg) => setEditError(msg)
-                                );
+                          <div className="uploadDiv" style={{}}>
+                            <label htmlFor={`prodImg${product._id}`} className="uploadBtn">
+                              {editUploadingId === product._id ?
+                                <img src="loading.gif" className="noFilter" />
+                                :
+                                <img src="plusIcon.png" />
                               }
-                            }}
-                            disabled={editUploadingId === product._id}
-                          />
-                        </div>
+                            </label>
+                            <input
+                              type="file"
+                              id={`prodImg${product._id}`}
+                              className="uploadForm"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setEditUploadingId(product._id);
+                                  uploadToImageKit(
+                                    file,
+                                    (img) =>
+                                      setEditDraft((prev) => ({
+                                        ...prev,
+                                        images: [...((prev.images as ProductImage[]) || []), img],
+                                      })),
+                                    (flag) => (flag ? setEditUploadingId(product._id) : setEditUploadingId(null)),
+                                    (msg) => setEditError(msg)
+                                  );
+                                }
+                              }}
+                              disabled={editUploadingId === product._id}
+                            />
+                          </div>
 
-                      </div>
-                    ) : (
-                      product.images?.[0]?.url ? (
-                        <div className="listImage">
-                          <img src={product.images[0].url} alt={product.name} />
                         </div>
                       ) : (
-                        <div className="defaultImage">
-                          <img src="productIcon.png" alt="" className="medium" />
-                        </div>
-                      )
-                    )}
+                        product.images?.[0]?.url ? (
+                          <div className="listImage">
+                            <img src={product.images[0].url} alt={product.name} />
+                          </div>
+                        ) : (
+                          <div className="defaultImage">
+                            <img src="productIcon.png" alt="" className="medium" />
+                          </div>
+                        )
+                      )}
 
 
-                  </td>
+                    </td>
 
-                  <td>
-                    {editingId === product._id ? (
-                      <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
-                    ) : (
-                      product.name
-                    )}
-                  </td>
-                  <td>
-                    {editingId === product._id ? (
-                      <input
-                        value={editDraft.description || ""}
-                        onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
-                        placeholder="Short blurb"
-                      />
-                    ) : (
-                      product.description || "-"
-                    )}
-                  </td>
-                  <td>
-                    {editingId === product._id ? (
-                      <select
-                        value={(editDraft.category as string) || ""}
-                        onChange={(e) => setEditDraft({ ...editDraft, category: e.target.value })}
-                        required
-                      >
-                        <option value="">Select</option>
-                        {categories.map((c) => (
-                          <option key={c._id} value={c._id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      typeof product.category === "string"
-                        ? categories.find((c) => c._id === product.category)?.name || "-"
-                        : product.category?.name || "-"
-                    )}
-                  </td>
-                  <td>
-                    {editingId === product._id ? (
-                      <input
-                        type="number"
-                        value={editDraft.price ?? product.price}
-                        onChange={(e) => setEditDraft({ ...editDraft, price: Number(e.target.value) })}
-                      />
-                    ) : (
-                      product.price.toLocaleString()
-                    )}
-                  </td>
-                  <td>
-                    {editingId === product._id ? (
-                      <input
-                        type="number"
-                        value={editDraft.stock ?? product.stock}
-                        onChange={(e) => setEditDraft({ ...editDraft, stock: Number(e.target.value) })}
-                      />
-                    ) : (
-                      product.stock
-                    )}
-                  </td>
+                    <td>
+                      {editingId === product._id ? (
+                        <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
+                      ) : (
+                        product.name
+                      )}
+                    </td>
+                    <td>
+                      {editingId === product._id ? (
+                        <input
+                          value={editDraft.description || ""}
+                          onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
+                          placeholder=""
+                        />
+                      ) : (
+                        product.description || "-"
+                      )}
+                    </td>
+                    <td>
+                      {editingId === product._id ? (
+                        <select
+                          value={(editDraft.category as string) || ""}
+                          onChange={(e) => setEditDraft({ ...editDraft, category: e.target.value })}
+                          required
+                        >
+                          <option value="">Select</option>
+                          {categories.map((c) => (
+                            <option key={c._id} value={c._id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        typeof product.category === "string"
+                          ? categories.find((c) => c._id === product.category)?.name || "-"
+                          : product.category?.name || "-"
+                      )}
+                    </td>
+                    <td>
+                      {editingId === product._id ? (
+                        <input
+                          type="number"
+                          value={editDraft.price ?? product.price}
+                          onChange={(e) => setEditDraft({ ...editDraft, price: Number(e.target.value) })}
+                        />
+                      ) : (
+                        product.price.toLocaleString()
+                      )}
+                    </td>
+                    <td>
+                      {editingId === product._id ? (
+                        <input
+                          type="number"
+                          value={editDraft.stock ?? product.stock}
+                          onChange={(e) => setEditDraft({ ...editDraft, stock: Number(e.target.value) })}
+                        />
+                      ) : (
+                        product.stock
+                      )}
+                    </td>
 
-                  <td style={{}}>
+                    <td style={{}}>
                     {editingId === product._id ? (
-                      <>
-                        <button className="ghost-btn mr-10" onClick={saveEdit}>
-                          Save
+                      <div className="flex">
+                        <button className="ghost-btn" onClick={saveEdit}>
+                          {t("save")}
                         </button>
-                        <button className="ghost-btn mr-10" onClick={cancelEdit}>
-                          Cancel
+                        <button className="ghost-btn" onClick={cancelEdit}>
+                          {t("cancel")}
                         </button>
                         <button className="ghost-btn danger" onClick={() => deleteProduct(product._id).then(load)}>
-                          Delete
+                          {t("delete")}
                         </button>
                         {editError && <div className="error">{editError}</div>}
-                      </>
+                      </div>
                     ) : (
-                      <>
-                        <button className="ghost-btn mr-10" onClick={() => startEdit(product)}>
-                          Edit
+                      <div className="flex">
+                        <button className="ghost-btn" onClick={() => startEdit(product)}>
+                          {t("edit")}
                         </button>
                         <button className="ghost-btn danger" onClick={() => deleteProduct(product._id).then(load)}>
-                          Delete
+                          {t("delete")}
                         </button>
-                      </>
+                      </div>
                     )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </Card>
@@ -374,26 +382,26 @@ const ProductsPage = () => {
         <div className="modal-backdrop" onClick={closeNewModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">New Product</div>
+              <div className="modal-title">{t("newProduct")}</div>
               <button className="ghost-btn" type="button" onClick={closeNewModal}>
-                Close
+                {t("cancel")}
               </button>
             </div>
             <form className="form productRow" onSubmit={submit}>
               <label>
-                Name
+                {t("name")}
                 <input value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
               </label>
               <label>
-                Description
+                {t("description")}
                 <input
                   value={draft.description || ""}
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                  placeholder="Short blurb"
+                  placeholder=""
                 />
               </label>
               <label>
-                Price (SYP)
+                {t("price")} (SYP)
                 <input
                   type="number"
                   value={draft.price || ""}
@@ -402,11 +410,11 @@ const ProductsPage = () => {
                 />
               </label>
               <label>
-                Stock
+                {t("stock")}
                 <input type="number" value={draft.stock ?? 0} onChange={(e) => setDraft({ ...draft, stock: Number(e.target.value) })} />
               </label>
               <label>
-                Category
+                {t("category")}
                 <select value={(draft.category as string) || ""} onChange={(e) => setDraft({ ...draft, category: e.target.value })} required>
                   <option value="">Select</option>
                   {categories.map((c) => (
@@ -417,7 +425,7 @@ const ProductsPage = () => {
                 </select>
               </label>
               <label style={{ margin: 0 }}>
-                Images ({draft.images?.length})
+                {t("images")} ({draft.images?.length})
               </label>
 
               <div className="thumb-row prodImgCell">
@@ -443,7 +451,7 @@ const ProductsPage = () => {
 
                 <div className="uploadDiv" style={{}}>
                   <label htmlFor="prodImgUpload" className="uploadBtn">
-                    {uploadingNew ? <img src="loading.gif" /> : <img src="plusIcon.png" />}
+                    {uploadingNew ? <img src="loading.gif" className="noFilter" /> : <img src="plusIcon.png" />}
                   </label>
                   <input
                     type="file"
@@ -468,10 +476,10 @@ const ProductsPage = () => {
               {formError && <div className="error">{formError}</div>}
               <div className="modal-actions">
                 <button className="ghost-btn" type="button" onClick={closeNewModal}>
-                  Cancel
+                  {t("cancel")}
                 </button>
                 <button className="primary" type="submit">
-                  Save Product
+                  {t("save")}
                 </button>
               </div>
             </form>

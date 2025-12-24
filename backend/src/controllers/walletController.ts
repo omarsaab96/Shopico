@@ -16,8 +16,8 @@ export const createTopUp = catchAsync(async (req: AuthRequest, res) => {
 });
 
 export const adminListTopUps = catchAsync(async (req, res) => {
-  const { status } = req.query as { status?: string };
-  const data = await listTopUps(status);
+  const { status, method, q } = req.query as { status?: string; method?: string; q?: string };
+  const data = await listTopUps(status, method, q);
   sendSuccess(res, data);
 });
 

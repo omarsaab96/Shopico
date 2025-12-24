@@ -22,8 +22,28 @@ export const getOrdersForUser = async (userId: Types.ObjectId) => {
   return Order.find({ user: userId }).sort({ createdAt: -1 }).populate("items.product");
 };
 
-export const getAllOrders = async () => {
-  return Order.find().sort({ createdAt: -1 }).populate("user").populate("items.product");
+export const getAllOrders = async (opts?: { status?: string; paymentStatus?: string; q?: string }) => {
+  const filter: Record<string, unknown> = {};
+  if (opts?.status) filter.status = opts.status;
+  if (opts?.paymentStatus) filter.paymentStatus = opts.paymentStatus;
+
+  if (opts?.q) {
+    const users = await User.find({
+      $or: [
+        { email: { $regex: opts.q, $options: "i" } },
+        { name: { $regex: opts.q, $options: "i" } },
+      ],
+    }).select("_id");
+    const userIds = users.map((u) => u._id);
+    const orClauses = [
+      userIds.length ? { user: { $in: userIds } } : null,
+      { _id: opts.q },
+      { address: { $regex: opts.q, $options: "i" } },
+    ].filter(Boolean) as Record<string, unknown>[];
+    if (orClauses.length) filter.$or = orClauses;
+  }
+
+  return Order.find(filter).sort({ createdAt: -1 }).populate("user").populate("items.product");
 };
 
 export const getOrderById = async (id: string, userId?: Types.ObjectId) => {
