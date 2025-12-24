@@ -71,7 +71,16 @@ const ProductsPage = () => {
 
   const startEdit = (p: Product) => {
     setEditingId(p._id);
-    setEditDraft(p);
+    setEditDraft({
+      _id: p._id,
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      stock: p.stock,
+      images: p.images,
+      // backend validator expects an id string, so normalize populated categories
+      category: typeof p.category === "string" ? p.category : p.category?._id,
+    });
     setEditError("");
   };
 
@@ -200,50 +209,51 @@ const ProductsPage = () => {
           <tbody>
             {products.map((product) => (
               <tr key={product._id} className="productRow">
-                <td>
-                  {editingId === product._id ? (
-                    <>
-                      <div className="uploadDiv">
-                        <label htmlFor={`prodImg${product._id}`} className="uploadBtn">
-                          {editUploadingId === product._id ? 'Uploading...' : 'Upload'}
-                        </label>
-                        <input
-                          type="file"
-                          id={`prodImg${product._id}`}
-                          className="uploadForm"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setEditUploadingId(product._id);
-                              uploadToImageKit(
-                                file,
-                                (img) =>
-                                  setEditDraft((prev) => ({
-                                    ...prev,
-                                    images: [...((prev.images as ProductImage[]) || []), img],
-                                  })),
-                                (flag) => (flag ? setEditUploadingId(product._id) : setEditUploadingId(null)),
-                                (msg) => setEditError(msg)
-                              );
-                            }
-                          }}
-                          disabled={editUploadingId === product._id}
-                        />
-                      </div>
-
-                    </>
+                <td className="prodImgCell">
+                  {product.images?.[0]?.url ? (
+                    <div className="listImage" >
+                      <img src={product.images[0].url} alt={product.name} />
+                    </div>
                   ) : (
-                    product.images?.[0]?.url ? (
-                      <div className="listImage" >
-                        <img src={product.images[0].url} alt={product.name} />
-                      </div>
-                    ) : (
-                      <div className="defaultImage">
-                        <img src="productIcon.png" alt="" className="medium" />
-                      </div>
-                    )
+                    <div className="defaultImage">
+                      <img src="productIcon.png" alt="" className="medium" />
+                    </div>
                   )}
+
+                  {/* {editingId === product._id &&
+                    <div className="uploadDiv">
+                      <label htmlFor={`prodImg${product._id}`} className="uploadBtn">
+                        {editUploadingId === product._id ?
+                          <img src="loading.gif" alt="" />
+                          :
+                          <img src="uploadIcon.png" alt="" width="15" height="15"/>
+                        }
+                      </label>
+                      <input
+                        type="file"
+                        id={`prodImg${product._id}`}
+                        className="uploadForm"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setEditUploadingId(product._id);
+                            uploadToImageKit(
+                              file,
+                              (img) =>
+                                setEditDraft((prev) => ({
+                                  ...prev,
+                                  images: [...((prev.images as ProductImage[]) || []), img],
+                                })),
+                              (flag) => (flag ? setEditUploadingId(product._id) : setEditUploadingId(null)),
+                              (msg) => setEditError(msg)
+                            );
+                          }
+                        }}
+                        disabled={editUploadingId === product._id}
+                      />
+                    </div>
+                  } */}
 
                 </td>
                 <td>
