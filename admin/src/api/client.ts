@@ -31,8 +31,8 @@ export const fetchProfile = async () => {
   return res.data.data.user;
 };
 
-export const fetchCategories = async () => {
-  const res = await api.get<{ data: Category[] }>("/categories");
+export const fetchCategories = async (params?: { q?: string }) => {
+  const res = await api.get<{ data: Category[] }>("/categories", { params });
   return res.data.data;
 };
 

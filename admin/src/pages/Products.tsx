@@ -178,10 +178,10 @@ const ProductsPage = () => {
             ))}
           </select>
           <button className="ghost-btn" type="button" onClick={applyFilters}>
-            Apply
+            Filter
           </button>
           <button className="ghost-btn" type="button" onClick={resetFilters}>
-            Clear filters
+            Clear
           </button>
         </div>
         <button className="primary" onClick={openNewModal}>

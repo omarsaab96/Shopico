@@ -3,8 +3,16 @@ import { categorySchema } from "../validators/categoryValidators";
 import { Category } from "../models/Category";
 import { sendSuccess } from "../utils/response";
 
-export const getCategories = catchAsync(async (_req, res) => {
-  const categories = await Category.find();
+export const getCategories = catchAsync(async (req, res) => {
+  const { q } = req.query as { q?: string };
+  const filter: Record<string, unknown> = {};
+  if (q) {
+    filter.$or = [
+      { name: { $regex: q, $options: "i" } },
+      { description: { $regex: q, $options: "i" } },
+    ];
+  }
+  const categories = await Category.find(filter);
   sendSuccess(res, categories);
 });
 
