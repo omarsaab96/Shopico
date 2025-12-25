@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react";
-import { Text, View, StyleSheet, Switch } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Text, View, StyleSheet, Switch, TouchableOpacity } from "react-native";
 import Screen from "../components/Screen";
 import api from "../lib/api";
-import { palette } from "../styles/theme";
+import { useTheme } from "../lib/theme";
+import { useI18n } from "../lib/i18n";
 
 export default function SettingsScreen() {
   const [settings, setSettings] = useState<any>();
   const [notifications, setNotifications] = useState(true);
+  const { palette, mode, setMode } = useTheme();
+  const { lang, setLang, t, isRTL } = useI18n();
+  const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   useEffect(() => {
     api.get("/settings").then((res) => setSettings(res.data.data));
@@ -14,25 +18,55 @@ export default function SettingsScreen() {
 
   return (
     <Screen>
-      <Text style={styles.title}>Settings</Text>
+      <Text style={styles.title}>{t("settings")}</Text>
       <View style={styles.card}>
-        <Text style={styles.muted}>Store location</Text>
+        <Text style={styles.muted}>{t("storeLocation")}</Text>
         <Text style={styles.value}>
           {settings?.storeLat}, {settings?.storeLng}
         </Text>
         <View style={styles.row}>
-          <Text style={styles.muted}>Push notifications</Text>
+          <Text style={styles.muted}>{t("pushNotifications")}</Text>
           <Switch value={notifications} onValueChange={setNotifications} />
+        </View>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t("language")}</Text>
+        <View style={styles.row}>
+          {["en", "ar"].map((code) => (
+            <TouchableOpacity key={code} style={[styles.pill, lang === code && styles.pillActive]} onPress={() => setLang(code as any)}>
+              <Text style={styles.pillText}>{code.toUpperCase()}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={[styles.cardTitle, { marginTop: 12 }]}>{t("theme")}</Text>
+        <View style={styles.row}>
+          {(["system", "light", "dark"] as const).map((opt) => (
+            <TouchableOpacity key={opt} style={[styles.pill, mode === opt && styles.pillActive]} onPress={() => setMode(opt)}>
+              <Text style={styles.pillText}>{t(opt)}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12 },
-  card: { backgroundColor: palette.card, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: "#1f2937", gap: 8 },
-  muted: { color: palette.muted },
-  value: { color: palette.text, fontWeight: "700" },
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-});
+const createStyles = (palette: any, isRTL: boolean) =>
+  StyleSheet.create({
+    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: isRTL ? "right" : "left" },
+    card: { backgroundColor: palette.card, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: palette.border, gap: 8, marginBottom: 12 },
+    muted: { color: palette.muted, textAlign: isRTL ? "right" : "left" },
+    value: { color: palette.text, fontWeight: "700", textAlign: isRTL ? "right" : "left" },
+    row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 },
+    cardTitle: { color: palette.text, fontSize: 16, fontWeight: "700" },
+    pill: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surface,
+    },
+    pillActive: { backgroundColor: palette.accent, borderColor: palette.accent },
+    pillText: { color: palette.text, fontWeight: "700" },
+  });

@@ -1,17 +1,22 @@
 import { Link } from "expo-router";
+import { useMemo } from "react";
 import { Text, View, StyleSheet, TouchableOpacity, FlatList } from "react-native";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
 import { useCart } from "../lib/cart";
-import { palette } from "../styles/theme";
+import { useTheme } from "../lib/theme";
+import { useI18n } from "../lib/i18n";
 
 export default function CartScreen() {
   const { items, removeItem, clear } = useCart();
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const { palette } = useTheme();
+  const { t, isRTL } = useI18n();
+  const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   return (
     <Screen>
-      <Text style={styles.title}>Your cart</Text>
+      <Text style={styles.title}>{t("cart")}</Text>
       <FlatList
         data={items}
         keyExtractor={(i) => i.productId}
@@ -31,34 +36,35 @@ export default function CartScreen() {
         )}
       />
       <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>Subtotal</Text>
+        <Text style={styles.totalLabel}>{t("subtotal")}</Text>
         <Text style={styles.totalValue}>{subtotal.toLocaleString()} SYP</Text>
       </View>
       <View style={{ gap: 8 }}>
         <Link href="/checkout" asChild>
-          <Button title="Checkout" onPress={() => {}} />
+          <Button title={t("checkout")} onPress={() => {}} />
         </Link>
-        <Button title="Clear cart" onPress={clear} secondary />
+        <Button title={t("clearCart")} onPress={clear} secondary />
       </View>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12 },
-  row: {
-    backgroundColor: palette.card,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#1f2937",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  name: { color: palette.text, fontWeight: "700" },
-  muted: { color: palette.muted },
-  link: { color: palette.accent },
-  totalRow: { flexDirection: "row", justifyContent: "space-between", marginVertical: 12 },
-  totalLabel: { color: palette.muted },
-  totalValue: { color: palette.text, fontWeight: "800" },
-});
+const createStyles = (palette: any, isRTL: boolean) =>
+  StyleSheet.create({
+    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: isRTL ? "right" : "left" },
+    row: {
+      backgroundColor: palette.card,
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: palette.border,
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    name: { color: palette.text, fontWeight: "700" },
+    muted: { color: palette.muted },
+    link: { color: palette.accent },
+    totalRow: { flexDirection: "row", justifyContent: "space-between", marginVertical: 12 },
+    totalLabel: { color: palette.muted },
+    totalValue: { color: palette.text, fontWeight: "800" },
+  });

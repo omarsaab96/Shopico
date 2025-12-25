@@ -1,40 +1,47 @@
-import { Redirect, Stack, useSegments } from "expo-router";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { AuthProvider, useAuth } from "../lib/auth";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AuthProvider } from "../lib/auth";
 import { CartProvider } from "../lib/cart";
-import { palette } from "../styles/theme";
+import { ThemeProvider, useTheme } from "../lib/theme";
+import { I18nProvider } from "../lib/i18n";
 
-const ProtectedStack = () => {
-  const { user, loading } = useAuth();
-  const segments = useSegments();
-  const inAuthGroup = segments[0] === "auth";
-  if (loading) {
-    return <StatusBar style="light" />;
-  }
-  if (!user && !inAuthGroup) {
-    return <Redirect href="/auth/login" />;
-  }
-  if (user && inAuthGroup) {
-    return <Redirect href="/" />;
-  }
+const ThemedStack = () => {
+  const { palette, isDark } = useTheme();
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: palette.background },
-        headerTintColor: palette.text,
-        contentStyle: { backgroundColor: palette.background },
-      }}
-    />
+    <>
+      <Stack
+        initialRouteName="(tabs)"
+        screenOptions={{
+          headerShown: false,
+          headerStyle: { backgroundColor: palette.background },
+          headerTintColor: palette.text,
+          contentStyle: { backgroundColor: palette.background },
+          statusBarHidden: false,
+          statusBarTranslucent: false,
+          navigationBarHidden: false,
+          navigationBarTranslucent: true,
+          navigationBarColor: palette.background,
+          gestureEnabled: true,
+        }}
+      />
+      <StatusBar style={isDark ? "light" : "dark"} />
+    </>
   );
 };
 
 export default function Layout() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <ProtectedStack />
-        <StatusBar style="light" />
-      </CartProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <CartProvider>
+              <ThemedStack />
+            </CartProvider>
+          </AuthProvider>
+        </I18nProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

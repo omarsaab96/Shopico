@@ -1,11 +1,14 @@
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
+import Constants from "expo-constants";
 
 const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_BASE || "http://localhost:4000/api",
+  baseURL: Constants.expoConfig.extra.EXPO_PUBLIC_API_BASE || "http://localhost:4000/api",
 });
 
 api.interceptors.request.use(async (config) => {
+  // console.log("REQUEST BASE URL =", config.baseURL);
+
   const token = await SecureStore.getItemAsync("accessToken");
   if (token) {
     config.headers = config.headers || {};

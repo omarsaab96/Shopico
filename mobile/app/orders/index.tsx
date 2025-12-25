@@ -1,12 +1,16 @@
 import { Link } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlatList, Text, TouchableOpacity, View, StyleSheet } from "react-native";
 import Screen from "../../components/Screen";
 import api from "../../lib/api";
-import { palette } from "../../styles/theme";
+import { useTheme } from "../../lib/theme";
+import { useI18n } from "../../lib/i18n";
 
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>([]);
+  const { palette } = useTheme();
+  const { t, isRTL } = useI18n();
+  const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   useEffect(() => {
     api.get("/orders").then((res) => setOrders(res.data.data || []));
@@ -14,7 +18,7 @@ export default function Orders() {
 
   return (
     <Screen>
-      <Text style={styles.title}>Orders</Text>
+      <Text style={styles.title}>{t("orders")}</Text>
       <FlatList
         data={orders}
         keyExtractor={(o) => o._id}
@@ -35,18 +39,19 @@ export default function Orders() {
   );
 }
 
-const styles = StyleSheet.create({
-  title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12 },
-  row: {
-    backgroundColor: palette.card,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#1f2937",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  name: { color: palette.text, fontWeight: "700" },
-  muted: { color: palette.muted },
-  value: { color: palette.accent },
-});
+const createStyles = (palette: any, isRTL: boolean) =>
+  StyleSheet.create({
+    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: isRTL ? "right" : "left" },
+    row: {
+      backgroundColor: palette.card,
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: palette.border,
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    name: { color: palette.text, fontWeight: "700" },
+    muted: { color: palette.muted },
+    value: { color: palette.accent },
+  });
