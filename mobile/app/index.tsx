@@ -9,6 +9,7 @@ import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import Feather from '@expo/vector-icons/Feather';
 import AntDesign from '@expo/vector-icons/AntDesign';
+import { useRouter } from "expo-router";
 
 type Category = { _id: string; name: string; imageUrl?: string };
 type Product = { _id: string; name: string; description: string, price: number; images: { url: string }[] };
@@ -16,6 +17,8 @@ type SortOption = "relevance" | "priceAsc" | "priceDesc";
 type PriceFilter = "all" | "lt50k" | "lt100k" | "gte100k";
 
 export default function Home() {
+  const router = useRouter();
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
@@ -93,6 +96,9 @@ export default function Home() {
     <BottomSheetModalProvider>
       <Screen>
         <View style={styles.hero}>
+          <TouchableOpacity onPress={() => { router.push("(tabs)/") }}>
+            <Text style={styles.title}>GO HOME</Text>
+          </TouchableOpacity>
           <Text style={styles.title}>{t("helloShopper")}</Text>
           <Text style={styles.subtitle}>{t("shopTagline")}</Text>
         </View>
@@ -372,11 +378,11 @@ const createStyles = (palette: any, isRTL: boolean) =>
       height: 96,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom:10
+      marginBottom: 10
     },
     productImg: { height: 86, aspectRatio: 4 / 3, objectFit: 'contain' },
     productName: { color: palette.text, fontWeight: "700" },
-    productDescription: { color: palette.text, marginBottom:20},
+    productDescription: { color: palette.text, marginBottom: 20 },
     productPrice: { color: palette.accent },
     addButton: {
       backgroundColor: palette.accent,
@@ -385,7 +391,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       alignItems: "center",
     },
     addButtonText: { color: "#fff", fontWeight: "700" },
-    qtyRow: { flexDirection: "row", alignItems: "center", justifyContent:'space-between'},
+    qtyRow: { flexDirection: "row", alignItems: "center", justifyContent: 'space-between' },
     qtyButton: {
       width: 38,
       height: 38,

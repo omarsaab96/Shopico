@@ -30,13 +30,13 @@
         }
       },
       "config": {
-        "googleMapsApiKey": "AIzaSyDQ5HceUQFK_NhNAcKg6kCncREr7t60sP8"
+        "googleMapsApiKey": "AIzaSyAeV6kEUto9sP0VtDOZXff8XcA4WxvJDT4"
       }
     },
     "android": {
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyBJelab1iC0Cf-AS9Lenz2RzGVmdQra1hc"
+          "apiKey": "AIzaSyAlf4n6x-B0skjxv61CzV9ATvBESoKDcIQ"
         }
       },
       "adaptiveIcon": {
