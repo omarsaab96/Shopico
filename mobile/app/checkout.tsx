@@ -1,6 +1,6 @@
-import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { Text, TextInput, View, StyleSheet } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
 import { useCart } from "../lib/cart";
@@ -8,6 +8,8 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
+
+type SavedAddress = { _id: string; address: string; lat: number; lng: number; label: string; updatedAt?: string; createdAt?: string };
 
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -22,11 +24,9 @@ export default function Checkout() {
   const { items, clear } = useCart();
   const router = useRouter();
   const { user } = useAuth();
-  const [address, setAddress] = useState("Damascus");
-  const [lat, setLat] = useState(33.5138);
-  const [lng, setLng] = useState(36.2765);
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [selected, setSelected] = useState<SavedAddress | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"CASH_ON_DELIVERY" | "SHAM_CASH" | "BANK_TRANSFER" | "WALLET">("WALLET");
-  const [useReward, setUseReward] = useState(true);
   const [settings, setSettings] = useState<any>();
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
@@ -36,22 +36,62 @@ export default function Checkout() {
     api.get("/settings").then((res) => setSettings(res.data.data));
   }, []);
 
+  const loadAddresses = useCallback(() => {
+    if (!user) return;
+    api
+      .get("/addresses")
+      .then((res) => {
+        const list: SavedAddress[] = res.data.data || [];
+        const sorted = [...list].sort((a, b) => {
+          const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+          const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+          return bTime - aTime;
+        });
+        setAddresses(sorted);
+        setSelected((prev) => {
+          if (prev) {
+            const match = sorted.find((a) => a._id === prev._id);
+            if (match) return match;
+          }
+          return sorted[0] || null;
+        });
+      })
+      .catch(() => {
+        setAddresses([]);
+        setSelected(null);
+      });
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAddresses();
+    }, [loadAddresses])
+  );
+
+  useEffect(() => {
+    if (!user) {
+      router.replace("/auth/login");
+    }
+  }, [user, router]);
+
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const distanceKm = settings ? haversine(settings.storeLat, settings.storeLng, lat, lng) : 0;
+  const lat = selected?.lat ?? 0;
+  const lng = selected?.lng ?? 0;
+  const distanceKm = settings && selected ? haversine(settings.storeLat, settings.storeLng, lat, lng) : 0;
   const deliveryFee =
-    settings && distanceKm > settings.deliveryFreeKm ? Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm : 0;
+    settings && selected && distanceKm > settings.deliveryFreeKm
+      ? Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm
+      : 0;
 
   const placeOrder = async () => {
     if (!user) {
       router.push("/auth/login");
       return;
     }
+    if (!selected) return;
     await api.post("/orders", {
-      address,
-      lat,
-      lng,
+      addressId: selected._id,
       paymentMethod,
-      useReward,
       items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
     });
     clear();
@@ -61,30 +101,25 @@ export default function Checkout() {
   return (
     <Screen>
       <Text style={styles.title}>{t("checkout")}</Text>
+      <Text style={styles.section}>{t("address")}</Text>
       <View style={styles.card}>
-        <TextInput
-          style={styles.input}
-          value={address}
-          onChangeText={setAddress}
-          placeholder={t("address")}
-          placeholderTextColor={palette.muted}
-        />
-        <View style={styles.row}>
-          <TextInput
-            style={[styles.input, styles.half]}
-            value={String(lat)}
-            onChangeText={(text) => setLat(Number(text))}
-            placeholder={t("latitude")}
-            placeholderTextColor={palette.muted}
-          />
-          <TextInput
-            style={[styles.input, styles.half]}
-            value={String(lng)}
-            onChangeText={(text) => setLng(Number(text))}
-            placeholder={t("longitude")}
-            placeholderTextColor={palette.muted}
-          />
-        </View>
+        {selected ? (
+          <View style={styles.addressBox}>
+            <Text style={styles.addressLabel}>{selected.label}</Text>
+            <Text style={styles.addressText}>{selected.address}</Text>
+            {/* <Text style={styles.mutedSmall}>
+              {t("latitude")}: {selected.lat} | {t("longitude")}: {selected.lng}
+            </Text> */}
+          </View>
+        ) : (
+          <Text style={styles.muted}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
+        )}
+        <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push("/addresses")}>
+          <Text style={styles.secondaryText}>{selected ? t("change") ?? "Change address" : t("addAddress") ?? "Add address"}</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.section}>{t("paymentMethod") ?? "Payment"}</Text>
         <View style={styles.row}>
           {["CASH_ON_DELIVERY", "SHAM_CASH", "BANK_TRANSFER", "WALLET"].map((method) => (
             <Text
@@ -96,25 +131,19 @@ export default function Checkout() {
             </Text>
           ))}
         </View>
-        <View style={styles.rowBetween}>
-          <Text style={styles.muted}>{t("usePoints")}</Text>
-          <Text style={[styles.pill, useReward && styles.pillActive]} onPress={() => setUseReward(!useReward)}>
-            {useReward ? t("yes") : t("no")}
-          </Text>
-        </View>
       </View>
       <View style={styles.card}>
         <Text style={styles.muted}>
           {t("distance")}: {distanceKm} km
         </Text>
         <Text style={styles.muted}>
-          {t("deliveryFee")}: {deliveryFee?.toLocaleString()} SYP
+          {t("deliveryFee")}: {deliveryFee==0 ? 'Free' : `${deliveryFee?.toLocaleString()} SYP` } 
         </Text>
         <Text style={styles.muted}>
           {t("total")}: {(subtotal + deliveryFee).toLocaleString()} SYP
         </Text>
       </View>
-      <Button title={t("placeOrder")} onPress={placeOrder} />
+      <Button title={t("placeOrder")} onPress={placeOrder} disabled={!selected} />
     </Screen>
   );
 }
@@ -145,4 +174,19 @@ const createStyles = (palette: any, isRTL: boolean) =>
     pill: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, color: palette.text, borderWidth: 1, borderColor: palette.border },
     pillActive: { backgroundColor: palette.accent, color: "#0f172a", borderColor: palette.accent },
     muted: { color: palette.muted },
+    mutedSmall: { color: palette.muted, fontSize: 12 },
+    section: { color: palette.text, fontWeight: "800" },
+    addressBox: { gap: 4, marginBottom: 8 },
+    addressLabel: { color: palette.text, fontWeight: "700" },
+    addressText: { color: palette.text },
+    secondaryBtn: {
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surface,
+      alignItems: "center",
+    },
+    secondaryText: { color: palette.accent, fontWeight: "700" },
   });

@@ -1,6 +1,6 @@
 import { Link } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { FlatList, Text, TouchableOpacity, View, StyleSheet } from "react-native";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { FlatList, Text, TouchableOpacity, View, StyleSheet, RefreshControl } from "react-native";
 import Screen from "../../components/Screen";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
@@ -14,12 +14,16 @@ export default function Orders() {
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!user) return;
     api.get("/orders")
       .then((res) => setOrders(res.data.data || []))
       .catch(() => setOrders([]));
   }, [user]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <Screen>
@@ -38,6 +42,7 @@ export default function Orders() {
           data={orders}
           keyExtractor={(o) => o._id}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={palette.accent} />}
           renderItem={({ item }) => (
             <Link href={`/orders/${item._id}`} asChild>
               <TouchableOpacity style={styles.row}>

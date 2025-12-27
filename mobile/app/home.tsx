@@ -9,13 +9,17 @@ import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import Feather from "@expo/vector-icons/Feather";
 import AntDesign from "@expo/vector-icons/AntDesign";
+import { useAuth } from "../lib/auth";
+import { useFocusEffect } from "expo-router";
 
 type Category = { _id: string; name: string; imageUrl?: string };
 type Product = { _id: string; name: string; description: string; price: number; images: { url: string }[] };
 type SortOption = "relevance" | "priceAsc" | "priceDesc";
 type PriceFilter = "all" | "lt50k" | "lt100k" | "gte100k";
+type SavedAddress = { _id: string; address: string; label?: string; updatedAt?: string; createdAt?: string };
 
 export default function Home() {
+  const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
@@ -24,7 +28,10 @@ export default function Home() {
   const [searching, setSearching] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>("relevance");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
+  const [latestAddress, setLatestAddress] = useState<string | null>(null);
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const sheetRef = useRef<BottomSheetModal>(null);
+  const addressSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["80%"], []);
   const renderBackdrop = useCallback((props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
   const customFooter = (props: any) => (
@@ -39,6 +46,27 @@ export default function Home() {
   const { palette, isDark } = useTheme();
   const { items, addItem, setQuantity } = useCart();
   const { t, isRTL } = useI18n();
+  const loadLatestAddress = useCallback(() => {
+    if (!user) {
+      setLatestAddress(null);
+      setAddresses([]);
+      return;
+    }
+    api
+      .get("/addresses")
+      .then((res) => {
+        const list: SavedAddress[] = res.data.data || [];
+        const sorted = [...list].sort(
+          (a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime()
+        );
+        setAddresses(sorted);
+        setLatestAddress(sorted[0]?.address || null);
+      })
+      .catch(() => {
+        setLatestAddress(null);
+        setAddresses([]);
+      });
+  }, [user]);
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
   const fallbackLogo = isDark ? require("../assets/shopico_logo.png") : require("../assets/shopico_logo-black.png");
 
@@ -46,6 +74,12 @@ export default function Home() {
     api.get("/categories").then((res) => setCategories(res.data.data || []));
     api.get("/products").then((res) => setProducts(res.data.data || []));
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadLatestAddress();
+    }, [loadLatestAddress])
+  );
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -86,13 +120,26 @@ export default function Home() {
 
   const openSheet = () => sheetRef.current?.present();
   const closeSheet = () => sheetRef.current?.dismiss();
+  const openAddressSheet = () => {
+    if (!user) return;
+    loadLatestAddress();
+    addressSheetRef.current?.present();
+  };
 
   return (
     <BottomSheetModalProvider>
       <Screen>
         <View style={styles.hero}>
-          <Text style={styles.title}>{t("helloShopper")}</Text>
-          <Text style={styles.subtitle}>{t("shopTagline")}</Text>
+          <Text style={styles.title}>{user ? `${t("hello")} ${user.name}` : t("helloShopper")}</Text>
+          {user ? (
+            <TouchableOpacity onPress={openAddressSheet}>
+              <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
+                {(t("deliveryTo") ?? "Delivery to") + " " + (latestAddress ?? t("loading") ?? "loading...")}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">{t("loginToLoadLocation") ?? "Login to load your location"}</Text>
+          )}
         </View>
         <View style={styles.searchWrapper}>
           <TextInput
@@ -246,6 +293,36 @@ export default function Home() {
           </View>
         </BottomSheetView>
       </BottomSheetModal>
+      <BottomSheetModal
+        ref={addressSheetRef}
+        snapPoints={["50%"]}
+        enablePanDownToClose
+        backdropComponent={renderBackdrop}
+      >
+        <BottomSheetView style={styles.sheetContainer}>
+          <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
+          {addresses.length === 0 ? (
+            <Text style={styles.sheetText}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
+          ) : (
+            addresses.map((addr) => (
+              <TouchableOpacity
+                key={addr._id}
+                style={[styles.sheetPillRow, latestAddress === addr.address && styles.sheetPillRowActive]}
+                onPress={() => {
+                  setLatestAddress(addr.address);
+                  addressSheetRef.current?.dismiss();
+                }}
+              >
+                <Text style={styles.sheetPillText}>{addr.label || t("address")}</Text>
+                <Text style={styles.sheetText}>{addr.address}</Text>
+              </TouchableOpacity>
+            ))
+          )}
+          <TouchableOpacity style={styles.addressBtn} onPress={() => { addressSheetRef.current?.dismiss(); }}>
+            <Text style={styles.addressBtnText}>{t("close") ?? "Close"}</Text>
+          </TouchableOpacity>
+        </BottomSheetView>
+      </BottomSheetModal>
     </BottomSheetModalProvider>
   );
 }
@@ -254,7 +331,11 @@ const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
     hero: { gap: 6, marginBottom: 8 },
     title: { color: palette.text, fontSize: 26, fontWeight: "800", textAlign: isRTL ? "right" : "left" },
-    subtitle: { color: palette.muted, fontSize: 14, textAlign: isRTL ? "right" : "left" },
+    subtitle: {
+      color: palette.muted,
+      fontSize: 14,
+      textAlign: isRTL ? "right" : "left",
+    },
     search: {
       backgroundColor: palette.card,
       borderRadius: 14,
@@ -360,4 +441,25 @@ const createStyles = (palette: any, isRTL: boolean) =>
     sheetFooter: { paddingTop: 8 },
     applyButton: { backgroundColor: palette.accent, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
     applyButtonText: { color: "#fff", fontWeight: "800" },
+    sheetPillRow: {
+      padding: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: palette.border,
+      marginBottom: 8,
+      backgroundColor: palette.surface,
+      gap: 4,
+    },
+    sheetPillRowActive: { borderColor: palette.accent, backgroundColor: palette.accentSoft },
+    addressBtn: {
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: palette.border,
+      alignItems: "center",
+      backgroundColor: palette.card,
+      marginTop: 4,
+    },
+    addressBtnText: { color: palette.accent, fontWeight: "700" },
   });

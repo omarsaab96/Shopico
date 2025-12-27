@@ -1,7 +1,7 @@
 import { Link } from "expo-router";
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Text, View, StyleSheet, TouchableOpacity, FlatList, RefreshControl } from "react-native";
+import { Text, View, StyleSheet, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator } from "react-native";
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Button from "../components/Button";
@@ -10,6 +10,7 @@ import { useCart } from "../lib/cart";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
+import api from "../lib/api";
 
 export default function CartScreen() {
   const router = useRouter();
@@ -17,9 +18,16 @@ export default function CartScreen() {
   const { user } = useAuth();
   const sheetRef = useRef<BottomSheetModal>(null);
   const clearSheetRef = useRef<BottomSheetModal>(null);
+  const checkoutSheetRef = useRef<BottomSheetModal>(null);
   const [pendingRemove, setPendingRemove] = useState<string | null>(null);
   const [skipConfirm, setSkipConfirm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showAddresses, setShowAddresses] = useState(false);
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<any | null>(null);
+  const [settings, setSettings] = useState<any | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"CASH_ON_DELIVERY" | "SHAM_CASH" | "BANK_TRANSFER" | "WALLET">("CASH_ON_DELIVERY");
+  const [submitting, setSubmitting] = useState(false);
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
@@ -35,6 +43,43 @@ export default function CartScreen() {
     await reload();
     setRefreshing(false);
   };
+
+  const loadSettings = () => {
+    api.get("/settings").then((res) => setSettings(res.data.data)).catch(() => setSettings(null));
+  };
+
+  const loadAddresses = () => {
+    if (!user) {
+      setAddresses([]);
+      setSelectedAddress(null);
+      return;
+    }
+    api.get("/addresses")
+      .then((res) => {
+        const list = res.data.data || [];
+        const sorted = [...list].sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime());
+        setAddresses(sorted);
+        setSelectedAddress((prev) => {
+          if (prev) {
+            const match = sorted.find((a: any) => a._id === prev._id);
+            if (match) return match;
+          }
+          return sorted[0] || null;
+        });
+      })
+      .catch(() => {
+        setAddresses([]);
+        setSelectedAddress(null);
+      });
+  };
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    loadAddresses();
+  }, [user]);
 
   const confirmRemove = (productId: string) => {
     if (skipConfirm) {
@@ -69,6 +114,48 @@ export default function CartScreen() {
   const handleClearConfirmed = () => {
     clear();
     clearSheetRef.current?.dismiss();
+  };
+
+  const openCheckout = () => {
+    if (!user) {
+      router.push("/auth/login");
+      return;
+    }
+    if (!items.length) return;
+    loadAddresses();
+    checkoutSheetRef.current?.present();
+  };
+
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 100) / 100;
+  };
+  const distanceKm =
+    settings && selectedAddress ? haversine(settings.storeLat, settings.storeLng, selectedAddress.lat, selectedAddress.lng) : 0;
+  const deliveryFee =
+    settings && selectedAddress && distanceKm > settings.deliveryFreeKm
+      ? Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm
+      : 0;
+
+  const placeOrder = async () => {
+    if (!user || !selectedAddress) return;
+    setSubmitting(true);
+    try {
+      await api.post("/orders", {
+        addressId: selectedAddress._id,
+        paymentMethod,
+        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      });
+      clear();
+      checkoutSheetRef.current?.dismiss();
+      router.replace("/orders");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -124,9 +211,7 @@ export default function CartScreen() {
         {items.length > 0 && <View style={{ gap: 8 }}>
           <Button title={t("clearCart")} onPress={confirmClear} secondary />
           {user ? (
-            <Link href="/checkout" asChild>
-              <Button title={t("checkout")} onPress={() => { }} />
-            </Link>
+            <Button title={t("checkout")} onPress={openCheckout} />
           ) : (
             <Button title={t("loginToCheckout") ?? "Login to checkout"} onPress={() => router.push("/auth/login")} />
           )}
@@ -139,6 +224,8 @@ export default function CartScreen() {
         enablePanDownToClose
         backdropComponent={renderBackdrop}
         onDismiss={() => setPendingRemove(null)}
+        backgroundStyle={{ backgroundColor: palette.card }}
+        handleIndicatorStyle={{ backgroundColor: palette.muted }}
       >
         <BottomSheetView style={styles.sheetContainer}>
           <Text style={styles.sheetTitle}>{t("confirmRemove") ?? "Remove item?"}</Text>
@@ -159,11 +246,14 @@ export default function CartScreen() {
           </View>
         </BottomSheetView>
       </BottomSheetModal>
+
       <BottomSheetModal
         ref={clearSheetRef}
         snapPoints={["30%"]}
         enablePanDownToClose
         backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: palette.card }}
+        handleIndicatorStyle={{ backgroundColor: palette.muted }}
       >
         <BottomSheetView style={styles.sheetContainer}>
           <Text style={styles.sheetTitle}>{t("confirmClearCart") ?? "Clear cart?"}</Text>
@@ -176,6 +266,82 @@ export default function CartScreen() {
               <Text style={styles.sheetButtonTextPrimary}>{t("yes") ?? "Yes"}</Text>
             </TouchableOpacity>
           </View>
+        </BottomSheetView>
+      </BottomSheetModal>
+
+      <BottomSheetModal
+        ref={checkoutSheetRef}
+        snapPoints={["70%"]}
+        enablePanDownToClose
+        backdropComponent={renderBackdrop}
+        onDismiss={() => setSubmitting(false)}
+        backgroundStyle={{ backgroundColor: palette.card }}
+        handleIndicatorStyle={{ backgroundColor: palette.muted }}
+      >
+        <BottomSheetView style={styles.sheetContainer}>
+          <Text style={styles.sheetTitle}>{t("checkout")}</Text>
+          {!showAddresses && selectedAddress &&
+            <View style={styles.addressBox}>
+              <Text style={styles.addressLabel}>{selectedAddress.label}</Text>
+              <Text style={styles.addressText}>{selectedAddress.address}</Text>
+              {/* <Text style={styles.sheetText}>
+                {t("distance")}: {distanceKm} km • {t("deliveryFee")}: {deliveryFee?.toLocaleString()} SYP
+              </Text> */}
+            </View>
+          }
+
+          {!showAddresses ? (
+            <TouchableOpacity style={styles.addressBtn} onPress={() => { setShowAddresses(true) }}>
+              <Text style={styles.addressBtnText}>{selectedAddress ? t("change") ?? "Change address" : t("addAddress") ?? "Add address"}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.addressBtn} onPress={() => { router.push("/addresses") }}>
+              <Text style={styles.addressBtnText}>{t("manageAddresses") ?? "Manage addresses"}</Text>
+            </TouchableOpacity>
+          )}
+
+          {showAddresses && addresses.length > 0 && (
+            <View style={{ gap: 8 }}>
+              {addresses.map((addr) => (
+                <TouchableOpacity
+                  key={addr._id}
+                  style={[styles.pillRow, selectedAddress?._id === addr._id && styles.pillRowActive]}
+                  onPress={() => {setSelectedAddress(addr);setShowAddresses(false)}}
+                >
+                  <Text style={styles.addressLabel}>{addr.label}</Text>
+                  <Text style={styles.addressText}>{addr.address}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <View style={{ marginTop: 10 }}>
+            <Text style={styles.section}>{t("paymentMethod") ?? "Payment"}</Text>
+            <View>
+              {["CASH_ON_DELIVERY", "SHAM_CASH", "BANK_TRANSFER", "WALLET"].map((method) => (
+                <TouchableOpacity
+                  key={method}
+                  style={[styles.pill, paymentMethod === method && styles.pillActive]}
+                  onPress={() => setPaymentMethod(method as any)}
+                >
+                  <Text style={[styles.pillText, paymentMethod === method && styles.pillTextActive]}>{method}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          <View style={{ marginTop: 10, gap: 4 }}>
+            <Text style={styles.sheetText}>
+              {t("subtotal")}: {subtotal.toLocaleString()} SYP
+            </Text>
+            <Text style={styles.sheetText}>
+              {t("deliveryFee")}: {deliveryFee?.toLocaleString()} SYP
+            </Text>
+            <Text style={styles.sheetTitle}>
+              {t("total")}: {(subtotal + deliveryFee).toLocaleString()} SYP
+            </Text>
+          </View>
+          <Button title={t("placeOrder")} onPress={placeOrder} disabled={!selectedAddress || submitting} />
+          {submitting ? <ActivityIndicator color={palette.accent} style={{ marginTop: 8 }} /> : null}
         </BottomSheetView>
       </BottomSheetModal>
     </BottomSheetModalProvider>
@@ -255,4 +421,27 @@ const createStyles = (palette: any, isRTL: boolean) =>
     checkboxChecked: { borderColor: palette.accent, backgroundColor: palette.accentSoft },
     checkboxMark: { color: palette.text, fontWeight: "800" },
     checkLabel: { color: palette.text, fontWeight: "700" },
+    addressBox: { gap: 4, padding: 10, borderRadius: 10, backgroundColor: palette.surface },
+    addressLabel: { color: palette.text, fontWeight: "800" },
+    addressText: { color: palette.text },
+    addressBtn: {
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: palette.border,
+      alignItems: "center",
+      backgroundColor: palette.card,
+    },
+    addressBtnText: { color: palette.accent, fontWeight: "700" },
+    pillRow: {
+      padding: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surface,
+    },
+    pillRowActive: { borderColor: palette.accent, backgroundColor: palette.accentSoft },
+    pillText: { color: palette.text, fontWeight: "700" },
+    pillTextActive: { color: "#0f172a" },
   });
