@@ -9,21 +9,23 @@ const ProgressBar = ({ progress }: { progress: number }) => {
     () =>
       StyleSheet.create({
         container: {
-          height: 10,
+          // height: 10,
           backgroundColor: palette.border,
           borderRadius: 999,
           overflow: "hidden",
+          padding:2,
         },
         bar: {
-          height: "100%",
+          height: 5,
           backgroundColor: palette.accent,
+          borderRadius:999
         },
       }),
     [palette]
   );
   return (
     <View style={styles.container}>
-      <View style={[styles.bar, { width: `${width}%` }]} />
+      <View style={[styles.bar, { width: `${width == 0 ? 5 : width}%` }]} />
     </View>
   );
 };

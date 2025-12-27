@@ -10,7 +10,11 @@ import { useI18n } from "../lib/i18n";
 import Feather from "@expo/vector-icons/Feather";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { useAuth } from "../lib/auth";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
+import { Pulse } from "../components/Pulse";
+import { Shimmer } from "../components/Shimmer";
+import { Skeleton } from "../components/Skeleton";
+import ProgressBar from "../components/ProgressBar";
 
 type Category = { _id: string; name: string; imageUrl?: string };
 type Product = { _id: string; name: string; description: string; price: number; images: { url: string }[] };
@@ -20,6 +24,7 @@ type SavedAddress = { _id: string; address: string; label?: string; updatedAt?: 
 
 export default function Home() {
   const { user } = useAuth();
+  const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
@@ -30,9 +35,16 @@ export default function Home() {
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
   const [latestAddress, setLatestAddress] = useState<string | null>(null);
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [settings, setSettings] = useState<any>();
+  const [wallet, setWallet] = useState<any>();
+  const [membershipLoading, setMembershipLoading] = useState(false);
+  const [membershipError, setMembershipError] = useState(false);
+  const membershipLoadingRef = useRef(false);
   const sheetRef = useRef<BottomSheetModal>(null);
   const addressSheetRef = useRef<BottomSheetModal>(null);
+  const membershipSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["80%"], []);
+  const membershipSnapPoints = useMemo(() => ["45%"], []);
   const renderBackdrop = useCallback((props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
   const customFooter = (props: any) => (
     <BottomSheetFooter {...props}>
@@ -46,6 +58,56 @@ export default function Home() {
   const { palette, isDark } = useTheme();
   const { items, addItem, setQuantity } = useCart();
   const { t, isRTL } = useI18n();
+  const fetchMembershipMeta = useCallback(() => {
+    if (!user || membershipLoadingRef.current) return;
+    membershipLoadingRef.current = true;
+    setMembershipLoading(true);
+    setMembershipError(false);
+    Promise.all([api.get("/wallet"), api.get("/settings")])
+      .then(([walletRes, settingsRes]) => {
+        setWallet(walletRes.data.data.wallet);
+        setSettings(settingsRes.data.data);
+      })
+      .catch(() => setMembershipError(true))
+      .finally(() => {
+        membershipLoadingRef.current = false;
+        setMembershipLoading(false);
+      });
+  }, [user]);
+  const membershipLevel = user?.membershipLevel || "None";
+  const membershipTone = useMemo(() => {
+    const tones: Record<string, { background: string; badgeBg: string; badgeText: string }> = {
+      None: { background: palette.surface, badgeBg: palette.card, badgeText: palette.text },
+      Silver: { background: "#eef2ff", badgeBg: "#e0e7ff", badgeText: "#4338ca" },
+      Gold: { background: "#fff7ed", badgeBg: "#ffedd5", badgeText: "#b45309" },
+      Platinum: { background: "#f1f5f9", badgeBg: "#e2e8f0", badgeText: "#0f172a" },
+      Diamond: { background: "#ecfeff", badgeBg: "#cffafe", badgeText: "#0891b2" },
+    };
+    const base = tones[membershipLevel] || tones.None;
+    if (isDark) {
+      return { background: palette.surface, badgeBg: palette.card, badgeText: palette.text };
+    }
+    return base;
+  }, [membershipLevel, isDark, palette]);
+  const thresholds = settings?.membershipThresholds || { silver: 1000000, gold: 2000000, platinum: 4000000, diamond: 6000000 };
+  const balance = wallet?.balance || 0;
+  const graceDays = settings?.membershipGraceDays ?? 14;
+  const { nextLabel, remaining, progress } = useMemo(() => {
+    const levels = [
+      { name: "None", min: 0 },
+      { name: "Silver", min: thresholds.silver },
+      { name: "Gold", min: thresholds.gold },
+      { name: "Platinum", min: thresholds.platinum },
+      { name: "Diamond", min: thresholds.diamond },
+    ];
+    const currentIdx = levels.findIndex((l) => l.name === membershipLevel);
+    const next = levels[currentIdx + 1];
+    if (!next) return { nextLabel: "Max", remaining: 0, progress: 1 };
+    const remaining = Math.max(0, next.min - balance);
+    const range = next.min - levels[currentIdx].min || 1;
+    const progress = Math.min(1, (balance - levels[currentIdx].min) / range);
+    return { nextLabel: next.name, remaining, progress };
+  }, [balance, membershipLevel, thresholds]);
   const loadLatestAddress = useCallback(() => {
     if (!user) {
       setLatestAddress(null);
@@ -74,6 +136,15 @@ export default function Home() {
     api.get("/categories").then((res) => setCategories(res.data.data || []));
     api.get("/products").then((res) => setProducts(res.data.data || []));
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchMembershipMeta();
+    } else {
+      setWallet(undefined);
+      setSettings(undefined);
+    }
+  }, [user, fetchMembershipMeta]);
 
   useFocusEffect(
     useCallback(() => {
@@ -125,6 +196,11 @@ export default function Home() {
     loadLatestAddress();
     addressSheetRef.current?.present();
   };
+  const openMembershipSheet = () => {
+    if (!user) return;
+    membershipSheetRef.current?.present();
+    if (!wallet || !settings) fetchMembershipMeta();
+  };
 
   return (
     <BottomSheetModalProvider>
@@ -133,14 +209,67 @@ export default function Home() {
           <Text style={styles.title}>{user ? `${t("hello")} ${user.name}` : t("helloShopper")}</Text>
           {user ? (
             <TouchableOpacity onPress={openAddressSheet}>
-              <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
-                {(t("deliveryTo") ?? "Delivery to") + " " + (latestAddress ?? t("loading") ?? "loading...")}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
+                <Text
+                  style={styles.subtitle}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {t("deliveryTo") ?? "Delivery to"}{" "}
+                </Text>
+
+                {latestAddress ? (
+                  <Text
+                    style={styles.subtitle}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {latestAddress}
+                  </Text>
+                ) : (
+                  // <Pulse width={120} height={14} colorScheme={isDark ? "dark" : "light"} />
+                  // <Shimmer width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
+                  <Skeleton width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
+                )}
+              </View>
             </TouchableOpacity>
           ) : (
-            <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">{t("loginToLoadLocation") ?? "Login to load your location"}</Text>
+            <TouchableOpacity onPress={() => { router.push("/auth/login") }}>
+              <Text style={[styles.subtitle, { marginBottom: 10 }]} numberOfLines={1} ellipsizeMode="tail">
+                {t("loginToLoadLocation") ?? "Login to load your location"} {t("login")}
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
+        {user ? (
+          <TouchableOpacity style={[styles.membershipCard, { backgroundColor: membershipTone.background }]} activeOpacity={0.9} onPress={openMembershipSheet}>
+            <View style={styles.membershipTextBlock}>
+              <View style={[styles.membershipDetailRow, { justifyContent: 'flex-start', gap: 20, alignItems: 'center' }]}>
+                <View style={[styles.membershipBadge, { backgroundColor: membershipTone.badgeBg, borderColor: palette.border }]}>
+                  <Feather name="award" size={22} color={membershipTone.badgeText} />
+                  <Text style={[styles.membershipBadgeText, { color: membershipTone.badgeText }]}>{t("level")}</Text>
+                </View>
+                <View>
+                  <Text style={styles.membershipLabel}>{t("membership")}</Text>
+                  <Text style={[styles.membershipLevel, { color: membershipTone.badgeText }]}>{membershipLevel == "None" ? "Standard" : membershipLevel}</Text>
+                </View>
+              </View>
+              {/* <Text style={styles.membershipCopy}>{t("loginSubhead")}</Text> */}
+              <View style={{ gap: 8 }}>
+                <View style={[styles.membershipDetailRow]}>
+                  <View style={[styles.membershipDetailRow, { justifyContent: 'flex-start', gap: 5, alignItems: 'baseline' }]}>
+                    <Text style={styles.sheetLabel}>{t("remainingToNext")}</Text>
+                    <Text style={styles.sheetValue}>{nextLabel}</Text>
+                  </View>
+                  <Text style={styles.sheetText}>
+                    {remaining > 0 ? `${remaining.toLocaleString()} SYP` : t("congrats") ?? "At top level"}
+                  </Text>
+                </View>
+                <ProgressBar progress={progress} />
+              </View>
+            </View>
+          </TouchableOpacity>
+        ) : null}
         <View style={styles.searchWrapper}>
           <TextInput
             style={styles.search}
@@ -323,6 +452,49 @@ export default function Home() {
           </TouchableOpacity>
         </BottomSheetView>
       </BottomSheetModal>
+      <BottomSheetModal
+        ref={membershipSheetRef}
+        snapPoints={membershipSnapPoints}
+        enablePanDownToClose
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: palette.card }}
+        handleIndicatorStyle={{ backgroundColor: palette.muted }}
+      >
+        <BottomSheetView style={styles.sheetContainer}>
+          <Text style={styles.sheetTitle}>{t("membership")}</Text>
+          {membershipLoading ? (
+            <View style={{ paddingVertical: 10 }}>
+              <ActivityIndicator color={palette.accent} />
+            </View>
+          ) : membershipError ? (
+            <Text style={styles.sheetText}>Could not load membership details.</Text>
+          ) : (
+            <View style={{ gap: 12 }}>
+              <View style={styles.membershipDetailRow}>
+                <Text style={styles.sheetLabel}>{t("level")}</Text>
+                <Text style={styles.sheetValue}>{membershipLevel}</Text>
+              </View>
+              <View style={styles.membershipDetailRow}>
+                <Text style={styles.sheetLabel}>{t("balance")}</Text>
+                <Text style={styles.sheetValue}>{balance.toLocaleString()} SYP</Text>
+              </View>
+              <View style={{ gap: 8 }}>
+                <View style={styles.membershipDetailRow}>
+                  <Text style={styles.sheetLabel}>{t("remainingToNext")}</Text>
+                  <Text style={styles.sheetValue}>{nextLabel}</Text>
+                </View>
+                <ProgressBar progress={progress} />
+                <Text style={styles.sheetText}>
+                  {remaining > 0 ? `${remaining.toLocaleString()} SYP` : t("congrats") ?? "At top level"}
+                </Text>
+              </View>
+              <Text style={styles.sheetText}>
+                {t("graceDays")}: {graceDays}
+              </Text>
+            </View>
+          )}
+        </BottomSheetView>
+      </BottomSheetModal>
     </BottomSheetModalProvider>
   );
 }
@@ -335,6 +507,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       color: palette.muted,
       fontSize: 14,
       textAlign: isRTL ? "right" : "left",
+      // marginBottom: 10,
     },
     search: {
       backgroundColor: palette.card,
@@ -364,6 +537,33 @@ const createStyles = (palette: any, isRTL: boolean) =>
       borderWidth: 1,
       borderColor: palette.border,
     },
+    membershipCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: palette.border,
+      marginTop: 6,
+      marginBottom: 10,
+      gap: 14,
+    },
+    membershipTextBlock: { flex: 1, gap: 4 },
+    membershipLabel: { color: palette.muted, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1, fontSize: 12, textAlign: isRTL ? "right" : "left" },
+    membershipLevel: { fontSize: 20, fontWeight: "800", textAlign: isRTL ? "right" : "left" },
+    membershipCopy: { color: palette.muted, fontSize: 13, textAlign: isRTL ? "right" : "left" },
+    membershipBadge: {
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      minWidth: 76,
+    },
+    membershipBadgeText: { fontWeight: "700", fontSize: 12 },
     filterChipText: { color: palette.text, fontWeight: "700" },
     reset: { color: palette.accent, fontWeight: "700" },
     categoryCard: {
@@ -439,6 +639,8 @@ const createStyles = (palette: any, isRTL: boolean) =>
     sheetPillActive: { borderColor: palette.accent, backgroundColor: palette.accentSoft },
     sheetPillText: { color: palette.text, fontWeight: "700" },
     sheetFooter: { paddingTop: 8 },
+    sheetText: { color: palette.muted },
+    sheetValue: { color: palette.text, fontWeight: "800" },
     applyButton: { backgroundColor: palette.accent, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
     applyButtonText: { color: "#fff", fontWeight: "800" },
     sheetPillRow: {
@@ -451,6 +653,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       gap: 4,
     },
     sheetPillRowActive: { borderColor: palette.accent, backgroundColor: palette.accentSoft },
+    membershipDetailRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     addressBtn: {
       paddingVertical: 10,
       paddingHorizontal: 12,
