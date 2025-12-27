@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -61,7 +61,11 @@
       "react-native-maps"
     ],
     "extra": {
-      "EXPO_PUBLIC_API_BASE": "http://10.0.2.2:4000/api"
+      "EXPO_PUBLIC_API_BASE": "http://10.0.2.2:4000/api",
+      "router": {},
+      "eas": {
+        "projectId": "17d7d212-1495-4d6b-a5e0-9c721785451a"
+      }
     }
   }
 }
