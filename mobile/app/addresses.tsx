@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList } from "react-native";
+import MapView, { Marker, MapPressEvent } from "react-native-maps";
+import * as Location from "expo-location";
 import Screen from "../components/Screen";
 import api from "../lib/api";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
-import * as Location from 'expo-location';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 type Address = { _id: string; label: string; address: string; lat: number; lng: number; phone?: string };
 
@@ -16,6 +16,7 @@ export default function AddressesScreen() {
   const [address, setAddress] = useState("");
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
@@ -65,6 +66,27 @@ export default function AddressesScreen() {
     load();
   };
 
+  const onMapPress = (e: MapPressEvent) => {
+    setLat(e.nativeEvent.coordinate.latitude.toString());
+    setLng(e.nativeEvent.coordinate.longitude.toString());
+  };
+
+  const useCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setLocationError(t("locationDenied") ?? "Permission denied");
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({});
+      setLat(pos.coords.latitude.toString());
+      setLng(pos.coords.longitude.toString());
+      setLocationError(null);
+    } catch {
+      setLocationError(t("locationError") ?? "Could not get location");
+    }
+  };
+
   return (
     <Screen showBack backLabel={t("back") ?? "Back"}>
       <Text style={styles.title}>{t("savedAddresses") ?? "Saved addresses"}</Text>
@@ -77,70 +99,29 @@ export default function AddressesScreen() {
           <TextInput style={[styles.input, styles.half]} value={lat} onChangeText={setLat} placeholder={t("latitude")} placeholderTextColor={palette.muted} keyboardType="decimal-pad" />
           <TextInput style={[styles.input, styles.half]} value={lng} onChangeText={setLng} placeholder={t("longitude")} placeholderTextColor={palette.muted} keyboardType="decimal-pad" />
         </View>
-        <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder={t("phone") ?? "Phone"} placeholderTextColor={palette.muted} keyboardType="phone-pad" />
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, marginBottom: 5 }}>
-          <Text style={[styles.subtitle, styles.contactSubTitle, { width: 'auto' }]}>
-            Location
-          </Text>
-          <TouchableOpacity
-            style={styles.locationBtn}
-            onPress={async () => {
-              console.log('Checking permissions...')
-              let { status } = await Location.requestForegroundPermissionsAsync();
-
-              if (status !== 'granted') {
-                console.log("Permission to access location was denied")
-                alert('Permission to access location was denied. Go to your phone\'s settings and enable Riyadah to use your location');
-                return;
-              }
-              console.log("Permission to access location granted")
-
-              console.log("Getting current location...")
-              let currentLocation = await Location.getCurrentPositionAsync({});
-              console.log("Location= ", currentLocation)
-              setLat(currentLocation.coords.latitude + "")
-              setLng(currentLocation.coords.longitude + "")
-            }}
-          >
-            <Text style={styles.locationBtnText}>Use My Current Location</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.hint}>Pinch to zoom, tap to pin location</Text>
-
-        <View style={styles.map}>
+        <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder={t("phone") ?? "Phone"} placeholderTextColor={palette.muted} keyboardType="phone-pad" />        
+        <View style={styles.mapWrap}>
           <MapView
-            provider={PROVIDER_GOOGLE}
-            style={styles.mapPreview}
+            style={styles.map}
             region={{
-              latitude: lat || 0,
-              longitude: lng || 0,
-              latitudeDelta: lat ? 0.01 : 50,
-              longitudeDelta: lng ? 0.01 : 50
+              latitude: parseFloat(lat) || 33.5138,
+              longitude: parseFloat(lng) || 36.2765,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
             }}
-            onPress={(e) => {
-              const coords = e.nativeEvent.coordinate;
-              setLat(String(coords.latitude))
-              setLng(String(coords.longitude))
-            }}
+            onPress={onMapPress}
           >
-            {location && (
-              <Marker
-                coordinate={{
-                  latitude: parseFloat(lat),
-                  longitude: parseFloat(lng),
-                }
-                }
-                draggable
-                onDragEnd={(e) => {
-                  const coords = e.nativeEvent.coordinate;
-                  setLat(String(coords.latitude))
-                  setLng(String(coords.longitude))
-                }}
-              />
-            )}
+            <Marker coordinate={{ latitude: parseFloat(lat) || 33.5138, longitude: parseFloat(lng) || 36.2765 }} />
           </MapView>
+          <View style={styles.mapActions}>
+            <Text style={styles.muted}>
+              {t("latitude")}: {lat || "—"} | {t("longitude")}: {lng || "—"}
+            </Text>
+            {locationError ? <Text style={styles.error}>{locationError}</Text> : null}
+            <TouchableOpacity style={[styles.button, styles.secondary]} onPress={useCurrentLocation}>
+              <Text style={styles.secondaryText}>{t("useCurrentLocation") ?? "Use current location"}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.row}>
@@ -218,4 +199,8 @@ const createStyles = (palette: any, isRTL: boolean) =>
     secondary: { backgroundColor: palette.surface, borderColor: palette.border },
     buttonText: { color: "#fff", fontWeight: "700" },
     secondaryText: { color: palette.text, fontWeight: "700" },
+    mapWrap: { borderRadius: 12, overflow: "hidden", gap: 6 },
+    map: { width: "100%", height: 220 },
+    mapActions: { gap: 6 },
+    error: { color: "red" },
   });

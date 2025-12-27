@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -28,17 +28,9 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
-      },
-      "config": {
-        "googleMapsApiKey": "AIzaSyAeV6kEUto9sP0VtDOZXff8XcA4WxvJDT4"
       }
     },
     "android": {
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyAlf4n6x-B0skjxv61CzV9ATvBESoKDcIQ"
-        }
-      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

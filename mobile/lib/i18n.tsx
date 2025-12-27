@@ -127,6 +127,7 @@ const baseStrings = {
   cancel: "Cancel",
   delete: "Delete",
   edit: "Edit",
+  useCurrentLocation: "Use current location",
 };
 
 const messages: Record<Lang, Record<string, string>> = {
