@@ -145,7 +145,7 @@ export default function CartScreen() {
           <Text style={styles.sheetText}>{t("confirmRemoveCopy") ?? "Are you sure you want to remove this item from your cart?"}</Text>
           <TouchableOpacity style={styles.checkRow} onPress={toggleSkip}>
             <View style={[styles.checkbox, skipConfirm && styles.checkboxChecked]}>
-              {skipConfirm ? <Text style={styles.checkboxMark}>✓</Text> : null}
+              {skipConfirm ? <Text style={styles.checkboxMark}>X</Text> : null}
             </View>
             <Text style={styles.checkLabel}>{t("dontAskAgain") ?? "Don't ask again"}</Text>
           </TouchableOpacity>

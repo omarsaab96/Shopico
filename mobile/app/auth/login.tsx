@@ -1,6 +1,6 @@
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Text, TextInput, View, StyleSheet } from "react-native";
+import { Text, TextInput, View, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../../components/Button";
 import Screen from "../../components/Screen";
 import { useAuth } from "../../lib/auth";
@@ -10,9 +10,10 @@ import { useI18n } from "../../lib/i18n";
 export default function Login() {
   const { login } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState("customer@shopico.local");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("omar@email.com");
+  const [password, setPassword] = useState("Pass@123");
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
@@ -49,9 +50,12 @@ export default function Login() {
           value={password}
           onChangeText={setPassword}
           placeholder={t("password")}
-          secureTextEntry
+          secureTextEntry={!showPassword}
           placeholderTextColor={palette.muted}
         />
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.toggle}>
+          <Text style={styles.link}>{showPassword ? t("hide") ?? "Hide" : t("show") ?? "Show"}</Text>
+        </TouchableOpacity>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Button title={t("continue")} onPress={submit} />
         <View style={styles.row}>
@@ -83,6 +87,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       borderWidth: 1,
       borderColor: palette.border,
     },
+    toggle: { alignSelf: "flex-end", marginTop: -8 },
     error: { color: "#f87171" },
     row: { flexDirection: "row", justifyContent: "space-between" },
     link: { color: palette.accent },

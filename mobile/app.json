@@ -28,6 +28,9 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyBJelab1iC0Cf-AS9Lenz2RzGVmdQra1hc"
       }
     },
     "android": {
@@ -39,6 +42,11 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.omarsaab96.shopico",
       "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBJelab1iC0Cf-AS9Lenz2RzGVmdQra1hc"
+        }
+      },
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",

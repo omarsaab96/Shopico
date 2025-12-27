@@ -1,6 +1,6 @@
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Text, TextInput, View, StyleSheet } from "react-native";
+import { Text, TextInput, View, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../../components/Button";
 import Screen from "../../components/Screen";
 import api, { storeTokens } from "../../lib/api";
@@ -13,6 +13,7 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
@@ -53,9 +54,12 @@ export default function Register() {
           value={password}
           onChangeText={setPassword}
           placeholder={t("password")}
-          secureTextEntry
+          secureTextEntry={!showPassword}
           placeholderTextColor={palette.muted}
         />
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.toggle}>
+          <Text style={styles.link}>{showPassword ? t("hide") ?? "Hide" : t("show") ?? "Show"}</Text>
+        </TouchableOpacity>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Button title={t("register")} onPress={submit} />
         <Link href="/auth/login" style={styles.link}>
@@ -78,6 +82,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       borderWidth: 1,
       borderColor: palette.border,
     },
+    toggle: { alignSelf: "flex-end", marginTop: -8 },
     link: { color: palette.accent },
     error: { color: "#f87171" },
   });

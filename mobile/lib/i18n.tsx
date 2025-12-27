@@ -128,6 +128,8 @@ const baseStrings = {
   delete: "Delete",
   edit: "Edit",
   useCurrentLocation: "Use current location",
+  show: "Show",
+  hide: "Hide",
 };
 
 const messages: Record<Lang, Record<string, string>> = {
