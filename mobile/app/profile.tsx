@@ -39,9 +39,9 @@ export default function Profile() {
       <Link href="/settings" style={styles.link}>
         {t("settings")}
       </Link>
-      <Link href="/addresses" style={styles.link}>
+      {user&&<Link href="/addresses" style={styles.link}>
         {t("savedAddresses") ?? "Addresses"}
-      </Link>
+      </Link>}
     </Screen>
   );
 }
