@@ -34,11 +34,7 @@
       }
     },
     "android": {
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyAlf4n6x-B0skjxv61CzV9ATvBESoKDcIQ"
-        }
-      },
+      
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -58,7 +54,13 @@
     },
     "plugins": [
       "expo-router",
-      "react-native-maps"
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "AIzaSyAlf4n6x-B0skjxv61CzV9ATvBESoKDcIQ",
+          "iosGoogleMapsApiKey": "AIzaSyAeV6kEUto9sP0VtDOZXff8XcA4WxvJDT4"
+        }
+      ]
     ],
     "extra": {
       "EXPO_PUBLIC_API_BASE": "http://10.0.2.2:4000/api",
