@@ -17,7 +17,7 @@ export default function CategoriesScreen() {
   }, []);
 
   return (
-    <Screen>
+    <Screen showBack backLabel={t("back") ?? "Back"}>
       <Text style={styles.title}>{t("shopByCategory")}</Text>
       <FlatList
         data={categories}

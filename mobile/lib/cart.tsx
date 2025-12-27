@@ -12,7 +12,9 @@ export interface CartItem {
 interface CartContextValue {
   items: CartItem[];
   addItem: (item: CartItem) => void;
+  setQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
+  reload: () => Promise<void>;
   clear: () => void;
 }
 
@@ -21,10 +23,17 @@ const CartContext = createContext<CartContextValue | undefined>(undefined);
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
 
+  const loadFromStorage = async () => {
+    const val = await AsyncStorage.getItem("cart");
+    if (val) {
+      setItems(JSON.parse(val));
+    } else {
+      setItems([]);
+    }
+  };
+
   useEffect(() => {
-    AsyncStorage.getItem("cart").then((val) => {
-      if (val) setItems(JSON.parse(val));
-    });
+    loadFromStorage();
   }, []);
 
   const persist = (next: CartItem[]) => {
@@ -41,10 +50,18 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     persist([...items, item]);
   };
 
+  const setQuantity = (productId: string, quantity: number) => {
+    if (quantity <= 0) return removeItem(productId);
+    const exists = items.some((i) => i.productId === productId);
+    if (!exists) return;
+    const next = items.map((i) => (i.productId === productId ? { ...i, quantity } : i));
+    persist(next);
+  };
+
   const removeItem = (productId: string) => persist(items.filter((i) => i.productId !== productId));
   const clear = () => persist([]);
 
-  return <CartContext.Provider value={{ items, addItem, removeItem, clear }}>{children}</CartContext.Provider>;
+  return <CartContext.Provider value={{ items, addItem, setQuantity, removeItem, clear, reload: loadFromStorage }}>{children}</CartContext.Provider>;
 };
 
 export const useCart = () => {

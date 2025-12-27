@@ -6,9 +6,10 @@ const orderItemSchema = z.object({
 });
 
 export const createOrderSchema = z.object({
-  address: z.string().min(3),
-  lat: z.number(),
-  lng: z.number(),
+  address: z.string().min(3).optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  addressId: z.string().optional(),
   paymentMethod: z.enum(["CASH_ON_DELIVERY", "SHAM_CASH", "BANK_TRANSFER", "WALLET"]),
   notes: z.string().optional(),
   useReward: z.boolean().optional().default(false),

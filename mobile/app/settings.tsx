@@ -17,7 +17,7 @@ export default function SettingsScreen() {
   }, []);
 
   return (
-    <Screen>
+    <Screen showBack backLabel={t("back") ?? "Back"}>
       <Text style={styles.title}>{t("settings")}</Text>
       <View style={styles.card}>
         <Text style={styles.muted}>{t("storeLocation")}</Text>

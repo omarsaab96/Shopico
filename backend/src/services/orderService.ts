@@ -12,6 +12,7 @@ import { haversineDistanceKm, calculatePointsEarned } from "../utils/pricing";
 import { OrderStatus, PaymentMethod } from "../types";
 import { AuditLog } from "../models/AuditLog";
 import { updateMembershipOnBalanceChange } from "../utils/membership";
+import { Address } from "../models/Address";
 
 interface CheckoutItemInput {
   productId: string;
@@ -122,19 +123,36 @@ const maybeGenerateReward = async (userId: Types.ObjectId, newPoints: number) =>
 export const createOrder = async (
   userId: Types.ObjectId,
   payload: {
-    address: string;
-    lat: number;
-    lng: number;
+    address?: string;
+    lat?: number;
+    lng?: number;
+    addressId?: string;
     paymentMethod: PaymentMethod;
     notes?: string;
     useReward?: boolean;
     items?: CheckoutItemInput[];
   }
 ) => {
+  let address = payload.address;
+  let lat = payload.lat;
+  let lng = payload.lng;
+
+  if (payload.addressId) {
+    const saved = await Address.findOne({ _id: payload.addressId, user: userId });
+    if (!saved) throw { status: 404, message: "Address not found" };
+    address = saved.address;
+    lat = saved.lat;
+    lng = saved.lng;
+  }
+
+  if (!address || lat === undefined || lng === undefined) {
+    throw { status: 400, message: "Address and location are required" };
+  }
+
   const items = await buildOrderItems(payload.items, userId);
   const settings = await getSettingsSnapshot();
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const distanceKm = haversineDistanceKm(settings.storeLat, settings.storeLng, payload.lat, payload.lng);
+  const distanceKm = haversineDistanceKm(settings.storeLat, settings.storeLng, lat, lng);
   const deliveryFee =
     distanceKm <= settings.deliveryFreeKm
       ? 0
@@ -154,7 +172,7 @@ export const createOrder = async (
     status: "PENDING",
     paymentMethod: payload.paymentMethod,
     paymentStatus: payload.paymentMethod === "WALLET" ? "CONFIRMED" : "PENDING",
-    address: payload.address,
+    address,
     notes: payload.notes,
     subtotal,
     deliveryFee,

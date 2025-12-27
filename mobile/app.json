@@ -6,28 +6,60 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "app.omarsaab96.shopico",
+      "associatedDomains": [
+        "applinks:shopico-sy.com",
+        "applinks:shopico-sy.com"
+      ],
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow access to your camera to take profile pictures",
+        "NSPhotoLibraryUsageDescription": "Allow access to your photos to choose a profile picture",
+        "NSLocationWhenInUseUsageDescription": "Shopico uses your location to provide location-based features such as free delivery and rewards.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyDQ5HceUQFK_NhNAcKg6kCncREr7t60sP8"
+      }
     },
     "android": {
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBJelab1iC0Cf-AS9Lenz2RzGVmdQra1hc"
+        }
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.omarsaab96.shopico",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      "react-native-maps"
+    ],
     "extra": {
       "EXPO_PUBLIC_API_BASE": "http://10.0.2.2:4000/api"
     }

@@ -22,7 +22,7 @@ export default function Register() {
       const res = await api.post("/auth/register", { name, email, password });
       const { accessToken, refreshToken } = res.data.data;
       await storeTokens(accessToken, refreshToken);
-      router.replace("/");
+      router.replace("/(tabs)/store");
     } catch (err) {
       console.error(err);
       setError(t("registerFailed"));

@@ -20,7 +20,7 @@ export default function Login() {
   const submit = async () => {
     try {
       await login(email, password);
-      router.replace("/");
+      router.replace("/(tabs)/store");
     } catch (err) {
       console.error(err);
       setError(t("invalidCredentials"));

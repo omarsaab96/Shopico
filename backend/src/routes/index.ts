@@ -10,6 +10,7 @@ import settingsRoutes from "./settings.routes";
 import uploadRoutes from "./upload.routes";
 import userRoutes from "./user.routes";
 import auditRoutes from "./audit.routes";
+import addressRoutes from "./address.routes";
 
 const router = Router();
 
@@ -25,5 +26,6 @@ router.use("/settings", settingsRoutes);
 router.use("/uploads", uploadRoutes);
 router.use("/users", userRoutes);
 router.use("/audit", auditRoutes);
+router.use("/addresses", addressRoutes);
 
 export default router;

@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "../lib/auth";
 import { CartProvider } from "../lib/cart";
 import { ThemeProvider, useTheme } from "../lib/theme";
@@ -32,16 +33,18 @@ const ThemedStack = () => {
 
 export default function Layout() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <I18nProvider>
-          <AuthProvider>
-            <CartProvider>
-              <ThemedStack />
-            </CartProvider>
-          </AuthProvider>
-        </I18nProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <I18nProvider>
+            <AuthProvider>
+              <CartProvider>
+                <ThemedStack />
+              </CartProvider>
+            </AuthProvider>
+          </I18nProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
