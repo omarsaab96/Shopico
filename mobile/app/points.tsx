@@ -8,18 +8,31 @@ import { useI18n } from "../lib/i18n";
 
 export default function PointsScreen() {
   const [data, setData] = useState<any>();
+  const [settings, setSettings] = useState<any>();
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   useEffect(() => {
-    api.get("/points").then((res) => setData(res.data.data));
+    let mounted = true;
+    Promise.allSettled([api.get("/points"), api.get("/settings")]).then(([pointsRes, settingsRes]) => {
+      if (!mounted) return;
+      if (pointsRes.status === "fulfilled") setData(pointsRes.value.data.data);
+      if (settingsRes.status === "fulfilled") setSettings(settingsRes.value.data.data);
+    });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const points = data?.points || 0;
   const threshold = data?.rewardThreshold || 100;
   const progress = (points % threshold) / threshold;
   const remaining = threshold - (points % threshold);
+  const pointsPerAmount = settings?.pointsPerAmount;
+  const earnCopy = pointsPerAmount
+    ? t("pointEarnRate").replace("{amount}", pointsPerAmount.toLocaleString())
+    : t("earnPointsCopy");
 
   return (
     <Screen>
@@ -38,7 +51,7 @@ export default function PointsScreen() {
       </View>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t("earnPoints")}</Text>
-        <Text style={styles.muted}>{t("earnPointsCopy")}</Text>
+        <Text style={styles.muted}>{earnCopy}</Text>
         <Text style={styles.cardTitle}>{t("usePointsTitle")}</Text>
         <Text style={styles.muted}>{t("usePointsCopy")}</Text>
       </View>

@@ -95,7 +95,7 @@ export default function Checkout() {
       items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
     });
     clear();
-    router.replace("/orders");
+    router.replace("/(tabs)/orders");
   };
 
   return (

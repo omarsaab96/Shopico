@@ -152,7 +152,7 @@ export default function CartScreen() {
       });
       clear();
       checkoutSheetRef.current?.dismiss();
-      router.replace("/orders");
+      router.replace("/(tabs)/orders");
     } finally {
       setSubmitting(false);
     }
