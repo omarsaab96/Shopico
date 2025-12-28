@@ -49,6 +49,7 @@ const baseStrings = {
   rewards: "Points",
   redeemAvailable: "Reward available",
   balance: "Balance",
+  standard: "Standard",
   searchProducts: "Search products",
   shopTagline: "Discover fresh picks in your language & theme",
   shopByCategory: "Shop by category",
@@ -168,7 +169,7 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setLang = (next: Lang) => {
     setLangState(next);
-    AsyncStorage.setItem(I18N_STORAGE_KEY, next).catch(() => {});
+    AsyncStorage.setItem(I18N_STORAGE_KEY, next).catch(() => { });
   };
 
   const value = useMemo<I18nContextValue>(() => {

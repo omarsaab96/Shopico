@@ -1,7 +1,25 @@
-import { Link } from "expo-router";
+import { Link, useFocusEffect, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { FlatList, Text, TextInput, View, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Keyboard } from "react-native";
-import { BottomSheetBackdrop, BottomSheetFooter, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
+import {
+  FlatList,
+  Text,
+  TextInput,
+  View,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ActivityIndicator,
+  Keyboard,
+  Platform,
+} from "react-native";
+import {
+  BottomSheetBackdrop,
+  BottomSheetFooter,
+  BottomSheetModal,
+  BottomSheetModalProvider,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 import Screen from "../components/Screen";
 import api from "../lib/api";
 import { useCart } from "../lib/cart";
@@ -10,9 +28,9 @@ import { useI18n } from "../lib/i18n";
 import Feather from "@expo/vector-icons/Feather";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { useAuth } from "../lib/auth";
-import { useFocusEffect, useRouter } from "expo-router";
 import { Skeleton } from "../components/Skeleton";
 import ProgressBar from "../components/ProgressBar";
+import Entypo from '@expo/vector-icons/Entypo';
 
 type Category = { _id: string; name: string; imageUrl?: string };
 type Product = { _id: string; name: string; description: string; price: number; images: { url: string }[] };
@@ -23,6 +41,7 @@ type SavedAddress = { _id: string; address: string; label?: string; updatedAt?: 
 export default function Home() {
   const { user } = useAuth();
   const router = useRouter();
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
@@ -39,43 +58,60 @@ export default function Home() {
   const [membershipLoading, setMembershipLoading] = useState(false);
   const [membershipError, setMembershipError] = useState(false);
   const [page, setPage] = useState(1);
+
   const membershipLoadingRef = useRef(false);
   const sheetRef = useRef<BottomSheetModal>(null);
   const addressSheetRef = useRef<BottomSheetModal>(null);
   const membershipSheetRef = useRef<BottomSheetModal>(null);
+
   const snapPoints = useMemo(() => ["80%"], []);
   const membershipSnapPoints = useMemo(() => ["45%"], []);
-  const renderBackdrop = useCallback((props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
+  const renderBackdrop = useCallback(
+    (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />,
+    []
+  );
+
+  const { palette, isDark } = useTheme();
+  const { items, addItem, setQuantity } = useCart();
+  const { t, isRTL } = useI18n();
+
+  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
+
+  const filterCount = useMemo(
+    () => (priceFilter !== "all" ? 1 : 0) + (sortOption !== "relevance" ? 1 : 0),
+    [priceFilter, sortOption]
+  );
+
+  const fallbackLogo = isDark ? require("../assets/shopico_logo.png") : require("../assets/shopico_logo-black.png");
+
   const customFooter = (props: any) => (
     <BottomSheetFooter {...props}>
-      <View style={{ flexDirection:'row', gap:10, paddingHorizontal: 20, paddingBottom: 20 }}>
+      <View style={styles.sheetFooterWrap}>
         {(priceFilter !== "all" || sortOption !== "relevance") && (
           <TouchableOpacity
-            style={[styles.applyButton,styles.secondaryButton]}
+            style={[styles.sheetBtn, styles.sheetBtnGhost]}
             onPress={() => {
               setPriceFilter("all");
               setSortOption("relevance");
             }}
           >
-            <Text style={styles.applyButtonText}>{t("clear") ?? "Reset"}</Text>
+            <Text style={[styles.sheetBtnText, styles.sheetBtnTextGhost]}>{t("clear") ?? "Reset"}</Text>
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={styles.applyButton} onPress={closeSheet}>
-          <Text style={styles.applyButtonText}>{t("apply") ?? "Apply"}</Text>
+        <TouchableOpacity style={styles.sheetBtn} onPress={() => sheetRef.current?.dismiss()}>
+          <Text style={styles.sheetBtnText}>{t("apply") ?? "Apply"}</Text>
         </TouchableOpacity>
       </View>
     </BottomSheetFooter>
   );
-  const { palette, isDark } = useTheme();
-  const { items, addItem, setQuantity } = useCart();
-  const { t, isRTL } = useI18n();
-  const filterCount = useMemo(() => (priceFilter !== "all" ? 1 : 0) + (sortOption !== "relevance" ? 1 : 0), [priceFilter, sortOption]);
+
   const fetchMembershipMeta = useCallback(() => {
     if (!user || membershipLoadingRef.current) return;
     membershipLoadingRef.current = true;
     setMembershipLoading(true);
     setMembershipError(false);
+
     Promise.all([api.get("/wallet"), api.get("/settings")])
       .then(([walletRes, settingsRes]) => {
         setWallet(walletRes.data.data.wallet);
@@ -87,24 +123,48 @@ export default function Home() {
         setMembershipLoading(false);
       });
   }, [user]);
+
   const membershipLevel = user?.membershipLevel || "None";
+
   const membershipTone = useMemo(() => {
-    const tones: Record<string, { background: string; badgeBg: string; badgeText: string }> = {
-      None: { background: palette.surface, badgeBg: palette.card, badgeText: palette.text },
-      Silver: { background: "#eef2ff", badgeBg: "#e0e7ff", badgeText: "#4338ca" },
-      Gold: { background: "#fff7ed", badgeBg: "#ffedd5", badgeText: "#b45309" },
-      Platinum: { background: "#f1f5f9", badgeBg: "#e2e8f0", badgeText: "#0f172a" },
-      Diamond: { background: "#ecfeff", badgeBg: "#cffafe", badgeText: "#0891b2" },
+    // “Card tone” for light mode (orange-first like the reference).
+    // In dark mode we keep it calm and rely on palette colors.
+    const tones: Record<
+      string,
+      { cardBg: string; accent: string; badgeBg: string; badgeText: string; ring: string }
+    > = {
+      None: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
+      Silver: { cardBg: "#fff7ed", accent: "#fb923c", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
+      Gold: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
+      Platinum: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
+      Diamond: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
     };
+
     const base = tones[membershipLevel] || tones.None;
+
     if (isDark) {
-      return { background: palette.surface, badgeBg: palette.card, badgeText: palette.text };
+      return {
+        cardBg: palette.card,
+        accent: palette.accent,
+        badgeBg: palette.surface,
+        badgeText: palette.text,
+        ring: palette.border,
+      };
     }
+
     return base;
   }, [membershipLevel, isDark, palette]);
-  const thresholds = settings?.membershipThresholds || { silver: 1000000, gold: 2000000, platinum: 4000000, diamond: 6000000 };
+
+  const thresholds = settings?.membershipThresholds || {
+    silver: 1000000,
+    gold: 2000000,
+    platinum: 4000000,
+    diamond: 6000000,
+  };
+
   const balance = wallet?.balance || 0;
   const graceDays = settings?.membershipGraceDays ?? 14;
+
   const { nextLabel, remaining, progress } = useMemo(() => {
     const levels = [
       { name: "None", min: 0 },
@@ -116,23 +176,28 @@ export default function Home() {
     const currentIdx = levels.findIndex((l) => l.name === membershipLevel);
     const next = levels[currentIdx + 1];
     if (!next) return { nextLabel: "Max", remaining: 0, progress: 1 };
+
     const remaining = Math.max(0, next.min - balance);
     const range = next.min - levels[currentIdx].min || 1;
     const progress = Math.min(1, (balance - levels[currentIdx].min) / range);
     return { nextLabel: next.name, remaining, progress };
   }, [balance, membershipLevel, thresholds]);
+
   const fetchProducts = useCallback(
     (nextPage = 1, append = false) => {
       const params: Record<string, any> = { page: nextPage, limit: 20 };
       if (debouncedSearch) params.q = debouncedSearch;
+
       if (!append) setLoadingProducts(true);
       else setLoadingMore(true);
+
       api
         .get("/products", { params })
         .then((res) => {
           const payload = res.data.data;
           const items = Array.isArray(payload) ? payload : payload?.items || [];
           const more = Array.isArray(payload) ? false : Boolean(payload?.hasMore);
+
           setProducts((prev) => (append ? [...prev, ...items] : items));
           setHasMore(more);
           setPage(nextPage);
@@ -148,6 +213,7 @@ export default function Home() {
     },
     [debouncedSearch]
   );
+
   const loadLatestAddress = useCallback(() => {
     if (!user) {
       setLatestAddress(null);
@@ -169,8 +235,6 @@ export default function Home() {
         setAddresses([]);
       });
   }, [user]);
-  const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
-  const fallbackLogo = isDark ? require("../assets/shopico_logo.png") : require("../assets/shopico_logo-black.png");
 
   useEffect(() => {
     api.get("/categories").then((res) => setCategories(res.data.data || []));
@@ -202,6 +266,7 @@ export default function Home() {
 
   const hasQuery = debouncedSearch.length > 0;
   const searching = loadingProducts && hasQuery;
+
   const filteredAndSorted = useMemo(() => {
     let list = products;
     if (priceFilter !== "all") {
@@ -218,7 +283,6 @@ export default function Home() {
   }, [products, priceFilter, sortOption]);
 
   const openSheet = () => sheetRef.current?.present();
-  const closeSheet = () => sheetRef.current?.dismiss();
   const openAddressSheet = () => {
     if (!user) return;
     loadLatestAddress();
@@ -229,136 +293,222 @@ export default function Home() {
     membershipSheetRef.current?.present();
     if (!wallet || !settings) fetchMembershipMeta();
   };
+
   const handleLoadMore = () => {
     if (loadingMore || loadingProducts || !hasMore) return;
     fetchProducts(page + 1, true);
   };
-  const renderListHeader = () => (
-    <View style={{ gap: 12 }}>
-      <View style={styles.hero}>
-        <Text style={styles.title}>{user ? `${t("hello")} ${user.name}` : t("helloShopper")}</Text>
-        {user ? (
-          <TouchableOpacity onPress={openAddressSheet}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 10 }}>
-              <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
+
+  const renderTopBar = () => (
+    <View style={styles.topBar}>
+      <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/notifications")}>
+        <Feather name="bell" size={20} color={palette.text} />
+      </TouchableOpacity>
+
+      <View style={styles.brandWrap}>
+        <Image source={fallbackLogo} style={styles.brandLogo} />
+      </View>
+
+      <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/profile")}>
+        <Feather name="user" size={20} color={palette.text} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderWalletCard = () => {
+    if (!user) return null;
+
+    return (
+      <TouchableOpacity activeOpacity={0.92} style={[styles.walletCard, { backgroundColor: membershipTone.cardBg }]} onPress={openMembershipSheet}>
+        {/* “soft glow” like the reference */}
+        <View style={[styles.walletGlowA, { backgroundColor: membershipTone.accent }]} />
+        <View style={[styles.walletGlowB, { backgroundColor: membershipTone.accent }]} />
+
+        <View style={styles.walletRow}>
+          <View style={styles.walletTextCol}>
+            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                <Text style={styles.walletLabel}>{t("balance") ?? "Balance"}</Text>
+                <Entypo name="info-with-circle" size={20} color={palette.muted} />
+              </View>
+              <View style={styles.walletBadgeRow}>
+                <View style={[styles.levelPill, { backgroundColor: membershipTone.badgeBg, borderColor: membershipTone.ring }]}>
+                  <Feather name="award" size={14} color={membershipTone.badgeText} />
+                  <Text style={[styles.levelPillText, { color: membershipTone.badgeText }]}>
+                    {membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <Text style={styles.walletValue}>
+              {balance.toLocaleString()} <Text style={{ fontWeight: 400, fontSize: 20 }}>SYP</Text>
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ marginTop: 10 }}>
+          <ProgressBar progress={progress} />
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={styles.walletMini}>
+              <Text style={styles.walletMiniLabel}>{t("remainingToNext") ?? "Remaining"}</Text>
+              <Text style={styles.walletMiniHint}>{nextLabel}</Text>
+            </Text>
+            <Text style={styles.walletMiniValue}>
+              {remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "Top level")}
+            </Text>
+          </View>
+
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderSearchAndFilters = () => (
+    <View style={styles.searchRow}>
+      <View style={styles.searchWrap}>
+        <Feather name="search" size={18} color={palette.muted} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={t("searchProducts") ?? "Search products"}
+          placeholderTextColor={palette.muted}
+          value={search}
+          onChangeText={setSearch}
+          returnKeyType="search"
+          onSubmitEditing={() => Keyboard.dismiss()}
+        />
+        {searching ? (
+          <ActivityIndicator size="small" color={palette.accent} style={styles.searchRight} />
+        ) : search.trim() ? (
+          <TouchableOpacity
+            style={styles.searchRight}
+            onPress={() => {
+              setSearch("");
+              Keyboard.dismiss();
+            }}
+          >
+            <AntDesign name="close" size={18} color={palette.text} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <TouchableOpacity style={styles.filterBtn} onPress={openSheet} activeOpacity={0.9}>
+        <Feather name="sliders" size={18} color={palette.accent} />
+        {filterCount > 0 ? (
+          <View style={styles.filterDot}>
+            <Text style={styles.filterDotText}>{filterCount}</Text>
+          </View>
+        ) : null}
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderCategoriesGrid = () => {
+    if (hasQuery) return null;
+
+    return (
+      <View style={{ gap: 10 }}>
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>{t("featuredCategories") ?? "Featured categories"}</Text>
+          <Link href="/categories" asChild>
+            <TouchableOpacity>
+              <Text style={styles.sectionAction}>{t("viewAll") ?? "View all"}</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
+
+        <FlatList
+          data={categories.slice(0, 6)}
+          key={isRTL ? "rtl-cats" : "ltr-cats"}
+          scrollEnabled={false}
+          numColumns={3}
+          columnWrapperStyle={styles.catRow}
+          contentContainerStyle={{ gap: 12 }}
+          keyExtractor={(c) => c._id}
+          renderItem={({ item }) => (
+            <Link href={{ pathname: `/categories/${item._id}`, params: { name: item.name } }} asChild>
+              <TouchableOpacity style={styles.catCard} activeOpacity={0.9}>
+                <View style={styles.catImgBox}>
+                  {/* soft “frosted” look: blurred bg + icon-like image */}
+                  {item.imageUrl ? (
+                    <>
+                      <Image source={{ uri: item.imageUrl }} style={styles.catBg} blurRadius={18} />
+                      <View style={styles.catOverlay} />
+                      <Image source={{ uri: item.imageUrl }} style={styles.catIcon} />
+                    </>
+                  ) : (
+                    <>
+                      <View style={styles.catOverlay} />
+                      <Image source={fallbackLogo} style={styles.catIcon} />
+                    </>
+                  )}
+                </View>
+                <Text style={styles.catName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+              </TouchableOpacity>
+            </Link>
+          )}
+        />
+      </View>
+    );
+  };
+
+  const renderHeader = () => (
+    <View style={styles.headerWrap}>
+      {renderTopBar()}
+
+      <View style={styles.greetingWrap}>
+        <View style={styles.greetingCol}>
+          <Text style={styles.helloText}>
+            {user ? `${t("hello") ?? "Hello"}, ${user.name}` : (t("helloShopper") ?? "Hello shopper")}
+          </Text>
+
+          {user ? (
+            <TouchableOpacity onPress={openAddressSheet} activeOpacity={0.9} style={styles.addressRow}>
+              <Feather name="map-pin" size={14} color={palette.muted} />
+              <Text style={styles.addressLabel} numberOfLines={1}>
                 {t("deliveryTo") ?? "Delivery to"}{" "}
               </Text>
 
               {latestAddress ? (
-                <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
+                <Text style={styles.addressValue} numberOfLines={1}>
                   {latestAddress}
                 </Text>
               ) : (
                 <Skeleton width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
               )}
-            </View>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={() => { router.push("/auth/login"); }}>
-            <Text style={[styles.subtitle, { marginBottom: 10 }]} numberOfLines={1} ellipsizeMode="tail">
-              {t("loginToLoadLocation") ?? "Login to load your location"} {t("login")}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      {user ? (
-        <TouchableOpacity style={[styles.membershipCard, { backgroundColor: membershipTone.background }]} activeOpacity={0.9} onPress={openMembershipSheet}>
-          <View style={styles.membershipTextBlock}>
-            <View style={[styles.membershipDetailRow, { justifyContent: "flex-start", gap: 20, alignItems: "center" }]}>
-              <View style={[styles.membershipBadge, { backgroundColor: membershipTone.badgeBg, borderColor: palette.border }]}>
-                <Feather name="award" size={22} color={membershipTone.badgeText} />
-                <Text style={[styles.membershipBadgeText, { color: membershipTone.badgeText }]}>{t("level")}</Text>
-              </View>
-              <View>
-                <Text style={styles.membershipLabel}>{t("membership")}</Text>
-                <Text style={[styles.membershipLevel, { color: membershipTone.badgeText }]}>{membershipLevel === "None" ? "Standard" : membershipLevel}</Text>
-              </View>
-            </View>
-            <View style={{ gap: 8 }}>
-              <View style={[styles.membershipDetailRow]}>
-                <View style={[styles.membershipDetailRow, { justifyContent: "flex-start", gap: 5, alignItems: "baseline" }]}>
-                  <Text style={styles.sheetLabel}>{t("remainingToNext")}</Text>
-                  <Text style={styles.sheetValue}>{nextLabel}</Text>
-                </View>
-                <Text style={styles.sheetText}>
-                  {remaining > 0 ? `${remaining.toLocaleString()} SYP` : t("congrats") ?? "At top level"}
-                </Text>
-              </View>
-              <ProgressBar progress={progress} />
-            </View>
-          </View>
-        </TouchableOpacity>
-      ) : null}
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View style={[styles.searchWrapper, { flex: 1 }]}>
-          <TextInput
-            style={styles.search}
-            placeholder={t("searchProducts")}
-            placeholderTextColor={palette.muted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          <Feather name="search" size={24} color={palette.accent} style={styles.searchIcon} />
-          {searching ? (
-            <ActivityIndicator size="small" color={palette.accent} style={styles.searchSpinner} />
+            </TouchableOpacity>
           ) : (
-            search.trim() && <AntDesign name="close" size={20} color={palette.text} style={styles.searchSpinner} onPress={() => { setSearch(""); Keyboard.dismiss(); }} />
+            <TouchableOpacity
+              onPress={() => {
+                router.push("/auth/login");
+              }}
+              activeOpacity={0.9}
+              style={styles.addressRow}
+            >
+              <Feather name="log-in" size={14} color={palette.muted} />
+              <Text style={styles.addressValue} numberOfLines={1}>
+                {t("loginToLoadLocation") ?? "Login to load your location"} · {t("login") ?? "Login"}
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
-
-        <View style={styles.filterRow}>
-          <TouchableOpacity style={styles.filterChip} onPress={openSheet}>
-            <Feather name="sliders" size={24} color={palette.accent} />
-            {filterCount > 0 ? (
-              <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{filterCount}</Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
-
-        </View>
       </View>
 
+      {renderWalletCard()}
+      {renderSearchAndFilters()}
+      {renderCategoriesGrid()}
 
-      {!hasQuery && (
-        <>
-          <View style={[styles.sectionRow, { paddingTop: 10 }]}>
-            <Text style={styles.section}>{t("featuredCategories")}</Text>
-            <Link href="/categories" asChild>
-              <TouchableOpacity>
-                <Text style={styles.viewAll}>{t("viewAll") ?? "View all"}</Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
-          <FlatList
-            data={categories}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            style={{ flexGrow: 0 }}
-            keyExtractor={(c) => c._id}
-            contentContainerStyle={{ gap: 10, marginBottom: 10 }}
-            renderItem={({ item }) => (
-              <Link href={{ pathname: `/categories/${item._id}`, params: { name: item.name } }} asChild>
-                <TouchableOpacity style={styles.categoryCard}>
-                  <View style={styles.catImgContainer}>
-                    <Image source={item.imageUrl ? { uri: item.imageUrl } : fallbackLogo} style={styles.categoryImg} />
-                  </View>
-                  <Text style={styles.chipText}>{item.name}</Text>
-                </TouchableOpacity>
-              </Link>
-            )}
-          />
-        </>
-      )}
-      <Text style={[styles.section, { marginBottom: 10 }]}>{hasQuery ? `${t("products")} (${filteredAndSorted.length})` : t("freshPicks")}</Text>
+      <Text style={[styles.sectionTitle, { marginTop: 6 }]}>
+        {hasQuery ? `${t("products") ?? "Products"} (${filteredAndSorted.length})` : (t("freshPicks") ?? "Fresh picks")}
+      </Text>
     </View>
   );
 
   return (
     <BottomSheetModalProvider>
+      <StatusBar style={isDark ? "light" : "dark"} />
       <Screen>
         <FlatList
           data={filteredAndSorted}
@@ -367,43 +517,61 @@ export default function Home() {
           showsHorizontalScrollIndicator={false}
           decelerationRate="fast"
           keyExtractor={(p) => p._id}
-          contentContainerStyle={{ paddingBottom: 16, }}
-          columnWrapperStyle={{ gap: 20, marginBottom: 0, }}
-          ListHeaderComponent={renderListHeader}
+          contentContainerStyle={{ paddingBottom: 16 }}
+          columnWrapperStyle={styles.productRow}
+          ListHeaderComponent={renderHeader}
           refreshing={loadingProducts && !loadingMore}
           onRefresh={() => fetchProducts(1, false)}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.4}
           renderItem={({ item }) => (
-            <View style={styles.product}>
+            <View style={styles.productCard}>
               <Link href={`/products/${item._id}`} asChild>
-                <TouchableOpacity style={styles.productPressable}>
-                  <View style={styles.prodImgContainer}>
+                <TouchableOpacity style={styles.productPressable} activeOpacity={0.92}>
+                  <View style={styles.prodImgBox}>
                     <Image source={item.images?.[0]?.url ? { uri: item.images?.[0]?.url } : fallbackLogo} style={styles.productImg} />
                   </View>
-                  <Text style={styles.productName}>{item.name}</Text>
-                  <Text style={styles.productDescription}>{item.description}</Text>
-                  <Text style={styles.productPrice}>{item.price.toLocaleString()} SYP</Text>
+
+                  <Text style={styles.productName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.productDesc} numberOfLines={2}>
+                    {item.description}
+                  </Text>
+
+                  <View style={styles.priceRow}>
+                    <Text style={styles.productPrice}>{item.price.toLocaleString()} SYP</Text>
+                    <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={16} color={palette.muted} />
+                  </View>
                 </TouchableOpacity>
               </Link>
+
               {(() => {
                 const existing = items.find((i) => i.productId === item._id);
                 if (existing) {
                   return (
                     <View style={styles.qtyRow}>
-                      <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(existing.productId, existing.quantity - 1)}>
-                        <Text style={styles.qtySymbol}>-</Text>
+                      <TouchableOpacity style={styles.qtyBtn} onPress={() => setQuantity(existing.productId, existing.quantity - 1)} activeOpacity={0.9}>
+                        <Text style={styles.qtySym}>-</Text>
                       </TouchableOpacity>
-                      <Text style={styles.qtyValue}>{existing.quantity}</Text>
-                      <TouchableOpacity style={styles.qtyButton} onPress={() => addItem({ productId: item._id, name: item.name, price: item.price, image: item.images?.[0]?.url, quantity: 1 })}>
-                        <Text style={styles.qtySymbol}>+</Text>
+                      <Text style={styles.qtyVal}>{existing.quantity}</Text>
+                      <TouchableOpacity
+                        style={styles.qtyBtn}
+                        onPress={() => addItem({ productId: item._id, name: item.name, price: item.price, image: item.images?.[0]?.url, quantity: 1 })}
+                        activeOpacity={0.9}
+                      >
+                        <Text style={styles.qtySym}>+</Text>
                       </TouchableOpacity>
                     </View>
                   );
                 }
                 return (
-                  <TouchableOpacity style={styles.addButton} onPress={() => addItem({ productId: item._id, name: item.name, price: item.price, image: item.images?.[0]?.url, quantity: 1 })}>
-                    <Text style={styles.addButtonText}>{t("addToCart")}</Text>
+                  <TouchableOpacity
+                    style={styles.addBtn}
+                    onPress={() => addItem({ productId: item._id, name: item.name, price: item.price, image: item.images?.[0]?.url, quantity: 1 })}
+                    activeOpacity={0.92}
+                  >
+                    <Text style={styles.addBtnText}>{t("addToCart") ?? "Add to cart"}</Text>
                   </TouchableOpacity>
                 );
               })()}
@@ -412,315 +580,547 @@ export default function Home() {
           ListFooterComponent={
             <View style={{ paddingBottom: 0 }}>
               {loadingMore ? (
-                <View style={{ paddingVertical: 0 }}>
+                <View style={{ paddingVertical: 10 }}>
                   <ActivityIndicator color={palette.accent} />
                 </View>
               ) : null}
-              {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.searchMeta}>{t("emptyProducts")}</Text> : null}
+              {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
             </View>
           }
         />
-      </Screen>
 
-      <BottomSheetModal
-        ref={sheetRef}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        onDismiss={closeSheet}
-        backdropComponent={renderBackdrop}
-        footerComponent={customFooter}
-        backgroundStyle={{ backgroundColor: palette.card }}
-        handleIndicatorStyle={{ backgroundColor: palette.muted }}
-      >
-        <BottomSheetView style={styles.sheetContainer}>
-          <View style={styles.sheetContent}>
-            <Text style={styles.sheetTitle}>{t("filters") ?? "Filters & Sort"}</Text>
-            <Text style={styles.sheetLabel}>{t("sortBy") ?? "Sort by"}</Text>
-            <View style={styles.sheetRow}>
-              {[
-                { id: "relevance", label: t("relevance") ?? "Relevance" },
-                { id: "priceAsc", label: t("priceLowHigh") ?? "Price: Low to High" },
-                { id: "priceDesc", label: t("priceHighLow") ?? "Price: High to Low" },
-              ].map((opt) => (
-                <TouchableOpacity key={opt.id} style={[styles.sheetPill, sortOption === opt.id && styles.sheetPillActive]} onPress={() => setSortOption(opt.id as SortOption)}>
-                  <Text style={styles.sheetPillText}>{opt.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.sheetLabel}>{t("price") ?? "Price"}</Text>
-            <View style={styles.sheetRow}>
-              {[
-                { id: "all", label: t("all") ?? "All" },
-                { id: "lt50k", label: t("under50k") ?? "Under 50K" },
-                { id: "lt100k", label: t("under100k") ?? "Under 100K" },
-                { id: "gte100k", label: t("over100k") ?? "100K +" },
-              ].map((opt) => (
-                <TouchableOpacity key={opt.id} style={[styles.sheetPill, priceFilter === opt.id && styles.sheetPillActive]} onPress={() => setPriceFilter(opt.id as PriceFilter)}>
-                  <Text style={styles.sheetPillText}>{opt.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </BottomSheetView>
-      </BottomSheetModal>
+        {/* Filters */}
+        <BottomSheetModal
+          ref={sheetRef}
+          snapPoints={snapPoints}
+          enablePanDownToClose
+          backdropComponent={renderBackdrop}
+          footerComponent={customFooter}
+          backgroundStyle={{ backgroundColor: palette.card }}
+          handleIndicatorStyle={{ backgroundColor: palette.muted }}
+        >
+          <BottomSheetView style={styles.sheetContainer}>
+            <View style={styles.sheetContent}>
+              <Text style={styles.sheetTitle}>{t("filters") ?? "Filters & Sort"}</Text>
 
-      <BottomSheetModal
-        ref={addressSheetRef}
-        snapPoints={["50%"]}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-      >
-        <BottomSheetView style={styles.sheetContainer}>
-          <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
-          {addresses.length === 0 ? (
-            <Text style={styles.sheetText}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
-          ) : (
-            addresses.map((addr) => (
-              <TouchableOpacity
-                key={addr._id}
-                style={[styles.sheetPillRow, latestAddress === addr.address && styles.sheetPillRowActive]}
-                onPress={() => {
-                  setLatestAddress(addr.address);
-                  addressSheetRef.current?.dismiss();
-                }}
-              >
-                <Text style={styles.sheetPillText}>{addr.label || t("address")}</Text>
-                <Text style={styles.sheetText}>{addr.address}</Text>
-              </TouchableOpacity>
-            ))
-          )}
-          <TouchableOpacity style={styles.addressBtn} onPress={() => { addressSheetRef.current?.dismiss(); }}>
-            <Text style={styles.addressBtnText}>{t("close") ?? "Close"}</Text>
-          </TouchableOpacity>
-        </BottomSheetView>
-      </BottomSheetModal>
-
-      <BottomSheetModal
-        ref={membershipSheetRef}
-        snapPoints={membershipSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: palette.card }}
-        handleIndicatorStyle={{ backgroundColor: palette.muted }}
-      >
-        <BottomSheetView style={styles.sheetContainer}>
-          <Text style={styles.sheetTitle}>{t("membership")}</Text>
-          {membershipLoading ? (
-            <View style={{ paddingVertical: 10 }}>
-              <ActivityIndicator color={palette.accent} />
-            </View>
-          ) : membershipError ? (
-            <Text style={styles.sheetText}>Could not load membership details.</Text>
-          ) : (
-            <View style={{ gap: 12 }}>
-              <View style={styles.membershipDetailRow}>
-                <Text style={styles.sheetLabel}>{t("level")}</Text>
-                <Text style={styles.sheetValue}>{membershipLevel}</Text>
+              <Text style={styles.sheetLabel}>{t("sortBy") ?? "Sort by"}</Text>
+              <View style={styles.sheetPills}>
+                {[
+                  { id: "relevance", label: t("relevance") ?? "Relevance" },
+                  { id: "priceAsc", label: t("priceLowHigh") ?? "Price: Low to High" },
+                  { id: "priceDesc", label: t("priceHighLow") ?? "Price: High to Low" },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.id}
+                    style={[styles.pill, sortOption === opt.id && styles.pillActive]}
+                    onPress={() => setSortOption(opt.id as SortOption)}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={[styles.pillText, sortOption === opt.id && styles.pillTextActive]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-              <View style={styles.membershipDetailRow}>
-                <Text style={styles.sheetLabel}>{t("balance")}</Text>
-                <Text style={styles.sheetValue}>{balance.toLocaleString()} SYP</Text>
+
+              <Text style={styles.sheetLabel}>{t("price") ?? "Price"}</Text>
+              <View style={styles.sheetPills}>
+                {[
+                  { id: "all", label: t("all") ?? "All" },
+                  { id: "lt50k", label: t("under50k") ?? "Under 50K" },
+                  { id: "lt100k", label: t("under100k") ?? "Under 100K" },
+                  { id: "gte100k", label: t("over100k") ?? "100K +" },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.id}
+                    style={[styles.pill, priceFilter === opt.id && styles.pillActive]}
+                    onPress={() => setPriceFilter(opt.id as PriceFilter)}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={[styles.pillText, priceFilter === opt.id && styles.pillTextActive]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-              <View style={{ gap: 8 }}>
-                <View style={styles.membershipDetailRow}>
-                  <Text style={styles.sheetLabel}>{t("remainingToNext")}</Text>
-                  <Text style={styles.sheetValue}>{nextLabel}</Text>
+            </View>
+          </BottomSheetView>
+        </BottomSheetModal>
+
+        {/* Addresses */}
+        <BottomSheetModal ref={addressSheetRef} snapPoints={["50%"]} enablePanDownToClose backdropComponent={renderBackdrop} backgroundStyle={{ backgroundColor: palette.card }}>
+          <BottomSheetView style={styles.sheetContainer}>
+            <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
+            {addresses.length === 0 ? (
+              <Text style={styles.sheetText}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
+            ) : (
+              addresses.map((addr) => (
+                <TouchableOpacity
+                  key={addr._id}
+                  style={[styles.addressItem, latestAddress === addr.address && styles.addressItemActive]}
+                  onPress={() => {
+                    setLatestAddress(addr.address);
+                    addressSheetRef.current?.dismiss();
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
+                    {latestAddress === addr.address ? <Feather name="check" size={18} color={palette.accent} /> : null}
+                  </View>
+                  <Text style={styles.sheetText}>{addr.address}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+
+            <TouchableOpacity style={styles.closeBtn} onPress={() => addressSheetRef.current?.dismiss()} activeOpacity={0.9}>
+              <Text style={styles.closeBtnText}>{t("close") ?? "Close"}</Text>
+            </TouchableOpacity>
+          </BottomSheetView>
+        </BottomSheetModal>
+
+        {/* Membership */}
+        <BottomSheetModal
+          ref={membershipSheetRef}
+          snapPoints={membershipSnapPoints}
+          enablePanDownToClose
+          backdropComponent={renderBackdrop}
+          backgroundStyle={{ backgroundColor: palette.card }}
+          handleIndicatorStyle={{ backgroundColor: palette.muted }}
+        >
+          <BottomSheetView style={styles.sheetContainer}>
+            <Text style={styles.sheetTitle}>{t("membership") ?? "Membership"}</Text>
+
+            {membershipLoading ? (
+              <View style={{ paddingVertical: 10 }}>
+                <ActivityIndicator color={palette.accent} />
+              </View>
+            ) : membershipError ? (
+              <Text style={styles.sheetText}>Could not load membership details.</Text>
+            ) : (
+              <View style={{ gap: 12 }}>
+                <View style={styles.kvRow}>
+                  <Text style={styles.kvLabel}>{t("level") ?? "Level"}</Text>
+                  <Text style={styles.kvValue}>{membershipLevel}</Text>
                 </View>
-                <ProgressBar progress={progress} />
+
+                <View style={styles.kvRow}>
+                  <Text style={styles.kvLabel}>{t("balance") ?? "Balance"}</Text>
+                  <Text style={styles.kvValue}>{balance.toLocaleString()} SYP</Text>
+                </View>
+
+                <View style={{ gap: 8 }}>
+                  <View style={styles.kvRow}>
+                    <Text style={styles.kvLabel}>{t("remainingToNext") ?? "Remaining"}</Text>
+                    <Text style={styles.kvValue}>{nextLabel}</Text>
+                  </View>
+                  <ProgressBar progress={progress} />
+                  <Text style={styles.sheetText}>{remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "At top level")}</Text>
+                </View>
+
                 <Text style={styles.sheetText}>
-                  {remaining > 0 ? `${remaining.toLocaleString()} SYP` : t("congrats") ?? "At top level"}
+                  {t("graceDays") ?? "Grace days"}: {graceDays}
                 </Text>
               </View>
-              <Text style={styles.sheetText}>
-                {t("graceDays")}: {graceDays}
-              </Text>
-            </View>
-          )}
-        </BottomSheetView>
-      </BottomSheetModal>
+            )}
+          </BottomSheetView>
+        </BottomSheetModal>
+      </Screen>
     </BottomSheetModalProvider>
   );
 }
 
-const createStyles = (palette: any, isRTL: boolean) =>
-  StyleSheet.create({
-    hero: { gap: 6, marginBottom: 8 },
-    title: { color: palette.text, fontSize: 26, fontWeight: "800", textAlign: isRTL ? "right" : "left" },
-    subtitle: {
-      color: palette.muted,
-      fontSize: 14,
-      textAlign: isRTL ? "right" : "left",
-      // marginBottom: 10,
+const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
+  const row = isRTL ? ("row-reverse" as const) : ("row" as const);
+  const align = isRTL ? ("right" as const) : ("left" as const);
+
+  // “soft card” shadows (keeps iOS + Android reasonable)
+  const cardShadow = {
+    shadowColor: "#000",
+    shadowOpacity: isDark ? 0.18 : 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: isDark ? 3 : 2,
+  };
+
+  const hairline = isDark ? palette.border : "rgba(15, 23, 42, 0.08)";
+
+  return StyleSheet.create({
+    headerWrap: {
+      // paddingTop: 10,
+      // paddingHorizontal: 16,
+      gap: 12,
     },
-    search: {
-      backgroundColor: palette.card,
-      borderRadius: 14,
-      padding: 14,
-      paddingLeft: 40,
-      color: palette.text,
-      paddingRight: 40,
-    },
-    section: { color: palette.text, fontWeight: "700", textAlign: isRTL ? "right" : "left" },
-    searchMeta: { color: palette.muted, marginTop: 8, textAlign: isRTL ? "right" : "left" },
-    searchWrapper: { position: "relative" },
-    searchSpinner: { position: "absolute", right: 12, top: 12 },
-    searchIcon: { position: "absolute", left: 10, top: 12 },
-    sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    viewAll: { color: palette.accent, fontWeight: "700" },
-    filterRow: {
-      flexDirection: "row",
+
+    topBar: {
+      flexDirection: row,
       alignItems: "center",
       justifyContent: "space-between",
-      gap: 10,
+      paddingTop: Platform.OS === "ios" ? 4 : 2,
     },
-    filterChip: {
-      flexDirection: "row",
+    iconBtn: {
+      width: 42,
+      height: 42,
+      borderRadius: 999,
+      backgroundColor: palette.card,
+      borderWidth: 1,
+      borderColor: hairline,
+      alignItems: "center",
+      justifyContent: "center",
+      ...cardShadow,
+    },
+    brandWrap: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    brandLogo: {
+      height: 26,
+      width: 90,
+      resizeMode: "contain",
+      opacity: isDark ? 0.95 : 1,
+    },
+
+    greetingWrap: {
+      flexDirection: row,
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    greetingCol: { flex: 1, gap: 6 },
+    helloText: {
+      color: palette.text,
+      fontSize: 24,
+      fontWeight: "900",
+    },
+    addressRow: {
+      flexDirection: row,
       alignItems: "center",
       gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      backgroundColor: palette.card,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: palette.border,
+      alignSelf: isRTL ? "flex-end" : "flex-start",
     },
-    filterBadge: {
-      minWidth: 20,
-      height: 20,
+    addressLabel: { color: palette.muted, fontSize: 13, textAlign: align },
+    addressValue: { color: palette.muted, fontSize: 13, fontWeight: "700", textAlign: align },
+
+    walletCard: {
+      borderRadius: 20,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: hairline,
+      overflow: "hidden",
+      ...cardShadow,
+    },
+    walletGlowA: {
+      position: "absolute",
+      width: 220,
+      height: 220,
+      borderRadius: 999,
+      opacity: isDark ? 0.08 : 0.14,
+      top: -120,
+      left: isRTL ? undefined : -110,
+      right: isRTL ? -110 : undefined,
+    },
+    walletGlowB: {
+      position: "absolute",
+      width: 260,
+      height: 260,
+      borderRadius: 999,
+      opacity: isDark ? 0.06 : 0.12,
+      bottom: -160,
+      left: isRTL ? -140 : undefined,
+      right: isRTL ? undefined : -140,
+    },
+    walletRow: { flexDirection: row, gap: 12, alignItems: "flex-start" },
+    walletTextCol: { flex: 1, gap: 8 },
+
+    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", textAlign: align },
+    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign: align },
+
+    walletBadgeRow: { flexDirection: row, justifyContent: isRTL ? "flex-end" : "flex-start" },
+    levelPill: {
+      flexDirection: row,
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      backgroundColor: palette.surface,
+    },
+    levelPillText: { fontWeight: "800", fontSize: 12 },
+
+    walletMini: {
+      paddingTop: 5
+    },
+    walletMiniLabel: { color: palette.muted, fontWeight: "800", fontSize: 12, textAlign: align },
+    walletMiniValue: { color: palette.text, fontWeight: "900", fontSize: 13, marginTop: 4, textAlign: align },
+    walletMiniHint: { color: palette.muted, fontWeight: "700", fontSize: 12, marginTop: 2, textAlign: align },
+
+    searchRow: {
+      flexDirection: row,
+      gap: 10,
+      alignItems: "center",
+    },
+    searchWrap: {
+      flex: 1,
+      position: "relative",
+      backgroundColor: palette.card,
+      borderWidth: 1,
+      borderColor: hairline,
+      borderRadius: 999,
+      paddingHorizontal: 14,
+      height: 48,
+      justifyContent: "center",
+      ...cardShadow,
+    },
+    searchIcon: {
+      position: "absolute",
+      top: 15,
+      left: isRTL ? undefined : 14,
+      right: isRTL ? 14 : undefined,
+      opacity: 0.9,
+    },
+    searchInput: {
+      color: palette.text,
+      paddingLeft: isRTL ? 44 : 34,
+      paddingRight: isRTL ? 34 : 44,
+      textAlign: align,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    searchRight: {
+      position: "absolute",
+      top: 14,
+      right: isRTL ? undefined : 14,
+      left: isRTL ? 14 : undefined,
+    },
+
+    filterBtn: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      backgroundColor: palette.card,
+      borderWidth: 1,
+      borderColor: hairline,
+      alignItems: "center",
+      justifyContent: "center",
+      ...cardShadow,
+    },
+    filterDot: {
+      position: "absolute",
+      top: 8,
+      right: isRTL ? undefined : 8,
+      left: isRTL ? 8 : undefined,
+      minWidth: 18,
+      height: 18,
       borderRadius: 999,
       backgroundColor: palette.accent,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 6,
+      paddingHorizontal: 5,
     },
-    filterBadgeText: { color: "#fff", fontWeight: "800", fontSize: 12 },
-    membershipCard: {
-      flexDirection: "row",
+    filterDotText: { color: "#fff", fontWeight: "900", fontSize: 11 },
+
+    sectionHead: {
+      flexDirection: row,
       alignItems: "center",
       justifyContent: "space-between",
-      padding: 14,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: palette.border,
-      marginTop: 6,
-      marginBottom: 10,
-      gap: 14,
     },
-    membershipTextBlock: { flex: 1, gap: 4 },
-    membershipLabel: { color: palette.muted, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1, fontSize: 12, textAlign: isRTL ? "right" : "left" },
-    membershipLevel: { fontSize: 20, fontWeight: "800", textAlign: isRTL ? "right" : "left" },
-    membershipCopy: { color: palette.muted, fontSize: 13, textAlign: isRTL ? "right" : "left" },
-    membershipBadge: {
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      borderRadius: 12,
-      borderWidth: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 4,
-      minWidth: 76,
-    },
-    membershipBadgeText: { fontWeight: "700", fontSize: 12 },
-    filterChipText: { color: palette.text, fontWeight: "700" },
-    reset: { color: palette.accent, fontWeight: "700" },
-    categoryCard: {
+    sectionTitle: { color: palette.text, fontSize: 16, fontWeight: "900", textAlign: align },
+    sectionAction: { color: palette.accent, fontWeight: "900" },
+
+    catRow: { gap: 12 },
+    catCard: {
+      flex: 1,
       backgroundColor: palette.card,
-      padding: 5,
-      borderRadius: 12,
+      borderRadius: 18,
+      padding: 10,
       borderWidth: 1,
-      borderColor: palette.border,
-      width: 120,
+      borderColor: hairline,
       alignItems: "center",
-      gap: 6,
+      gap: 8,
+      ...cardShadow,
     },
-    catImgContainer: {
-      backgroundColor: palette.surface,
-      borderRadius: 12,
-      overflow: "hidden",
-      padding: 5,
+    catImgBox: {
       width: "100%",
-      height: 96,
-      justifyContent: "center",
+      height: 72,
+      borderRadius: 16,
+      overflow: "hidden",
+      backgroundColor: palette.surface,
       alignItems: "center",
-    },
-    categoryImg: { height: 91, objectFit: "contain", aspectRatio: 1 },
-    chipText: { color: palette.text, textAlign: "center" },
-    product: {
-      width: 180,
-      backgroundColor: palette.card,
-      borderRadius: 14,
-      padding: 5,
+      justifyContent: "center",
       borderWidth: 1,
-      borderColor: palette.border,
-      shadowColor: palette.border,
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 3 },
+      borderColor: hairline,
+    },
+    catBg: {
+      position: "absolute",
+      width: "100%",
+      height: "100%",
+      resizeMode: "cover",
+      opacity: 0.35,
+      transform: [{ scale: 1.2 }],
+    },
+    catOverlay: {
+      position: "absolute",
+      width: "100%",
+      height: "100%",
+      backgroundColor: isDark ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.45)",
+    },
+    catIcon: {
+      width: 44,
+      height: 44,
+      resizeMode: "contain",
+    },
+    catName: { color: palette.text, fontWeight: "800", fontSize: 12, textAlign: "center" },
+
+    productRow: {
+      gap: 12,
+      marginBottom: 12,
+      // paddingHorizontal: 16,
+    },
+
+    productCard: {
+      flex: 1,
+      backgroundColor: palette.card,
+      borderRadius: 20,
+      padding: 10,
+      borderWidth: 1,
+      borderColor: hairline,
       gap: 10,
+      ...cardShadow,
     },
-    prodImgContainer: {
-      backgroundColor: palette.surface,
-      borderRadius: 12,
-      overflow: "hidden",
+    productPressable: { gap: 10 },
+    prodImgBox: {
       width: "100%",
-      height: 96,
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 10,
-    },
-    productImg: { height: 86, aspectRatio: 4 / 3, objectFit: "contain" },
-    productName: { color: palette.text, fontWeight: "700" },
-    productDescription: { color: palette.text, marginBottom: 20 },
-    productPrice: { color: palette.accent },
-    addButton: { backgroundColor: palette.accent, borderRadius: 10, paddingVertical: 10, alignItems: "center" },
-    addButtonText: { color: "#fff", fontWeight: "700" },
-    qtyRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    qtyButton: {
-      width: 38,
-      height: 38,
-      borderRadius: 10,
+      height: 110,
+      borderRadius: 16,
       backgroundColor: palette.surface,
+      overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
-      borderColor: palette.border,
+      borderColor: hairline,
     },
-    qtySymbol: { color: palette.text, fontSize: 18, fontWeight: "800" },
-    qtyValue: { color: palette.text, fontSize: 16, fontWeight: "800", minWidth: 24, textAlign: "center" },
-    sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },
-    sheetContent: { flex: 1, gap: 6 },
-    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "800", marginBottom: 10 },
-    sheetLabel: { color: palette.muted, fontWeight: "700", marginTop: 8, marginBottom: 6 },
-    sheetRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    sheetPill: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
-    sheetPillActive: { borderColor: palette.accent, backgroundColor: palette.accentSoft },
-    sheetPillText: { color: palette.text, fontWeight: "700" },
-    sheetFooter: { paddingTop: 8 },
-    sheetText: { color: palette.muted },
-    sheetValue: { color: palette.text, fontWeight: "800" },
-    applyButton: { backgroundColor: palette.accent, borderRadius: 12, paddingVertical: 12, alignItems: "center",flex:1 },
-    secondaryButton:{backgroundColor: palette.surface, paddingVertical: 14},
-    applyButtonText: { color: "#fff", fontWeight: "800" },
-    sheetPillRow: {
-      padding: 12,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: palette.border,
-      marginBottom: 8,
-      backgroundColor: palette.surface,
-      gap: 4,
-    },
-    sheetPillRowActive: { borderColor: palette.accent, backgroundColor: palette.accentSoft },
-    membershipDetailRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    addressBtn: {
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: palette.border,
+    productImg: { width: "86%", height: "86%", resizeMode: "contain" },
+
+    productName: { color: palette.text, fontWeight: "900", textAlign: align },
+    productDesc: { color: palette.muted, fontWeight: "700", fontSize: 12, textAlign: align },
+
+    priceRow: {
+      flexDirection: row,
       alignItems: "center",
-      backgroundColor: palette.card,
+      justifyContent: "space-between",
       marginTop: 4,
     },
-    addressBtnText: { color: palette.accent, fontWeight: "700" },
+    productPrice: { color: palette.accent, fontWeight: "900", fontSize: 13 },
+
+    addBtn: {
+      backgroundColor: palette.accent,
+      borderRadius: 14,
+      paddingVertical: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    addBtnText: { color: "#fff", fontWeight: "900" },
+
+    qtyRow: {
+      flexDirection: row,
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    qtyBtn: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: hairline,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    qtySym: { color: palette.text, fontSize: 18, fontWeight: "900" },
+    qtyVal: { color: palette.text, fontSize: 16, fontWeight: "900", minWidth: 24, textAlign: "center" },
+
+    emptyText: { color: palette.muted, paddingHorizontal: 16, textAlign: align, marginTop: 10 },
+
+    // Sheets
+    sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },
+    sheetContent: { flex: 1, gap: 6 },
+    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: align },
+    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign: align },
+    sheetPills: { flexDirection: row, flexWrap: "wrap", gap: 10 },
+
+    pill: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: hairline,
+      backgroundColor: palette.surface,
+    },
+    pillActive: {
+      borderColor: palette.accent,
+      backgroundColor: isDark ? palette.surface : "rgba(249,115,22,0.14)",
+    },
+    pillText: { color: palette.text, fontWeight: "800" },
+    pillTextActive: { color: palette.text, fontWeight: "900" },
+
+    sheetText: { color: palette.muted, fontWeight: "700", textAlign: align },
+
+    sheetFooterWrap: {
+      flexDirection: row,
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingBottom: 18,
+      paddingTop: 10,
+      backgroundColor: "transparent",
+    },
+    sheetBtn: {
+      flex: 1,
+      backgroundColor: palette.accent,
+      borderRadius: 16,
+      paddingVertical: 14,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    sheetBtnText: { color: "#fff", fontWeight: "900" },
+
+    sheetBtnGhost: {
+      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: hairline,
+    },
+    sheetBtnTextGhost: { color: palette.text },
+
+    addressItem: {
+      padding: 12,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: hairline,
+      backgroundColor: palette.surface,
+      marginBottom: 10,
+      gap: 6,
+    },
+    addressItemActive: {
+      borderColor: palette.accent,
+      backgroundColor: isDark ? palette.surface : "rgba(249,115,22,0.10)",
+    },
+    addressTitle: { color: palette.text, fontWeight: "900", textAlign: align },
+
+    closeBtn: {
+      marginTop: 4,
+      borderRadius: 16,
+      paddingVertical: 12,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: hairline,
+      backgroundColor: palette.card,
+    },
+    closeBtnText: { color: palette.accent, fontWeight: "900" },
+
+    kvRow: {
+      flexDirection: row,
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    kvLabel: { color: palette.muted, fontWeight: "900", textAlign: align },
+    kvValue: { color: palette.text, fontWeight: "900", textAlign: align },
   });
+};
