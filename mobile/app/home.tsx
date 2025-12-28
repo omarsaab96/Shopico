@@ -11,8 +11,6 @@ import Feather from "@expo/vector-icons/Feather";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { useAuth } from "../lib/auth";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Pulse } from "../components/Pulse";
-import { Shimmer } from "../components/Shimmer";
 import { Skeleton } from "../components/Skeleton";
 import ProgressBar from "../components/ProgressBar";
 
@@ -29,8 +27,9 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<Product[] | null>(null);
-  const [searching, setSearching] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [sortOption, setSortOption] = useState<SortOption>("relevance");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
   const [latestAddress, setLatestAddress] = useState<string | null>(null);
@@ -39,6 +38,7 @@ export default function Home() {
   const [wallet, setWallet] = useState<any>();
   const [membershipLoading, setMembershipLoading] = useState(false);
   const [membershipError, setMembershipError] = useState(false);
+  const [page, setPage] = useState(1);
   const membershipLoadingRef = useRef(false);
   const sheetRef = useRef<BottomSheetModal>(null);
   const addressSheetRef = useRef<BottomSheetModal>(null);
@@ -48,7 +48,19 @@ export default function Home() {
   const renderBackdrop = useCallback((props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
   const customFooter = (props: any) => (
     <BottomSheetFooter {...props}>
-      <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+      <View style={{ flexDirection:'row', gap:10, paddingHorizontal: 20, paddingBottom: 20 }}>
+        {(priceFilter !== "all" || sortOption !== "relevance") && (
+          <TouchableOpacity
+            style={[styles.applyButton,styles.secondaryButton]}
+            onPress={() => {
+              setPriceFilter("all");
+              setSortOption("relevance");
+            }}
+          >
+            <Text style={styles.applyButtonText}>{t("clear") ?? "Reset"}</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity style={styles.applyButton} onPress={closeSheet}>
           <Text style={styles.applyButtonText}>{t("apply") ?? "Apply"}</Text>
         </TouchableOpacity>
@@ -58,6 +70,7 @@ export default function Home() {
   const { palette, isDark } = useTheme();
   const { items, addItem, setQuantity } = useCart();
   const { t, isRTL } = useI18n();
+  const filterCount = useMemo(() => (priceFilter !== "all" ? 1 : 0) + (sortOption !== "relevance" ? 1 : 0), [priceFilter, sortOption]);
   const fetchMembershipMeta = useCallback(() => {
     if (!user || membershipLoadingRef.current) return;
     membershipLoadingRef.current = true;
@@ -108,6 +121,33 @@ export default function Home() {
     const progress = Math.min(1, (balance - levels[currentIdx].min) / range);
     return { nextLabel: next.name, remaining, progress };
   }, [balance, membershipLevel, thresholds]);
+  const fetchProducts = useCallback(
+    (nextPage = 1, append = false) => {
+      const params: Record<string, any> = { page: nextPage, limit: 20 };
+      if (debouncedSearch) params.q = debouncedSearch;
+      if (!append) setLoadingProducts(true);
+      else setLoadingMore(true);
+      api
+        .get("/products", { params })
+        .then((res) => {
+          const payload = res.data.data;
+          const items = Array.isArray(payload) ? payload : payload?.items || [];
+          const more = Array.isArray(payload) ? false : Boolean(payload?.hasMore);
+          setProducts((prev) => (append ? [...prev, ...items] : items));
+          setHasMore(more);
+          setPage(nextPage);
+        })
+        .catch(() => {
+          if (!append) setProducts([]);
+          setHasMore(false);
+        })
+        .finally(() => {
+          if (!append) setLoadingProducts(false);
+          else setLoadingMore(false);
+        });
+    },
+    [debouncedSearch]
+  );
   const loadLatestAddress = useCallback(() => {
     if (!user) {
       setLatestAddress(null);
@@ -134,7 +174,6 @@ export default function Home() {
 
   useEffect(() => {
     api.get("/categories").then((res) => setCategories(res.data.data || []));
-    api.get("/products").then((res) => setProducts(res.data.data || []));
   }, []);
 
   useEffect(() => {
@@ -145,6 +184,10 @@ export default function Home() {
       setSettings(undefined);
     }
   }, [user, fetchMembershipMeta]);
+
+  useEffect(() => {
+    fetchProducts(1, false);
+  }, [debouncedSearch, fetchProducts]);
 
   useFocusEffect(
     useCallback(() => {
@@ -157,25 +200,10 @@ export default function Home() {
     return () => clearTimeout(handle);
   }, [search]);
 
-  useEffect(() => {
-    if (!debouncedSearch) {
-      setSearchResults(null);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    const url = `/products?q=${encodeURIComponent(debouncedSearch)}`;
-    api
-      .get(url)
-      .then((res) => setSearchResults(res.data.data || []))
-      .catch(() => setSearchResults([]))
-      .finally(() => setSearching(false));
-  }, [debouncedSearch]);
-
   const hasQuery = debouncedSearch.length > 0;
-  const visibleProducts = hasQuery ? searchResults ?? products : products;
+  const searching = loadingProducts && hasQuery;
   const filteredAndSorted = useMemo(() => {
-    let list = visibleProducts;
+    let list = products;
     if (priceFilter !== "all") {
       list = list.filter((p) => {
         if (priceFilter === "lt50k") return p.price < 50000;
@@ -187,7 +215,7 @@ export default function Home() {
     if (sortOption === "priceAsc") result.sort((a, b) => a.price - b.price);
     if (sortOption === "priceDesc") result.sort((a, b) => b.price - a.price);
     return result;
-  }, [visibleProducts, priceFilter, sortOption]);
+  }, [products, priceFilter, sortOption]);
 
   const openSheet = () => sheetRef.current?.present();
   const closeSheet = () => sheetRef.current?.dismiss();
@@ -201,76 +229,69 @@ export default function Home() {
     membershipSheetRef.current?.present();
     if (!wallet || !settings) fetchMembershipMeta();
   };
-
-  return (
-    <BottomSheetModalProvider>
-      <Screen>
-        <View style={styles.hero}>
-          <Text style={styles.title}>{user ? `${t("hello")} ${user.name}` : t("helloShopper")}</Text>
-          {user ? (
-            <TouchableOpacity onPress={openAddressSheet}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
-                <Text
-                  style={styles.subtitle}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {t("deliveryTo") ?? "Delivery to"}{" "}
-                </Text>
-
-                {latestAddress ? (
-                  <Text
-                    style={styles.subtitle}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {latestAddress}
-                  </Text>
-                ) : (
-                  // <Pulse width={120} height={14} colorScheme={isDark ? "dark" : "light"} />
-                  // <Shimmer width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
-                  <Skeleton width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
-                )}
-              </View>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={() => { router.push("/auth/login") }}>
-              <Text style={[styles.subtitle, { marginBottom: 10 }]} numberOfLines={1} ellipsizeMode="tail">
-                {t("loginToLoadLocation") ?? "Login to load your location"} {t("login")}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+  const handleLoadMore = () => {
+    if (loadingMore || loadingProducts || !hasMore) return;
+    fetchProducts(page + 1, true);
+  };
+  const renderListHeader = () => (
+    <View style={{ gap: 12 }}>
+      <View style={styles.hero}>
+        <Text style={styles.title}>{user ? `${t("hello")} ${user.name}` : t("helloShopper")}</Text>
         {user ? (
-          <TouchableOpacity style={[styles.membershipCard, { backgroundColor: membershipTone.background }]} activeOpacity={0.9} onPress={openMembershipSheet}>
-            <View style={styles.membershipTextBlock}>
-              <View style={[styles.membershipDetailRow, { justifyContent: 'flex-start', gap: 20, alignItems: 'center' }]}>
-                <View style={[styles.membershipBadge, { backgroundColor: membershipTone.badgeBg, borderColor: palette.border }]}>
-                  <Feather name="award" size={22} color={membershipTone.badgeText} />
-                  <Text style={[styles.membershipBadgeText, { color: membershipTone.badgeText }]}>{t("level")}</Text>
-                </View>
-                <View>
-                  <Text style={styles.membershipLabel}>{t("membership")}</Text>
-                  <Text style={[styles.membershipLevel, { color: membershipTone.badgeText }]}>{membershipLevel == "None" ? "Standard" : membershipLevel}</Text>
-                </View>
-              </View>
-              {/* <Text style={styles.membershipCopy}>{t("loginSubhead")}</Text> */}
-              <View style={{ gap: 8 }}>
-                <View style={[styles.membershipDetailRow]}>
-                  <View style={[styles.membershipDetailRow, { justifyContent: 'flex-start', gap: 5, alignItems: 'baseline' }]}>
-                    <Text style={styles.sheetLabel}>{t("remainingToNext")}</Text>
-                    <Text style={styles.sheetValue}>{nextLabel}</Text>
-                  </View>
-                  <Text style={styles.sheetText}>
-                    {remaining > 0 ? `${remaining.toLocaleString()} SYP` : t("congrats") ?? "At top level"}
-                  </Text>
-                </View>
-                <ProgressBar progress={progress} />
-              </View>
+          <TouchableOpacity onPress={openAddressSheet}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 10 }}>
+              <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
+                {t("deliveryTo") ?? "Delivery to"}{" "}
+              </Text>
+
+              {latestAddress ? (
+                <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
+                  {latestAddress}
+                </Text>
+              ) : (
+                <Skeleton width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
+              )}
             </View>
           </TouchableOpacity>
-        ) : null}
-        <View style={styles.searchWrapper}>
+        ) : (
+          <TouchableOpacity onPress={() => { router.push("/auth/login"); }}>
+            <Text style={[styles.subtitle, { marginBottom: 10 }]} numberOfLines={1} ellipsizeMode="tail">
+              {t("loginToLoadLocation") ?? "Login to load your location"} {t("login")}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {user ? (
+        <TouchableOpacity style={[styles.membershipCard, { backgroundColor: membershipTone.background }]} activeOpacity={0.9} onPress={openMembershipSheet}>
+          <View style={styles.membershipTextBlock}>
+            <View style={[styles.membershipDetailRow, { justifyContent: "flex-start", gap: 20, alignItems: "center" }]}>
+              <View style={[styles.membershipBadge, { backgroundColor: membershipTone.badgeBg, borderColor: palette.border }]}>
+                <Feather name="award" size={22} color={membershipTone.badgeText} />
+                <Text style={[styles.membershipBadgeText, { color: membershipTone.badgeText }]}>{t("level")}</Text>
+              </View>
+              <View>
+                <Text style={styles.membershipLabel}>{t("membership")}</Text>
+                <Text style={[styles.membershipLevel, { color: membershipTone.badgeText }]}>{membershipLevel === "None" ? "Standard" : membershipLevel}</Text>
+              </View>
+            </View>
+            <View style={{ gap: 8 }}>
+              <View style={[styles.membershipDetailRow]}>
+                <View style={[styles.membershipDetailRow, { justifyContent: "flex-start", gap: 5, alignItems: "baseline" }]}>
+                  <Text style={styles.sheetLabel}>{t("remainingToNext")}</Text>
+                  <Text style={styles.sheetValue}>{nextLabel}</Text>
+                </View>
+                <Text style={styles.sheetText}>
+                  {remaining > 0 ? `${remaining.toLocaleString()} SYP` : t("congrats") ?? "At top level"}
+                </Text>
+              </View>
+              <ProgressBar progress={progress} />
+            </View>
+          </View>
+        </TouchableOpacity>
+      ) : null}
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={[styles.searchWrapper, { flex: 1 }]}>
           <TextInput
             style={styles.search}
             placeholder={t("searchProducts")}
@@ -278,70 +299,81 @@ export default function Home() {
             value={search}
             onChangeText={setSearch}
           />
-          <Feather name="search" size={24} color={isDark ? "white" : "black"} style={styles.searchIcon} />
+          <Feather name="search" size={24} color={palette.accent} style={styles.searchIcon} />
           {searching ? (
             <ActivityIndicator size="small" color={palette.accent} style={styles.searchSpinner} />
           ) : (
-            search.trim() && <AntDesign name="close" size={20} color={isDark ? "white" : "black"} style={styles.searchSpinner} onPress={() => { setSearch(""); Keyboard.dismiss(); }} />
+            search.trim() && <AntDesign name="close" size={20} color={palette.text} style={styles.searchSpinner} onPress={() => { setSearch(""); Keyboard.dismiss(); }} />
           )}
         </View>
+
         <View style={styles.filterRow}>
           <TouchableOpacity style={styles.filterChip} onPress={openSheet}>
-            <Feather name="sliders" size={16} color={palette.text} />
-            <Text style={styles.filterChipText}>{t("filters") ?? "Filters & Sort"}</Text>
+            <Feather name="sliders" size={24} color={palette.accent} />
+            {filterCount > 0 ? (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{filterCount}</Text>
+              </View>
+            ) : null}
           </TouchableOpacity>
-          {(priceFilter !== "all" || sortOption !== "relevance") && (
-            <TouchableOpacity
-              onPress={() => {
-                setPriceFilter("all");
-                setSortOption("relevance");
-              }}
-            >
-              <Text style={styles.reset}>{t("clear") ?? "Reset"}</Text>
-            </TouchableOpacity>
-          )}
+
         </View>
-        {!hasQuery && (
-          <>
-            <View style={styles.sectionRow}>
-              <Text style={styles.section}>{t("featuredCategories")}</Text>
-              <Link href="/categories" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.viewAll}>{t("viewAll") ?? "View all"}</Text>
+      </View>
+
+
+      {!hasQuery && (
+        <>
+          <View style={[styles.sectionRow, { paddingTop: 10 }]}>
+            <Text style={styles.section}>{t("featuredCategories")}</Text>
+            <Link href="/categories" asChild>
+              <TouchableOpacity>
+                <Text style={styles.viewAll}>{t("viewAll") ?? "View all"}</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+          <FlatList
+            data={categories}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            style={{ flexGrow: 0 }}
+            keyExtractor={(c) => c._id}
+            contentContainerStyle={{ gap: 10, marginBottom: 10 }}
+            renderItem={({ item }) => (
+              <Link href={{ pathname: `/categories/${item._id}`, params: { name: item.name } }} asChild>
+                <TouchableOpacity style={styles.categoryCard}>
+                  <View style={styles.catImgContainer}>
+                    <Image source={item.imageUrl ? { uri: item.imageUrl } : fallbackLogo} style={styles.categoryImg} />
+                  </View>
+                  <Text style={styles.chipText}>{item.name}</Text>
                 </TouchableOpacity>
               </Link>
-            </View>
-            <FlatList
-              data={categories}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              decelerationRate="fast"
-              style={{ flexGrow: 0 }}
-              keyExtractor={(c) => c._id}
-              contentContainerStyle={{ gap: 10 }}
-              renderItem={({ item }) => (
-                <Link href={{ pathname: `/categories/${item._id}`, params: { name: item.name } }} asChild>
-                  <TouchableOpacity style={styles.categoryCard}>
-                    <View style={styles.catImgContainer}>
-                      <Image source={item.imageUrl ? { uri: item.imageUrl } : fallbackLogo} style={styles.categoryImg} />
-                    </View>
-                    <Text style={styles.chipText}>{item.name}</Text>
-                  </TouchableOpacity>
-                </Link>
-              )}
-            />
-          </>
-        )}
-        <Text style={styles.section}>{hasQuery ? `${t("products")} (${filteredAndSorted.length})` : t("freshPicks")}</Text>
+            )}
+          />
+        </>
+      )}
+      <Text style={[styles.section, { marginBottom: 10 }]}>{hasQuery ? `${t("products")} (${filteredAndSorted.length})` : t("freshPicks")}</Text>
+    </View>
+  );
+
+  return (
+    <BottomSheetModalProvider>
+      <Screen>
         <FlatList
           data={filteredAndSorted}
           numColumns={2}
+          showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           decelerationRate="fast"
           keyExtractor={(p) => p._id}
-          style={{ flexGrow: 0 }}
-          columnWrapperStyle={{ gap: 20 }}
+          contentContainerStyle={{ paddingBottom: 16, }}
+          columnWrapperStyle={{ gap: 20, marginBottom: 0, }}
+          ListHeaderComponent={renderListHeader}
+          refreshing={loadingProducts && !loadingMore}
+          onRefresh={() => fetchProducts(1, false)}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.4}
           renderItem={({ item }) => (
             <View style={styles.product}>
               <Link href={`/products/${item._id}`} asChild>
@@ -377,8 +409,17 @@ export default function Home() {
               })()}
             </View>
           )}
+          ListFooterComponent={
+            <View style={{ paddingBottom: 0 }}>
+              {loadingMore ? (
+                <View style={{ paddingVertical: 0 }}>
+                  <ActivityIndicator color={palette.accent} />
+                </View>
+              ) : null}
+              {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.searchMeta}>{t("emptyProducts")}</Text> : null}
+            </View>
+          }
         />
-        {hasQuery ? <Text style={styles.searchMeta}>{filteredAndSorted.length === 0 && t("emptyProducts")}</Text> : null}
       </Screen>
 
       <BottomSheetModal
@@ -422,6 +463,7 @@ export default function Home() {
           </View>
         </BottomSheetView>
       </BottomSheetModal>
+
       <BottomSheetModal
         ref={addressSheetRef}
         snapPoints={["50%"]}
@@ -452,6 +494,7 @@ export default function Home() {
           </TouchableOpacity>
         </BottomSheetView>
       </BottomSheetModal>
+
       <BottomSheetModal
         ref={membershipSheetRef}
         snapPoints={membershipSnapPoints}
@@ -515,28 +558,42 @@ const createStyles = (palette: any, isRTL: boolean) =>
       padding: 14,
       paddingLeft: 40,
       color: palette.text,
-      marginBottom: 12,
       paddingRight: 40,
     },
-    section: { color: palette.text, fontWeight: "700", marginVertical: 12, textAlign: isRTL ? "right" : "left" },
+    section: { color: palette.text, fontWeight: "700", textAlign: isRTL ? "right" : "left" },
     searchMeta: { color: palette.muted, marginTop: 8, textAlign: isRTL ? "right" : "left" },
     searchWrapper: { position: "relative" },
     searchSpinner: { position: "absolute", right: 12, top: 12 },
     searchIcon: { position: "absolute", left: 10, top: 12 },
-    sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginVertical: 12 },
+    sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     viewAll: { color: palette.accent, fontWeight: "700" },
-    filterRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
+    filterRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+    },
     filterChip: {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
       paddingHorizontal: 12,
-      paddingVertical: 8,
-      backgroundColor: palette.surface,
+      paddingVertical: 10,
+      backgroundColor: palette.card,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: palette.border,
     },
+    filterBadge: {
+      minWidth: 20,
+      height: 20,
+      borderRadius: 999,
+      backgroundColor: palette.accent,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 6,
+    },
+    filterBadgeText: { color: "#fff", fontWeight: "800", fontSize: 12 },
     membershipCard: {
       flexDirection: "row",
       alignItems: "center",
@@ -641,7 +698,8 @@ const createStyles = (palette: any, isRTL: boolean) =>
     sheetFooter: { paddingTop: 8 },
     sheetText: { color: palette.muted },
     sheetValue: { color: palette.text, fontWeight: "800" },
-    applyButton: { backgroundColor: palette.accent, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
+    applyButton: { backgroundColor: palette.accent, borderRadius: 12, paddingVertical: 12, alignItems: "center",flex:1 },
+    secondaryButton:{backgroundColor: palette.surface, paddingVertical: 14},
     applyButtonText: { color: "#fff", fontWeight: "800" },
     sheetPillRow: {
       padding: 12,

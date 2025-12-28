@@ -208,7 +208,7 @@ export default function CartScreen() {
           <Text style={styles.totalValue}>{subtotal.toLocaleString()} SYP</Text>
         </View>}
 
-        {items.length > 0 && <View style={{ gap: 8 }}>
+        {items.length > 0 && <View style={{ gap: 8, paddingBottom:16 }}>
           <Button title={t("clearCart")} onPress={confirmClear} secondary />
           {user ? (
             <Button title={t("checkout")} onPress={openCheckout} />

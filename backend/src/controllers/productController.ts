@@ -4,10 +4,26 @@ import { productSchema } from "../validators/productValidators";
 import { sendSuccess } from "../utils/response";
 
 export const listProducts = catchAsync(async (req, res) => {
-  const { q, category } = req.query as { q?: string; category?: string };
+  const { q, category, page: rawPage, limit: rawLimit } = req.query as { q?: string; category?: string; page?: string; limit?: string };
   const filter: Record<string, unknown> = {};
   if (q) filter.name = { $regex: q, $options: "i" };
   if (category) filter.category = category;
+
+  const page = Math.max(1, Number(rawPage) || 1);
+  const limit = Math.min(100, Math.max(1, Number(rawLimit) || 20));
+  const shouldPaginate = Boolean(rawPage) || Boolean(rawLimit);
+
+  if (shouldPaginate) {
+    const total = await Product.countDocuments(filter);
+    const items = await Product.find(filter)
+      .populate("category")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+    const hasMore = (page - 1) * limit + items.length < total;
+    return sendSuccess(res, { items, total, page, limit, hasMore });
+  }
+
   const products = await Product.find(filter).populate("category").limit(100);
   sendSuccess(res, products);
 });

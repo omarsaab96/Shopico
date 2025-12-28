@@ -21,7 +21,8 @@ const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps)
         },
         container: {
           flex: 1,
-          padding: 16,
+          paddingHorizontal: 16,
+          paddingTop:16
         },
         backRow: { flexDirection: "row", alignItems: "center", marginBottom: 8, gap: 6 },
         backText: { color: palette.text, fontWeight: "700" },
