@@ -1,24 +1,52 @@
 import { Link } from "expo-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { FlatList, Text, TouchableOpacity, View, StyleSheet, RefreshControl } from "react-native";
+import {
+  FlatList,
+  Text,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+  RefreshControl,
+} from "react-native";
 import Screen from "../../components/Screen";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
+import { useRouter } from 'expo-router';
+
 
 export default function Orders() {
+  const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
   const { user } = useAuth();
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     if (!user) return;
-    api.get("/orders")
-      .then((res) => setOrders(res.data.data || []))
-      .catch(() => setOrders([]));
+
+    setRefreshing(true);
+    try {
+      const res = await api.get("/orders");
+      const list = res.data.data || [];
+
+      // newest first
+      const sorted = [...list].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
+      );
+
+      setOrders(sorted);
+    } catch {
+      setOrders([]);
+    } finally {
+      setRefreshing(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -28,29 +56,54 @@ export default function Orders() {
   return (
     <Screen>
       <Text style={styles.title}>{t("orders")}</Text>
+
       {!user ? (
         <View style={styles.emptyBox}>
-          <Text style={styles.muted}>{t("loginToSeeOrders") ?? "Please login to view your orders."}</Text>
-          <Link href="/auth/login" asChild>
-            <TouchableOpacity style={styles.loginBtn}>
-              <Text style={styles.loginBtnText}>{t("login")}</Text>
-            </TouchableOpacity>
-          </Link>
+          <Text style={styles.emptyTitle}>
+            {t("noOrders") ?? "No orders yet"}
+          </Text>
+          <Text style={styles.emptyText}>{t("loginToSeeOrders") ?? "Please login to view your orders."}</Text>
+
+          <TouchableOpacity style={styles.browseBtn} onPress={() => { router.replace("/auth/login") }}>
+            <Text style={styles.browseBtnText}>{t("login")}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : orders.length === 0 ? (
+        <View style={styles.emptyBox}>
+          <Text style={styles.emptyTitle}>{t("noOrders") ?? "No orders yet"}</Text>
+          <Text style={styles.emptyText}>{t("noOrdersHint") ?? "Start browsing to place your first order."}</Text>
+          <TouchableOpacity style={styles.browseBtn} onPress={() => router.replace("/(tabs)/store")}>
+            <Text style={styles.browseBtnText}>{t("startBrowsing")}</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
           data={orders}
           keyExtractor={(o) => o._id}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={palette.accent} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={load}
+              tintColor={palette.accent}
+            />
+          }
           renderItem={({ item }) => (
             <Link href={`/orders/${item._id}`} asChild>
               <TouchableOpacity style={styles.row}>
                 <View>
-                  <Text style={styles.name}>#{item._id.slice(-6)}</Text>
-                  <Text style={styles.muted}>{item.status}</Text>
+                  <Text style={styles.name}>
+                    #{item._id.slice(-6)}
+                  </Text>
+
+                  <Text style={styles.muted}>
+                    {t(item.status) ?? item.status}
+                  </Text>
                 </View>
-                <Text style={styles.value}>{item.total?.toLocaleString()} SYP</Text>
+
+                <Text style={styles.value}>
+                  {item.total?.toLocaleString()} SYP
+                </Text>
               </TouchableOpacity>
             </Link>
           )}
@@ -60,34 +113,58 @@ export default function Orders() {
   );
 }
 
+
 const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
-    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: isRTL ? "right" : "left" },
+    title: {
+      color: palette.text,
+      fontSize: 22,
+      fontWeight: "800",
+      marginBottom: 12,
+      textAlign: isRTL ? "right" : "left",
+    },
+
     row: {
       backgroundColor: palette.card,
-      borderRadius: 12,
+      borderRadius: 20,
       padding: 12,
       borderWidth: 1,
       borderColor: palette.border,
       flexDirection: "row",
       justifyContent: "space-between",
+      alignItems: "center",
     },
+
     name: { color: palette.text, fontWeight: "700" },
     muted: { color: palette.muted },
-    value: { color: palette.accent },
+    value: { color: palette.accent, fontWeight: "800" },
+
     emptyBox: {
       backgroundColor: palette.card,
+      borderRadius: 20,
       padding: 16,
-      borderRadius: 12,
       borderWidth: 1,
       borderColor: palette.border,
-      gap: 12,
+      alignItems: "center",
+      gap: 8,
     },
+    emptyTitle: { color: palette.text, fontSize: 18, fontWeight: "800" },
+    emptyText: { color: palette.muted, textAlign: "center" },
+    browseBtn: {
+      backgroundColor: palette.accent,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+      marginTop: 4,
+    },
+    browseBtnText: { color: "#fff", fontWeight: "700" },
+
     loginBtn: {
       backgroundColor: palette.accent,
       paddingVertical: 10,
       borderRadius: 10,
       alignItems: "center",
     },
+
     loginBtnText: { color: "#fff", fontWeight: "700" },
   });

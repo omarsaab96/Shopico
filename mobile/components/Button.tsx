@@ -25,7 +25,7 @@ const Button = ({
           shadowRadius: 8,
           shadowOffset: { width: 0, height: 4 },
         },
-        primaryText: { color: "#0f172a", fontWeight: "700", fontSize: 16 },
+        primaryText: { color: "#fff", fontWeight: "700", fontSize: 16 },
         secondary: {
           paddingVertical: 14,
           borderRadius: 14,

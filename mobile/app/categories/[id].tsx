@@ -1,6 +1,16 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Text, TouchableOpacity, View, StyleSheet, Image, TextInput, ActivityIndicator, Keyboard } from "react-native";
+import {
+  FlatList,
+  Text,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+  Image,
+  TextInput,
+  ActivityIndicator,
+  Keyboard,
+} from "react-native";
 import Screen from "../../components/Screen";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
@@ -8,23 +18,35 @@ import { useI18n } from "../../lib/i18n";
 import { useCart } from "../../lib/cart";
 import Feather from "@expo/vector-icons/Feather";
 import AntDesign from "@expo/vector-icons/AntDesign";
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
 export default function CategoryDetail() {
   const router = useRouter();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
+
   const [products, setProducts] = useState<any[]>([]);
-  const [categoryName, setCategoryName] = useState<string>("");
+  const [categoryName, setCategoryName] = useState("");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searching, setSearching] = useState(false);
+
   const { items, addItem, setQuantity } = useCart();
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
-  const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
-  const fallbackLogo = isDark ? require("../../assets/shopico_logo.png") : require("../../assets/shopico_logo-black.png");
+
+  const styles = useMemo(
+    () => createStyles(palette, isRTL, isDark),
+    [palette, isRTL, isDark]
+  );
+
+  const fallbackLogo = isDark
+    ? require("../../assets/shopico_logo.png")
+    : require("../../assets/shopico_logo-black.png");
 
   useEffect(() => {
-    api.get(`/products?category=${id}`).then((res) => setProducts(res.data.data || []));
+    api.get(`/products?category=${id}`).then((res) => {
+      setProducts(res.data.data || []);
+    });
     if (name) setCategoryName(name);
   }, [id, name]);
 
@@ -35,9 +57,12 @@ export default function CategoryDetail() {
 
   useEffect(() => {
     if (!debouncedSearch) {
-      api.get(`/products?category=${id}`).then((res) => setProducts(res.data.data || []));
+      api.get(`/products?category=${id}`).then((res) => {
+        setProducts(res.data.data || []);
+      });
       return;
     }
+
     setSearching(true);
     api
       .get(`/products?q=${encodeURIComponent(debouncedSearch)}&category=${id}`)
@@ -49,147 +74,296 @@ export default function CategoryDetail() {
   return (
     <Screen showBack backLabel={t("back") ?? "Back"}>
       <Text style={styles.title}>{categoryName || t("products")}</Text>
-      <View style={styles.searchWrapper}>
+
+      {/* SEARCH */}
+      <View style={styles.searchWrap}>
+        <Feather
+          name="search"
+          size={18}
+          color={palette.muted}
+          style={styles.searchIcon}
+        />
+
         <TextInput
-          style={styles.search}
+          style={styles.searchInput}
           placeholder={t("searchProducts")}
           placeholderTextColor={palette.muted}
           value={search}
           onChangeText={setSearch}
         />
-        <Feather name="search" size={22} color={palette.text} style={styles.searchIcon} />
+
         {searching ? (
-          <ActivityIndicator size="small" color={palette.accent} style={styles.searchSpinner} />
+          <ActivityIndicator
+            size="small"
+            color={palette.accent}
+            style={styles.searchRight}
+          />
         ) : (
           search.trim() && (
-            <AntDesign
-              name="close"
-              size={18}
-              color={palette.text}
-              style={styles.searchSpinner}
+            <TouchableOpacity
+              style={styles.searchRight}
               onPress={() => {
                 setSearch("");
                 Keyboard.dismiss();
               }}
-            />
+            >
+              <AntDesign name="close" size={18} color={palette.text} />
+            </TouchableOpacity>
           )
         )}
       </View>
+
+      {/* PRODUCTS */}
       <FlatList
         data={products}
         keyExtractor={(p) => p._id}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <TouchableOpacity
-              onPress={() => {
-                router.push(`/products/${item._id}`)
-              }}
-              style={{ flexDirection: "row", flex: 1, gap: 10, alignItems: "center" }}
-            >
-              <View style={styles.prodImgContainer}>
-                <Image
-                  source={
-                    item.images?.[0]?.url
-                      ? { uri: item.images?.[0]?.url }
-                      : fallbackLogo
-                  }
-                  style={styles.productImg} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.price}>{item.price.toLocaleString()} SYP</Text>
-              </View>
-            </TouchableOpacity>
+        contentContainerStyle={{ paddingBottom: 16 }}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        renderItem={({ item }) => {
+          const existing = items.find((i) => i.productId === item._id);
 
-            {(() => {
-              const existing = items.find((i) => i.productId === item._id);
-              if (existing) {
-                return (
-                  <View style={styles.qtyRow}>
-                    <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(existing.productId, existing.quantity - 1)}>
-                      <Text style={styles.qtySymbol}>-</Text>
+          return (
+            <View style={styles.card}>
+              <TouchableOpacity
+                style={styles.cardPress}
+                onPress={() => router.push(`/products/${item._id}`)}
+                activeOpacity={0.9}
+              >
+                <View style={styles.imageBox}>
+                  <Image
+                    source={
+                      item.images?.[0]?.url
+                        ? { uri: item.images[0].url }
+                        : fallbackLogo
+                    }
+                    style={styles.image}
+                  />
+                </View>
+
+                <View style={styles.infoCol}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.description} numberOfLines={2}>
+                    {item.description}
+                  </Text>
+                  <Text style={styles.price}>
+                    {item.price.toLocaleString()} SYP
+                  </Text>
+                </View>
+                <View>
+                  {existing ? (
+                    <View style={styles.qtyRow}>
+                      <TouchableOpacity
+                        style={styles.qtyBtn}
+                        onPress={() =>
+                          setQuantity(existing.productId, existing.quantity - 1)
+                        }
+                      >
+                        <Text style={styles.qtyText}>−</Text>
+                      </TouchableOpacity>
+
+                      <Text style={styles.qtyValue}>{existing.quantity}</Text>
+
+                      <TouchableOpacity
+                        style={styles.qtyBtn}
+                        onPress={() =>
+                          addItem({
+                            productId: item._id,
+                            name: item.name,
+                            price: item.price,
+                            image: item.images?.[0]?.url,
+                            quantity: 1,
+                          })
+                        }
+                      >
+                        <Text style={styles.qtyText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.addBtn}
+                      onPress={() =>
+                        addItem({
+                          productId: item._id,
+                          name: item.name,
+                          price: item.price,
+                          image: item.images?.[0]?.url,
+                          quantity: 1,
+                        })
+                      }
+                    >
+                      <FontAwesome6 name="cart-plus" size={20} color={'#fff'} />
                     </TouchableOpacity>
-                    <Text style={styles.qtyValue}>{existing.quantity}</Text>
-                    <TouchableOpacity style={styles.qtyButton} onPress={() => addItem({ productId: item._id, name: item.name, price: item.price, image: item.images?.[0]?.url, quantity: 1 })}>
-                      <Text style={styles.qtySymbol}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              }
-              return (
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={() => addItem({ productId: item._id, name: item.name, price: item.price, image: item.images?.[0]?.url, quantity: 1 })}
-                >
-                  <Text style={styles.addButtonText}>{t("addToCart")}</Text>
-                </TouchableOpacity>
-              );
-            })()}
-          </View>
-        )}
+                  )}
+                </View>
+              </TouchableOpacity>
+            </View>
+          );
+        }}
       />
     </Screen>
   );
 }
 
-const createStyles = (palette: any, isRTL: boolean) =>
-  StyleSheet.create({
-    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: isRTL ? "right" : "left" },
-    searchWrapper: { position: "relative", marginBottom: 10 },
-    search: {
-      backgroundColor: palette.card,
-      borderRadius: 12,
-      padding: 12,
-      paddingLeft: 36,
-      paddingRight: 36,
+const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
+  const row = isRTL ? "row-reverse" : "row";
+  const align = isRTL ? "right" : "left";
+
+  const shadow = {
+    shadowColor: "#000",
+    shadowOpacity: isDark ? 0.2 : 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: isDark ? 2 : 1,
+  };
+
+  return StyleSheet.create({
+    title: {
+      fontSize: 26,
+      fontWeight: "900",
       color: palette.text,
-      borderWidth: 1,
-      borderColor: palette.border,
+      marginBottom: 12,
+      textAlign: align,
     },
-    searchSpinner: { position: "absolute", right: 12, top: 10 },
-    searchIcon: { position: "absolute", left: 10, top: 10 },
-    row: {
+
+    /* SEARCH */
+    searchWrap: {
+      position: "relative",
+      height: 48,
+      borderRadius: 999,
       backgroundColor: palette.card,
-      borderRadius: 12,
-      padding: 8,
       borderWidth: 1,
       borderColor: palette.border,
-      flexDirection: "row",
+      justifyContent: "center",
+      marginBottom: 12,
+      ...shadow,
+    },
+    searchIcon: {
+      position: "absolute",
+      left: isRTL ? undefined : 14,
+      right: isRTL ? 14 : undefined,
+      top: 15,
+    },
+    searchInput: {
+      paddingLeft: isRTL ? 44 : 36,
+      paddingRight: isRTL ? 36 : 44,
+      color: palette.text,
+      fontWeight: "600",
+      textAlign: align,
+    },
+    searchRight: {
+      position: "absolute",
+      right: isRTL ? undefined : 14,
+      left: isRTL ? 14 : undefined,
+      top: 14,
+    },
+
+    /* CARD */
+    card: {
+      backgroundColor: palette.card,
+      borderRadius: 20,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: palette.border,
+      ...shadow,
       gap: 10,
+    },
+
+    cardPress: {
+      flexDirection: row,
+      gap: 12,
       alignItems: "center",
     },
-    img: { width: 64, height: 64, borderRadius: 12, backgroundColor: palette.surface },
-    prodImgContainer: {
-      backgroundColor: palette.surface,
-      borderRadius: 12,
-      overflow: 'hidden',
+
+    imageBox: {
       width: 96,
       height: 96,
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    productImg: { height: 86, aspectRatio: 1, objectFit: 'contain' },
-    name: { color: palette.text, fontWeight: "700" },
-    price: { color: palette.accent },
-    addButton: {
-      backgroundColor: palette.accent,
-      paddingVertical: 8,
-      paddingHorizontal: 10,
-      borderRadius: 10,
-    },
-    addButtonText: { color: "#fff", fontWeight: "700" },
-    qtyRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-    qtyButton: {
-      width: 34,
-      height: 34,
-      borderRadius: 10,
+      borderRadius: 18,
       backgroundColor: palette.surface,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
       borderColor: palette.border,
+      overflow: "hidden",
     },
-    qtySymbol: { color: palette.text, fontSize: 18, fontWeight: "800" },
-    qtyValue: { color: palette.text, fontSize: 16, fontWeight: "800", minWidth: 24, textAlign: "center" },
+
+    image: {
+      width: "85%",
+      height: "85%",
+      resizeMode: "contain",
+    },
+
+    infoCol: {
+      flex: 1,
+      gap: 4,
+    },
+
+    name: {
+      fontSize: 15,
+      fontWeight: "900",
+      color: palette.text,
+      textAlign: align,
+    },
+
+    description: {
+      fontSize: 12,
+      color: palette.mutted,
+      textAlign: align,
+    },
+
+    price: {
+      fontSize: 16,
+      fontWeight: "800",
+      color: palette.accent,
+      textAlign: align,
+      marginBottom: 10
+    },
+
+    /* ACTIONS */
+    addBtn: {
+      backgroundColor: palette.accent,
+      borderRadius: 14,
+      alignItems: "center",
+      width:40,
+      height:40,
+      justifyContent:'center'
+    },
+    addBtnText: {
+      color: "#fff",
+      fontWeight: "900",
+    },
+
+    qtyRow: {
+      flexDirection: row,
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+
+    qtyBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: palette.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    qtyText: {
+      fontSize: 18,
+      fontWeight: "900",
+      color: palette.text,
+    },
+
+    qtyValue: {
+      fontSize: 16,
+      fontWeight: "900",
+      color: palette.text,
+      minWidth: 24,
+      textAlign: "center",
+    },
   });
+};

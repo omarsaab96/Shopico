@@ -12,9 +12,11 @@ export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [product, setProduct] = useState<any>();
   const { addItem, items, setQuantity } = useCart();
-  const { palette } = useTheme();
+  const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
+
+  const fallbackLogo = isDark ? require("../../assets/shopico_logo.png") : require("../../assets/shopico_logo-black.png");
 
   useEffect(() => {
     api.get(`/products/${id}`).then((res) => setProduct(res.data.data));
@@ -26,7 +28,16 @@ export default function ProductDetail() {
 
   return (
     <Screen showBack backLabel={t("back") ?? "Back"}>
-      <Image source={{ uri: product.images?.[0]?.url || "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=640&q=80&auto=format&fit=crop" }} style={styles.img} />
+      <View style={styles.prodImgBox}>
+        <Image
+          source={product.images?.[0]?.url ? {
+            uri: product.images?.[0]?.url
+          } :
+            fallbackLogo
+          }
+          style={[styles.img, !product.images?.[0]?.url && styles.defaultImage]}
+        />
+      </View>
       <Text style={styles.name}>{product.name}</Text>
       <Text style={styles.price}>{product.price?.toLocaleString()} SYP</Text>
       <Text style={styles.desc}>{product.description}</Text>
@@ -62,7 +73,22 @@ export default function ProductDetail() {
 
 const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
-    img: { width: "100%", height: 240, borderRadius: 18, marginBottom: 12, backgroundColor: palette.surface },
+    prodImgBox: {
+      width: "100%",
+      height: 240,
+      borderRadius: 16,
+      backgroundColor: palette.surface,
+      overflow: "hidden",
+      alignItems: "center",
+      justifyContent: "center",
+      // borderWidth: 1,
+      // borderColor: hairline,
+      marginBottom: 10
+    },
+    img: { height: '100%', aspectRatio: 4 / 3, resizeMode: "contain" },
+    defaultImage: {
+      tintColor: '#dedede'
+    },
     name: { color: palette.text, fontSize: 24, fontWeight: "800", textAlign: isRTL ? "right" : "left" },
     price: { color: palette.accent, fontSize: 18, marginVertical: 4, textAlign: isRTL ? "right" : "left" },
     desc: { color: palette.muted, marginBottom: 12, textAlign: isRTL ? "right" : "left" },
@@ -71,6 +97,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       alignItems: "center",
       gap: 12,
       marginTop: 8,
+      justifyContent: 'space-between'
     },
     qtyButton: {
       width: 44,

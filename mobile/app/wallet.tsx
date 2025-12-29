@@ -25,7 +25,7 @@ export default function WalletScreen() {
   };
 
   return (
-    <Screen>
+    <Screen showBack backLabel={t("back") ?? "Back"}>
       <Text style={styles.title}>{t("wallet")}</Text>
       <View style={styles.card}>
         <Text style={styles.balance}>{wallet?.wallet?.balance?.toLocaleString() || 0} SYP</Text>
@@ -66,7 +66,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
     card: {
       backgroundColor: palette.card,
       padding: 14,
-      borderRadius: 12,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: palette.border,
       marginBottom: 12,

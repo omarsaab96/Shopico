@@ -3,11 +3,12 @@ import { View, StyleSheet, Text, TouchableOpacity } from "react-native";
 import { useMemo } from "react";
 import { useTheme } from "../lib/theme";
 import { useRouter } from "expo-router";
+import Entypo from '@expo/vector-icons/Entypo';
 
 type ScreenProps = { children: React.ReactNode; showBack?: boolean; backLabel?: string };
 
 const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps) => {
-  const { palette } = useTheme();
+  const { palette, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -24,7 +25,7 @@ const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps)
           paddingHorizontal: 16,
           paddingTop:16
         },
-        backRow: { flexDirection: "row", alignItems: "center", marginBottom: 8, gap: 6 },
+        backRow: { flexDirection: "row", alignItems: "center", gap: 5,marginBottom:10 },
         backText: { color: palette.text, fontWeight: "700" },
       }),
     [palette, insets.top]
@@ -35,7 +36,7 @@ const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps)
       <View style={styles.container}>
         {showBack && (
           <TouchableOpacity style={styles.backRow} onPress={() => router.back()}>
-            <Text style={styles.backText}>‹</Text>
+            <Entypo name="chevron-left" size={24} color={isDark ? "#fff": "#000"} />
             <Text style={styles.backText}>{backLabel}</Text>
           </TouchableOpacity>
         )}

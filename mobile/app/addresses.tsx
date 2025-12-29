@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Activity
 import MapView, { Marker, MapPressEvent } from "react-native-maps";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
 import Screen from "../components/Screen";
 import api from "../lib/api";
 import { useTheme } from "../lib/theme";
@@ -38,9 +39,12 @@ export default function AddressesScreen() {
   const [placesError, setPlacesError] = useState<string | null>(null);
   const [selectedSuggestion, setSelectedSuggestion] = useState(false);
   const skipNextSearch = useRef(false);
+  const deleteSheetRef = useRef<BottomSheetModal>(null);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
+  const renderBackdrop = useMemo(() => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
 
   const load = () => {
     api.get("/addresses").then((res) => setAddresses(res.data.data || []));
@@ -86,6 +90,22 @@ export default function AddressesScreen() {
     await api.delete(`/addresses/${id}`);
     if (editing?._id === id) resetForm();
     load();
+  };
+
+  const confirmRemove = (id: string) => {
+    setPendingDelete(id);
+    deleteSheetRef.current?.present();
+  };
+
+  const handleDeleteConfirm = () => {
+    if (pendingDelete) remove(pendingDelete);
+    setPendingDelete(null);
+    deleteSheetRef.current?.dismiss();
+  };
+
+  const handleDeleteCancel = () => {
+    setPendingDelete(null);
+    deleteSheetRef.current?.dismiss();
   };
 
   const onMapPress = (e: MapPressEvent) => {
@@ -214,6 +234,7 @@ export default function AddressesScreen() {
   };
 
   return (
+    <BottomSheetModalProvider>
     <Screen showBack backLabel={t("back") ?? "Back"}>
       <Text style={styles.title}>{t("savedAddresses") ?? "Saved addresses"}</Text>
 
@@ -312,15 +333,12 @@ export default function AddressesScreen() {
           <View style={styles.card}>
             <Text style={styles.section}>{item.label}</Text>
             <Text style={styles.muted}>{item.address}</Text>
-            {/* <Text style={styles.muted}>
-              {t("latitude")}: {item.lat} | {t("longitude")}: {item.lng}
-            </Text> */}
             {item.phone ? <Text style={styles.muted}>{item.phone}</Text> : null}
             <View style={styles.row}>
               <TouchableOpacity style={[styles.button, styles.primary]} onPress={() => startEdit(item)}>
                 <Text style={styles.buttonText}>{t("edit") ?? "Edit"}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.button, styles.secondary]} onPress={() => remove(item._id)}>
+              <TouchableOpacity style={[styles.button, styles.secondary]} onPress={() => confirmRemove(item._id)}>
                 <Text style={styles.secondaryText}>{t("delete") ?? "Delete"}</Text>
               </TouchableOpacity>
             </View>
@@ -329,6 +347,30 @@ export default function AddressesScreen() {
         ListEmptyComponent={<Text style={styles.muted}>{t("noAddresses") ?? "No addresses saved yet."}</Text>}
       />}
     </Screen>
+
+    <BottomSheetModal
+      ref={deleteSheetRef}
+      snapPoints={["30%"]}
+      enablePanDownToClose
+      backdropComponent={renderBackdrop}
+      onDismiss={() => setPendingDelete(null)}
+      backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+      handleIndicatorStyle={{ backgroundColor: palette.muted }}
+    >
+      <BottomSheetView style={styles.sheetContainer}>
+        <Text style={styles.sheetTitle}>{t("confirmRemove") ?? "Remove address?"}</Text>
+        <Text style={styles.sheetText}>{t("confirmRemoveCopy") ?? "Are you sure you want to remove this item from your list?"}</Text>
+        <View style={styles.sheetActions}>
+          <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonSecondary]} onPress={handleDeleteCancel}>
+            <Text style={styles.sheetButtonTextSecondary}>{t("no") ?? "No"}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonPrimary]} onPress={handleDeleteConfirm}>
+            <Text style={styles.sheetButtonTextPrimary}>{t("yes") ?? "Yes"}</Text>
+          </TouchableOpacity>
+        </View>
+      </BottomSheetView>
+    </BottomSheetModal>
+    </BottomSheetModalProvider>
   );
 }
 
@@ -406,4 +448,13 @@ const createStyles = (palette: any, isRTL: boolean) =>
     searchIcon: { position: "absolute", left: 10, top: 12 },
     searchSpinner: { position: "absolute", right: 12, top: 14 },
     clearText: { color: palette.text, fontSize: 16, fontWeight: "800" },
+    sheetContainer: { padding: 16, gap: 10 },
+    sheetTitle: { color: palette.text, fontSize: 18, fontWeight: "800" },
+    sheetText: { color: palette.muted },
+    sheetActions: { flexDirection: "row", gap: 10 },
+    sheetButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center" },
+    sheetButtonPrimary: { backgroundColor: palette.accent },
+    sheetButtonSecondary: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
+    sheetButtonTextPrimary: { color: "#0f172a", fontWeight: "800" },
+    sheetButtonTextSecondary: { color: palette.text, fontWeight: "700" },
   });

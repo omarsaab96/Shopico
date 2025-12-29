@@ -59,18 +59,50 @@ export default function OrderDetail() {
 
 const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
-    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: isRTL ? "right" : "left" },
+    title: {
+      color: palette.text,
+      fontSize: 24,
+      fontWeight: "900",
+      marginBottom: 14,
+      textAlign: isRTL ? "right" : "left",
+    },
+
     card: {
       backgroundColor: palette.card,
-      padding: 14,
-      borderRadius: 12,
+      padding: 16,
+      borderRadius: 18,
       borderWidth: 1,
       borderColor: palette.border,
-      marginTop: 12,
-      gap: 6,
+      marginTop: 14,
+      gap: 8,
     },
-    muted: { color: palette.muted },
-    value: { color: palette.text, fontWeight: "700" },
-    total: { color: palette.accent, fontSize: 16, fontWeight: "800", marginTop: 6 },
-    row: { flexDirection: "row", justifyContent: "space-between" },
+
+    muted: {
+      color: palette.muted,
+      fontSize: 13,
+      fontWeight: "600",
+      textAlign: isRTL ? "right" : "left",
+    },
+
+    value: {
+      color: palette.text,
+      fontWeight: "800",
+      fontSize: 14,
+      textAlign: isRTL ? "right" : "left",
+    },
+
+    total: {
+      color: palette.accent,
+      fontSize: 18,
+      fontWeight: "900",
+      marginTop: 8,
+      textAlign: isRTL ? "right" : "left",
+    },
+
+    row: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 4,
+    },
   });

@@ -35,7 +35,7 @@ export default function PointsScreen() {
     : t("earnPointsCopy");
 
   return (
-    <Screen>
+    <Screen showBack backLabel={t("back") ?? "Back"}>
       <Text style={styles.title}>{t("rewards")}</Text>
       <View style={styles.card}>
         <Text style={styles.value}>{points} pts</Text>

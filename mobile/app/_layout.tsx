@@ -75,11 +75,7 @@ const ThemedStack = () => {
           headerStyle: { backgroundColor: palette.background },
           headerTintColor: palette.text,
           contentStyle: { backgroundColor: palette.background },
-          statusBarHidden: false,
-          statusBarTranslucent: false,
           navigationBarHidden: false,
-          navigationBarTranslucent: true,
-          navigationBarColor: palette.background,
           gestureEnabled: true,
         }}
       />

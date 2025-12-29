@@ -439,7 +439,7 @@ export default function Home() {
                   ) : (
                     <>
                       <View style={styles.catOverlay} />
-                      <Image source={fallbackLogo} style={styles.catIcon} />
+                      <Image source={fallbackLogo} style={[styles.catIcon, { tintColor: '#dedede' }]} />
                     </>
                   )}
                 </View>
@@ -465,16 +465,20 @@ export default function Home() {
           </Text>
 
           {user ? (
-            <TouchableOpacity onPress={openAddressSheet} activeOpacity={0.9} style={styles.addressRow}>
+            <TouchableOpacity onPress={openAddressSheet} activeOpacity={0.9} style={[styles.addressRow, { width: '100%' }]}>
               <Feather name="map-pin" size={14} color={palette.muted} />
               <Text style={styles.addressLabel} numberOfLines={1}>
-                {t("deliveryTo") ?? "Delivery to"}{" "}
+                {t("deliveryTo") ?? "Delivery to"}
               </Text>
 
               {latestAddress ? (
-                <Text style={styles.addressValue} numberOfLines={1}>
-                  {latestAddress}
-                </Text>
+                <>
+                  <Text style={[styles.addressValue, { flex: 1 }]} numberOfLines={1}>
+                    {latestAddress.substring(0, 52)}
+                    <Entypo name="chevron-down" size={12} color="black" />
+                  </Text>
+
+                </>
               ) : (
                 <Skeleton width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
               )}
@@ -500,7 +504,7 @@ export default function Home() {
       {renderSearchAndFilters()}
       {renderCategoriesGrid()}
 
-      <Text style={[styles.sectionTitle, { marginTop: 6 }]}>
+      <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>
         {hasQuery ? `${t("products") ?? "Products"} (${filteredAndSorted.length})` : (t("freshPicks") ?? "Fresh picks")}
       </Text>
     </View>
@@ -508,7 +512,7 @@ export default function Home() {
 
   return (
     <BottomSheetModalProvider>
-      <StatusBar style={isDark ? "light" : "dark"} />
+      {/* <StatusBar style={isDark ? "light" : "dark"} /> */}
       <Screen>
         <FlatList
           data={filteredAndSorted}
@@ -524,59 +528,113 @@ export default function Home() {
           onRefresh={() => fetchProducts(1, false)}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.4}
-          renderItem={({ item }) => (
-            <View style={styles.productCard}>
-              <Link href={`/products/${item._id}`} asChild>
-                <TouchableOpacity style={styles.productPressable} activeOpacity={0.92}>
-                  <View style={styles.prodImgBox}>
-                    <Image source={item.images?.[0]?.url ? { uri: item.images?.[0]?.url } : fallbackLogo} style={styles.productImg} />
-                  </View>
+          renderItem={({ item, index }) => {
+            const isLeft = index % 2 === 0;
 
-                  <Text style={styles.productName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.productDesc} numberOfLines={2}>
-                    {item.description}
-                  </Text>
+            return (
+              <View
+                style={{
+                  width: "50%",
+                  paddingRight: isLeft ? 6 : 0,
+                  paddingLeft: isLeft ? 0 : 6,
+                }}
+              >
+                <View style={styles.productCard}>
+                  <Link href={`/products/${item._id}`} asChild>
+                    <TouchableOpacity
+                      style={styles.productPressable}
+                      activeOpacity={0.92}
+                    >
+                      <View style={styles.prodImgBox}>
+                        <Image
+                          source={
+                            item.images?.[0]?.url
+                              ? { uri: item.images?.[0]?.url }
+                              : fallbackLogo
+                          }
+                          style={[
+                            styles.productImg,
+                            !item.images?.[0]?.url && { tintColor: "#dedede" },
+                          ]}
+                        />
+                      </View>
 
-                  <View style={styles.priceRow}>
-                    <Text style={styles.productPrice}>{item.price.toLocaleString()} SYP</Text>
-                    <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={16} color={palette.muted} />
-                  </View>
-                </TouchableOpacity>
-              </Link>
+                      <Text style={styles.productName} numberOfLines={1}>
+                        {item.name}
+                      </Text>
 
-              {(() => {
-                const existing = items.find((i) => i.productId === item._id);
-                if (existing) {
-                  return (
-                    <View style={styles.qtyRow}>
-                      <TouchableOpacity style={styles.qtyBtn} onPress={() => setQuantity(existing.productId, existing.quantity - 1)} activeOpacity={0.9}>
-                        <Text style={styles.qtySym}>-</Text>
-                      </TouchableOpacity>
-                      <Text style={styles.qtyVal}>{existing.quantity}</Text>
+                      <Text style={styles.productDesc} numberOfLines={2}>
+                        {item.description}
+                      </Text>
+
+                      <View style={styles.priceRow}>
+                        <Text style={styles.productPrice}>
+                          {item.price.toLocaleString()} SYP
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </Link>
+
+                  {(() => {
+                    const existing = items.find(
+                      (i) => i.productId === item._id
+                    );
+
+                    if (existing) {
+                      return (
+                        <View style={styles.qtyRow}>
+                          <TouchableOpacity
+                            style={styles.qtyBtn}
+                            onPress={() =>
+                              setQuantity(existing.productId, existing.quantity - 1)
+                            }
+                          >
+                            <Text style={styles.qtySym}>-</Text>
+                          </TouchableOpacity>
+
+                          <Text style={styles.qtyVal}>{existing.quantity}</Text>
+
+                          <TouchableOpacity
+                            style={styles.qtyBtn}
+                            onPress={() =>
+                              addItem({
+                                productId: item._id,
+                                name: item.name,
+                                price: item.price,
+                                image: item.images?.[0]?.url,
+                                quantity: 1,
+                              })
+                            }
+                          >
+                            <Text style={styles.qtySym}>+</Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    }
+
+                    return (
                       <TouchableOpacity
-                        style={styles.qtyBtn}
-                        onPress={() => addItem({ productId: item._id, name: item.name, price: item.price, image: item.images?.[0]?.url, quantity: 1 })}
-                        activeOpacity={0.9}
+                        style={styles.addBtn}
+                        onPress={() =>
+                          addItem({
+                            productId: item._id,
+                            name: item.name,
+                            price: item.price,
+                            image: item.images?.[0]?.url,
+                            quantity: 1,
+                          })
+                        }
                       >
-                        <Text style={styles.qtySym}>+</Text>
+                        <Text style={styles.addBtnText}>
+                          {t("addToCart") ?? "Add to cart"}
+                        </Text>
                       </TouchableOpacity>
-                    </View>
-                  );
-                }
-                return (
-                  <TouchableOpacity
-                    style={styles.addBtn}
-                    onPress={() => addItem({ productId: item._id, name: item.name, price: item.price, image: item.images?.[0]?.url, quantity: 1 })}
-                    activeOpacity={0.92}
-                  >
-                    <Text style={styles.addBtnText}>{t("addToCart") ?? "Add to cart"}</Text>
-                  </TouchableOpacity>
-                );
-              })()}
-            </View>
-          )}
+                    );
+                  })()}
+                </View>
+              </View>
+            );
+          }}
           ListFooterComponent={
             <View style={{ paddingBottom: 0 }}>
               {loadingMore ? (
@@ -596,7 +654,7 @@ export default function Home() {
           enablePanDownToClose
           backdropComponent={renderBackdrop}
           footerComponent={customFooter}
-          backgroundStyle={{ backgroundColor: palette.card }}
+          backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
           handleIndicatorStyle={{ backgroundColor: palette.muted }}
         >
           <BottomSheetView style={styles.sheetContainer}>
@@ -644,7 +702,13 @@ export default function Home() {
         </BottomSheetModal>
 
         {/* Addresses */}
-        <BottomSheetModal ref={addressSheetRef} snapPoints={["50%"]} enablePanDownToClose backdropComponent={renderBackdrop} backgroundStyle={{ backgroundColor: palette.card }}>
+        <BottomSheetModal
+          ref={addressSheetRef}
+          snapPoints={["50%"]}
+          enablePanDownToClose
+          backdropComponent={renderBackdrop}
+          backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+        >
           <BottomSheetView style={styles.sheetContainer}>
             <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
             {addresses.length === 0 ? (
@@ -681,7 +745,7 @@ export default function Home() {
           snapPoints={membershipSnapPoints}
           enablePanDownToClose
           backdropComponent={renderBackdrop}
-          backgroundStyle={{ backgroundColor: palette.card }}
+          backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
           handleIndicatorStyle={{ backgroundColor: palette.muted }}
         >
           <BottomSheetView style={styles.sheetContainer}>
@@ -697,7 +761,7 @@ export default function Home() {
               <View style={{ gap: 12 }}>
                 <View style={styles.kvRow}>
                   <Text style={styles.kvLabel}>{t("level") ?? "Level"}</Text>
-                  <Text style={styles.kvValue}>{membershipLevel}</Text>
+                  <Text style={styles.kvValue}>{membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}</Text>
                 </View>
 
                 <View style={styles.kvRow}>
@@ -705,24 +769,27 @@ export default function Home() {
                   <Text style={styles.kvValue}>{balance.toLocaleString()} SYP</Text>
                 </View>
 
-                <View style={{ gap: 8 }}>
-                  <View style={styles.kvRow}>
+                {/* <View style={{ gap: 8 }}> */}
+                <View style={styles.kvRow}>
+                  <View style={[styles.kvRow, { justifyContent: 'flex-start', gap: 0 }]}>
                     <Text style={styles.kvLabel}>{t("remainingToNext") ?? "Remaining"}</Text>
                     <Text style={styles.kvValue}>{nextLabel}</Text>
                   </View>
-                  <ProgressBar progress={progress} />
-                  <Text style={styles.sheetText}>{remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "At top level")}</Text>
+                  <Text style={styles.kvValue}>{remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "At top level")}</Text>
                 </View>
+                <ProgressBar progress={progress} />
+                {/* </View> */}
 
-                <Text style={styles.sheetText}>
-                  {t("graceDays") ?? "Grace days"}: {graceDays}
-                </Text>
+                <View style={styles.kvRow}>
+                  <Text style={styles.kvLabel}>{t("graceDays") ?? "Grace days"}</Text>
+                  <Text style={styles.kvValue}>{graceDays}</Text>
+                </View>
               </View>
             )}
           </BottomSheetView>
         </BottomSheetModal>
       </Screen>
-    </BottomSheetModalProvider>
+    </BottomSheetModalProvider >
   );
 }
 
@@ -736,7 +803,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     shadowOpacity: isDark ? 0.18 : 0.08,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
-    elevation: isDark ? 3 : 2,
+    elevation: isDark ? 2 : 1,
   };
 
   const hairline = isDark ? palette.border : "rgba(15, 23, 42, 0.08)";
@@ -752,7 +819,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       flexDirection: row,
       alignItems: "center",
       justifyContent: "space-between",
-      paddingTop: Platform.OS === "ios" ? 4 : 2,
     },
     iconBtn: {
       width: 42,
@@ -787,11 +853,12 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       color: palette.text,
       fontSize: 24,
       fontWeight: "900",
+      textAlign: align,
     },
     addressRow: {
       flexDirection: row,
       alignItems: "center",
-      gap: 6,
+      gap: 5,
       alignSelf: isRTL ? "flex-end" : "flex-start",
     },
     addressLabel: { color: palette.muted, fontSize: 13, textAlign: align },
@@ -852,7 +919,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     walletMiniHint: { color: palette.muted, fontWeight: "700", fontSize: 12, marginTop: 2, textAlign: align },
 
     searchRow: {
-      flexDirection: row,
+      flexDirection: 'row',
       gap: 10,
       alignItems: "center",
     },
@@ -891,21 +958,20 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     },
 
     filterBtn: {
-      width: 48,
+      minWidth: 48,
       height: 48,
       borderRadius: 16,
       backgroundColor: palette.card,
       borderWidth: 1,
       borderColor: hairline,
+      flexDirection: 'row',
       alignItems: "center",
       justifyContent: "center",
+      gap: 10,
+      paddingHorizontal: 10,
       ...cardShadow,
     },
     filterDot: {
-      position: "absolute",
-      top: 8,
-      right: isRTL ? undefined : 8,
-      left: isRTL ? 8 : undefined,
       minWidth: 18,
       height: 18,
       borderRadius: 999,
@@ -944,8 +1010,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       backgroundColor: palette.surface,
       alignItems: "center",
       justifyContent: "center",
-      borderWidth: 1,
-      borderColor: hairline,
+      // borderWidth: 1,
     },
     catBg: {
       position: "absolute",
@@ -962,20 +1027,19 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       backgroundColor: isDark ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.45)",
     },
     catIcon: {
-      width: 44,
+      width: 86,
       height: 44,
       resizeMode: "contain",
     },
-    catName: { color: palette.text, fontWeight: "800", fontSize: 12, textAlign: "center" },
+    catName: { color: palette.text, fontSize: 12, textAlign: "center" },
 
     productRow: {
-      gap: 12,
+      gap: 0,
       marginBottom: 12,
       // paddingHorizontal: 16,
     },
 
     productCard: {
-      flex: 1,
       backgroundColor: palette.card,
       borderRadius: 20,
       padding: 10,
@@ -984,7 +1048,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       gap: 10,
       ...cardShadow,
     },
-    productPressable: { gap: 10 },
+    productPressable: { gap: 0 },
     prodImgBox: {
       width: "100%",
       height: 110,
@@ -993,21 +1057,21 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",
-      borderWidth: 1,
-      borderColor: hairline,
+      // borderWidth: 1,
+      // borderColor: hairline,
+      marginBottom: 10
     },
-    productImg: { width: "86%", height: "86%", resizeMode: "contain" },
-
-    productName: { color: palette.text, fontWeight: "900", textAlign: align },
-    productDesc: { color: palette.muted, fontWeight: "700", fontSize: 12, textAlign: align },
+    productImg: { height: '100%', aspectRatio: 4 / 3, resizeMode: "contain" },
+    productName: { color: palette.text, fontWeight: "900", textAlign: align, marginBottom: 4 },
+    productDesc: { color: palette.muted, fontSize: 12, textAlign: align, marginBottom: 10 },
 
     priceRow: {
       flexDirection: row,
       alignItems: "center",
       justifyContent: "space-between",
-      marginTop: 4,
+      marginBottom: 5,
     },
-    productPrice: { color: palette.accent, fontWeight: "900", fontSize: 13 },
+    productPrice: { color: palette.accent, fontWeight: "900", fontSize: 16 },
 
     addBtn: {
       backgroundColor: palette.accent,
@@ -1120,7 +1184,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       justifyContent: "space-between",
       gap: 10,
     },
-    kvLabel: { color: palette.muted, fontWeight: "900", textAlign: align },
+    kvLabel: { color: palette.muted, textAlign: align },
     kvValue: { color: palette.text, fontWeight: "900", textAlign: align },
   });
 };
