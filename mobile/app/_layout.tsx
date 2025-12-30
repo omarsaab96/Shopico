@@ -53,7 +53,11 @@ const FontGate = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (!fontsLoaded) return;
-    const baseStyle = { fontFamily: isRTL ? "NotoSansArabic_400Regular" : "Manrope_400Regular" };
+    const baseStyle = {
+      fontFamily: isRTL ? "NotoSansArabic_400Regular" : "Manrope_400Regular",
+      writingDirection: isRTL ? "rtl" : "ltr",
+      textAlign: isRTL ? "right" : "left",
+    };
     Text.defaultProps = Text.defaultProps || {};
     Text.defaultProps.style = [Text.defaultProps.style, baseStyle].filter(Boolean);
     TextInput.defaultProps = TextInput.defaultProps || {};
@@ -64,11 +68,12 @@ const FontGate = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const ThemedStack = () => {
+const ThemedStack = ({ lang }: { lang: string }) => {
   const { palette, isDark } = useTheme();
   return (
     <>
       <Stack
+        key={lang}
         initialRouteName="(tabs)"
         screenOptions={{
           headerShown: false,
@@ -90,16 +95,23 @@ export default function Layout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <I18nProvider>
-            <FontGate>
-              <AuthProvider>
-                <CartProvider>
-                  <ThemedStack />
-                </CartProvider>
-              </AuthProvider>
-            </FontGate>
+            <I18nInner />
           </I18nProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+const I18nInner = () => {
+  const { lang } = useI18n();
+  return (
+    <FontGate>
+      <AuthProvider>
+        <CartProvider>
+          <ThemedStack lang={lang} />
+        </CartProvider>
+      </AuthProvider>
+    </FontGate>
+  );
+};

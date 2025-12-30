@@ -9,7 +9,7 @@ import Feather from "@expo/vector-icons/Feather";
 
 export default function TabsLayout() {
   const { palette } = useTheme();
-  const { t } = useI18n();
+  const { t, isRTL, lang } = useI18n();
   const insets = useSafeAreaInsets();
   const { items } = useCart();
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
@@ -29,48 +29,38 @@ export default function TabsLayout() {
         paddingTop: 6,
         paddingBottom: Math.max(insets.bottom + 6, 14),
         height: 64 + insets.bottom,
+        direction: "ltr",
+        writingDirection: "ltr",
       },
+      tabBarItemStyle: { flexDirection: isRTL ? "row-reverse" : "row", writingDirection: isRTL ? "rtl" : "ltr" },
+      tabBarLabelStyle: { writingDirection: isRTL ? "rtl" : "ltr", textAlign: isRTL ? "right" : "left" },
       tabBarActiveTintColor: palette.accent,
       tabBarInactiveTintColor: palette.muted,
     }),
-    [palette, insets.bottom, t]
+    [palette, insets.bottom, t, isRTL]
   );
+  const screens = [
+    { name: "store", label: t("store"), icon: tabIcons.store },
+    { name: "cart", label: t("cart"), icon: tabIcons.cart, badge: itemCount > 0 ? itemCount : undefined },
+    { name: "orders", label: t("orders"), icon: tabIcons.orders },
+    { name: "profile", label: t("profile"), icon: tabIcons.profile },
+  ];
+  const orderedScreens = isRTL ? [...screens].reverse() : screens;
   return (
-    <Tabs screenOptions={screenOptions}>
-      <Tabs.Screen
-        name="store"
-        options={{
-          title: t("store"),
-          tabBarLabel: t("store"),
-          tabBarIcon: ({ color, size }) => <Feather name={tabIcons.store} color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="cart"
-        options={{
-          title: t("cart"),
-          tabBarLabel: t("cart"),
-          tabBarBadge: itemCount > 0 ? itemCount : undefined,
-          tabBarBadgeStyle: { backgroundColor: palette.accent, color: "#fff" },
-          tabBarIcon: ({ color, size }) => <Feather name={tabIcons.cart} color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="orders"
-        options={{
-          title: t("orders"),
-          tabBarLabel: t("orders"),
-          tabBarIcon: ({ color, size }) => <Feather name={tabIcons.orders} color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t("profile"),
-          tabBarLabel: t("profile"),
-          tabBarIcon: ({ color, size }) => <Feather name={tabIcons.profile} color={color} size={size} />,
-        }}
-      />
+    <Tabs key={lang} screenOptions={screenOptions}>
+      {orderedScreens.map((scr) => (
+        <Tabs.Screen
+          key={scr.name}
+          name={scr.name}
+          options={{
+            title: scr.label,
+            tabBarLabel: scr.label,
+            tabBarBadge: scr.badge,
+            tabBarBadgeStyle: scr.badge ? { backgroundColor: palette.accent, color: "#fff" } : undefined,
+            tabBarIcon: ({ color, size }) => <Feather name={scr.icon} color={color} size={size} />,
+          }}
+        />
+      ))}
     </Tabs>
   );
 }

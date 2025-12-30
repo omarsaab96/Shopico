@@ -27,14 +27,14 @@ const lightPalette: Palette = {
 };
 
 const darkPalette: Palette = {
-  background: "#0f172a",
-  card: "#131c2f",
-  surface: "#0b1220",
+  background: "#111",
+  card: "#333",
+  surface: "#444",
   accent: "#ff7a1f",
   accentSoft: "#ffb347",
-  text: "#e2e8f0",
-  muted: "#94a3b8",
-  border: "#1f2937",
+  text: "#ccc",
+  muted: "#555",
+  border: "#222",
 };
 
 interface ThemeContextValue {

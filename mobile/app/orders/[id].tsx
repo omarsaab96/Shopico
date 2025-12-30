@@ -33,13 +33,13 @@ export default function OrderDetail() {
         <Text style={styles.muted}>{t("timeline")}</Text>
         <Text style={styles.value}>{order.status}</Text>
         <Text style={styles.muted}>
-          {t("deliveryFee")}: {order.deliveryFee?.toLocaleString()} SYP
+          {t("deliveryFee")}: {order.deliveryFee?.toLocaleString()} {t("syp")}
         </Text>
         <Text style={styles.muted}>
-          {t("distance")}: {order.deliveryDistanceKm} km
+          {t("distance")}: {order.deliveryDistanceKm} {t("km")}
         </Text>
         <Text style={styles.total}>
-          {t("total")}: {order.total?.toLocaleString()} SYP
+          {t("total")}: {order.total?.toLocaleString()} {t("syp")}
         </Text>
       </View>
       <View style={styles.card}>
@@ -64,7 +64,6 @@ const createStyles = (palette: any, isRTL: boolean) =>
       fontSize: 24,
       fontWeight: "900",
       marginBottom: 14,
-      textAlign: isRTL ? "right" : "left",
     },
 
     card: {
@@ -81,14 +80,12 @@ const createStyles = (palette: any, isRTL: boolean) =>
       color: palette.muted,
       fontSize: 13,
       fontWeight: "600",
-      textAlign: isRTL ? "right" : "left",
     },
 
     value: {
       color: palette.text,
       fontWeight: "800",
       fontSize: 14,
-      textAlign: isRTL ? "right" : "left",
     },
 
     total: {
@@ -96,7 +93,6 @@ const createStyles = (palette: any, isRTL: boolean) =>
       fontSize: 18,
       fontWeight: "900",
       marginTop: 8,
-      textAlign: isRTL ? "right" : "left",
     },
 
     row: {

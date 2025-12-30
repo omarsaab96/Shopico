@@ -87,7 +87,7 @@ const WalletPage = () => {
                   <StatusPill value={topup.status} />
                 </td>
                 <td>
-                  <button className="ghost-btn" onClick={() => updateTopUp(topup._id, "APPROVED").then(load)}>
+                  <button className="ghost-btn mr-10" onClick={() => updateTopUp(topup._id, "APPROVED").then(load)}>
                     {t("approve")}
                   </button>
                   <button className="ghost-btn danger" onClick={() => updateTopUp(topup._id, "REJECTED").then(load)}>

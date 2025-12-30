@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useTheme } from "../lib/theme";
 import { useRouter } from "expo-router";
 import Entypo from '@expo/vector-icons/Entypo';
+import { useI18n } from "../lib/i18n";
 
 type ScreenProps = { children: React.ReactNode; showBack?: boolean; backLabel?: string };
 
@@ -11,6 +12,7 @@ const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps)
   const { palette, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { isRTL } = useI18n();
 
   const styles = useMemo(
     () =>
@@ -19,16 +21,20 @@ const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps)
           flex: 1,
           backgroundColor: palette.background,
           paddingTop: insets.top,
+          writingDirection: isRTL ? "rtl" : "ltr",
+          direction: isRTL ? "rtl" : "ltr",
         },
         container: {
           flex: 1,
           paddingHorizontal: 16,
-          paddingTop:16
+          paddingTop: 16,
+          writingDirection: isRTL ? "rtl" : "ltr",
+          direction: isRTL ? "rtl" : "ltr",
         },
-        backRow: { flexDirection: "row", alignItems: "center", gap: 5,marginBottom:10 },
+        backRow: { flexDirection:'row', alignItems: "center", gap: 5, marginBottom: 10 },
         backText: { color: palette.text, fontWeight: "700" },
       }),
-    [palette, insets.top]
+    [palette, insets.top, isRTL]
   );
 
   return (
@@ -36,7 +42,7 @@ const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps)
       <View style={styles.container}>
         {showBack && (
           <TouchableOpacity style={styles.backRow} onPress={() => router.back()}>
-            <Entypo name="chevron-left" size={24} color={isDark ? "#fff": "#000"} />
+            <Entypo name={isRTL ? "chevron-right" : "chevron-left"} size={24} color={isDark ? "#fff" : "#000"} />
             <Text style={styles.backText}>{backLabel}</Text>
           </TouchableOpacity>
         )}

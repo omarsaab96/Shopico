@@ -25,7 +25,7 @@ const ProgressBar = ({ progress }: { progress: number }) => {
   );
   return (
     <View style={styles.container}>
-      <View style={[styles.bar, { width: `${width == 0 ? 5 : width}%` }]} />
+      <View style={[styles.bar, { width: `${width == 0 ? 2 : width}%` }]} />
     </View>
   );
 };

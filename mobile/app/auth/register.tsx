@@ -6,6 +6,7 @@ import Screen from "../../components/Screen";
 import api, { storeTokens } from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 export default function Register() {
   const router = useRouter();
@@ -32,39 +33,51 @@ export default function Register() {
 
   return (
     <Screen>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t("register")}</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder={t("name")}
-          placeholderTextColor={palette.muted}
-        />
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder={t("email")}
-          placeholderTextColor={palette.muted}
-          autoCapitalize="none"
-        />
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder={t("password")}
-          secureTextEntry={!showPassword}
-          placeholderTextColor={palette.muted}
-        />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.toggle}>
-          <Text style={styles.link}>{showPassword ? t("hide") ?? "Hide" : t("show") ?? "Show"}</Text>
-        </TouchableOpacity>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Button title={t("register")} onPress={submit} />
-        <Link href="/auth/login" style={styles.link}>
-          {t("backToLogin")}
-        </Link>
+      <View style={{ flex: 1, paddingTop: 50 }}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t("register")}</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            placeholder={t("name")}
+            placeholderTextColor={palette.muted}
+          />
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            placeholder={t("email")}
+            placeholderTextColor={palette.muted}
+            autoCapitalize="none"
+          />
+          <View style={{ position: 'relative' }}>
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder={t("password")}
+              secureTextEntry={!showPassword}
+              placeholderTextColor={palette.muted}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.toggle}>
+              {showPassword ?
+                <AntDesign name="eye-invisible" size={20} color="black" />
+                :
+                <AntDesign name="eye" size={20} color="black" />
+              }
+            </TouchableOpacity>
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Button title={t("register")} onPress={submit} />
+          <View style={styles.row}>
+            <Text>{t("alreadyHaveAnAccount")}</Text>
+            <Link href="/auth/login" style={styles.link}>
+              {t("login")}
+            </Link>
+          </View>
+        </View>
       </View>
     </Screen>
   );
@@ -72,8 +85,13 @@ export default function Register() {
 
 const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
-    card: { backgroundColor: palette.card, padding: 16, borderRadius: 14, gap: 12, borderWidth: 1, borderColor: palette.border },
-    cardTitle: { color: palette.text, fontSize: 18, fontWeight: "700", textAlign: isRTL ? "right" : "left" },
+    row: { flexDirection: "row", justifyContent: "flex-start", gap:5 },
+
+    card: { gap: 12, },
+    cardTitle: {
+      color: palette.text, fontSize: 28, fontWeight: "800",
+      textAlign: isRTL ? "right" : "left"
+    },
     input: {
       backgroundColor: palette.surface,
       color: palette.text,
@@ -82,7 +100,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       borderWidth: 1,
       borderColor: palette.border,
     },
-    toggle: { alignSelf: "flex-end", marginTop: -8 },
+    toggle: { position: 'absolute', alignSelf: "flex-end", top: 12, right: 10 },
     link: { color: palette.accent },
     error: { color: "#f87171" },
   });

@@ -35,9 +35,9 @@ export default function CartScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const { palette } = useTheme();
+  const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
-  const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
+  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL]);
   const renderBackdrop = useMemo(() => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
 
   useEffect(() => {
@@ -386,7 +386,7 @@ export default function CartScreen() {
                 backgroundColor: palette.surface,
                 padding: 10,
                 borderTopLeftRadius: 20,
-                borderTopRightRadius: 20
+                borderTopRightRadius: 20,marginBottom:-1
               }}>
 
                 <Text style={styles.section}>{t("address")}</Text>
@@ -441,7 +441,7 @@ export default function CartScreen() {
                         style={[styles.pillRow, selectedAddress?._id === addr._id && styles.pillRowActive]}
                         onPress={() => { setSelectedAddress(addr); setShowAddresses(false) }}
                       >
-                        {selectedAddress?._id === addr._id && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, isRTL ? { left: 5 } : { right: 5 }]} />}
+                        {selectedAddress?._id === addr._id && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick,  { right: 5 }]} />}
                         <Text style={styles.addressLabel}>{addr.label}</Text>
                         <Text style={styles.addressText}>{addr.address}</Text>
                       </TouchableOpacity>
@@ -460,7 +460,7 @@ export default function CartScreen() {
                 backgroundColor: palette.surface,
                 padding: 10,
                 borderTopLeftRadius: 20,
-                borderTopRightRadius: 20
+                borderTopRightRadius: 20,marginBottom:-1
               }}>
                 <Text style={styles.section}>{t("paymentMethod") ?? "Payment"}</Text>
                 {!showPaymentOptions ? (
@@ -506,7 +506,7 @@ export default function CartScreen() {
                         style={[styles.pillRow, paymentMethod === method && styles.pillRowActive]}
                         onPress={() => selectPaymentMethod(method)}
                       >
-                        {paymentMethod === method && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, { top: 10 }, isRTL ? { left: 5 } : { right: 5 }]} />}
+                        {paymentMethod === method && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, { top: 10 },  { right: 5 }]} />}
                         <Text style={[styles.pillText, paymentMethod === method && styles.pillTextActive]}>{method}</Text>
                       </TouchableOpacity>
                     ))}
@@ -517,16 +517,14 @@ export default function CartScreen() {
           </View>
 
         </BottomSheetScrollView>
-
-
       </BottomSheetModal>
     </BottomSheetModalProvider>
   );
 }
 
-const createStyles = (palette: any, isRTL: boolean) =>
+const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
   StyleSheet.create({
-    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: isRTL ? "right" : "left" },
+    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12 },
     row: {
       backgroundColor: palette.card,
       borderRadius: 20,
@@ -621,7 +619,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       borderBottomRightRadius: 20,
       borderWidth: 4,
       borderColor: palette.surface,
-      backgroundColor: palette.surface
+      backgroundColor: palette.surface,
     },
     addressLabel: { color: palette.text, fontWeight: "800" },
     distance: {
@@ -647,7 +645,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       borderColor: palette.border,
       // backgroundColor: palette.surface,
     },
-    pillRowActive: { borderColor: palette.accent, position: 'relative' },
+    pillRowActive: { borderColor: palette.accent, position: 'relative', backgroundColor: isDark ? palette.surface : "rgba(249,115,22,0.10)",},
     selectedTick: { position: 'absolute', top: 5 },
     pillText: { color: palette.text, fontWeight: "700" },
     pillTextActive: { color: "#0f172a" },

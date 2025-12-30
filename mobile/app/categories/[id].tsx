@@ -119,54 +119,81 @@ export default function CategoryDetail() {
         keyExtractor={(p) => p._id}
         contentContainerStyle={{ paddingBottom: 16 }}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const existing = items.find((i) => i.productId === item._id);
+          const isLeft = index % 2 === 0;
+
+
 
           return (
-            <View style={styles.card}>
-              <TouchableOpacity
-                style={styles.cardPress}
-                onPress={() => router.push(`/products/${item._id}`)}
-                activeOpacity={0.9}
-              >
-                <View style={styles.imageBox}>
-                  <Image
-                    source={
-                      item.images?.[0]?.url
-                        ? { uri: item.images[0].url }
-                        : fallbackLogo
-                    }
-                    style={styles.image}
-                  />
-                </View>
+            // <View
+            //   style={{
+            //     borderWidth:1,
+            //     width: "50%",
+            //     paddingRight: isLeft && !isRTL ? 6 : isLeft && isRTL ? 0 : 6,
+            //     paddingLeft: isLeft && !isRTL ? 0 : isLeft && isRTL ? 6 : 0,
+            //   }}
+            // >
+              <View style={styles.card}>
+                <TouchableOpacity
+                  style={styles.cardPress}
+                  onPress={() => router.push(`/products/${item._id}`)}
+                  activeOpacity={0.9}
+                >
+                  <View style={styles.imageBox}>
+                    <Image
+                      source={
+                        item.images?.[0]?.url
+                          ? { uri: item.images[0].url }
+                          : fallbackLogo
+                      }
+                      style={styles.image}
+                    />
+                  </View>
 
-                <View style={styles.infoCol}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.description} numberOfLines={2}>
-                    {item.description}
-                  </Text>
-                  <Text style={styles.price}>
-                    {item.price.toLocaleString()} SYP
-                  </Text>
-                </View>
-                <View>
-                  {existing ? (
-                    <View style={styles.qtyRow}>
+                  <View style={styles.infoCol}>
+                    <Text style={styles.name} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text style={styles.description} numberOfLines={2}>
+                      {item.description}
+                    </Text>
+                    <Text style={styles.price}>
+                      {item.price.toLocaleString()} SYP
+                    </Text>
+                  </View>
+                  <View>
+                    {existing ? (
+                      <View style={styles.qtyRow}>
+                        <TouchableOpacity
+                          style={styles.qtyBtn}
+                          onPress={() =>
+                            setQuantity(existing.productId, existing.quantity - 1)
+                          }
+                        >
+                          <Text style={styles.qtyText}>−</Text>
+                        </TouchableOpacity>
+
+                        <Text style={styles.qtyValue}>{existing.quantity}</Text>
+
+                        <TouchableOpacity
+                          style={styles.qtyBtn}
+                          onPress={() =>
+                            addItem({
+                              productId: item._id,
+                              name: item.name,
+                              price: item.price,
+                              image: item.images?.[0]?.url,
+                              quantity: 1,
+                            })
+                          }
+                        >
+                          <Text style={styles.qtyText}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
                       <TouchableOpacity
-                        style={styles.qtyBtn}
-                        onPress={() =>
-                          setQuantity(existing.productId, existing.quantity - 1)
-                        }
-                      >
-                        <Text style={styles.qtyText}>−</Text>
-                      </TouchableOpacity>
-
-                      <Text style={styles.qtyValue}>{existing.quantity}</Text>
-
-                      <TouchableOpacity
-                        style={styles.qtyBtn}
+                        style={styles.addBtn}
                         onPress={() =>
                           addItem({
                             productId: item._id,
@@ -177,28 +204,13 @@ export default function CategoryDetail() {
                           })
                         }
                       >
-                        <Text style={styles.qtyText}>+</Text>
+                        <FontAwesome6 name="cart-plus" size={20} color={'#fff'} />
                       </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.addBtn}
-                      onPress={() =>
-                        addItem({
-                          productId: item._id,
-                          name: item.name,
-                          price: item.price,
-                          image: item.images?.[0]?.url,
-                          quantity: 1,
-                        })
-                      }
-                    >
-                      <FontAwesome6 name="cart-plus" size={20} color={'#fff'} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </TouchableOpacity>
-            </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+            // </View>
           );
         }}
       />
@@ -224,7 +236,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       fontWeight: "900",
       color: palette.text,
       marginBottom: 12,
-      textAlign: align,
     },
 
     /* SEARCH */
@@ -241,21 +252,19 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     },
     searchIcon: {
       position: "absolute",
-      left: isRTL ? undefined : 14,
-      right: isRTL ? 14 : undefined,
+      left: isRTL ? 0 : 14,
+      right: isRTL ? 14 : 0,
       top: 15,
     },
     searchInput: {
-      paddingLeft: isRTL ? 44 : 36,
-      paddingRight: isRTL ? 36 : 44,
+      paddingHorizontal: 34,
       color: palette.text,
       fontWeight: "600",
-      textAlign: align,
+      textAlign: align
     },
     searchRight: {
       position: "absolute",
-      right: isRTL ? undefined : 14,
-      left: isRTL ? 14 : undefined,
+      right:14,
       top: 14,
     },
 
@@ -271,7 +280,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     },
 
     cardPress: {
-      flexDirection: row,
+      flexDirection: 'row',
       gap: 12,
       alignItems: "center",
     },
@@ -303,20 +312,17 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       fontSize: 15,
       fontWeight: "900",
       color: palette.text,
-      textAlign: align,
     },
 
     description: {
       fontSize: 12,
       color: palette.mutted,
-      textAlign: align,
     },
 
     price: {
       fontSize: 16,
       fontWeight: "800",
       color: palette.accent,
-      textAlign: align,
       marginBottom: 10
     },
 
@@ -325,9 +331,9 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       backgroundColor: palette.accent,
       borderRadius: 14,
       alignItems: "center",
-      width:40,
-      height:40,
-      justifyContent:'center'
+      width: 40,
+      height: 40,
+      justifyContent: 'center'
     },
     addBtnText: {
       color: "#fff",

@@ -376,7 +376,7 @@ export default function AddressesScreen() {
 
 const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
-    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: isRTL ? "right" : "left" },
+    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12,  },
     card: {
       backgroundColor: palette.card,
       borderRadius: 12,

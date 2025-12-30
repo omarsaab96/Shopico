@@ -6,6 +6,7 @@ import Screen from "../../components/Screen";
 import { useAuth } from "../../lib/auth";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 export default function Login() {
   const { login } = useAuth();
@@ -30,41 +31,51 @@ export default function Login() {
 
   return (
     <Screen>
-      <View style={styles.hero}>
-        <Text style={styles.kicker}>Shopico</Text>
-        <Text style={styles.title}>{t("loginHeadline")}</Text>
-        <Text style={styles.subtitle}>{t("loginSubhead")}</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t("login")}</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder={t("email")}
-          placeholderTextColor={palette.muted}
-          autoCapitalize="none"
-        />
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder={t("password")}
-          secureTextEntry={!showPassword}
-          placeholderTextColor={palette.muted}
-        />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.toggle}>
-          <Text style={styles.link}>{showPassword ? t("hide") ?? "Hide" : t("show") ?? "Show"}</Text>
-        </TouchableOpacity>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Button title={t("continue")} onPress={submit} />
-        <View style={styles.row}>
-          <Link href="/auth/forgot" style={styles.link}>
-            {t("forgotPassword")}
-          </Link>
-          <Link href="/auth/register" style={styles.link}>
-            {t("register")}
-          </Link>
+      <View style={{ flex: 1, paddingTop: 50 }}>
+        <View>
+          <View style={styles.hero}>
+            {/* <Text style={styles.kicker}>Shopico</Text> */}
+            <Text style={styles.title}>{t("login")}</Text>
+            {/* <Text style={styles.subtitle}>{t("loginSubhead")}</Text> */}
+          </View>
+          <View style={styles.card}>
+            {/* <Text style={styles.cardTitle}>{t("login")}</Text> */}
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder={t("email")}
+              placeholderTextColor={palette.muted}
+              autoCapitalize="none"
+            />
+            <View style={{ position: 'relative' }}>
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder={t("password")}
+                secureTextEntry={!showPassword}
+                placeholderTextColor={palette.muted}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.toggle}>
+                {showPassword ? 
+                  <AntDesign name="eye-invisible" size={20} color="black" />
+                : 
+                  <AntDesign name="eye" size={20} color="black" />
+                }
+              </TouchableOpacity>
+            </View>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <Button title={t("continue")} onPress={submit} />
+            <View style={styles.row}>
+              <Link href="/auth/forgot" style={styles.link}>
+                {t("forgotPassword")}
+              </Link>
+              <Link href="/auth/register" style={styles.link}>
+                {t("register")}
+              </Link>
+            </View>
+          </View>
         </View>
       </View>
     </Screen>
@@ -75,9 +86,23 @@ const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
     hero: { gap: 6, marginBottom: 18 },
     kicker: { color: palette.accent, fontWeight: "700", textAlign: isRTL ? "right" : "left" },
-    title: { color: palette.text, fontSize: 28, fontWeight: "800", textAlign: isRTL ? "right" : "left" },
-    subtitle: { color: palette.muted, fontSize: 14, textAlign: isRTL ? "right" : "left" },
-    card: { backgroundColor: palette.card, padding: 16, borderRadius: 14, gap: 12, borderWidth: 1, borderColor: palette.border },
+    title: {
+      color: palette.text, fontSize: 28, fontWeight: "800",
+      textAlign: isRTL ? "right" : "left"
+    },
+    subtitle: {
+      color: palette.muted,
+      fontSize: 14,
+      textAlign: isRTL ? "right" : "left"
+    },
+    card: {
+      // backgroundColor: palette.card,
+      // padding: 16,
+      // borderRadius: 14,
+      gap: 12,
+      // borderWidth: 1,
+      // borderColor: palette.border
+    },
     cardTitle: { color: palette.text, fontSize: 18, fontWeight: "700" },
     input: {
       backgroundColor: palette.surface,
@@ -87,7 +112,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       borderWidth: 1,
       borderColor: palette.border,
     },
-    toggle: { alignSelf: "flex-end", marginTop: -8 },
+    toggle: { position: 'absolute', alignSelf: "flex-end", top: 12, right: 10 },
     error: { color: "#f87171" },
     row: { flexDirection: "row", justifyContent: "space-between" },
     link: { color: palette.accent },

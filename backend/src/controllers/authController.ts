@@ -4,6 +4,8 @@ import { loginSchema, registerSchema } from "../validators/authValidators";
 import { loginUser, refreshTokens, registerUser } from "../services/authService";
 import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
+import { Wallet } from "../models/Wallet";
+import { updateMembershipOnBalanceChange } from "../utils/membership";
 
 const setRefreshCookie = (res: Response, token: string) => {
   res.cookie("refreshToken", token, {
@@ -39,5 +41,12 @@ export const refresh = catchAsync(async (req: AuthRequest, res) => {
 });
 
 export const me = catchAsync(async (req: AuthRequest, res) => {
+  try {
+    const wallet = await Wallet.findOne({ user: req.user!._id });
+    const balance = wallet?.balance ?? 0;
+    await updateMembershipOnBalanceChange(req.user!, balance);
+  } catch (e) {
+    // best-effort; we still return the user even if this fails
+  }
   sendSuccess(res, { user: req.user });
 });

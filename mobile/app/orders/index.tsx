@@ -121,7 +121,6 @@ const createStyles = (palette: any, isRTL: boolean) =>
       fontSize: 22,
       fontWeight: "800",
       marginBottom: 12,
-      textAlign: isRTL ? "right" : "left",
     },
 
     row: {

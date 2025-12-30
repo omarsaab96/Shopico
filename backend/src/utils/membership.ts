@@ -37,9 +37,10 @@ export const updateMembershipOnBalanceChange = async (user: IUser, walletBalance
     user.membershipLevel = targetLevel;
     user.membershipGraceUntil = null;
   } else if (targetIndex < currentIndex) {
-    const graceUntil = user.membershipGraceUntil || new Date(Date.now() + graceDays * 24 * 60 * 60 * 1000);
+    const graceMs = Math.max(0, graceDays) * 24 * 60 * 60 * 1000;
+    const graceUntil = user.membershipGraceUntil || new Date(Date.now() + graceMs);
     user.membershipGraceUntil = graceUntil;
-    const effectiveGraceExpired = graceUntil.getTime() < Date.now();
+    const effectiveGraceExpired = graceMs === 0 || graceUntil.getTime() <= Date.now();
     if (effectiveGraceExpired) {
       user.membershipLevel = targetLevel;
       user.membershipGraceUntil = null;

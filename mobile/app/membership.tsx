@@ -25,6 +25,17 @@ export default function MembershipScreen() {
   const thresholds = settings?.membershipThresholds || { silver: 1000000, gold: 2000000, platinum: 4000000, diamond: 6000000 };
   const balance = wallet?.balance || 0;
   const level = user?.membershipLevel || "None";
+  const graceUntil = user?.membershipGraceUntil ? new Date(user.membershipGraceUntil) : null;
+  const inGrace = !!(graceUntil && graceUntil.getTime() > Date.now() && level !== "None");
+  const currentThreshold = useMemo(() => {
+    const map: Record<string, number> = {
+      Silver: thresholds.silver,
+      Gold: thresholds.gold,
+      Platinum: thresholds.platinum,
+      Diamond: thresholds.diamond,
+    };
+    return map[level] || 0;
+  }, [level, thresholds]);
 
   const { nextLabel, remaining, progress } = useMemo(() => {
     const levels = [
@@ -59,6 +70,17 @@ export default function MembershipScreen() {
         <Text style={styles.muted}>
           {t("graceDays")}: {settings?.membershipGraceDays}
         </Text>
+        {inGrace && (
+          <View style={styles.graceBox}>
+            <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
+            <Text style={styles.muted}>
+              {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} SYP
+            </Text>
+            <Text style={styles.muted}>
+              {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
+            </Text>
+          </View>
+        )}
       </View>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t("benefits")}</Text>
@@ -90,6 +112,16 @@ const createStyles = (palette: any, isRTL: boolean) =>
       marginTop: 12,
     },
     muted: { color: palette.muted },
+    graceBox: {
+      marginTop: 6,
+      padding: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surface,
+      gap: 4,
+    },
+    graceTitle: { color: palette.accent, fontWeight: "800" },
     cardTitle: { color: palette.text, fontSize: 18, fontWeight: "700" },
     modal: { flex: 1, backgroundColor: "#000000aa", justifyContent: "center", alignItems: "center" },
     modalCard: { backgroundColor: palette.card, padding: 20, borderRadius: 14, borderWidth: 1, borderColor: palette.border, gap: 6 },

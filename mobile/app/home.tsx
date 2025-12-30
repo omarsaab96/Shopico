@@ -57,6 +57,7 @@ export default function Home() {
   const [wallet, setWallet] = useState<any>();
   const [membershipLoading, setMembershipLoading] = useState(false);
   const [membershipError, setMembershipError] = useState(false);
+  const [profile, setProfile] = useState<any>(user);
   const [page, setPage] = useState(1);
 
   const membershipLoadingRef = useRef(false);
@@ -124,7 +125,16 @@ export default function Home() {
       });
   }, [user]);
 
-  const membershipLevel = user?.membershipLevel || "None";
+  useEffect(() => {
+    setProfile(user);
+    if (user) {
+      api.get("/auth/me").then((res) => setProfile(res.data.data.user)).catch(() => { });
+    }
+  }, [user]);
+
+  const membershipLevel = profile?.membershipLevel || "None";
+  const graceUntil = profile?.membershipGraceUntil ? new Date(profile.membershipGraceUntil) : null;
+  const inGrace = !!(graceUntil && graceUntil.getTime() > Date.now() && membershipLevel !== "None");
 
   const membershipTone = useMemo(() => {
     // “Card tone” for light mode (orange-first like the reference).
@@ -133,11 +143,11 @@ export default function Home() {
       string,
       { cardBg: string; accent: string; badgeBg: string; badgeText: string; ring: string }
     > = {
-      None: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
-      Silver: { cardBg: "#fff7ed", accent: "#fb923c", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
-      Gold: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
-      Platinum: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
-      Diamond: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
+      None: { cardBg: "#f8fafc", accent: "#64748b", badgeBg: "#e2e8f0", badgeText: "#0f172a", ring: "#cbd5e1" },
+      Silver: { cardBg: "#f8fafc", accent: "#a1a1aa", badgeBg: "#e5e5e5", badgeText: "#27272a", ring: "#d4d4d8" },
+      Gold: { cardBg: "#fff7ed", accent: "#f59e0b", badgeBg: "#fef3c7", badgeText: "#92400e", ring: "#fcd34d" },
+      Platinum: { cardBg: "#f5f3ff", accent: "#7c3aed", badgeBg: "#ede9fe", badgeText: "#5b21b6", ring: "#c4b5fd" },
+      Diamond: { cardBg: "#ecfeff", accent: "#06b6d4", badgeBg: "#cffafe", badgeText: "#0e7490", ring: "#06b6d4" },
     };
 
     const base = tones[membershipLevel] || tones.None;
@@ -161,6 +171,16 @@ export default function Home() {
     platinum: 4000000,
     diamond: 6000000,
   };
+
+  const currentThreshold = useMemo(() => {
+    const map: Record<string, number> = {
+      Silver: thresholds.silver,
+      Gold: thresholds.gold,
+      Platinum: thresholds.platinum,
+      Diamond: thresholds.diamond,
+    };
+    return map[membershipLevel] || 0;
+  }, [membershipLevel, thresholds]);
 
   const balance = wallet?.balance || 0;
   const graceDays = settings?.membershipGraceDays ?? 14;
@@ -341,7 +361,7 @@ export default function Home() {
               </View>
             </View>
             <Text style={styles.walletValue}>
-              {balance.toLocaleString()} <Text style={{ fontWeight: 400, fontSize: 20 }}>SYP</Text>
+              {balance.toLocaleString()} <Text style={{ fontWeight: 400, fontSize: 20 }}>{t("syp")}</Text>
             </Text>
           </View>
         </View>
@@ -355,9 +375,21 @@ export default function Home() {
               <Text style={styles.walletMiniHint}>{nextLabel}</Text>
             </Text>}
             <Text style={styles.walletMiniValue}>
-              {remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "Top level")}
+              {remaining > 0 ? `${remaining.toLocaleString()} ${t("syp")}` : (t("congrats") ?? "Top level")}
             </Text>
           </View>
+
+          {inGrace && (
+            <View style={[styles.graceBox, { borderColor: membershipTone.ring }]}>
+              <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
+              <Text style={styles.graceCopy}>
+                {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} {t("syp")}
+              </Text>
+              <Text style={styles.graceCopy}>
+                {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
+              </Text>
+            </View>
+          )}
 
         </View>
       </TouchableOpacity>
@@ -455,7 +487,7 @@ export default function Home() {
   };
 
   const renderHeader = () => (
-    <View style={styles.headerWrap}>
+    <View style={[styles.headerWrap,{paddingHorizontal:6}]}>
       {renderTopBar()}
 
       <View style={styles.greetingWrap}>
@@ -521,7 +553,7 @@ export default function Home() {
           showsHorizontalScrollIndicator={false}
           decelerationRate="fast"
           keyExtractor={(p) => p._id}
-          contentContainerStyle={{ paddingBottom: 16 }}
+          contentContainerStyle={{ paddingBottom: 16, marginHorizontal:-6 }}
           columnWrapperStyle={styles.productRow}
           ListHeaderComponent={renderHeader}
           refreshing={loadingProducts && !loadingMore}
@@ -535,8 +567,8 @@ export default function Home() {
               <View
                 style={{
                   width: "50%",
-                  paddingRight: isLeft ? 6 : 0,
-                  paddingLeft: isLeft ? 0 : 6,
+                  paddingHorizontal:6,
+                  
                 }}
               >
                 <View style={styles.productCard}>
@@ -569,7 +601,7 @@ export default function Home() {
 
                       <View style={styles.priceRow}>
                         <Text style={styles.productPrice}>
-                          {item.price.toLocaleString()} SYP
+                          {item.price.toLocaleString()} {t("syp")}
                         </Text>
                       </View>
                     </TouchableOpacity>
@@ -724,7 +756,7 @@ export default function Home() {
                   }}
                   activeOpacity={0.9}
                 >
-                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                     <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
                     {latestAddress === addr.address ? <Feather name="check" size={18} color={palette.accent} /> : null}
                   </View>
@@ -770,20 +802,34 @@ export default function Home() {
                 </View>
 
                 {/* <View style={{ gap: 8 }}> */}
-                {remaining > 0 &&<View style={styles.kvRow}>
+                {remaining > 0 && <View style={styles.kvRow}>
                   <View style={[styles.kvRow, { justifyContent: 'flex-start', gap: 0 }]}>
                     <Text style={styles.kvLabel}>{t("remainingToNext") ?? "Remaining"}</Text>
                     <Text style={styles.kvValue}>{nextLabel}</Text>
                   </View>
-                  <Text style={styles.kvValue}>{remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "At top level")}</Text>
+                  <Text style={styles.kvValue}>
+                    {remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "At top level")}
+                  </Text>
                 </View>}
-                {remaining > 0 &&<ProgressBar progress={progress} />}
+                {remaining > 0 && <ProgressBar progress={progress} />}
                 {/* </View> */}
 
                 <View style={styles.kvRow}>
                   <Text style={styles.kvLabel}>{t("graceDays") ?? "Grace days"}</Text>
                   <Text style={styles.kvValue}>{graceDays}</Text>
                 </View>
+
+                {inGrace && (
+                  <View style={[styles.graceBox, { borderColor: membershipTone.ring }]}>
+                    <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
+                    <Text style={styles.graceCopy}>
+                      {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} SYP
+                    </Text>
+                    <Text style={[styles.graceCopy, { color: palette.muted }]}>
+                      {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
           </BottomSheetView>
@@ -853,16 +899,15 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       color: palette.text,
       fontSize: 24,
       fontWeight: "900",
-      textAlign: align,
+      // textAlign: align,
     },
     addressRow: {
-      flexDirection: row,
+      flexDirection: 'row',
       alignItems: "center",
       gap: 5,
-      alignSelf: isRTL ? "flex-end" : "flex-start",
     },
-    addressLabel: { color: palette.muted, fontSize: 13, textAlign: align },
-    addressValue: { color: palette.muted, fontSize: 13, fontWeight: "700", textAlign: align },
+    addressLabel: { color: palette.muted, fontSize: 13, },
+    addressValue: { color: palette.muted, fontSize: 13, fontWeight: "700", },
 
     walletCard: {
       borderRadius: 20,
@@ -892,11 +937,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       left: isRTL ? -140 : undefined,
       right: isRTL ? undefined : -140,
     },
-    walletRow: { flexDirection: row, gap: 12, alignItems: "flex-start" },
+    walletRow: { flexDirection: 'row', gap: 12, alignItems: "flex-start" },
     walletTextCol: { flex: 1, gap: 8 },
 
-    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", textAlign: align },
-    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign: align },
+    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700" },
+    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900" },
 
     walletBadgeRow: { flexDirection: row, justifyContent: isRTL ? "flex-end" : "flex-start" },
     levelPill: {
@@ -917,6 +962,17 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     walletMiniLabel: { color: palette.muted, fontWeight: "800", fontSize: 12, textAlign: align },
     walletMiniValue: { color: palette.text, fontWeight: "900", fontSize: 13, marginTop: 4, textAlign: align },
     walletMiniHint: { color: palette.muted, fontWeight: "700", fontSize: 12, marginTop: 2, textAlign: align },
+    graceBox: {
+      marginTop: 10,
+      padding: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: hairline,
+      backgroundColor: isDark ? palette.surface : "#fffaf0",
+      gap: 4,
+    },
+    graceTitle: { color: palette.accent, fontWeight: "800", fontSize: 13, textAlign: align },
+    graceCopy: { color: palette.text, fontSize: 12, textAlign: align },
 
     searchRow: {
       flexDirection: 'row',
@@ -938,23 +994,20 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     searchIcon: {
       position: "absolute",
       top: 15,
-      left: isRTL ? undefined : 14,
-      right: isRTL ? 14 : undefined,
+      left: 14,
       opacity: 0.9,
     },
     searchInput: {
       color: palette.text,
-      paddingLeft: isRTL ? 44 : 34,
-      paddingRight: isRTL ? 34 : 44,
-      textAlign: align,
+      paddingHorizontal: 34,
       fontSize: 14,
       fontWeight: "600",
+      textAlign: align
     },
     searchRight: {
       position: "absolute",
       top: 14,
-      right: isRTL ? undefined : 14,
-      left: isRTL ? 14 : undefined,
+      right: 14,
     },
 
     filterBtn: {
@@ -983,11 +1036,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     filterDotText: { color: "#fff", fontWeight: "900", fontSize: 11 },
 
     sectionHead: {
-      flexDirection: row,
+      flexDirection: 'row',
       alignItems: "center",
       justifyContent: "space-between",
     },
-    sectionTitle: { color: palette.text, fontSize: 16, fontWeight: "900", textAlign: align },
+    sectionTitle: { color: palette.text, fontSize: 16, fontWeight: "900" },
     sectionAction: { color: palette.accent, fontWeight: "900" },
 
     catRow: { gap: 12 },
@@ -1062,11 +1115,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       marginBottom: 10
     },
     productImg: { height: '100%', aspectRatio: 4 / 3, resizeMode: "contain" },
-    productName: { color: palette.text, fontWeight: "900", textAlign: align, marginBottom: 4 },
-    productDesc: { color: palette.muted, fontSize: 12, textAlign: align, marginBottom: 10 },
+    productName: { color: palette.text, fontWeight: "900", marginBottom: 4 },
+    productDesc: { color: palette.muted, fontSize: 12, marginBottom: 10 },
 
     priceRow: {
-      flexDirection: row,
+      flexDirection: 'row',
       alignItems: "center",
       justifyContent: "space-between",
       marginBottom: 5,
@@ -1106,9 +1159,9 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     // Sheets
     sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },
     sheetContent: { flex: 1, gap: 6 },
-    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: align },
-    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign: align },
-    sheetPills: { flexDirection: row, flexWrap: "wrap", gap: 10 },
+    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign:'left'},
+    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6 },
+    sheetPills: { flexDirection: 'row', flexWrap: "wrap", gap: 10 },
 
     pill: {
       paddingHorizontal: 12,
@@ -1125,7 +1178,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     pillText: { color: palette.text, fontWeight: "800" },
     pillTextActive: { color: palette.text, fontWeight: "900" },
 
-    sheetText: { color: palette.muted, fontWeight: "700", textAlign: align },
+    sheetText: { color: palette.muted, fontWeight: "700" },
 
     sheetFooterWrap: {
       flexDirection: row,
@@ -1165,7 +1218,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       borderColor: palette.accent,
       backgroundColor: isDark ? palette.surface : "rgba(249,115,22,0.10)",
     },
-    addressTitle: { color: palette.text, fontWeight: "900", textAlign: align },
+    addressTitle: { color: palette.text, fontWeight: "900" },
 
     closeBtn: {
       marginTop: 4,
@@ -1179,12 +1232,12 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     closeBtnText: { color: palette.accent, fontWeight: "900" },
 
     kvRow: {
-      flexDirection: row,
+      flexDirection: 'row',
       alignItems: "center",
       justifyContent: "space-between",
       gap: 10,
     },
-    kvLabel: { color: palette.muted, textAlign: align },
-    kvValue: { color: palette.text, fontWeight: "900", textAlign: align },
+    kvLabel: { color: palette.muted },
+    kvValue: { color: palette.text, fontWeight: "900" },
   });
 };

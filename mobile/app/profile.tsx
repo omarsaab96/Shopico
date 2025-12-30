@@ -124,7 +124,7 @@ export default function Profile() {
           <Text style={styles.title}>{t("profile")}</Text>
           {user ? (
             <View style={styles.card}>
-              <View style={{ padding: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ padding: 18, flexDirection : 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{}}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
                     <Text style={styles.username}>{user?.name}</Text>
@@ -151,11 +151,14 @@ export default function Profile() {
                 {t("role")}: {user?.role || "-"}
               </Text> */}
 
-              <View style={{ borderTopWidth: 1, borderColor: palette.border, flexDirection: 'row' }}>
-                <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBox, isRTL ? styles.borderLeft : styles.borderRight]}>
-                  <Text style={[styles.muted]}>{t("pointsBalance")} <Entypo name="info-with-circle" size={16} color={palette.muted} /></Text>
+              <View style={{ borderTopWidth: 1, borderColor: palette.border, flexDirection:'row' }}>
+                <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBox, styles.borderRight]}>
+                  <Text style={[styles.muted]}>
+                    {t("pointsBalance")}
+                    {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
+                  </Text>
                   <Text style={styles.pointsValue}>
-                    {formattedPoints} <Text style={{ fontWeight: '400', fontSize: 14 }}>{t("rewards")}</Text>
+                    {formattedPoints}
                   </Text>
                   {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
                   <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/points") }}>
@@ -164,12 +167,15 @@ export default function Profile() {
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => { router.push("/wallet") }} style={[styles.pointsBox]}>
-                  <Text style={styles.muted}>{t("WalletBalance")} <Entypo name="info-with-circle" size={16} color={palette.muted} /></Text>
+                  <Text style={styles.muted}>
+                    {t("WalletBalance")}
+                    {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
+                  </Text>
                   <Text style={styles.pointsValue}>
-                    {balance.toLocaleString()} <Text style={{ fontWeight: '400', fontSize: 14 }}>SYP</Text>
+                    {balance.toLocaleString()} <Text style={{ fontWeight: '400', fontSize: 14 }}> {t("syp")}</Text>
                   </Text>
                   {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
-                  <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/points") }}>
+                  <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/wallet") }}>
                     <Text style={styles.link}>{t("learnMore")}</Text>
                   </TouchableOpacity>
                 </TouchableOpacity>
@@ -189,7 +195,7 @@ export default function Profile() {
           )}
 
           <View>
-            <Text style={styles.sectionTitle}>Profile options</Text>
+            <Text style={styles.sectionTitle}>{t("settings")}</Text>
             <View style={styles.profileLinks}>
               {/* <TouchableOpacity style={styles.profileLink} onPress={() => { router.push("/settings") }}>
                 <Text style={styles.profileLinkText}>{t("settings")}</Text>
@@ -204,7 +210,7 @@ export default function Profile() {
                       style={[styles.pill, lang === code && styles.pillActive]}
                       onPress={() => setLang(code as any)}
                     >
-                      <Text style={[styles.pillText,lang === code && styles.pillActiveText]}>{code.toUpperCase()}</Text>
+                      <Text style={[styles.pillText, lang === code && styles.pillActiveText]}>{code.toUpperCase()}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -226,7 +232,7 @@ export default function Profile() {
               {user && (
                 <TouchableOpacity style={[styles.profileLink, styles.isLast]} onPress={() => { router.push("/addresses") }} >
                   <Text style={styles.profileLinkText}>{t("savedAddresses") ?? "Addresses"}</Text>
-                  <Entypo name="chevron-right" size={20} color="black" />
+                  <Entypo name={isRTL?"chevron-left":"chevron-right"} size={20} color={palette.text} />
                 </TouchableOpacity>
               )}
             </View>
@@ -258,7 +264,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
   return StyleSheet.create({
     sectionTitle: {
       marginBottom: 10,
-      fontWeight: '700'
+      fontWeight: '700',
+      color:palette.text
     },
     profileLinks: {
       borderWidth: 1,
@@ -270,7 +277,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       paddingHorizontal: 15,
       borderBottomWidth: 1,
       borderColor: palette.border,
-      flexDirection: 'row',
+      flexDirection:'row',
       justifyContent: 'space-between',
       alignItems: 'center',
     },
@@ -304,10 +311,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       borderColor: palette.border,
       alignItems: "center",
       gap: 8,
-      marginBottom:20,
+      marginBottom: 20,
     },
-    pillActiveText:{
-      color:'white'
+    pillActiveText: {
+      color: 'white'
     },
     emptyTitle: { color: palette.text, fontSize: 18, fontWeight: "800" },
     emptyText: { color: palette.muted, textAlign: "center" },
@@ -332,7 +339,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       fontSize: 24,
       fontWeight: "900",
       marginBottom: 12,
-      textAlign: isRTL ? "right" : "left",
     },
 
     username: {
@@ -346,7 +352,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       color: palette.muted,
       fontSize: 13,
       lineHeight: 18,
-      textAlign: isRTL ? "right" : "left",
     },
 
     pointsBox: {
@@ -354,6 +359,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       alignItems: "center",
       justifyContent: "space-between",
       padding: 15,
+      overflow: 'hidden'
     },
 
     borderRight: {

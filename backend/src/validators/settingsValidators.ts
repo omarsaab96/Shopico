@@ -5,7 +5,7 @@ export const updateSettingsSchema = z.object({
   storeLng: z.number(),
   deliveryFreeKm: z.number().nonnegative(),
   deliveryRatePerKm: z.number().nonnegative(),
-  membershipGraceDays: z.number().int().positive(),
+  membershipGraceDays: z.number().int().nonnegative(),
   membershipThresholds: z.object({
     silver: z.number().nonnegative(),
     gold: z.number().nonnegative(),

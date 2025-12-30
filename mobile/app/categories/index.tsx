@@ -105,11 +105,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       fontSize: 26,
       fontWeight: "900",
       marginBottom: 12,
-      textAlign: align,
     },
 
     card: {
-      flexDirection: row,
+      flexDirection: 'row',
       alignItems: "center",
       gap: 14,
       padding: 14,
@@ -173,14 +172,12 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       color: palette.text,
       fontSize: 16,
       fontWeight: "900",
-      textAlign: align,
     },
 
     desc: {
       color: palette.muted,
       fontSize: 13,
       fontWeight: "600",
-      textAlign: align,
     },
   });
 };
