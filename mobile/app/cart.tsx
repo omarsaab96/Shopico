@@ -28,10 +28,12 @@ export default function CartScreen() {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<any | null>(null);
   const [settings, setSettings] = useState<any | null>(null);
-  const paymentMethods = ["CASH_ON_DELIVERY", "SHAM_CASH", "BANK_TRANSFER", "WALLET"] as const;
-  const [paymentMethod, setPaymentMethod] = useState<typeof paymentMethods[number]>("CASH_ON_DELIVERY");
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const paymentMethods = ["WALLET", "CASH_ON_DELIVERY", "SHAM_CASH"] as const;
+  const [paymentMethod, setPaymentMethod] = useState<typeof paymentMethods[number]>("WALLET");
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
@@ -50,6 +52,17 @@ export default function CartScreen() {
 
   const loadSettings = () => {
     api.get("/settings").then((res) => setSettings(res.data.data)).catch(() => setSettings(null));
+  };
+
+  const loadWallet = () => {
+    if (!user) {
+      setWalletBalance(0);
+      return;
+    }
+    api
+      .get("/wallet")
+      .then((res) => setWalletBalance(res.data.data.wallet?.balance || 0))
+      .catch(() => setWalletBalance(0));
   };
 
   const loadAddresses = () => {
@@ -86,9 +99,14 @@ export default function CartScreen() {
       .then((stored) => {
         if (stored && (paymentMethods as readonly string[]).includes(stored)) {
           setPaymentMethod(stored as typeof paymentMethods[number]);
+        } else {
+          setPaymentMethod("WALLET");
+          AsyncStorage.setItem("last-payment-method", "WALLET").catch(() => { });
         }
       })
-      .catch(() => { });
+      .catch(() => {
+        setPaymentMethod("WALLET");
+      });
   }, []);
 
   const selectPaymentMethod = (method: typeof paymentMethods[number]) => {
@@ -99,6 +117,7 @@ export default function CartScreen() {
 
   useEffect(() => {
     loadAddresses();
+    loadWallet();
   }, [user]);
 
   const confirmRemove = (productId: string) => {
@@ -142,7 +161,10 @@ export default function CartScreen() {
       return;
     }
     if (!items.length) return;
+    setPaymentMethod("WALLET");
+    AsyncStorage.setItem("last-payment-method", "WALLET").catch(() => { });
     loadAddresses();
+    loadWallet();
     checkoutSheetRef.current?.present();
   };
 
@@ -160,10 +182,13 @@ export default function CartScreen() {
     settings && selectedAddress && distanceKm > settings.deliveryFreeKm
       ? Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm
       : 0;
+  const orderTotal = subtotal + deliveryFee;
+  const walletInsufficient = paymentMethod === "WALLET" && walletBalance < orderTotal;
 
   const placeOrder = async () => {
     if (!user || !selectedAddress) return;
     setSubmitting(true);
+    setCheckoutError(null);
     try {
       await api.post("/orders", {
         addressId: selectedAddress._id,
@@ -173,6 +198,9 @@ export default function CartScreen() {
       clear();
       checkoutSheetRef.current?.dismiss();
       router.replace("/(tabs)/orders");
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Could not place order";
+      setCheckoutError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -191,7 +219,7 @@ export default function CartScreen() {
           gap: 8,
         }}
       >
-        <View style={{ gap: 4 }}>
+        <View style={{ gap: 4, position: 'relative' }}>
           <Text style={styles.sheetText}>
             {t("subtotal")}: {subtotal.toLocaleString()} SYP
           </Text>
@@ -199,11 +227,23 @@ export default function CartScreen() {
             {t("deliveryFee")}: {deliveryFee?.toLocaleString()} SYP
           </Text>
           <Text style={styles.sheetTitle}>
-            {t("total")}: {(subtotal + deliveryFee).toLocaleString()} SYP
+            {t("total")}: {orderTotal.toLocaleString()} SYP
           </Text>
+          {/* {walletInsufficient && (
+              <Text style={[styles.sheetText, { color: "red" }]}>
+                {t("balance")}: {walletBalance.toLocaleString()} SYP • {t("total")}: {orderTotal.toLocaleString()} SYP
+              </Text>
+            )} */}
+          {checkoutError ? <Text style={[styles.sheetText, { color: "red", position: 'absolute', bottom: 0, left: 0, right: 0 }]}>{checkoutError}</Text> : null}
         </View>
-        <Button title={t("placeOrder")} onPress={placeOrder} disabled={!selectedAddress || submitting} />
-        {submitting ? <ActivityIndicator color={palette.accent} style={{ marginTop: 8 }} /> : null}
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={()=>{placeOrder()}}
+          disabled={!selectedAddress || submitting || walletInsufficient}
+        >
+          <Text style={styles.primaryBtnText}>{submitting ? t("placingOrder") : t("placeOrder")}</Text>
+          {submitting && <ActivityIndicator color={'#fff'} size={'small'} style={{}} />}
+        </TouchableOpacity>
       </View>
     </BottomSheetFooter>
   );
@@ -436,11 +476,21 @@ export default function CartScreen() {
 
               {!showPaymentOptions ? (
                 <View style={styles.addressBox}>
-                  <Text style={[styles.sheetText, {
+                  <View style={[styles.sheetText, {
                     backgroundColor: "#fff",
                     padding: 10,
                     borderRadius: 20
-                  }]}>{paymentMethod}</Text>
+                  },
+                  paymentMethod === "WALLET" && { flexDirection: 'row', justifyContent: 'space-between' }
+                  ]}>
+                    <Text>{paymentMethod}</Text>
+
+                    {paymentMethod === "WALLET" && (
+                      <Text>
+                        {t("balance")}: {walletBalance.toLocaleString()} SYP
+                      </Text>
+                    )}
+                  </View>
                 </View>
               ) : (
                 <View style={styles.addressBox}>
@@ -456,7 +506,7 @@ export default function CartScreen() {
                         style={[styles.pillRow, paymentMethod === method && styles.pillRowActive]}
                         onPress={() => selectPaymentMethod(method)}
                       >
-                        {paymentMethod === method && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, {top:10}, isRTL ? { left: 5 } : { right: 5 }]} />}
+                        {paymentMethod === method && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, { top: 10 }, isRTL ? { left: 5 } : { right: 5 }]} />}
                         <Text style={[styles.pillText, paymentMethod === method && styles.pillTextActive]}>{method}</Text>
                       </TouchableOpacity>
                     ))}
@@ -601,4 +651,17 @@ const createStyles = (palette: any, isRTL: boolean) =>
     selectedTick: { position: 'absolute', top: 5 },
     pillText: { color: palette.text, fontWeight: "700" },
     pillTextActive: { color: "#0f172a" },
+    primaryBtn: {
+      paddingVertical: 14,
+      borderRadius: 14,
+      alignItems: "center",
+      backgroundColor: palette.accent,
+      shadowColor: palette.accent,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 5
+    },
+    primaryBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   });

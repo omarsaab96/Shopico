@@ -38,7 +38,7 @@ export default function PointsScreen() {
     <Screen showBack backLabel={t("back") ?? "Back"}>
       <Text style={styles.title}>{t("rewards")}</Text>
       <View style={styles.card}>
-        <Text style={styles.value}>{points} pts</Text>
+        <Text style={styles.value}>{points} <Text style={{fontWeight:"400",fontSize:18}}>Points</Text></Text>
         <ProgressBar progress={progress} />
         <Text style={styles.muted}>
           {remaining} {t("pointsLeft")}
@@ -65,7 +65,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
     card: {
       backgroundColor: palette.card,
       padding: 14,
-      borderRadius: 12,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: palette.border,
       gap: 8,
@@ -74,5 +74,5 @@ const createStyles = (palette: any, isRTL: boolean) =>
     value: { color: palette.text, fontSize: 32, fontWeight: "800" },
     muted: { color: palette.muted },
     success: { color: "#22c55e", fontWeight: "700" },
-    cardTitle: { color: palette.text, fontWeight: "700", marginTop: 8 },
+    cardTitle: { color: palette.text, fontSize: 18, fontWeight: "700" },
   });

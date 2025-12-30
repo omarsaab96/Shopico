@@ -350,10 +350,10 @@ export default function Home() {
           <ProgressBar progress={progress} />
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={styles.walletMini}>
+            {remaining > 0 && <Text style={styles.walletMini}>
               <Text style={styles.walletMiniLabel}>{t("remainingToNext") ?? "Remaining"}</Text>
               <Text style={styles.walletMiniHint}>{nextLabel}</Text>
-            </Text>
+            </Text>}
             <Text style={styles.walletMiniValue}>
               {remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "Top level")}
             </Text>
@@ -770,14 +770,14 @@ export default function Home() {
                 </View>
 
                 {/* <View style={{ gap: 8 }}> */}
-                <View style={styles.kvRow}>
+                {remaining > 0 &&<View style={styles.kvRow}>
                   <View style={[styles.kvRow, { justifyContent: 'flex-start', gap: 0 }]}>
                     <Text style={styles.kvLabel}>{t("remainingToNext") ?? "Remaining"}</Text>
                     <Text style={styles.kvValue}>{nextLabel}</Text>
                   </View>
                   <Text style={styles.kvValue}>{remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "At top level")}</Text>
-                </View>
-                <ProgressBar progress={progress} />
+                </View>}
+                {remaining > 0 &&<ProgressBar progress={progress} />}
                 {/* </View> */}
 
                 <View style={styles.kvRow}>

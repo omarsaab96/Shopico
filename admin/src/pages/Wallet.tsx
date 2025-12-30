@@ -78,19 +78,19 @@ const WalletPage = () => {
               <td colSpan={6} className="muted">{t("noTopups")}</td>
             </tr>
           ) : (
-            topups.map((t) => (
-              <tr key={t._id}>
-                <td>{typeof t.user === "string" ? t.user : t.user.email}</td>
-                <td>{t.amount.toLocaleString()}</td>
-                <td>{t.method}</td>
+            topups.map((topup) => (
+              <tr key={topup._id}>
+                <td>{typeof topup.user === "string" ? topup.user : topup.user.email}</td>
+                <td>{topup.amount.toLocaleString()}</td>
+                <td>{topup.method}</td>
                 <td>
-                  <StatusPill value={t.status} />
+                  <StatusPill value={topup.status} />
                 </td>
                 <td>
-                  <button className="ghost-btn" onClick={() => updateTopUp(t._id, "APPROVED").then(load)}>
+                  <button className="ghost-btn" onClick={() => updateTopUp(topup._id, "APPROVED").then(load)}>
                     {t("approve")}
                   </button>
-                  <button className="ghost-btn danger" onClick={() => updateTopUp(t._id, "REJECTED").then(load)}>
+                  <button className="ghost-btn danger" onClick={() => updateTopUp(topup._id, "REJECTED").then(load)}>
                     {t("reject")}
                   </button>
                 </td>

@@ -39,6 +39,17 @@ export default function Profile() {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (!user) {
+      setWallet(undefined);
+      return;
+    }
+    api
+      .get("/wallet")
+      .then((res) => setWallet(res.data.data.wallet || res.data.data))
+      .catch(() => setWallet(undefined));
+  }, [user]);
+
   const points = pointsData?.points ?? user?.points ?? 0;
   const formattedPoints = Number(points || 0).toLocaleString();
   const pointsPerAmount = settings?.pointsPerAmount;
@@ -155,8 +166,7 @@ export default function Profile() {
                 <TouchableOpacity onPress={() => { router.push("/wallet") }} style={[styles.pointsBox]}>
                   <Text style={styles.muted}>{t("WalletBalance")} <Entypo name="info-with-circle" size={16} color={palette.muted} /></Text>
                   <Text style={styles.pointsValue}>
-                    1,000,000 <Text style={{ fontWeight: 400, fontSize: 14 }}>SYP</Text>
-                    {/* {formattedPoints} <Text style={{ fontWeight: '400' }}>{t("rewards")}</Text> */}
+                    {balance.toLocaleString()} <Text style={{ fontWeight: '400', fontSize: 14 }}>SYP</Text>
                   </Text>
                   {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
                   <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/points") }}>
