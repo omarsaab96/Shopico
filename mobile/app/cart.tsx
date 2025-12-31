@@ -219,7 +219,7 @@ export default function CartScreen() {
           gap: 8,
         }}
       >
-        <View style={{ gap: 4, position: 'relative' }}>
+        <View style={{ gap:5,position: 'relative' }}>
           <Text style={styles.sheetText}>
             {t("subtotal")}: {subtotal.toLocaleString()} SYP
           </Text>
@@ -349,7 +349,7 @@ export default function CartScreen() {
       >
         <BottomSheetView style={styles.sheetContainer}>
           <Text style={styles.sheetTitle}>{t("confirmClearCart") ?? "Clear cart?"}</Text>
-          <Text style={styles.sheetText}>{t("confirmClearCartCopy") ?? "This will remove all items from your cart."}</Text>
+          <Text style={[styles.sheetText,{marginBottom:20}]}>{t("confirmClearCartCopy") ?? "This will remove all items from your cart."}</Text>
           <View style={styles.sheetActions}>
             <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonSecondary]} onPress={() => clearSheetRef.current?.dismiss()}>
               <Text style={styles.sheetButtonTextSecondary}>{t("no") ?? "No"}</Text>
@@ -374,7 +374,7 @@ export default function CartScreen() {
         <BottomSheetScrollView
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 180 }}
+          contentContainerStyle={{ paddingBottom: 175 }}
         >
           <View>
             <Text style={[styles.sheetTitle, { paddingTop: 16, paddingHorizontal: 16 }]}>{t("checkout")}</Text>
@@ -592,14 +592,14 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       fontSize: 14,
       fontWeight: '500',
     },
-    sheetText: { color: palette.muted },
+    sheetText: { color: palette.muted},
     sheetActions: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
     sheetButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center", borderWidth: 1, borderColor: palette.border },
     sheetButtonSecondary: { backgroundColor: palette.surface },
     sheetButtonPrimary: { backgroundColor: palette.accent, borderColor: palette.accent },
     sheetButtonTextPrimary: { color: "#fff", fontWeight: "800" },
     sheetButtonTextSecondary: { color: palette.text, fontWeight: "700" },
-    checkRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
+    checkRow: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical:20 },
     checkbox: {
       width: 22,
       height: 22,
@@ -612,7 +612,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     },
     checkboxChecked: { borderColor: palette.accent, backgroundColor: palette.accentSoft },
     checkboxMark: { color: palette.text, fontWeight: "800" },
-    checkLabel: { color: palette.text, fontWeight: "700" },
+    checkLabel: { color: palette.text, fontWeight: "700",},
     addressBox: {
       gap: 4,
       borderBottomLeftRadius: 20,

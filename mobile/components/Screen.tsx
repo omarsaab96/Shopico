@@ -27,7 +27,7 @@ const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps)
         container: {
           flex: 1,
           paddingHorizontal: 16,
-          paddingTop: 16,
+          // paddingTop: 16,
           writingDirection: isRTL ? "rtl" : "ltr",
           direction: isRTL ? "rtl" : "ltr",
         },

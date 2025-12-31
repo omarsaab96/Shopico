@@ -374,9 +374,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
 
     pointsValue: {
       color: palette.text,
-      fontSize: 26,
+      fontSize: 20,
       fontWeight: "900",
       textAlign: isRTL ? "right" : "left",
+      marginVertical:10
     },
 
     pointsLink: {

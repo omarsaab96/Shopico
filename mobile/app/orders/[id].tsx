@@ -24,7 +24,7 @@ export default function OrderDetail() {
   const stepIndex = steps.indexOf(order.status);
 
   return (
-    <Screen>
+    <Screen showBack backLabel={t("back") ?? "Back"}>
       <Text style={styles.title}>
         {t("order")} #{order._id?.slice(-6)}
       </Text>

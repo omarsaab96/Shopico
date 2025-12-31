@@ -407,7 +407,7 @@ export default function Home() {
           value={search}
           onChangeText={setSearch}
           returnKeyType="search"
-          onSubmitEditing={() => Keyboard.dismiss()}
+          // onSubmitEditing={() => Keyboard.dismiss()}
         />
         {searching ? (
           <ActivityIndicator size="small" color={palette.accent} style={styles.searchRight} />
@@ -487,7 +487,7 @@ export default function Home() {
   };
 
   const renderHeader = () => (
-    <View style={[styles.headerWrap,{paddingHorizontal:6}]}>
+    <View style={[styles.headerWrap]}>
       {renderTopBar()}
 
       <View style={styles.greetingWrap}>
@@ -553,7 +553,7 @@ export default function Home() {
           showsHorizontalScrollIndicator={false}
           decelerationRate="fast"
           keyExtractor={(p) => p._id}
-          contentContainerStyle={{ paddingBottom: 16, marginHorizontal:-6 }}
+          contentContainerStyle={{ paddingBottom: 16 }}
           columnWrapperStyle={styles.productRow}
           ListHeaderComponent={renderHeader}
           refreshing={loadingProducts && !loadingMore}
@@ -566,9 +566,7 @@ export default function Home() {
             return (
               <View
                 style={{
-                  width: "50%",
-                  paddingHorizontal:6,
-                  
+                  width: "48%",
                 }}
               >
                 <View style={styles.productCard}>
@@ -993,7 +991,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     },
     searchIcon: {
       position: "absolute",
-      top: 15,
+      top: 14,
       left: 14,
       opacity: 0.9,
     },
@@ -1087,9 +1085,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     catName: { color: palette.text, fontSize: 12, textAlign: "center" },
 
     productRow: {
-      gap: 0,
+      gap: 12,
       marginBottom: 12,
+      // borderWidth:1,
       // paddingHorizontal: 16,
+      justifyContent:'space-between'
     },
 
     productCard: {
