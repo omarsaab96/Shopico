@@ -14,7 +14,7 @@ export interface Category {
   _id: string;
   name: string;
   description?: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
 }
 
 export interface ProductImage {
