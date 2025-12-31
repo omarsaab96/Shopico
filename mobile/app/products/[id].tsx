@@ -1,12 +1,13 @@
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Image, Text, View, StyleSheet, TouchableOpacity } from "react-native";
+import { Image, View, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../../components/Button";
 import Screen from "../../components/Screen";
 import api from "../../lib/api";
 import { useCart } from "../../lib/cart";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
+import Text from "../../components/Text";
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();

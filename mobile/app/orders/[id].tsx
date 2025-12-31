@@ -1,8 +1,9 @@
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Text, View, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import Screen from "../../components/Screen";
 import ProgressBar from "../../components/ProgressBar";
+import Text from "../../components/Text";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
@@ -64,6 +65,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       fontSize: 24,
       fontWeight: "900",
       marginBottom: 14,
+      textAlign: 'left'
     },
 
     card: {
@@ -79,20 +81,20 @@ const createStyles = (palette: any, isRTL: boolean) =>
     muted: {
       color: palette.muted,
       fontSize: 13,
-      fontWeight: "600",
+      fontWeight: "600", textAlign:'left'
     },
 
     value: {
       color: palette.text,
       fontWeight: "800",
-      fontSize: 14,
+      fontSize: 14, textAlign:'left'
     },
 
     total: {
       color: palette.accent,
       fontSize: 18,
       fontWeight: "900",
-      marginTop: 8,
+      marginTop: 8, textAlign:'left'
     },
 
     row: {

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Text, View, StyleSheet, Switch, TouchableOpacity } from "react-native";
+import { View, StyleSheet, Switch, TouchableOpacity } from "react-native";
 import Screen from "../components/Screen";
 import api from "../lib/api";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
+import Text from "../components/Text";
 
 export default function SettingsScreen() {
   const [settings, setSettings] = useState<any>();

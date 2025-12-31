@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import Screen from "../components/Screen";
+import Text from "../components/Text";
 import api from "../lib/api";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
@@ -60,7 +61,7 @@ export default function PointsScreen() {
 
   return (
     <Screen showBack backLabel={t("back") ?? "Back"}>
-      <Text style={styles.title}>{t("pointsBalance") ?? "Points balance"}</Text>
+      <Text weight="bold" style={styles.title}>{t("pointsBalance") ?? "Points balance"}</Text>
 
       <View style={styles.card}>
         {/* RING */}
@@ -90,8 +91,8 @@ export default function PointsScreen() {
 
           {/* Center */}
           <View style={styles.center}>
-            <Text style={styles.points}>{points}</Text>
-            <Text style={styles.pointsLabel}>{t("rewards") ?? "Points"}</Text>
+            <Text weight="black" style={styles.points}>{points}</Text>
+            <Text weight="bold" style={styles.pointsLabel}>{t("rewards") ?? "Points"}</Text>
           </View>
         </View>
 
@@ -100,7 +101,7 @@ export default function PointsScreen() {
           <View style={styles.giftIcon}>
             <AntDesign name="gift" size={36} color="#f97316" />
           </View>
-          <Text style={styles.remaining}>
+          <Text weight="bold" style={styles.remaining}>
             {remaining.toLocaleString()}{" "}
             {t("pointsLeft") ?? "points left to unlock a reward"}
           </Text>
@@ -108,7 +109,7 @@ export default function PointsScreen() {
 
         {/* CTA */}
         <TouchableOpacity style={styles.cta} onPress={() => router.push("/(tabs)/cart")}>
-          <Text style={styles.ctaText}>
+          <Text weight="bold" style={styles.ctaText}>
             {t("usePoints") ?? "Use points reward"}
           </Text>
         </TouchableOpacity>
@@ -123,10 +124,9 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
   StyleSheet.create({
     title: {
       fontSize: 22,
-      fontWeight: "800",
       color: palette.text,
       marginBottom: 12,
-      textAlign: isRTL ? "right" : "left",
+      textAlign: "left",
     },
 
     card: {
@@ -157,13 +157,11 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
 
     points: {
       fontSize: 36,
-      fontWeight: "900",
       color: palette.text,
     },
 
     pointsLabel: {
       fontSize: 14,
-      fontWeight: "700",
       color: palette.muted,
     },
 
@@ -189,7 +187,6 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
 
     remaining: {
       fontSize: 14,
-      fontWeight: "700",
       textAlign: "center",
       color: palette.text,
     },
@@ -210,7 +207,6 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
 
     ctaText: {
       color: "#fff",
-      fontWeight: "800",
       fontSize: 15,
     },
   });

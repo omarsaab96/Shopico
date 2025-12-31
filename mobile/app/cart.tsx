@@ -1,11 +1,12 @@
 import { Link } from "expo-router";
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Text, View, StyleSheet, TouchableOpacity, Image, FlatList, RefreshControl, ActivityIndicator, ScrollView } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Image, FlatList, RefreshControl, ActivityIndicator, ScrollView } from "react-native";
 import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetFooter, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
+import Text from "../components/Text";
 import { useCart } from "../lib/cart";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
@@ -226,7 +227,7 @@ export default function CartScreen() {
           <Text style={styles.sheetText}>
             {t("deliveryFee")}: {deliveryFee?.toLocaleString()} SYP
           </Text>
-          <Text style={styles.sheetTitle}>
+          <Text weight="bold" style={styles.sheetTitle}>
             {t("total")}: {orderTotal.toLocaleString()} SYP
           </Text>
           {/* {walletInsufficient && (
@@ -241,7 +242,7 @@ export default function CartScreen() {
           onPress={()=>{placeOrder()}}
           disabled={!selectedAddress || submitting || walletInsufficient}
         >
-          <Text style={styles.primaryBtnText}>{submitting ? t("placingOrder") : t("placeOrder")}</Text>
+          <Text weight="bold" style={styles.primaryBtnText}>{submitting ? t("placingOrder") : t("placeOrder")}</Text>
           {submitting && <ActivityIndicator color={'#fff'} size={'small'} style={{}} />}
         </TouchableOpacity>
       </View>
@@ -251,15 +252,15 @@ export default function CartScreen() {
   return (
     <BottomSheetModalProvider>
       <Screen>
-        <Text style={styles.title}>{t("cart")}</Text>
+        <Text weight="bold" style={styles.title}>{t("cart")}</Text>
 
         {items.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>{t("emptyCartTitle") ?? "Your cart is empty"}</Text>
+            <Text weight="bold" style={styles.emptyTitle}>{t("emptyCartTitle") ?? "Your cart is empty"}</Text>
             <Text style={styles.emptyText}>{t("emptyCartCopy") ?? "Add items to your cart to see them here."}</Text>
 
             <TouchableOpacity style={styles.browseBtn} onPress={() => { router.replace("/(tabs)/store") }}>
-              <Text style={styles.browseBtnText}>{t("startBrowsing") ?? "Start browsing"}</Text>
+              <Text weight="bold" style={styles.browseBtnText}>{t("startBrowsing") ?? "Start browsing"}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -271,7 +272,7 @@ export default function CartScreen() {
             renderItem={({ item }) => (
               <View style={styles.row}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{item.name}</Text>
+                  <Text weight="bold" style={styles.name}>{item.name}</Text>
                   <Text style={styles.muted}>
                     {item.price.toLocaleString()} SYP
                   </Text>
@@ -279,11 +280,11 @@ export default function CartScreen() {
                 <View style={styles.qtyRow}>
                   <View style={styles.qtyRow}>
                     <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity - 1)}>
-                      <Text style={styles.qtySymbol}>-</Text>
+                      <Text weight="bold" style={styles.qtySymbol}>-</Text>
                     </TouchableOpacity>
-                    <Text style={styles.qtyValue}>{item.quantity}</Text>
+                    <Text weight="bold" style={styles.qtyValue}>{item.quantity}</Text>
                     <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity + 1)}>
-                      <Text style={styles.qtySymbol}>+</Text>
+                      <Text weight="bold" style={styles.qtySymbol}>+</Text>
                     </TouchableOpacity>
                   </View>
                   <TouchableOpacity onPress={() => confirmRemove(item.productId)} style={styles.removeFromCartBtn}>
@@ -297,7 +298,7 @@ export default function CartScreen() {
 
         {items.length > 0 && <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>{t("subtotal")}</Text>
-          <Text style={styles.totalValue}>{subtotal.toLocaleString()} SYP</Text>
+          <Text weight="bold" style={styles.totalValue}>{subtotal.toLocaleString()} SYP</Text>
         </View>}
 
         {items.length > 0 && <View style={{ gap: 8, paddingBottom: 16 }}>
@@ -320,20 +321,20 @@ export default function CartScreen() {
         handleIndicatorStyle={{ backgroundColor: palette.muted }}
       >
         <BottomSheetView style={styles.sheetContainer}>
-          <Text style={styles.sheetTitle}>{t("confirmRemove") ?? "Remove item?"}</Text>
+          <Text weight="bold" style={styles.sheetTitle}>{t("confirmRemove") ?? "Remove item?"}</Text>
           <Text style={styles.sheetText}>{t("confirmRemoveCopy") ?? "Are you sure you want to remove this item from your cart?"}</Text>
           <TouchableOpacity style={styles.checkRow} onPress={toggleSkip}>
             <View style={[styles.checkbox, skipConfirm && styles.checkboxChecked]}>
-              {skipConfirm ? <Text style={styles.checkboxMark}>X</Text> : null}
+              {skipConfirm ? <Text weight="bold" style={styles.checkboxMark}>X</Text> : null}
             </View>
-            <Text style={styles.checkLabel}>{t("dontAskAgain") ?? "Don't ask again"}</Text>
+            <Text weight="bold" style={styles.checkLabel}>{t("dontAskAgain") ?? "Don't ask again"}</Text>
           </TouchableOpacity>
           <View style={styles.sheetActions}>
             <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonSecondary]} onPress={handleCancel}>
-              <Text style={styles.sheetButtonTextSecondary}>{t("no") ?? "No"}</Text>
+              <Text weight="bold" style={styles.sheetButtonTextSecondary}>{t("no") ?? "No"}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonPrimary]} onPress={handleRemoveConfirmed}>
-              <Text style={styles.sheetButtonTextPrimary}>{t("yes") ?? "Yes"}</Text>
+              <Text weight="bold" style={styles.sheetButtonTextPrimary}>{t("yes") ?? "Yes"}</Text>
             </TouchableOpacity>
           </View>
         </BottomSheetView>
@@ -348,14 +349,14 @@ export default function CartScreen() {
         handleIndicatorStyle={{ backgroundColor: palette.muted }}
       >
         <BottomSheetView style={styles.sheetContainer}>
-          <Text style={styles.sheetTitle}>{t("confirmClearCart") ?? "Clear cart?"}</Text>
+          <Text weight="bold" style={styles.sheetTitle}>{t("confirmClearCart") ?? "Clear cart?"}</Text>
           <Text style={[styles.sheetText,{marginBottom:20}]}>{t("confirmClearCartCopy") ?? "This will remove all items from your cart."}</Text>
           <View style={styles.sheetActions}>
             <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonSecondary]} onPress={() => clearSheetRef.current?.dismiss()}>
-              <Text style={styles.sheetButtonTextSecondary}>{t("no") ?? "No"}</Text>
+              <Text weight="bold" style={styles.sheetButtonTextSecondary}>{t("no") ?? "No"}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonPrimary]} onPress={handleClearConfirmed}>
-              <Text style={styles.sheetButtonTextPrimary}>{t("yes") ?? "Yes"}</Text>
+              <Text weight="bold" style={styles.sheetButtonTextPrimary}>{t("yes") ?? "Yes"}</Text>
             </TouchableOpacity>
           </View>
         </BottomSheetView>
@@ -374,10 +375,10 @@ export default function CartScreen() {
         <BottomSheetScrollView
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 175 }}
+          contentContainerStyle={{ paddingBottom: isRTL?230:175 }}
         >
           <View>
-            <Text style={[styles.sheetTitle, { paddingTop: 16, paddingHorizontal: 16 }]}>{t("checkout")}</Text>
+            <Text weight="bold" style={[styles.sheetTitle, { paddingTop: 16, paddingHorizontal: 16 }]}>{t("checkout")}</Text>
             <View style={{ marginBottom: 20, paddingHorizontal: 16 }}>
               <View style={{
                 flexDirection: 'row',
@@ -389,19 +390,19 @@ export default function CartScreen() {
                 borderTopRightRadius: 20,marginBottom:-1
               }}>
 
-                <Text style={styles.section}>{t("address")}</Text>
+                <Text weight="medium" style={styles.section}>{t("address")}</Text>
 
                 {!showAddresses ? (
                   <TouchableOpacity style={styles.addressBtn} onPress={() => { setShowAddresses(true) }}>
-                    <Text style={styles.addressBtnText}>{selectedAddress ? t("change") ?? "Change address" : t("addAddress") ?? "Add address"}</Text>
+                    <Text weight="bold" style={styles.addressBtnText}>{selectedAddress ? t("change") ?? "Change address" : t("addAddress") ?? "Add address"}</Text>
                   </TouchableOpacity>
                 ) : (
                   <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity style={styles.addressBtn} onPress={() => { setShowAddresses(false) }}>
-                      <Text style={styles.addressBtnText}>{t("cancel") ?? "Cancel"}</Text>
+                      <Text weight="bold" style={styles.addressBtnText}>{t("cancel") ?? "Cancel"}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.addressBtn} onPress={() => { router.push("/addresses") }}>
-                      <Text style={styles.addressBtnText}>{t("manageAddresses") ?? "Manage addresses"}</Text>
+                      <Text weight="bold" style={styles.addressBtnText}>{t("manageAddresses") ?? "Manage addresses"}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -415,8 +416,8 @@ export default function CartScreen() {
                     borderRadius: 20
                   }}>
                     <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                      <Text style={styles.addressLabel}>{selectedAddress.label}</Text>
-                      <Text style={styles.distance}>{distanceKm} Km</Text>
+                      <Text weight="bold" style={styles.addressLabel}>{selectedAddress.label}</Text>
+                      <Text weight="bold" style={styles.distance}>{distanceKm} Km</Text>
                     </View>
 
                     <Text style={styles.addressText}>{selectedAddress.address}</Text>
@@ -442,7 +443,7 @@ export default function CartScreen() {
                         onPress={() => { setSelectedAddress(addr); setShowAddresses(false) }}
                       >
                         {selectedAddress?._id === addr._id && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick,  { right: 5 }]} />}
-                        <Text style={styles.addressLabel}>{addr.label}</Text>
+                        <Text weight="bold" style={styles.addressLabel}>{addr.label}</Text>
                         <Text style={styles.addressText}>{addr.address}</Text>
                       </TouchableOpacity>
                     ))}
@@ -462,14 +463,14 @@ export default function CartScreen() {
                 borderTopLeftRadius: 20,
                 borderTopRightRadius: 20,marginBottom:-1
               }}>
-                <Text style={styles.section}>{t("paymentMethod") ?? "Payment"}</Text>
+                <Text weight="medium" style={styles.section}>{t("paymentMethod") ?? "Payment"}</Text>
                 {!showPaymentOptions ? (
                   <TouchableOpacity style={styles.addressBtn} onPress={() => setShowPaymentOptions(true)}>
-                    <Text style={styles.addressBtnText}>{t("change") ?? "Change"}</Text>
+                    <Text weight="bold" style={styles.addressBtnText}>{t("change") ?? "Change"}</Text>
                   </TouchableOpacity>
                 ) :
                   <TouchableOpacity style={styles.addressBtn} onPress={() => setShowPaymentOptions(false)}>
-                    <Text style={styles.addressBtnText}>{t("cancel") ?? "Cancel"}</Text>
+                    <Text weight="bold" style={styles.addressBtnText}>{t("cancel") ?? "Cancel"}</Text>
                   </TouchableOpacity>
                 }
               </View>
@@ -483,10 +484,10 @@ export default function CartScreen() {
                   },
                   paymentMethod === "WALLET" && { flexDirection: 'row', justifyContent: 'space-between' }
                   ]}>
-                    <Text>{paymentMethod}</Text>
+                    <Text weight="bold">{paymentMethod}</Text>
 
                     {paymentMethod === "WALLET" && (
-                      <Text>
+                      <Text weight="bold">
                         {t("balance")}: {walletBalance.toLocaleString()} SYP
                       </Text>
                     )}
@@ -507,7 +508,7 @@ export default function CartScreen() {
                         onPress={() => selectPaymentMethod(method)}
                       >
                         {paymentMethod === method && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, { top: 10 },  { right: 5 }]} />}
-                        <Text style={[styles.pillText, paymentMethod === method && styles.pillTextActive]}>{method}</Text>
+                        <Text weight="bold" style={[styles.pillText, paymentMethod === method && styles.pillTextActive]}>{method}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -524,7 +525,7 @@ export default function CartScreen() {
 
 const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
   StyleSheet.create({
-    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12 },
+    title: { color: palette.text, fontSize: 22, marginBottom: 12,textAlign:'left' },
     row: {
       backgroundColor: palette.card,
       borderRadius: 20,
@@ -534,12 +535,12 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       flexDirection: "row",
       justifyContent: "space-between",
     },
-    name: { color: palette.text, fontWeight: "700" },
-    muted: { color: palette.muted },
+    name: { color: palette.text, textAlign:'left' },
+    muted: { color: palette.muted, textAlign:'left' },
     link: { color: palette.accent },
     totalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: 'center', marginVertical: 12 },
     totalLabel: { color: palette.muted },
-    totalValue: { color: palette.text, fontWeight: "800", fontSize: 16 },
+    totalValue: { color: palette.text, fontSize: 16 },
     qtyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
     qtyButton: {
       width: 36,
@@ -551,8 +552,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       borderWidth: 1,
       borderColor: palette.border,
     },
-    qtySymbol: { color: palette.text, fontSize: 18, fontWeight: "800" },
-    qtyValue: { color: palette.text, fontSize: 16, fontWeight: "800", minWidth: 24, textAlign: "center" },
+    qtySymbol: { color: palette.text, fontSize: 18 },
+    qtyValue: { color: palette.text, fontSize: 16, minWidth: 24, textAlign: "center" },
     removeFromCartBtn: {
       width: 36,
       height: 36,
@@ -576,7 +577,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       alignItems: "center",
       gap: 8,
     },
-    emptyTitle: { color: palette.text, fontSize: 18, fontWeight: "800" },
+    emptyTitle: { color: palette.text, fontSize: 18 },
     emptyText: { color: palette.muted, textAlign: "center" },
     browseBtn: {
       backgroundColor: palette.accent,
@@ -585,20 +586,19 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       borderRadius: 10,
       marginTop: 4,
     },
-    browseBtnText: { color: "#fff", fontWeight: "700" },
+    browseBtnText: { color: "#fff" },
     sheetContainer: { padding: 16 },
-    sheetTitle: { color: palette.text, fontSize: 18, fontWeight: "800", marginBottom: 20 },
+    sheetTitle: { color: palette.text, fontSize: 18, marginBottom: 20, textAlign:'left' },
     section: {
       fontSize: 14,
-      fontWeight: '500',
     },
-    sheetText: { color: palette.muted},
+    sheetText: { color: palette.muted, textAlign:'left'},
     sheetActions: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
     sheetButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center", borderWidth: 1, borderColor: palette.border },
     sheetButtonSecondary: { backgroundColor: palette.surface },
     sheetButtonPrimary: { backgroundColor: palette.accent, borderColor: palette.accent },
-    sheetButtonTextPrimary: { color: "#fff", fontWeight: "800" },
-    sheetButtonTextSecondary: { color: palette.text, fontWeight: "700" },
+    sheetButtonTextPrimary: { color: "#fff" },
+    sheetButtonTextSecondary: { color: palette.text },
     checkRow: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical:20 },
     checkbox: {
       width: 22,
@@ -611,8 +611,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       backgroundColor: palette.card,
     },
     checkboxChecked: { borderColor: palette.accent, backgroundColor: palette.accentSoft },
-    checkboxMark: { color: palette.text, fontWeight: "800" },
-    checkLabel: { color: palette.text, fontWeight: "700",},
+    checkboxMark: { color: palette.text },
+    checkLabel: { color: palette.text,},
     addressBox: {
       gap: 4,
       borderBottomLeftRadius: 20,
@@ -621,13 +621,12 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       borderColor: palette.surface,
       backgroundColor: palette.surface,
     },
-    addressLabel: { color: palette.text, fontWeight: "800" },
+    addressLabel: { color: palette.text, textAlign:'left' },
     distance: {
       fontSize: 14,
-      color: palette.accent,
-      fontWeight: "800"
+      color: palette.accent
     },
-    addressText: { color: palette.text },
+    addressText: { color: palette.text, textAlign:'left' },
     addressBtn: {
       paddingVertical: 5,
       paddingHorizontal: 10,
@@ -637,7 +636,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       alignItems: "center",
       backgroundColor: palette.card,
     },
-    addressBtnText: { color: palette.accent, fontWeight: "700" },
+    addressBtnText: { color: palette.accent },
     pillRow: {
       padding: 10,
       borderRadius: 10,
@@ -647,7 +646,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     },
     pillRowActive: { borderColor: palette.accent, position: 'relative', backgroundColor: isDark ? palette.surface : "rgba(249,115,22,0.10)",},
     selectedTick: { position: 'absolute', top: 5 },
-    pillText: { color: palette.text, fontWeight: "700" },
+    pillText: { color: palette.text, textAlign:'left' },
     pillTextActive: { color: "#0f172a" },
     primaryBtn: {
       paddingVertical: 14,
@@ -661,5 +660,5 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       justifyContent: 'center',
       gap: 5
     },
-    primaryBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+    primaryBtnText: { color: "#fff", fontSize: 16 },
   });

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Keyboard } from "react-native";
+import { View, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Keyboard } from "react-native";
 import MapView, { Marker, MapPressEvent } from "react-native-maps";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
 import Screen from "../components/Screen";
+import Text from "../components/Text";
 import api from "../lib/api";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
@@ -236,11 +237,12 @@ export default function AddressesScreen() {
   return (
     <BottomSheetModalProvider>
     <Screen showBack backLabel={t("back") ?? "Back"}>
-      <Text style={styles.title}>{t("savedAddresses") ?? "Saved addresses"}</Text>
+      <Text weight="bold" style={styles.title}>{t("savedAddresses") ?? "Saved addresses"}</Text>
 
       {(editing || adding) && <View style={styles.card}>
-        <Text style={styles.section}>{editing ? t("editAddress") ?? "Edit address" : t("addAddress") ?? "Add address"}</Text>
-        <TextInput style={styles.input} value={label} onChangeText={setLabel} placeholder={t("label") ?? "Label"} placeholderTextColor={palette.muted} />
+        <Text weight="bold" style={styles.section}>{editing ? t("editAddress") ?? "Edit address" : t("addAddress") ?? "Add address"}</Text>
+        <TextInput
+        style={styles.input} value={label} onChangeText={setLabel} placeholder={t("label") ?? "Label"} placeholderTextColor={palette.muted} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <View style={{ position: "relative", flex: 1 }}>
             <TextInput
@@ -309,11 +311,11 @@ export default function AddressesScreen() {
 
         <View style={styles.row}>
           <TouchableOpacity style={[styles.button, styles.primary]} onPress={save}>
-            <Text style={styles.buttonText}>{t("save") ?? "Save"}</Text>
+            <Text weight="bold" style={styles.buttonText}>{t("save") ?? "Save"}</Text>
           </TouchableOpacity>
           {(editing || adding) && (
             <TouchableOpacity style={[styles.button, styles.secondary]} onPress={resetForm}>
-              <Text style={styles.secondaryText}>{t("cancel") ?? "Cancel"}</Text>
+              <Text weight="bold" style={styles.secondaryText}>{t("cancel") ?? "Cancel"}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -321,7 +323,7 @@ export default function AddressesScreen() {
 
       {!adding && <View>
         <TouchableOpacity style={styles.addAddressLink} onPress={() => { setAdding(true) }}>
-          <Text style={styles.addAddressLinkText}>Add new address</Text>
+          <Text weight="bold" style={styles.addAddressLinkText}>{t('addNewAddress')}</Text>
         </TouchableOpacity>
       </View>}
 
@@ -331,15 +333,15 @@ export default function AddressesScreen() {
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <Text style={styles.section}>{item.label}</Text>
+            <Text weight="bold" style={styles.section}>{item.label}</Text>
             <Text style={styles.muted}>{item.address}</Text>
             {item.phone ? <Text style={styles.muted}>{item.phone}</Text> : null}
             <View style={styles.row}>
               <TouchableOpacity style={[styles.button, styles.primary]} onPress={() => startEdit(item)}>
-                <Text style={styles.buttonText}>{t("edit") ?? "Edit"}</Text>
+                <Text weight="bold" style={styles.buttonText}>{t("edit") ?? "Edit"}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.button, styles.secondary]} onPress={() => confirmRemove(item._id)}>
-                <Text style={styles.secondaryText}>{t("delete") ?? "Delete"}</Text>
+                <Text weight="bold" style={styles.secondaryText}>{t("delete") ?? "Delete"}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -358,14 +360,14 @@ export default function AddressesScreen() {
       handleIndicatorStyle={{ backgroundColor: palette.muted }}
     >
       <BottomSheetView style={styles.sheetContainer}>
-        <Text style={styles.sheetTitle}>{t("confirmRemove") ?? "Remove address?"}</Text>
+        <Text weight="bold" style={styles.sheetTitle}>{t("confirmRemove") ?? "Remove address?"}</Text>
         <Text style={styles.sheetText}>{t("confirmRemoveCopy") ?? "Are you sure you want to remove this item from your list?"}</Text>
         <View style={styles.sheetActions}>
           <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonSecondary]} onPress={handleDeleteCancel}>
-            <Text style={styles.sheetButtonTextSecondary}>{t("no") ?? "No"}</Text>
+            <Text weight="bold" style={styles.sheetButtonTextSecondary}>{t("no") ?? "No"}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonPrimary]} onPress={handleDeleteConfirm}>
-            <Text style={styles.sheetButtonTextPrimary}>{t("yes") ?? "Yes"}</Text>
+            <Text weight="bold" style={styles.sheetButtonTextPrimary}>{t("yes") ?? "Yes"}</Text>
           </TouchableOpacity>
         </View>
       </BottomSheetView>
@@ -376,7 +378,7 @@ export default function AddressesScreen() {
 
 const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
-    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12,  },
+    title: { color: palette.text, fontSize: 22, marginBottom: 12, textAlign:  "left"  },
     card: {
       backgroundColor: palette.card,
       borderRadius: 12,
@@ -386,20 +388,22 @@ const createStyles = (palette: any, isRTL: boolean) =>
       gap: 8,
       marginBottom: 12,
     },
-    section: { color: palette.text, fontWeight: "800" },
+    section: { color: palette.text, textAlign: 'left'},
     input: {
       backgroundColor: palette.surface,
       color: palette.text,
       borderRadius: 12,
       padding: 14,
+      textAlign: isRTL ? "right" : "left",
     },
     search: {
       backgroundColor: palette.surface,
       borderRadius: 14,
       padding: 14,
-      paddingLeft: 40,
+      paddingLeft: isRTL ? 14 : 40,
       color: palette.text,
-      paddingRight: 40
+      paddingRight: isRTL ? 40 : 14,
+      textAlign: isRTL ? "right" : "left",
     },
     row: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
     half: { flex: 1 },
@@ -413,8 +417,8 @@ const createStyles = (palette: any, isRTL: boolean) =>
     },
     primary: { backgroundColor: palette.accent, borderColor: palette.accent },
     secondary: { backgroundColor: palette.surface, borderColor: palette.border },
-    buttonText: { color: "#fff", fontWeight: "700" },
-    secondaryText: { color: palette.text, fontWeight: "700" },
+    buttonText: { color: "#fff" },
+    secondaryText: { color: palette.text },
     addAddressLink: {
       marginBottom: 20,
       backgroundColor: palette.card, borderColor: palette.border,
@@ -422,7 +426,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       padding:10
     },
     addAddressLinkText: {
-      color: palette.accent, fontWeight: "700",
+      color: palette.accent,
       textAlign:'center'
     },
     mapWrap: { borderRadius: 12, overflow: "hidden", gap: 6 },
@@ -445,16 +449,20 @@ const createStyles = (palette: any, isRTL: boolean) =>
       borderBottomColor: palette.border,
     },
     suggestionText: { color: palette.text },
-    searchIcon: { position: "absolute", left: 10, top: 12 },
+    searchIcon: {
+      position: "absolute",
+      left: 10,
+      top: 12
+    },
     searchSpinner: { position: "absolute", right: 12, top: 14 },
-    clearText: { color: palette.text, fontSize: 16, fontWeight: "800" },
+    clearText: { color: palette.text, fontSize: 16 },
     sheetContainer: { padding: 16, gap: 10 },
-    sheetTitle: { color: palette.text, fontSize: 18, fontWeight: "800" },
+    sheetTitle: { color: palette.text, fontSize: 18 },
     sheetText: { color: palette.muted },
     sheetActions: { flexDirection: "row", gap: 10 },
     sheetButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center" },
     sheetButtonPrimary: { backgroundColor: palette.accent },
     sheetButtonSecondary: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
-    sheetButtonTextPrimary: { color: "#0f172a", fontWeight: "800" },
-    sheetButtonTextSecondary: { color: palette.text, fontWeight: "700" },
+    sheetButtonTextPrimary: { color: "#0f172a" },
+    sheetButtonTextSecondary: { color: palette.text },
   });

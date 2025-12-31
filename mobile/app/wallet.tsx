@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text, TextInput, View, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity, Keyboard } from "react-native";
+import { TextInput, View, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity, Keyboard } from "react-native";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
 import api from "../lib/api";
@@ -11,6 +11,7 @@ import Feather from "@expo/vector-icons/Feather";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useAuth } from "../lib/auth";
 import { BottomSheetBackdrop, BottomSheetFooter, BottomSheetModal, BottomSheetModalProvider, BottomSheetTextInput, BottomSheetView } from "@gorhom/bottom-sheet";
+import Text from "../components/Text";
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
@@ -223,7 +224,7 @@ export default function WalletScreen() {
             renderItem={({ item }: any) => (
               <View style={styles.txRow}>
                 <View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: isRTL?0:5 }}>
                     {item.type == "CREDIT" && <Feather name="arrow-down-circle" size={18} color={'#009933'} />}
                     {item.type == "DEBIT" && <Feather name="arrow-up-circle" size={18} color={'#f00000'} />}
                     <Text style={styles.txAmount}>{(item.amount || 0).toLocaleString()} SYP</Text>
@@ -285,7 +286,7 @@ export default function WalletScreen() {
                         name="check"
                         size={18}
                         color={palette.accent}
-                        style={[styles.selectedTick, isRTL ? { left: 8 } : { right: 8 }]}
+                        style={[styles.selectedTick,  {right: 8 }]}
                       />
                     )}
                     <Text style={[styles.pillText, method === m && styles.pillTextActive]}>{m}</Text>
@@ -304,7 +305,7 @@ export default function WalletScreen() {
 
 const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
   StyleSheet.create({
-    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: isRTL ? "right" : "left" },
+    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: "left" },
     card: {
       backgroundColor: palette.card,
       padding: 14,
@@ -314,19 +315,20 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       marginBottom: 12,
       gap: 8,
     },
-    balance: { color: palette.text, fontSize: 32, fontWeight: "800" },
-    muted: { color: palette.muted },
-    cardTitle: { color: palette.text, fontSize: 18, fontWeight: "700" },
+    balance: { color: palette.text, fontSize: 32, fontWeight: "800", textAlign:'left' },
+    muted: { color: palette.muted, textAlign:'left' },
+    cardTitle: { color: palette.text, fontSize: 18, fontWeight: "700", textAlign:'left' },
     input: {
       backgroundColor: '#fff',
       color: palette.text,
       borderRadius: 20,
       padding: 12,
+      textAlign:isRTL?'right':'left'
     },
     fieldLabel: {  
       fontSize: 14,
       fontWeight: '500',
-      paddingTop:5,marginBottom:10
+      paddingTop:5,marginBottom:10,textAlign:'left'
     },
     sheetCard: {
       backgroundColor: palette.surface,
@@ -346,9 +348,9 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       borderColor: palette.accent,
       backgroundColor: isDark ? palette.surface : "rgba(249,115,22,0.10)",
     },
-    pillText: { color: palette.text, fontWeight: "700" },
+    pillText: { color: palette.text, fontWeight: "700",textAlign:'left' },
     pillTextActive: { color: palette.text },
-    selectedTick: { position: "absolute", top: 13 },
+    selectedTick: { position: "absolute", top: 17 },
     rowCard: { backgroundColor: palette.card, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: palette.border },
     value: { color: palette.text, fontWeight: "700" },
     walletCard: {
@@ -364,8 +366,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     walletRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
     walletTextCol: { flex: 1, gap: 8 },
     walletHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    walletLabel: { color: palette.text, fontSize: 18, fontWeight: "700", textAlign: isRTL ? "right" : "left" },
-    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign: isRTL ? "right" : "left" },
+    walletLabel: { color: palette.text, fontSize: 18, fontWeight: "700", textAlign:  "left" },
+    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign:  "left" },
     walletFooterRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 5 },
     walletMiniLabel: { color: palette.muted, fontWeight: "700", fontSize: 12 },
     walletMiniValue: { color: palette.text, fontWeight: "800", fontSize: 14 },
@@ -404,7 +406,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     },
     txAmount: { color: palette.text, fontWeight: "800" },
     txMeta: { color: palette.muted, fontSize: 12 },
-    sheetTitle: { color: palette.text, fontSize: 18, fontWeight: "800", marginBottom: 12 },
+    sheetTitle: { color: palette.text, fontSize: 18, fontWeight: "800", marginBottom: 12,textAlign:'left' },
     primaryBtn: {
       paddingVertical: 14,
       borderRadius: 14,

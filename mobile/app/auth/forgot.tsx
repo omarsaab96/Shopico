@@ -1,8 +1,9 @@
 import { Link } from "expo-router";
 import { useMemo, useState } from "react";
-import { Text, TextInput, View, StyleSheet } from "react-native";
+import { TextInput, View, StyleSheet } from "react-native";
 import Button from "../../components/Button";
 import Screen from "../../components/Screen";
+import Text from "../../components/Text";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 
@@ -20,7 +21,7 @@ export default function Forgot() {
   return (
     <Screen>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t("forgotPassword")}</Text>
+        <Text weight="bold" style={styles.cardTitle}>{t("forgotPassword")}</Text>
         <Text style={styles.muted}>{t("resetCopy")}</Text>
         <TextInput
           style={styles.input}
@@ -43,7 +44,7 @@ export default function Forgot() {
 const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
     card: { backgroundColor: palette.card, padding: 16, borderRadius: 14, gap: 12, borderWidth: 1, borderColor: palette.border },
-    cardTitle: { color: palette.text, fontSize: 18, fontWeight: "700", textAlign: isRTL ? "right" : "left" },
+    cardTitle: { color: palette.text, fontSize: 18, textAlign: isRTL ? "right" : "left" },
     muted: { color: palette.muted },
     input: {
       backgroundColor: palette.surface,

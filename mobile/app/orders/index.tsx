@@ -2,13 +2,13 @@ import { Link } from "expo-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   FlatList,
-  Text,
   TouchableOpacity,
   View,
   StyleSheet,
   RefreshControl,
 } from "react-native";
 import Screen from "../../components/Screen";
+import Text from "../../components/Text";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
@@ -121,6 +121,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       fontSize: 22,
       fontWeight: "800",
       marginBottom: 12,
+       textAlign:'left'
     },
 
     row: {

@@ -1,8 +1,9 @@
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Text, TextInput, View, StyleSheet, TouchableOpacity } from "react-native";
+import { TextInput, View, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../../components/Button";
 import Screen from "../../components/Screen";
+import Text from "../../components/Text";
 import { useAuth } from "../../lib/auth";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
@@ -35,7 +36,7 @@ export default function Login() {
         <View>
           <View style={styles.hero}>
             {/* <Text style={styles.kicker}>Shopico</Text> */}
-            <Text style={styles.title}>{t("login")}</Text>
+            <Text weight="bold" style={styles.title}>{t("login")}</Text>
             {/* <Text style={styles.subtitle}>{t("loginSubhead")}</Text> */}
           </View>
           <View style={styles.card}>
@@ -85,15 +86,15 @@ export default function Login() {
 const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
     hero: { gap: 6, marginBottom: 18 },
-    kicker: { color: palette.accent, fontWeight: "700", textAlign: isRTL ? "right" : "left" },
+    kicker: { color: palette.accent, textAlign: "left" },
     title: {
-      color: palette.text, fontSize: 28, fontWeight: "800",
-      textAlign: isRTL ? "right" : "left"
+      color: palette.text, fontSize: 28,
+      textAlign: "left"
     },
     subtitle: {
       color: palette.muted,
       fontSize: 14,
-      textAlign: isRTL ? "right" : "left"
+      textAlign: "left"
     },
     card: {
       // backgroundColor: palette.card,
@@ -103,7 +104,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       // borderWidth: 1,
       // borderColor: palette.border
     },
-    cardTitle: { color: palette.text, fontSize: 18, fontWeight: "700" },
+    cardTitle: { color: palette.text, fontSize: 18 },
     input: {
       backgroundColor: palette.surface,
       color: palette.text,
@@ -111,8 +112,9 @@ const createStyles = (palette: any, isRTL: boolean) =>
       padding: 12,
       borderWidth: 1,
       borderColor: palette.border,
+      textAlign:isRTL?'right':'left'
     },
-    toggle: { position: 'absolute', alignSelf: "flex-end", top: 12, right: 10 },
+    toggle: { position: 'absolute', alignSelf: "flex-end", top: 12, right: isRTL?undefined:10,left: isRTL?10:undefined },
     error: { color: "#f87171" },
     row: { flexDirection: "row", justifyContent: "space-between" },
     link: { color: palette.accent },

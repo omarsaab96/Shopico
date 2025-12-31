@@ -2,7 +2,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
-  Text,
   TouchableOpacity,
   View,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   Keyboard,
 } from "react-native";
 import Screen from "../../components/Screen";
+import Text from "../../components/Text";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
@@ -73,7 +73,7 @@ export default function CategoryDetail() {
 
   return (
     <Screen showBack backLabel={t("back") ?? "Back"}>
-      <Text style={styles.title}>{categoryName || t("products")}</Text>
+      <Text weight="black" style={styles.title}>{categoryName || t("products")}</Text>
 
       {/* SEARCH */}
       <View style={styles.searchWrap}>
@@ -147,18 +147,18 @@ export default function CategoryDetail() {
                           ? { uri: item.images[0].url }
                           : fallbackLogo
                       }
-                      style={styles.image}
+                      style={[styles.image,{tintColor: '#dedede'}]}
                     />
                   </View>
 
                   <View style={styles.infoCol}>
-                    <Text style={styles.name} numberOfLines={1}>
+                    <Text weight="black" style={styles.name} numberOfLines={1}>
                       {item.name}
                     </Text>
                     <Text style={styles.description} numberOfLines={2}>
                       {item.description}
                     </Text>
-                    <Text style={styles.price}>
+                    <Text weight="bold" style={styles.price}>
                       {item.price.toLocaleString()} SYP
                     </Text>
                   </View>
@@ -171,10 +171,10 @@ export default function CategoryDetail() {
                             setQuantity(existing.productId, existing.quantity - 1)
                           }
                         >
-                          <Text style={styles.qtyText}>−</Text>
+                          <Text weight="black" style={styles.qtyText}>−</Text>
                         </TouchableOpacity>
 
-                        <Text style={styles.qtyValue}>{existing.quantity}</Text>
+                        <Text weight="black" style={styles.qtyValue}>{existing.quantity}</Text>
 
                         <TouchableOpacity
                           style={styles.qtyBtn}
@@ -188,7 +188,7 @@ export default function CategoryDetail() {
                             })
                           }
                         >
-                          <Text style={styles.qtyText}>+</Text>
+                          <Text weight="black" style={styles.qtyText}>+</Text>
                         </TouchableOpacity>
                       </View>
                     ) : (
@@ -233,7 +233,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
   return StyleSheet.create({
     title: {
       fontSize: 26,
-      fontWeight: "900",
       color: palette.text,
       marginBottom: 12,
     },
@@ -259,7 +258,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     searchInput: {
       paddingHorizontal: 34,
       color: palette.text,
-      fontWeight: "600",
       textAlign: align
     },
     searchRight: {
@@ -310,7 +308,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
 
     name: {
       fontSize: 15,
-      fontWeight: "900",
       color: palette.text,
     },
 
@@ -321,7 +318,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
 
     price: {
       fontSize: 16,
-      fontWeight: "800",
       color: palette.accent,
       marginBottom: 10
     },
@@ -337,7 +333,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     },
     addBtnText: {
       color: "#fff",
-      fontWeight: "900",
     },
 
     qtyRow: {
@@ -360,13 +355,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
 
     qtyText: {
       fontSize: 18,
-      fontWeight: "900",
       color: palette.text,
     },
 
     qtyValue: {
       fontSize: 16,
-      fontWeight: "900",
       color: palette.text,
       minWidth: 24,
       textAlign: "center",
