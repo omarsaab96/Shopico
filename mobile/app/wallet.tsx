@@ -120,10 +120,10 @@ export default function WalletScreen() {
   const membershipTone = useMemo(() => {
     const tones: Record<string, { cardBg: string; accent: string; badgeBg: string; badgeText: string; ring: string }> = {
       None: { cardBg: "#f8fafc", accent: "#64748b", badgeBg: "#e2e8f0", badgeText: "#0f172a", ring: "#cbd5e1" },
-      Silver: { cardBg: "#f8fafc", accent: "#a1a1aa", badgeBg: "#e5e5e5", badgeText: "#27272a", ring: "#d4d4d8" },
-      Gold: { cardBg: "#fff7ed", accent: "#f59e0b", badgeBg: "#fef3c7", badgeText: "#92400e", ring: "#fcd34d" },
-      Platinum: { cardBg: "#f5f3ff", accent: "#7c3aed", badgeBg: "#ede9fe", badgeText: "#5b21b6", ring: "#c4b5fd" },
-      Diamond: { cardBg: "#ecfeff", accent: "#06b6d4", badgeBg: "#cffafe", badgeText: "#0e7490", ring: "#06b6d4" },
+      Silver: { cardBg: "#f7f7f7", accent: "#94a3b8", badgeBg: "#e2e8f0", badgeText: "#0f172a", ring: "#cbd5e1" },
+      Gold: { cardBg: "#fff7ed", accent: "#ea9b2b", badgeBg: "#fef3c7", badgeText: "#92400e", ring: "#fcd34d" },
+      Platinum: { cardBg: "#f4f4f5", accent: "#6b7280", badgeBg: "#e4e4e7", badgeText: "#27272a", ring: "#d4d4d8" },
+      Diamond: { cardBg: "#f0f9ff", accent: "#0ea5e9", badgeBg: "#e0f2fe", badgeText: "#0c4a6e", ring: "#7dd3fc" },
     };
     const base = tones[membershipLevel] || tones.None;
     if (isDark) {

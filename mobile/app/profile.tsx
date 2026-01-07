@@ -92,15 +92,12 @@ export default function Profile() {
   const membershipTone = useMemo(() => {
     // “Card tone” for light mode (orange-first like the reference).
     // In dark mode we keep it calm and rely on palette colors.
-    const tones: Record<
-      string,
-      { cardBg: string; accent: string; badgeBg: string; badgeText: string; ring: string }
-    > = {
-      None: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
-      Silver: { cardBg: "#fff7ed", accent: "#fb923c", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
-      Gold: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
-      Platinum: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
-      Diamond: { cardBg: "#fff7ed", accent: "#f97316", badgeBg: "#ffedd5", badgeText: "#9a3412", ring: "#fdba74" },
+    const tones: Record<string, { cardBg: string; accent: string; badgeBg: string; badgeText: string; ring: string }> = {
+      None: { cardBg: "#f8fafc", accent: "#64748b", badgeBg: "#e2e8f0", badgeText: "#0f172a", ring: "#cbd5e1" },
+      Silver: { cardBg: "#f7f7f7", accent: "#94a3b8", badgeBg: "#e2e8f0", badgeText: "#0f172a", ring: "#cbd5e1" },
+      Gold: { cardBg: "#fff7ed", accent: "#ea9b2b", badgeBg: "#fef3c7", badgeText: "#92400e", ring: "#fcd34d" },
+      Platinum: { cardBg: "#f4f4f5", accent: "#6b7280", badgeBg: "#e4e4e7", badgeText: "#27272a", ring: "#d4d4d8" },
+      Diamond: { cardBg: "#f0f9ff", accent: "#0ea5e9", badgeBg: "#e0f2fe", badgeText: "#0c4a6e", ring: "#7dd3fc" },
     };
 
     const base = tones[membershipLevel] || tones.None;
