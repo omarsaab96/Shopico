@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "17d7d212-1495-4d6b-a5e0-9c721785451a"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.omarsaab96.shopico",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
