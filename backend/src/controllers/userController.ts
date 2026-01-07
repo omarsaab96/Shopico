@@ -3,6 +3,7 @@ import { User } from "../models/User";
 import { Wallet } from "../models/Wallet";
 import { PointsTransaction } from "../models/PointsTransaction";
 import { WalletTransaction } from "../models/WalletTransaction";
+import { Address } from "../models/Address";
 import { sendSuccess } from "../utils/response";
 
 export const listUsers = catchAsync(async (req, res) => {
@@ -25,5 +26,10 @@ export const getUserDetails = catchAsync(async (req, res) => {
   const wallet = await Wallet.findOne({ user: user._id });
   const walletTx = await WalletTransaction.find({ user: user._id }).sort({ createdAt: -1 }).limit(20);
   const pointTx = await PointsTransaction.find({ user: user._id }).sort({ createdAt: -1 }).limit(20);
-  sendSuccess(res, { user, wallet, walletTx, pointTx });
+  const userId = user._id;
+  const addresses = await Address.collection
+    .find({ user: { $in: [userId, userId.toString()] } })
+    .sort({ createdAt: -1 })
+    .toArray();
+  sendSuccess(res, { user, wallet, walletTx, pointTx, addresses });
 });

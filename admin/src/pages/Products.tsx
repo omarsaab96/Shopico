@@ -384,7 +384,7 @@ const ProductsPage = () => {
             <div className="modal-header">
               <div className="modal-title">{t("newProduct")}</div>
               <button className="ghost-btn" type="button" onClick={closeNewModal}>
-                {t("cancel")}
+                {t("close")}
               </button>
             </div>
             <form className="form productRow" onSubmit={submit}>
