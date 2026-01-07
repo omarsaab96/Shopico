@@ -1,8 +1,9 @@
 import { Link } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
+import Text from "../components/Text";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
@@ -125,8 +126,8 @@ export default function Profile() {
           {user ? (
             <View style={styles.card}>
               <View style={{ padding: 18, flexDirection : 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{}}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                <View style={{justifyContent:'flex-start',}}>
+                  <View style={{ flexDirection: 'row',  alignItems: 'center', gap: 5, marginBottom: 5 }}>
                     <Text style={styles.username}>{user?.name}</Text>
 
                     <View style={styles.walletBadgeRow}>
@@ -138,7 +139,7 @@ export default function Profile() {
                       </View>
                     </View>
                   </View>
-                  <Text style={styles.muted}>{user?.email}</Text>
+                  <Text style={[styles.muted,{textAlign:'left'}]}>{user?.email}</Text>
                 </View>
                 <View>
                   <TouchableOpacity style={styles.btn} onPress={() => { handleEdit() }}>
@@ -152,7 +153,7 @@ export default function Profile() {
               </Text> */}
 
               <View style={{ borderTopWidth: 1, borderColor: palette.border, flexDirection:'row' }}>
-                <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBox, styles.borderRight]}>
+                <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBox, isRTL ? styles.borderLeft :styles.borderRight]}>
                   <Text style={[styles.muted]}>
                     {t("pointsBalance")}
                     {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
@@ -172,7 +173,7 @@ export default function Profile() {
                     {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
                   </Text>
                   <Text style={styles.pointsValue}>
-                    {balance.toLocaleString()} <Text style={{ fontWeight: '400', fontSize: 14 }}> {t("syp")}</Text>
+                    {balance.toLocaleString()}<Text style={{ fontWeight: '400', fontSize: 14 }}> {t("syp")}</Text>
                   </Text>
                   {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
                   <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/wallet") }}>
@@ -265,7 +266,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     sectionTitle: {
       marginBottom: 10,
       fontWeight: '700',
-      color:palette.text
+      color:palette.text, textAlign:'left'
     },
     profileLinks: {
       borderWidth: 1,
@@ -339,6 +340,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       fontSize: 24,
       fontWeight: "900",
       marginBottom: 12,
+      textAlign:'left'
     },
 
     username: {
@@ -374,9 +376,9 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
 
     pointsValue: {
       color: palette.text,
-      fontSize: 26,
+      fontSize: 22,
       fontWeight: "900",
-      textAlign: isRTL ? "right" : "left",
+      marginVertical:isRTL ? -5 :10,
     },
 
     pointsLink: {

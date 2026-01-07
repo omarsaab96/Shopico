@@ -1,10 +1,11 @@
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { View, StyleSheet, Text, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { useMemo } from "react";
 import { useTheme } from "../lib/theme";
 import { useRouter } from "expo-router";
 import Entypo from '@expo/vector-icons/Entypo';
 import { useI18n } from "../lib/i18n";
+import Text from "./Text";
 
 type ScreenProps = { children: React.ReactNode; showBack?: boolean; backLabel?: string };
 
@@ -27,12 +28,12 @@ const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps)
         container: {
           flex: 1,
           paddingHorizontal: 16,
-          paddingTop: 16,
+          // paddingTop: 16,
           writingDirection: isRTL ? "rtl" : "ltr",
           direction: isRTL ? "rtl" : "ltr",
         },
         backRow: { flexDirection:'row', alignItems: "center", gap: 5, marginBottom: 10 },
-        backText: { color: palette.text, fontWeight: "700" },
+        backText: { color: palette.text },
       }),
     [palette, insets.top, isRTL]
   );
@@ -43,7 +44,7 @@ const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps)
         {showBack && (
           <TouchableOpacity style={styles.backRow} onPress={() => router.back()}>
             <Entypo name={isRTL ? "chevron-right" : "chevron-left"} size={24} color={isDark ? "#fff" : "#000"} />
-            <Text style={styles.backText}>{backLabel}</Text>
+            <Text weight="bold" style={styles.backText}>{backLabel}</Text>
           </TouchableOpacity>
         )}
         {children}

@@ -1,6 +1,7 @@
-import { Pressable, Text, StyleSheet } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
 import { useMemo } from "react";
 import { useTheme } from "../lib/theme";
+import Text from "./Text";
 
 const Button = ({
   title,
@@ -25,7 +26,7 @@ const Button = ({
           shadowRadius: 8,
           shadowOffset: { width: 0, height: 4 },
         },
-        primaryText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+        primaryText: { color: "#fff", fontSize: 16 },
         secondary: {
           paddingVertical: 14,
           borderRadius: 14,
@@ -34,14 +35,16 @@ const Button = ({
           borderColor: palette.border,
           backgroundColor: palette.surface,
         },
-        secondaryText: { color: palette.text, fontWeight: "700", fontSize: 16 },
+        secondaryText: { color: palette.text, fontSize: 16 },
       }),
     [palette, isDark]
   );
 
   return (
     <Pressable style={secondary ? styles.secondary : styles.primary} onPress={onPress}>
-      <Text style={secondary ? styles.secondaryText : styles.primaryText}>{title}</Text>
+      <Text weight="bold" style={secondary ? styles.secondaryText : styles.primaryText}>
+        {title}
+      </Text>
     </Pressable>
   );
 };

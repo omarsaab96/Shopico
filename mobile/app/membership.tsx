@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Text, View, StyleSheet } from "react-native";
+import { Modal, View, StyleSheet } from "react-native";
 import Screen from "../components/Screen";
 import ProgressBar from "../components/ProgressBar";
 import StatCard from "../components/StatCard";
 import api from "../lib/api";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
+import Text from "../components/Text";
 
 export default function MembershipScreen() {
   const [user, setUser] = useState<any>();

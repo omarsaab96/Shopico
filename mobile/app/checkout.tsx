@@ -1,8 +1,9 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
+import Text from "../components/Text";
 import { useCart } from "../lib/cart";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";

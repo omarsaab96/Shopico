@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
-  Text,
   TouchableOpacity,
   View,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
 } from "react-native";
 import { Link } from "expo-router";
 import Screen from "../../components/Screen";
+import Text from "../../components/Text";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
@@ -42,7 +42,7 @@ export default function CategoriesScreen() {
   return (
     <Screen showBack backLabel={t("back") ?? "Back"}>
       {/* <StatusBar style={isDark ? "light" : "dark"} /> */}
-      <Text style={styles.title}>{t("shopByCategory")}</Text>
+      <Text weight="black" style={styles.title}>{t("shopByCategory")}</Text>
 
       <FlatList
         data={categories}
@@ -72,10 +72,10 @@ export default function CategoriesScreen() {
               </View>
 
               <View style={styles.textCol}>
-                <Text style={styles.name} numberOfLines={1}>
+                <Text weight="black" style={styles.name} numberOfLines={1}>
                   {item.name}
                 </Text>
-                <Text style={styles.desc} numberOfLines={2}>
+                <Text weight="semibold" style={styles.desc} numberOfLines={2}>
                   {item.description || t("noDescription")}
                 </Text>
               </View>
@@ -103,7 +103,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     title: {
       color: palette.text,
       fontSize: 26,
-      fontWeight: "900",
       marginBottom: 12,
     },
 
@@ -171,13 +170,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     name: {
       color: palette.text,
       fontSize: 16,
-      fontWeight: "900",
     },
 
     desc: {
       color: palette.muted,
       fontSize: 13,
-      fontWeight: "600",
     },
   });
 };

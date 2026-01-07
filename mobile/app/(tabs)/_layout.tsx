@@ -3,9 +3,10 @@ import { useMemo } from "react";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { View, Text } from "react-native";
+import { View } from "react-native";
 import { useCart } from "../../lib/cart";
 import Feather from "@expo/vector-icons/Feather";
+import Text from "../../components/Text";
 
 export default function TabsLayout() {
   const { palette } = useTheme();

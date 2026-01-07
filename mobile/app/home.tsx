@@ -3,7 +3,6 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   FlatList,
-  Text,
   TextInput,
   View,
   StyleSheet,
@@ -31,6 +30,9 @@ import { useAuth } from "../lib/auth";
 import { Skeleton } from "../components/Skeleton";
 import ProgressBar from "../components/ProgressBar";
 import Entypo from '@expo/vector-icons/Entypo';
+import Text from "../components/Text";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 type Category = { _id: string; name: string; imageUrl?: string };
 type Product = { _id: string; name: string; description: string; price: number; images: { url: string }[] };
@@ -41,6 +43,7 @@ type SavedAddress = { _id: string; address: string; label?: string; updatedAt?: 
 export default function Home() {
   const { user } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -48,6 +51,7 @@ export default function Home() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [sortOption, setSortOption] = useState<SortOption>("relevance");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
@@ -59,6 +63,7 @@ export default function Home() {
   const [membershipError, setMembershipError] = useState(false);
   const [profile, setProfile] = useState<any>(user);
   const [page, setPage] = useState(1);
+  const searchInputRef = useRef<TextInput>(null);
 
   const membershipLoadingRef = useRef(false);
   const sheetRef = useRef<BottomSheetModal>(null);
@@ -76,7 +81,7 @@ export default function Home() {
   const { items, addItem, setQuantity } = useCart();
   const { t, isRTL } = useI18n();
 
-  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
+  const styles = useMemo(() => createStyles(palette, isRTL, isDark, insets), [palette, isRTL, isDark, insets]);
 
   const filterCount = useMemo(
     () => (priceFilter !== "all" ? 1 : 0) + (sortOption !== "relevance" ? 1 : 0),
@@ -208,8 +213,14 @@ export default function Home() {
       const params: Record<string, any> = { page: nextPage, limit: 20 };
       if (debouncedSearch) params.q = debouncedSearch;
 
-      if (!append) setLoadingProducts(true);
-      else setLoadingMore(true);
+      if (append) {
+        setLoadingMore(true);
+      } else if (nextPage === 1 && debouncedSearch.length === 0) {
+        // Only show pull-to-refresh spinner for explicit refresh, not search.
+        setRefreshing(true);
+      } else {
+        setLoadingProducts(true);
+      }
 
       api
         .get("/products", { params })
@@ -227,8 +238,13 @@ export default function Home() {
           setHasMore(false);
         })
         .finally(() => {
-          if (!append) setLoadingProducts(false);
-          else setLoadingMore(false);
+          if (append) {
+            setLoadingMore(false);
+          } else if (nextPage === 1 && debouncedSearch.length === 0) {
+            setRefreshing(false);
+          } else {
+            setLoadingProducts(false);
+          }
         });
     },
     [debouncedSearch]
@@ -238,6 +254,7 @@ export default function Home() {
     if (!user) {
       setLatestAddress(null);
       setAddresses([]);
+      setRefreshing(false);
       return;
     }
     api
@@ -253,6 +270,7 @@ export default function Home() {
       .catch(() => {
         setLatestAddress(null);
         setAddresses([]);
+        setRefreshing(false);
       });
   }, [user]);
 
@@ -279,10 +297,14 @@ export default function Home() {
     }, [loadLatestAddress])
   );
 
+  const SEARCH_DEBOUNCE_MS = 600;
+
   useEffect(() => {
-    const handle = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    const handle = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
   }, [search]);
+
+  
 
   const hasQuery = debouncedSearch.length > 0;
   const searching = loadingProducts && hasQuery;
@@ -329,14 +351,17 @@ export default function Home() {
         <Image source={fallbackLogo} style={styles.brandLogo} />
       </View>
 
-      <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/profile")}>
-        <Feather name="user" size={20} color={palette.text} />
+      <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/wallet")}>
+        {/* <Feather name="user" size={20} color={palette.text} /> */}
+        <Ionicons name="wallet-outline" size={20} color={palette.text} />
       </TouchableOpacity>
     </View>
   );
 
   const renderWalletCard = () => {
     if (!user) return null;
+    if (hasQuery) return null;
+
 
     return (
       <TouchableOpacity activeOpacity={0.92} style={[styles.walletCard, { backgroundColor: membershipTone.cardBg }]} onPress={openMembershipSheet}>
@@ -361,7 +386,7 @@ export default function Home() {
               </View>
             </View>
             <Text style={styles.walletValue}>
-              {balance.toLocaleString()} <Text style={{ fontWeight: 400, fontSize: 20 }}>{t("syp")}</Text>
+              {balance.toLocaleString()}<Text style={{ fontWeight: 400, fontSize: 14 }}> {t("syp")}</Text>
             </Text>
           </View>
         </View>
@@ -405,7 +430,11 @@ export default function Home() {
           placeholder={t("searchProducts") ?? "Search products"}
           placeholderTextColor={palette.muted}
           value={search}
-          onChangeText={setSearch}
+          ref={searchInputRef}
+          onChangeText={(text) => {
+            setSearch(text);
+            searchInputRef.current?.focus();
+          }}
           returnKeyType="search"
           onSubmitEditing={() => Keyboard.dismiss()}
         />
@@ -416,7 +445,6 @@ export default function Home() {
             style={styles.searchRight}
             onPress={() => {
               setSearch("");
-              Keyboard.dismiss();
             }}
           >
             <AntDesign name="close" size={18} color={palette.text} />
@@ -441,7 +469,7 @@ export default function Home() {
     return (
       <View style={{ gap: 10 }}>
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>{t("featuredCategories") ?? "Featured categories"}</Text>
+          <Text weight="black" style={styles.sectionTitle}>{t("featuredCategories") ?? "Featured categories"}</Text>
           <Link href="/categories" asChild>
             <TouchableOpacity>
               <Text style={styles.sectionAction}>{t("viewAll") ?? "View all"}</Text>
@@ -487,56 +515,14 @@ export default function Home() {
   };
 
   const renderHeader = () => (
-    <View style={[styles.headerWrap,{paddingHorizontal:6}]}>
-      {renderTopBar()}
+    <View style={[styles.headerWrap]}>
+      {/* {renderTopBar()} */}
 
-      <View style={styles.greetingWrap}>
-        <View style={styles.greetingCol}>
-          <Text style={styles.helloText}>
-            {user ? `${t("hello") ?? "Hello"}, ${user.name}` : (t("helloShopper") ?? "Hello shopper")}
-          </Text>
-
-          {user ? (
-            <TouchableOpacity onPress={openAddressSheet} activeOpacity={0.9} style={[styles.addressRow, { width: '100%' }]}>
-              <Feather name="map-pin" size={14} color={palette.muted} />
-              <Text style={styles.addressLabel} numberOfLines={1}>
-                {t("deliveryTo") ?? "Delivery to"}
-              </Text>
-
-              {latestAddress ? (
-                <>
-                  <Text style={[styles.addressValue, { flex: 1 }]} numberOfLines={1}>
-                    {latestAddress.substring(0, 52)}
-                    <Entypo name="chevron-down" size={12} color="black" />
-                  </Text>
-
-                </>
-              ) : (
-                <Skeleton width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
-              )}
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={() => {
-                router.push("/auth/login");
-              }}
-              activeOpacity={0.9}
-              style={styles.addressRow}
-            >
-              <Feather name="log-in" size={14} color={palette.muted} />
-              <Text style={styles.addressValue} numberOfLines={1}>
-                {t("loginToLoadLocation") ?? "Login to load your location"} · {t("login") ?? "Login"}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
 
       {renderWalletCard()}
-      {renderSearchAndFilters()}
       {renderCategoriesGrid()}
 
-      <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>
+      <Text weight="black" style={[styles.sectionTitle, { marginBottom: 10 }]}>
         {hasQuery ? `${t("products") ?? "Products"} (${filteredAndSorted.length})` : (t("freshPicks") ?? "Fresh picks")}
       </Text>
     </View>
@@ -545,301 +531,350 @@ export default function Home() {
   return (
     <BottomSheetModalProvider>
       {/* <StatusBar style={isDark ? "light" : "dark"} /> */}
-      <Screen>
-        <FlatList
-          data={filteredAndSorted}
-          numColumns={2}
-          showsVerticalScrollIndicator={false}
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          keyExtractor={(p) => p._id}
-          contentContainerStyle={{ paddingBottom: 16, marginHorizontal:-6 }}
-          columnWrapperStyle={styles.productRow}
-          ListHeaderComponent={renderHeader}
-          refreshing={loadingProducts && !loadingMore}
-          onRefresh={() => fetchProducts(1, false)}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.4}
-          renderItem={({ item, index }) => {
-            const isLeft = index % 2 === 0;
-
-            return (
-              <View
-                style={{
-                  width: "50%",
-                  paddingHorizontal:6,
-                  
-                }}
-              >
-                <View style={styles.productCard}>
-                  <Link href={`/products/${item._id}`} asChild>
-                    <TouchableOpacity
-                      style={styles.productPressable}
-                      activeOpacity={0.92}
-                    >
-                      <View style={styles.prodImgBox}>
-                        <Image
-                          source={
-                            item.images?.[0]?.url
-                              ? { uri: item.images?.[0]?.url }
-                              : fallbackLogo
-                          }
-                          style={[
-                            styles.productImg,
-                            !item.images?.[0]?.url && { tintColor: "#dedede" },
-                          ]}
-                        />
-                      </View>
-
-                      <Text style={styles.productName} numberOfLines={1}>
-                        {item.name}
+      <View style={styles.safe}>
+        <View style={styles.container}>
+          <FlatList
+            data={filteredAndSorted}
+            numColumns={2}
+            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            keyboardShouldPersistTaps="handled"
+            keyExtractor={(p) => p._id}
+            contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 16 }}
+            columnWrapperStyle={styles.productRow}
+            ListHeaderComponent={
+              <View>
+                <View style={{ paddingHorizontal: 0,marginBottom:16,gap:10 }}>
+                  {renderTopBar()}
+                  <View style={styles.greetingWrap}>
+                    <View style={styles.greetingCol}>
+                      <Text style={styles.helloText}>
+                        {user ? `${t("hello") ?? "Hello"}, ${user.name}` : (t("helloShopper") ?? "Hello shopper")}
                       </Text>
 
-                      <Text style={styles.productDesc} numberOfLines={2}>
-                        {item.description}
-                      </Text>
+                      {user ? (
+                        <TouchableOpacity onPress={openAddressSheet} activeOpacity={0.9} style={[styles.addressRow, { width: '100%' }]}>
+                          <Feather name="map-pin" size={14} color={palette.muted} />
+                          <Text style={styles.addressLabel} numberOfLines={1}>
+                            {t("deliveryTo") ?? "Delivery to"}
+                          </Text>
 
-                      <View style={styles.priceRow}>
-                        <Text style={styles.productPrice}>
-                          {item.price.toLocaleString()} {t("syp")}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  </Link>
+                          {latestAddress ? (
+                            <>
+                              <Text style={[styles.addressValue, { flex: 1 }]} numberOfLines={1}>
+                                {latestAddress.substring(0, 52)}
+                                <Entypo name="chevron-down" size={12} color="black" />
+                              </Text>
+                            </>
+                          ) : (
+                            <Skeleton width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
+                          )}
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={() => {
+                            router.push("/auth/login");
+                          }}
+                          activeOpacity={0.9}
+                          style={styles.addressRow}
+                        >
+                          <Feather name="log-in" size={14} color={palette.muted} />
+                          <Text style={styles.addressValue} numberOfLines={1}>
+                            {t("loginToLoadLocation") ?? "Login to load your location"} · {t("login") ?? "Login"}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                  {renderSearchAndFilters()}
+                </View>
+                {renderHeader()}
+              </View>
+            }
+            refreshing={refreshing}
+            onRefresh={() => fetchProducts(1, false)}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.4}
+            renderItem={({ item, index }) => {
+              const isLeft = index % 2 === 0;
 
-                  {(() => {
-                    const existing = items.find(
-                      (i) => i.productId === item._id
-                    );
-
-                    if (existing) {
-                      return (
-                        <View style={styles.qtyRow}>
-                          <TouchableOpacity
-                            style={styles.qtyBtn}
-                            onPress={() =>
-                              setQuantity(existing.productId, existing.quantity - 1)
-                            }
-                          >
-                            <Text style={styles.qtySym}>-</Text>
-                          </TouchableOpacity>
-
-                          <Text style={styles.qtyVal}>{existing.quantity}</Text>
-
-                          <TouchableOpacity
-                            style={styles.qtyBtn}
-                            onPress={() =>
-                              addItem({
-                                productId: item._id,
-                                name: item.name,
-                                price: item.price,
-                                image: item.images?.[0]?.url,
-                                quantity: 1,
-                              })
-                            }
-                          >
-                            <Text style={styles.qtySym}>+</Text>
-                          </TouchableOpacity>
-                        </View>
-                      );
-                    }
-
-                    return (
+              return (
+                <View
+                  style={{
+                    width: "48%",
+                  }}
+                >
+                  <View style={styles.productCard}>
+                    <Link href={`/products/${item._id}`} asChild>
                       <TouchableOpacity
-                        style={styles.addBtn}
-                        onPress={() =>
-                          addItem({
-                            productId: item._id,
-                            name: item.name,
-                            price: item.price,
-                            image: item.images?.[0]?.url,
-                            quantity: 1,
-                          })
-                        }
+                        style={styles.productPressable}
+                        activeOpacity={0.92}
                       >
-                        <Text style={styles.addBtnText}>
-                          {t("addToCart") ?? "Add to cart"}
+                        <View style={styles.prodImgBox}>
+                          <Image
+                            source={
+                              item.images?.[0]?.url
+                                ? { uri: item.images?.[0]?.url }
+                                : fallbackLogo
+                            }
+                            style={[
+                              styles.productImg,
+                              !item.images?.[0]?.url && { tintColor: '#dedede' },
+                            ]}
+                          />
+                        </View>
+
+                        <Text style={styles.productName} numberOfLines={1}>
+                          {item.name}
                         </Text>
+
+                        <Text style={styles.productDesc} numberOfLines={2}>
+                          {item.description}
+                        </Text>
+
+                        <View style={styles.priceRow}>
+                          <Text style={styles.productPrice}>
+                            {item.price.toLocaleString()} {t("syp")}
+                          </Text>
+                        </View>
                       </TouchableOpacity>
-                    );
-                  })()}
+                    </Link>
+
+                    {(() => {
+                      const existing = items.find(
+                        (i) => i.productId === item._id
+                      );
+
+                      if (existing) {
+                        return (
+                          <View style={styles.qtyRow}>
+                            <TouchableOpacity
+                              style={styles.qtyBtn}
+                              onPress={() =>
+                                setQuantity(existing.productId, existing.quantity - 1)
+                              }
+                            >
+                              <Text style={styles.qtySym}>-</Text>
+                            </TouchableOpacity>
+
+                            <Text style={styles.qtyVal}>{existing.quantity}</Text>
+
+                            <TouchableOpacity
+                              style={styles.qtyBtn}
+                              onPress={() =>
+                                addItem({
+                                  productId: item._id,
+                                  name: item.name,
+                                  price: item.price,
+                                  image: item.images?.[0]?.url,
+                                  quantity: 1,
+                                })
+                              }
+                            >
+                              <Text style={styles.qtySym}>+</Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      }
+
+                      return (
+                        <TouchableOpacity
+                          style={styles.addBtn}
+                          onPress={() =>
+                            addItem({
+                              productId: item._id,
+                              name: item.name,
+                              price: item.price,
+                              image: item.images?.[0]?.url,
+                              quantity: 1,
+                            })
+                          }
+                        >
+                          <Text style={styles.addBtnText}>
+                            {t("addToCart") ?? "Add to cart"}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })()}
+                  </View>
+                </View>
+              );
+            }}
+            ListFooterComponent={
+              <View style={{ paddingBottom: 0 }}>
+                {loadingMore ? (
+                  <View style={{ paddingVertical: 10 }}>
+                    <ActivityIndicator color={palette.accent} />
+                  </View>
+                ) : null}
+                {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
+              </View>
+            }
+          />
+
+          {/* Filters */}
+          <BottomSheetModal
+            ref={sheetRef}
+            snapPoints={snapPoints}
+            enablePanDownToClose
+            backdropComponent={renderBackdrop}
+            footerComponent={customFooter}
+            backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+            handleIndicatorStyle={{ backgroundColor: palette.muted }}
+          >
+            <BottomSheetView style={styles.sheetContainer}>
+              <View style={styles.sheetContent}>
+                <Text style={styles.sheetTitle}>{t("filters") ?? "Filters & Sort"}</Text>
+
+                <Text style={styles.sheetLabel}>{t("sortBy") ?? "Sort by"}</Text>
+                <View style={styles.sheetPills}>
+                  {[
+                    { id: "relevance", label: t("relevance") ?? "Relevance" },
+                    { id: "priceAsc", label: t("priceLowHigh") ?? "Price: Low to High" },
+                    { id: "priceDesc", label: t("priceHighLow") ?? "Price: High to Low" },
+                  ].map((opt) => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={[styles.pill, sortOption === opt.id && styles.pillActive]}
+                      onPress={() => setSortOption(opt.id as SortOption)}
+                      activeOpacity={0.9}
+                    >
+                      <Text style={[styles.pillText, sortOption === opt.id && styles.pillTextActive]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.sheetLabel}>{t("price") ?? "Price"}</Text>
+                <View style={styles.sheetPills}>
+                  {[
+                    { id: "all", label: t("all") ?? "All" },
+                    { id: "lt50k", label: t("under50k") ?? "Under 50K" },
+                    { id: "lt100k", label: t("under100k") ?? "Under 100K" },
+                    { id: "gte100k", label: t("over100k") ?? "100K +" },
+                  ].map((opt) => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={[styles.pill, priceFilter === opt.id && styles.pillActive]}
+                      onPress={() => setPriceFilter(opt.id as PriceFilter)}
+                      activeOpacity={0.9}
+                    >
+                      <Text style={[styles.pillText, priceFilter === opt.id && styles.pillTextActive]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
-            );
-          }}
-          ListFooterComponent={
-            <View style={{ paddingBottom: 0 }}>
-              {loadingMore ? (
+            </BottomSheetView>
+          </BottomSheetModal>
+
+          {/* Addresses */}
+          <BottomSheetModal
+            ref={addressSheetRef}
+            snapPoints={["50%"]}
+            enablePanDownToClose
+            backdropComponent={renderBackdrop}
+            backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+          >
+            <BottomSheetView style={styles.sheetContainer}>
+              <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
+              {addresses.length === 0 ? (
+                <Text style={styles.sheetText}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
+              ) : (
+                addresses.map((addr) => (
+                  <TouchableOpacity
+                    key={addr._id}
+                    style={[styles.addressItem, latestAddress === addr.address && styles.addressItemActive]}
+                    onPress={() => {
+                      setLatestAddress(addr.address);
+                      addressSheetRef.current?.dismiss();
+                    }}
+                    activeOpacity={0.9}
+                  >
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
+                      {latestAddress === addr.address ? <Feather name="check" size={18} color={palette.accent} /> : null}
+                    </View>
+                    <Text style={styles.sheetText}>{addr.address}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+
+              <TouchableOpacity style={styles.closeBtn} onPress={() => addressSheetRef.current?.dismiss()} activeOpacity={0.9}>
+                <Text style={styles.closeBtnText}>{t("close") ?? "Close"}</Text>
+              </TouchableOpacity>
+            </BottomSheetView>
+          </BottomSheetModal>
+
+          {/* Membership */}
+          <BottomSheetModal
+            ref={membershipSheetRef}
+            snapPoints={membershipSnapPoints}
+            enablePanDownToClose
+            backdropComponent={renderBackdrop}
+            backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+            handleIndicatorStyle={{ backgroundColor: palette.muted }}
+          >
+            <BottomSheetView style={styles.sheetContainer}>
+              <Text style={styles.sheetTitle}>{t("membership") ?? "Membership"}</Text>
+
+              {membershipLoading ? (
                 <View style={{ paddingVertical: 10 }}>
                   <ActivityIndicator color={palette.accent} />
                 </View>
-              ) : null}
-              {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
-            </View>
-          }
-        />
-
-        {/* Filters */}
-        <BottomSheetModal
-          ref={sheetRef}
-          snapPoints={snapPoints}
-          enablePanDownToClose
-          backdropComponent={renderBackdrop}
-          footerComponent={customFooter}
-          backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
-          handleIndicatorStyle={{ backgroundColor: palette.muted }}
-        >
-          <BottomSheetView style={styles.sheetContainer}>
-            <View style={styles.sheetContent}>
-              <Text style={styles.sheetTitle}>{t("filters") ?? "Filters & Sort"}</Text>
-
-              <Text style={styles.sheetLabel}>{t("sortBy") ?? "Sort by"}</Text>
-              <View style={styles.sheetPills}>
-                {[
-                  { id: "relevance", label: t("relevance") ?? "Relevance" },
-                  { id: "priceAsc", label: t("priceLowHigh") ?? "Price: Low to High" },
-                  { id: "priceDesc", label: t("priceHighLow") ?? "Price: High to Low" },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.id}
-                    style={[styles.pill, sortOption === opt.id && styles.pillActive]}
-                    onPress={() => setSortOption(opt.id as SortOption)}
-                    activeOpacity={0.9}
-                  >
-                    <Text style={[styles.pillText, sortOption === opt.id && styles.pillTextActive]}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.sheetLabel}>{t("price") ?? "Price"}</Text>
-              <View style={styles.sheetPills}>
-                {[
-                  { id: "all", label: t("all") ?? "All" },
-                  { id: "lt50k", label: t("under50k") ?? "Under 50K" },
-                  { id: "lt100k", label: t("under100k") ?? "Under 100K" },
-                  { id: "gte100k", label: t("over100k") ?? "100K +" },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.id}
-                    style={[styles.pill, priceFilter === opt.id && styles.pillActive]}
-                    onPress={() => setPriceFilter(opt.id as PriceFilter)}
-                    activeOpacity={0.9}
-                  >
-                    <Text style={[styles.pillText, priceFilter === opt.id && styles.pillTextActive]}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </BottomSheetView>
-        </BottomSheetModal>
-
-        {/* Addresses */}
-        <BottomSheetModal
-          ref={addressSheetRef}
-          snapPoints={["50%"]}
-          enablePanDownToClose
-          backdropComponent={renderBackdrop}
-          backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
-        >
-          <BottomSheetView style={styles.sheetContainer}>
-            <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
-            {addresses.length === 0 ? (
-              <Text style={styles.sheetText}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
-            ) : (
-              addresses.map((addr) => (
-                <TouchableOpacity
-                  key={addr._id}
-                  style={[styles.addressItem, latestAddress === addr.address && styles.addressItemActive]}
-                  onPress={() => {
-                    setLatestAddress(addr.address);
-                    addressSheetRef.current?.dismiss();
-                  }}
-                  activeOpacity={0.9}
-                >
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                    <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
-                    {latestAddress === addr.address ? <Feather name="check" size={18} color={palette.accent} /> : null}
+              ) : membershipError ? (
+                <Text style={styles.sheetText}>Could not load membership details.</Text>
+              ) : (
+                <View style={{ gap: 12 }}>
+                  <View style={styles.kvRow}>
+                    <Text style={styles.kvLabel}>{t("level") ?? "Level"}</Text>
+                    <Text style={styles.kvValue}>{membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}</Text>
                   </View>
-                  <Text style={styles.sheetText}>{addr.address}</Text>
-                </TouchableOpacity>
-              ))
-            )}
 
-            <TouchableOpacity style={styles.closeBtn} onPress={() => addressSheetRef.current?.dismiss()} activeOpacity={0.9}>
-              <Text style={styles.closeBtnText}>{t("close") ?? "Close"}</Text>
-            </TouchableOpacity>
-          </BottomSheetView>
-        </BottomSheetModal>
-
-        {/* Membership */}
-        <BottomSheetModal
-          ref={membershipSheetRef}
-          snapPoints={membershipSnapPoints}
-          enablePanDownToClose
-          backdropComponent={renderBackdrop}
-          backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
-          handleIndicatorStyle={{ backgroundColor: palette.muted }}
-        >
-          <BottomSheetView style={styles.sheetContainer}>
-            <Text style={styles.sheetTitle}>{t("membership") ?? "Membership"}</Text>
-
-            {membershipLoading ? (
-              <View style={{ paddingVertical: 10 }}>
-                <ActivityIndicator color={palette.accent} />
-              </View>
-            ) : membershipError ? (
-              <Text style={styles.sheetText}>Could not load membership details.</Text>
-            ) : (
-              <View style={{ gap: 12 }}>
-                <View style={styles.kvRow}>
-                  <Text style={styles.kvLabel}>{t("level") ?? "Level"}</Text>
-                  <Text style={styles.kvValue}>{membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}</Text>
-                </View>
-
-                <View style={styles.kvRow}>
-                  <Text style={styles.kvLabel}>{t("balance") ?? "Balance"}</Text>
-                  <Text style={styles.kvValue}>{balance.toLocaleString()} SYP</Text>
-                </View>
-
-                {/* <View style={{ gap: 8 }}> */}
-                {remaining > 0 && <View style={styles.kvRow}>
-                  <View style={[styles.kvRow, { justifyContent: 'flex-start', gap: 0 }]}>
-                    <Text style={styles.kvLabel}>{t("remainingToNext") ?? "Remaining"}</Text>
-                    <Text style={styles.kvValue}>{nextLabel}</Text>
+                  <View style={styles.kvRow}>
+                    <Text style={styles.kvLabel}>{t("balance") ?? "Balance"}</Text>
+                    <Text style={styles.kvValue}>{balance.toLocaleString()} SYP</Text>
                   </View>
-                  <Text style={styles.kvValue}>
-                    {remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "At top level")}
-                  </Text>
-                </View>}
-                {remaining > 0 && <ProgressBar progress={progress} />}
-                {/* </View> */}
 
-                <View style={styles.kvRow}>
-                  <Text style={styles.kvLabel}>{t("graceDays") ?? "Grace days"}</Text>
-                  <Text style={styles.kvValue}>{graceDays}</Text>
-                </View>
-
-                {inGrace && (
-                  <View style={[styles.graceBox, { borderColor: membershipTone.ring }]}>
-                    <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
-                    <Text style={styles.graceCopy}>
-                      {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} SYP
+                  {/* <View style={{ gap: 8 }}> */}
+                  {remaining > 0 && <View style={styles.kvRow}>
+                    <View style={[styles.kvRow, { justifyContent: 'flex-start', gap: 0 }]}>
+                      <Text style={styles.kvLabel}>{t("remainingToNext") ?? "Remaining"}</Text>
+                      <Text style={styles.kvValue}>{nextLabel}</Text>
+                    </View>
+                    <Text style={styles.kvValue}>
+                      {remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "At top level")}
                     </Text>
-                    <Text style={[styles.graceCopy, { color: palette.muted }]}>
-                      {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
-                    </Text>
+                  </View>}
+                  {remaining > 0 && <ProgressBar progress={progress} />}
+                  {/* </View> */}
+
+                  <View style={styles.kvRow}>
+                    <Text style={styles.kvLabel}>{t("graceDays") ?? "Grace days"}</Text>
+                    <Text style={styles.kvValue}>{graceDays}</Text>
                   </View>
-                )}
-              </View>
-            )}
-          </BottomSheetView>
-        </BottomSheetModal>
-      </Screen>
+
+                  {inGrace && (
+                    <View style={[styles.graceBox, { borderColor: membershipTone.ring }]}>
+                      <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
+                      <Text style={styles.graceCopy}>
+                        {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} SYP
+                      </Text>
+                      <Text style={[styles.graceCopy, { color: palette.muted }]}>
+                        {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </BottomSheetView>
+          </BottomSheetModal>
+        </View>
+      </View>
     </BottomSheetModalProvider >
   );
 }
 
-const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
+const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any) => {
   const row = isRTL ? ("row-reverse" as const) : ("row" as const);
   const align = isRTL ? ("right" as const) : ("left" as const);
 
@@ -855,6 +890,21 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
   const hairline = isDark ? palette.border : "rgba(15, 23, 42, 0.08)";
 
   return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: palette.background,
+      paddingTop: insets.top,
+      writingDirection: isRTL ? "rtl" : "ltr",
+      direction: isRTL ? "rtl" : "ltr",
+    },
+    container: {
+      flex: 1,
+      // paddingHorizontal: 16,
+      // paddingTop: 16,
+      writingDirection: isRTL ? "rtl" : "ltr",
+      direction: isRTL ? "rtl" : "ltr",
+    },
+
     headerWrap: {
       // paddingTop: 10,
       // paddingHorizontal: 16,
@@ -899,7 +949,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       color: palette.text,
       fontSize: 24,
       fontWeight: "900",
-      // textAlign: align,
+      textAlign: 'left',
+      textTransform: 'capitalize'
     },
     addressRow: {
       flexDirection: 'row',
@@ -907,7 +958,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       gap: 5,
     },
     addressLabel: { color: palette.muted, fontSize: 13, },
-    addressValue: { color: palette.muted, fontSize: 13, fontWeight: "700", },
+    addressValue: { color: palette.muted, fontSize: 13, fontWeight: "700",textAlign:'left' },
 
     walletCard: {
       borderRadius: 20,
@@ -940,8 +991,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     walletRow: { flexDirection: 'row', gap: 12, alignItems: "flex-start" },
     walletTextCol: { flex: 1, gap: 8 },
 
-    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700" },
-    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900" },
+    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", textAlign:'left'  },
+    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign:'left'  },
 
     walletBadgeRow: { flexDirection: row, justifyContent: isRTL ? "flex-end" : "flex-start" },
     levelPill: {
@@ -993,8 +1044,9 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     },
     searchIcon: {
       position: "absolute",
-      top: 15,
-      left: 14,
+      top: 14,
+      left: isRTL?undefined:14,
+      right: isRTL?14:undefined,
       opacity: 0.9,
     },
     searchInput: {
@@ -1007,7 +1059,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     searchRight: {
       position: "absolute",
       top: 14,
-      right: 14,
+      right: isRTL?undefined:14,
+      left: isRTL?14:undefined
     },
 
     filterBtn: {
@@ -1040,8 +1093,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       alignItems: "center",
       justifyContent: "space-between",
     },
-    sectionTitle: { color: palette.text, fontSize: 16, fontWeight: "900" },
-    sectionAction: { color: palette.accent, fontWeight: "900" },
+    sectionTitle: { color: palette.text, fontSize: 16,textAlign:'left' },
+    sectionAction: { color: palette.accent, fontWeight: "900",textAlign:'left' },
 
     catRow: { gap: 12 },
     catCard: {
@@ -1087,9 +1140,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     catName: { color: palette.text, fontSize: 12, textAlign: "center" },
 
     productRow: {
-      gap: 0,
+      gap: 12,
       marginBottom: 12,
+      // borderWidth:1,
       // paddingHorizontal: 16,
+      justifyContent: 'space-between'
     },
 
     productCard: {
@@ -1115,8 +1170,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       marginBottom: 10
     },
     productImg: { height: '100%', aspectRatio: 4 / 3, resizeMode: "contain" },
-    productName: { color: palette.text, fontWeight: "900", marginBottom: 4 },
-    productDesc: { color: palette.muted, fontSize: 12, marginBottom: 10 },
+    productName: { color: palette.text, fontWeight: "900", marginBottom: isRTL?0:4, textAlign:'left' },
+    productDesc: { color: palette.muted, fontSize: 12, marginBottom:  isRTL?0:10, textAlign:'left'  },
 
     priceRow: {
       flexDirection: 'row',
@@ -1159,8 +1214,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     // Sheets
     sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },
     sheetContent: { flex: 1, gap: 6 },
-    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign:'left'},
-    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6 },
+    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: 'left' },
+    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign:'left' },
     sheetPills: { flexDirection: 'row', flexWrap: "wrap", gap: 10 },
 
     pill: {
@@ -1178,7 +1233,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     pillText: { color: palette.text, fontWeight: "800" },
     pillTextActive: { color: palette.text, fontWeight: "900" },
 
-    sheetText: { color: palette.muted, fontWeight: "700" },
+    sheetText: { color: palette.muted, fontWeight: "700",textAlign:'left' },
 
     sheetFooterWrap: {
       flexDirection: row,
@@ -1237,7 +1292,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       justifyContent: "space-between",
       gap: 10,
     },
-    kvLabel: { color: palette.muted },
-    kvValue: { color: palette.text, fontWeight: "900" },
+    kvLabel: { color: palette.muted, textAlign:'left' },
+    kvValue: { color: palette.text, fontWeight: "900", textAlign:'left' },
   });
 };

@@ -161,7 +161,8 @@ const baseStrings = {
   WalletBalance: "Wallet balance",
   syp: "SYP",
   km:"Km",
-  alreadyHaveAnAccount:"Already have an account?"
+  alreadyHaveAnAccount:"Already have an account?",
+  addNewAddress:"Add a new address"
 };
 
 const arStrings: Record<string, string> = {
@@ -319,7 +320,8 @@ const arStrings: Record<string, string> = {
   WalletBalance: "رصيد المحفظة",
   syp: "ل.س",
   km: "كم",  
-  alreadyHaveAnAccount:"هل أنشأت حساب من قبل؟"
+  alreadyHaveAnAccount:"هل أنشأت حساب من قبل؟",
+  addNewAddress:"إضافة عنوان جديد"
 };
 
 const messages: Record<Lang, Record<string, string>> = {

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Appearance, ColorSchemeName } from "react-native";
+import { ColorSchemeName, useColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type ThemeMode = "light" | "dark" | "system";
@@ -56,7 +56,7 @@ const resolvePalette = (mode: ThemeMode, system: ColorSchemeName) => {
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [mode, setModeState] = useState<ThemeMode>("system");
-  const colorScheme = Appearance.getColorScheme();
+  const systemScheme = useColorScheme();
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_STORAGE_KEY).then((stored) => {
@@ -71,7 +71,10 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     AsyncStorage.setItem(THEME_STORAGE_KEY, next).catch(() => {});
   };
 
-  const { palette, isDark } = useMemo(() => resolvePalette(mode, colorScheme), [mode, colorScheme]);
+  const { palette, isDark } = useMemo(
+    () => resolvePalette(mode, systemScheme),
+    [mode, systemScheme]
+  );
 
   const value = useMemo(
     () => ({

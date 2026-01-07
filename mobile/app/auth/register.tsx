@@ -1,8 +1,9 @@
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Text, TextInput, View, StyleSheet, TouchableOpacity } from "react-native";
+import { TextInput, View, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../../components/Button";
 import Screen from "../../components/Screen";
+import Text from "../../components/Text";
 import api, { storeTokens } from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
@@ -35,7 +36,7 @@ export default function Register() {
     <Screen>
       <View style={{ flex: 1, paddingTop: 50 }}>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t("register")}</Text>
+          <Text weight="bold" style={styles.cardTitle}>{t("register")}</Text>
           <TextInput
             style={styles.input}
             value={name}
@@ -71,7 +72,7 @@ export default function Register() {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button title={t("register")} onPress={submit} />
-          <View style={styles.row}>
+          <View style={[styles.row,{alignItems:'center'}]}>
             <Text>{t("alreadyHaveAnAccount")}</Text>
             <Link href="/auth/login" style={styles.link}>
               {t("login")}
@@ -89,8 +90,8 @@ const createStyles = (palette: any, isRTL: boolean) =>
 
     card: { gap: 12, },
     cardTitle: {
-      color: palette.text, fontSize: 28, fontWeight: "800",
-      textAlign: isRTL ? "right" : "left"
+      color: palette.text, fontSize: 28,
+      textAlign: "left"
     },
     input: {
       backgroundColor: palette.surface,
@@ -99,8 +100,9 @@ const createStyles = (palette: any, isRTL: boolean) =>
       padding: 12,
       borderWidth: 1,
       borderColor: palette.border,
+      textAlign:isRTL?'right':'left'
     },
-    toggle: { position: 'absolute', alignSelf: "flex-end", top: 12, right: 10 },
+    toggle: { position: 'absolute', alignSelf: "flex-end", top: 12, right: isRTL?undefined:10,left:isRTL?10:undefined },
     link: { color: palette.accent },
     error: { color: "#f87171" },
   });
