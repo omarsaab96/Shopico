@@ -37,13 +37,13 @@
   background: #0b1220;
 }
 
-[data-theme="dark"] .list-row{
+[data-theme="dark"] .list-row {
   background: #0b1220;
-  color:var(--text-primary)
+  color: var(--text-primary)
 }
 
-[data-theme="dark"] .ghost-btn.soft{
-  color:var(--text-primary)
+[data-theme="dark"] .ghost-btn.soft {
+  color: var(--text-primary)
 }
 
 [data-theme="dark"] h4,
@@ -57,14 +57,14 @@
 
 [data-theme="dark"] .ghost-btn {
   background: #0b1220;
-  border-color:#0b1220;
-  color:var(--text-primary);
+  border-color: #0b1220;
+  color: var(--text-primary);
 }
 
 [data-theme="dark"] input,
 [data-theme="dark"] select,
 [data-theme="dark"] td {
-  color:var(--text-primary);
+  color: var(--text-primary);
 }
 
 [data-theme="dark"] .uploadBtn img:not(.noFilter),
@@ -75,6 +75,7 @@
 [data-theme="dark"] .modal-backdrop {
   background: rgba(15, 23, 42, 0.8);
 }
+
 [data-theme="dark"] .modal {
   background: #0b1220;
 }
@@ -372,6 +373,19 @@ nav::-webkit-scrollbar {
   color: #475569;
 }
 
+.detailsTable{
+  margin-bottom: 30px;
+  width:100%;
+}
+
+.detailsTable tr td{
+  padding:5px;
+}
+
+.detailsTable tr td:first-child{
+  width:25%;
+}
+
 .ghost-btn {
   border: 1px solid var(--gray-300);
   background: transparent;
@@ -581,6 +595,21 @@ nav::-webkit-scrollbar {
 .list {
   display: grid;
   gap: 8px;
+  margin: 0;
+  padding:0;
+}
+
+.listCenterItems {
+  display: flex;
+  align-items: center;
+  gap:5px;
+}
+
+.listCenterItems span{
+  font-size: 12px;
+  background-color: var(--gray-300);
+  padding:2px 5px;
+  border-radius:5px;
 }
 
 .list-row {
@@ -620,8 +649,8 @@ nav::-webkit-scrollbar {
   display: grid;
   gap: 18px;
   align-content: center;
-  width:600px;
-  margin:0 auto;
+  width: 600px;
+  margin: 0 auto;
 }
 
 .pill {
