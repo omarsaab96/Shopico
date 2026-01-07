@@ -16,7 +16,6 @@
     "ios": {
       "bundleIdentifier": "app.omarsaab96.shopico",
       "associatedDomains": [
-        "applinks:shopico-sy.com",
         "applinks:shopico-sy.com"
       ],
       "supportsTablet": false,
@@ -57,15 +56,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router",
-      [
-        "react-native-maps",
-        {
-          "ios": {
-            "useGoogleMaps": true
-          }
-        }
-      ]
+      "expo-router"
     ],
     "extra": {
       "EXPO_PUBLIC_API_BASE": "https://api.shopico-sy.com/api",
