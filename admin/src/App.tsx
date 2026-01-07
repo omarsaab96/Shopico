@@ -14,7 +14,7 @@ import { useAuth } from "./context/AuthContext";
 
 const Protected = ({ children }: { children: ReactElement }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="page">Loading...</div>;
+  if (loading) return <div className="loader"><div className="spinner"></div><div className="loaderText">Loading...</div></div>;
   if (!user) return <Navigate to="/login" replace />;
   return children;
 };

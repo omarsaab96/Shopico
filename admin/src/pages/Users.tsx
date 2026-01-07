@@ -15,6 +15,7 @@ interface UserDetails {
 const UsersPage = () => {
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [selected, setSelected] = useState<UserDetails | null>(null);
+  const [loading, setLoading] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const { t } = useI18n();
@@ -33,8 +34,10 @@ const UsersPage = () => {
   }, []);
 
   const loadDetails = async (id: string) => {
+    setLoading(id)
     const res = await api.get<{ data: UserDetails }>(`/users/${id}`);
     setSelected(res.data.data);
+    setLoading("")
   };
 
   const closeDetails = () => {
@@ -110,8 +113,10 @@ const UsersPage = () => {
                 <td>{t(`role.${u.role}`) || u.role}</td>
                 <td>{u.membershipLevel}</td>
                 <td>
-                  <button className="ghost-btn" onClick={() => loadDetails(u._id)}>
-                    {t("view")}
+                  <button className="ghost-btn" onClick={() => loadDetails(u._id)} disabled={loading == u._id}>
+                    {loading == u._id ?
+                      <div className="spinner small"></div>
+                      : t("view")}
                   </button>
                 </td>
               </tr>
@@ -148,7 +153,7 @@ const UsersPage = () => {
               </tr>
               <tr>
                 <td>Phone</td>
-                <td>{selected.user.phone?selected.user.phone:<div className="muted">{t("noPhone")}</div>}</td>
+                <td>{selected.user.phone ? selected.user.phone : <div className="muted">{t("noPhone")}</div>}</td>
               </tr>
               <tr>
                 <td>Role</td>
