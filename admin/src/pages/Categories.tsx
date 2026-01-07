@@ -290,7 +290,7 @@ const CategoriesPage = () => {
             <div className="modal-header">
               <div className="modal-title">{t("newCategory")}</div>
               <button className="ghost-btn" type="button" onClick={closeNewModal}>
-                {t("cancel")}
+                {t("close")}
               </button>
             </div>
             <form className="form productRow" onSubmit={submit}>
