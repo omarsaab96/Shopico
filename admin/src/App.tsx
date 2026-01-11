@@ -8,7 +8,8 @@ import CategoriesPage from "./pages/Categories";
 import OrdersPage from "./pages/Orders";
 import UsersPage from "./pages/Users";
 import WalletPage from "./pages/Wallet";
-import PromotionsPage from "./pages/Promotions";
+import AnnouncementsPage from "./pages/Announcements";
+import CouponsPage from "./pages/Coupons";
 import SettingsPage from "./pages/Settings";
 import AuditLogsPage from "./pages/AuditLogs";
 import { useAuth } from "./context/AuthContext";
@@ -39,7 +40,8 @@ const App = () => {
           <Route path="orders" element={<OrdersPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="wallet" element={<WalletPage />} />
-          <Route path="promotions" element={<PromotionsPage />} />
+          <Route path="announcements" element={<AnnouncementsPage />} />
+          <Route path="coupons" element={<CouponsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="audit" element={<AuditLogsPage />} />
         </Route>

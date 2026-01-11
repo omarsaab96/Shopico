@@ -40,7 +40,14 @@ export default function ProductDetail() {
         />
       </View>
       <Text style={styles.name}>{product.name}</Text>
-      <Text style={styles.price}>{product.price?.toLocaleString()} SYP</Text>
+      <View style={styles.priceRow}>
+        {product.isPromoted && product.promoPrice !== undefined ? (
+          <Text style={styles.oldPrice}>{product.price?.toLocaleString()} SYP</Text>
+        ) : null}
+        <Text style={styles.price}>
+          {(product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price)?.toLocaleString()} SYP
+        </Text>
+      </View>
       <Text style={styles.desc}>{product.description}</Text>
       {existing ? (
         <View style={styles.qtyRow}>
@@ -54,7 +61,13 @@ export default function ProductDetail() {
           <TouchableOpacity
             style={styles.qtyButton}
             onPress={() => {
-              addItem({ productId: product._id, name: product.name, price: product.price, image: product.images?.[0]?.url, quantity: 1 });
+              addItem({
+                productId: product._id,
+                name: product.name,
+                price: product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price,
+                image: product.images?.[0]?.url,
+                quantity: 1,
+              });
             }}
           >
             <Text style={styles.qtySymbol}>+</Text>
@@ -64,7 +77,13 @@ export default function ProductDetail() {
         <Button
           title={t("addToCart")}
           onPress={() => {
-            addItem({ productId: product._id, name: product.name, price: product.price, image: product.images?.[0]?.url, quantity: 1 });
+            addItem({
+              productId: product._id,
+              name: product.name,
+              price: product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price,
+              image: product.images?.[0]?.url,
+              quantity: 1,
+            });
           }}
         />
       )}
@@ -91,7 +110,14 @@ const createStyles = (palette: any, isRTL: boolean) =>
       tintColor: '#dedede'
     },
     name: { color: palette.text, fontSize: 24, fontWeight: "800", textAlign: isRTL ? "right" : "left" },
-    price: { color: palette.accent, fontSize: 18, marginVertical: 4, textAlign: isRTL ? "right" : "left" },
+    priceRow: {
+      flexDirection: isRTL ? "row-reverse" : "row",
+      alignItems: "center",
+      gap: 10,
+      marginVertical: 4,
+    },
+    oldPrice: { color: palette.muted, fontSize: 14, textDecorationLine: "line-through" },
+    price: { color: palette.accent, fontSize: 18, textAlign: isRTL ? "right" : "left" },
     desc: { color: palette.muted, marginBottom: 12, textAlign: isRTL ? "right" : "left" },
     qtyRow: {
       flexDirection: "row",

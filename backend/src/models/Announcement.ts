@@ -1,15 +1,15 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export interface IPromotionImage {
+export interface IAnnouncementImage {
   url: string;
   fileId: string;
 }
 
-export interface IPromotion extends Document {
+export interface IAnnouncement extends Document {
   title?: string;
   description?: string;
   link?: string;
-  image?: IPromotionImage;
+  image?: IAnnouncementImage;
   startsAt: Date;
   endsAt: Date;
   isEnabled: boolean;
@@ -17,7 +17,7 @@ export interface IPromotion extends Document {
   updatedAt: Date;
 }
 
-const PromotionImageSchema = new Schema<IPromotionImage>(
+const AnnouncementImageSchema = new Schema<IAnnouncementImage>(
   {
     url: { type: String, required: true },
     fileId: { type: String, required: true },
@@ -32,12 +32,12 @@ const defaultEndsAt = () => {
   return date;
 };
 
-const PromotionSchema = new Schema<IPromotion>(
+const AnnouncementSchema = new Schema<IAnnouncement>(
   {
     title: { type: String },
     description: { type: String },
     link: { type: String },
-    image: { type: PromotionImageSchema },
+    image: { type: AnnouncementImageSchema },
     startsAt: { type: Date, default: defaultStartsAt },
     endsAt: { type: Date, default: defaultEndsAt },
     isEnabled: { type: Boolean, default: true },
@@ -45,4 +45,4 @@ const PromotionSchema = new Schema<IPromotion>(
   { timestamps: true }
 );
 
-export const Promotion = mongoose.model<IPromotion>("Promotion", PromotionSchema);
+export const Announcement = mongoose.model<IAnnouncement>("Announcement", AnnouncementSchema, "announcements");

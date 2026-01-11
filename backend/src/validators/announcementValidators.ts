@@ -14,7 +14,7 @@ const optionalUrl = z
   .or(z.literal(""))
   .transform((value) => (value ? value : undefined));
 
-export const promotionSchema = z.object({
+export const announcementSchema = z.object({
   title: optionalText,
   description: optionalText,
   link: optionalUrl,

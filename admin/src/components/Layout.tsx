@@ -10,7 +10,8 @@ const navItems = [
   { to: "/orders", key: "orders", label: "Orders" },
   { to: "/users", key: "users", label: "Users" },
   { to: "/wallet", key: "wallet", label: "Wallet Top-ups" },
-  { to: "/promotions", key: "promotions", label: "Promotions" },
+  { to: "/announcements", key: "announcements", label: "Announcements" },
+  { to: "/coupons", key: "coupons", label: "Coupons" },
   { to: "/settings", key: "settings", label: "Settings" },
   { to: "/audit", key: "audit", label: "Audit Logs" },
 ];

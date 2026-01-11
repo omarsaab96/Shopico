@@ -24,6 +24,8 @@ export interface IOrder extends Document {
   deliveryFee: number;
   deliveryDistanceKm: number;
   discount: number;
+  couponCode?: string;
+  couponDiscount?: number;
   total: number;
   rewardApplied: boolean;
   statusHistory: IOrderStatusEntry[];
@@ -61,6 +63,8 @@ const OrderSchema = new Schema<IOrder>(
     deliveryFee: { type: Number, required: true },
     deliveryDistanceKm: { type: Number, required: true },
     discount: { type: Number, default: 0 },
+    couponCode: { type: String },
+    couponDiscount: { type: Number, default: 0 },
     total: { type: Number, required: true },
     rewardApplied: { type: Boolean, default: false },
     statusHistory: { type: [StatusEntrySchema], default: [] },

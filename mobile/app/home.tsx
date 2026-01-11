@@ -39,11 +39,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 type Category = { _id: string; name: string; imageUrl?: string };
-type Product = { _id: string; name: string; description: string; price: number; images: { url: string }[] };
+type Product = {
+  _id: string;
+  name: string;
+  description: string;
+  price: number;
+  promoPrice?: number;
+  isPromoted?: boolean;
+  images: { url: string }[];
+};
 type SortOption = "relevance" | "priceAsc" | "priceDesc";
 type PriceFilter = "all" | "lt50k" | "lt100k" | "gte100k";
 type SavedAddress = { _id: string; address: string; label?: string; updatedAt?: string; createdAt?: string };
-type Promotion = {
+type Announcement = {
   _id: string;
   title?: string;
   description?: string;
@@ -79,8 +87,8 @@ export default function Home() {
   const [profile, setProfile] = useState<any>(user);
   const [page, setPage] = useState(1);
   const searchInputRef = useRef<TextInput>(null);
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [showPromotions, setShowPromotions] = useState(false);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [promoIndex, setPromoIndex] = useState(0);
 
   const membershipLoadingRef = useRef(false);
@@ -108,7 +116,7 @@ export default function Home() {
 
   const fallbackLogo = isDark ? require("../assets/shopico_logo.png") : require("../assets/shopico_logo-black.png");
   const promoWidth = Math.min(360, windowWidth - 32);
-  const hasPromotions = promotions.length > 0;
+  const hasAnnouncements = announcements.length > 0;
 
   const customFooter = (props: any) => (
     <BottomSheetFooter {...props}>
@@ -297,14 +305,14 @@ export default function Home() {
 
   useEffect(() => {
     api
-      .get("/promotions/active")
+      .get("/announcements/active")
       .then((res) => {
         const list = res.data.data || [];
-        setPromotions(list);
+        setAnnouncements(list);
         setPromoIndex(0);
-        if (list.length > 0) setShowPromotions(true);
+        if (list.length > 0) setShowAnnouncements(true);
       })
-      .catch(() => setPromotions([]));
+      .catch(() => setAnnouncements([]));
   }, []);
 
   useEffect(() => {
@@ -342,14 +350,27 @@ export default function Home() {
     let list = products;
     if (priceFilter !== "all") {
       list = list.filter((p) => {
-        if (priceFilter === "lt50k") return p.price < 50000;
-        if (priceFilter === "lt100k") return p.price < 100000;
-        return p.price >= 100000;
+        const displayPrice = p.isPromoted && p.promoPrice !== undefined ? p.promoPrice : p.price;
+        if (priceFilter === "lt50k") return displayPrice < 50000;
+        if (priceFilter === "lt100k") return displayPrice < 100000;
+        return displayPrice >= 100000;
       });
     }
     const result = [...list];
-    if (sortOption === "priceAsc") result.sort((a, b) => a.price - b.price);
-    if (sortOption === "priceDesc") result.sort((a, b) => b.price - a.price);
+    if (sortOption === "priceAsc") {
+      result.sort((a, b) => {
+        const priceA = a.isPromoted && a.promoPrice !== undefined ? a.promoPrice : a.price;
+        const priceB = b.isPromoted && b.promoPrice !== undefined ? b.promoPrice : b.price;
+        return priceA - priceB;
+      });
+    }
+    if (sortOption === "priceDesc") {
+      result.sort((a, b) => {
+        const priceA = a.isPromoted && a.promoPrice !== undefined ? a.promoPrice : a.price;
+        const priceB = b.isPromoted && b.promoPrice !== undefined ? b.promoPrice : b.price;
+        return priceB - priceA;
+      });
+    }
     return result;
   }, [products, priceFilter, sortOption]);
 
@@ -559,12 +580,12 @@ export default function Home() {
 
   return (
     <BottomSheetModalProvider>
-      <Modal visible={showPromotions && hasPromotions} transparent animationType="fade">
+      <Modal visible={showAnnouncements && hasAnnouncements} transparent animationType="fade">
         <View style={styles.promoBackdrop}>
           <View style={[styles.promoSheet, { width: promoWidth }]}>
             <View style={styles.promoHeader}>
-              <Text style={styles.promoTitle}>{t("promotions") ?? "Promotions"}</Text>
-              <TouchableOpacity onPress={() => setShowPromotions(false)} style={styles.promoClose}>
+              <Text style={styles.promoTitle}>{t("announcements") ?? "Announcements"}</Text>
+              <TouchableOpacity onPress={() => setShowAnnouncements(false)} style={styles.promoClose}>
                 <Text style={styles.promoCloseText}>{t("close") ?? "Close"}</Text>
               </TouchableOpacity>
             </View>
@@ -577,24 +598,24 @@ export default function Home() {
                 setPromoIndex(nextIndex);
               }}
             >
-              {promotions.map((promo) => (
-                <View key={promo._id} style={[styles.promoSlide, { width: promoWidth }]}>
+              {announcements.map((announcement) => (
+                <View key={announcement._id} style={[styles.promoSlide, { width: promoWidth }]}>
                   <View style={styles.promoImageWrap}>
-                    {promo.image?.url ? (
-                      <Image source={{ uri: promo.image.url }} style={styles.promoImage} />
+                    {announcement.image?.url ? (
+                      <Image source={{ uri: announcement.image.url }} style={styles.promoImage} />
                     ) : (
                       <Image source={fallbackLogo} style={styles.promoFallback} />
                     )}
                   </View>
                   <View style={styles.promoContent}>
-                    {promo.title ? <Text style={styles.promoHeadline}>{promo.title}</Text> : null}
-                    {promo.description ? <Text style={styles.promoCopy}>{promo.description}</Text> : null}
+                    {announcement.title ? <Text style={styles.promoHeadline}>{announcement.title}</Text> : null}
+                    {announcement.description ? <Text style={styles.promoCopy}>{announcement.description}</Text> : null}
                   </View>
-                  {promo.link ? (
+                  {announcement.link ? (
                     <TouchableOpacity
                       style={styles.promoLinkBtn}
                       onPress={() => {
-                        Linking.openURL(promo.link);
+                        Linking.openURL(announcement.link);
                       }}
                     >
                       <Text style={styles.promoLinkText}>{t("view") ?? "View"}</Text>
@@ -603,10 +624,10 @@ export default function Home() {
                 </View>
               ))}
             </ScrollView>
-            {promotions.length > 1 ? (
+            {announcements.length > 1 ? (
               <View style={styles.promoDots}>
-                {promotions.map((promo, idx) => (
-                  <View key={promo._id} style={[styles.promoDot, idx === promoIndex && styles.promoDotActive]} />
+                {announcements.map((announcement, idx) => (
+                  <View key={announcement._id} style={[styles.promoDot, idx === promoIndex && styles.promoDotActive]} />
                 ))}
               </View>
             ) : null}
@@ -717,8 +738,13 @@ export default function Home() {
                         </Text>
 
                         <View style={styles.priceRow}>
+                          {item.isPromoted && item.promoPrice !== undefined ? (
+                            <Text style={styles.productOldPrice}>
+                              {item.price.toLocaleString()} {t("syp")}
+                            </Text>
+                          ) : null}
                           <Text style={styles.productPrice}>
-                            {item.price.toLocaleString()} {t("syp")}
+                            {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} {t("syp")}
                           </Text>
                         </View>
                       </TouchableOpacity>
@@ -749,7 +775,7 @@ export default function Home() {
                                 addItem({
                                   productId: item._id,
                                   name: item.name,
-                                  price: item.price,
+                                  price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
                                   image: item.images?.[0]?.url,
                                   quantity: 1,
                                 })
@@ -768,7 +794,7 @@ export default function Home() {
                             addItem({
                               productId: item._id,
                               name: item.name,
-                              price: item.price,
+                              price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
                               image: item.images?.[0]?.url,
                               quantity: 1,
                             })
@@ -1257,10 +1283,16 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     productDesc: { color: palette.muted, fontSize: 12, marginBottom:  isRTL?0:10, textAlign:'left'  },
 
     priceRow: {
-      flexDirection: 'row',
+      flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
+      gap: 8,
       marginBottom: 5,
+    },
+    productOldPrice: {
+      color: palette.muted,
+      fontWeight: "700",
+      fontSize: 12,
+      textDecorationLine: "line-through",
     },
     productPrice: { color: palette.accent, fontWeight: "900", fontSize: 16 },
 

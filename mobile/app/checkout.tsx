@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from "react-native";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
 import Text from "../components/Text";
@@ -29,6 +29,11 @@ export default function Checkout() {
   const [selected, setSelected] = useState<SavedAddress | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"CASH_ON_DELIVERY" | "SHAM_CASH" | "BANK_TRANSFER" | "WALLET">("WALLET");
   const [settings, setSettings] = useState<any>();
+  const [couponCode, setCouponCode] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponFreeDelivery, setCouponFreeDelivery] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
@@ -83,6 +88,32 @@ export default function Checkout() {
     settings && selected && distanceKm > settings.deliveryFreeKm
       ? Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm
       : 0;
+  const effectiveDeliveryFee = couponFreeDelivery ? 0 : deliveryFee;
+  const total = Math.max(0, subtotal + effectiveDeliveryFee - couponDiscount);
+
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponDiscount(0);
+      setCouponError("");
+      return;
+    }
+    setApplyingCoupon(true);
+    setCouponError("");
+    try {
+      const res = await api.post("/coupons/validate", { code: couponCode.trim(), subtotal, deliveryFee });
+      const freeDelivery = Boolean(res.data.data?.freeDelivery);
+      const discount = freeDelivery ? 0 : res.data.data?.discount || 0;
+      setCouponDiscount(discount);
+      setCouponFreeDelivery(freeDelivery);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || t("invalidCoupon") || "Invalid coupon";
+      setCouponDiscount(0);
+      setCouponFreeDelivery(false);
+      setCouponError(message);
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
 
   const placeOrder = async () => {
     if (!user) {
@@ -93,6 +124,7 @@ export default function Checkout() {
     await api.post("/orders", {
       addressId: selected._id,
       paymentMethod,
+      couponCode: couponDiscount > 0 || couponFreeDelivery ? couponCode.trim() : undefined,
       items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
     });
     clear();
@@ -134,14 +166,50 @@ export default function Checkout() {
         </View>
       </View>
       <View style={styles.card}>
+        <Text style={styles.section}>{t("coupon") ?? "Coupon"}</Text>
+        <View style={styles.rowBetween}>
+          <TextInput
+            style={[styles.input, styles.half]}
+            placeholder={t("couponCode") ?? "Enter code"}
+            placeholderTextColor={palette.muted}
+            value={couponCode}
+            onChangeText={(value) => {
+              setCouponCode(value);
+              setCouponDiscount(0);
+              setCouponFreeDelivery(false);
+              setCouponError("");
+            }}
+            autoCapitalize="characters"
+          />
+          <TouchableOpacity style={styles.secondaryBtn} onPress={applyCoupon} disabled={applyingCoupon}>
+            {applyingCoupon ? (
+              <ActivityIndicator size="small" color={palette.accent} />
+            ) : (
+              <Text style={styles.secondaryText}>{t("apply") ?? "Apply"}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+        {couponError ? <Text style={styles.errorText}>{couponError}</Text> : null}
+        {couponFreeDelivery ? (
+          <Text style={styles.muted}>
+            {t("freeDelivery") ?? "Free delivery"} ✓
+          </Text>
+        ) : null}
+        {couponDiscount > 0 ? (
+          <Text style={styles.muted}>
+            {t("discount") ?? "Discount"}: -{couponDiscount.toLocaleString()} SYP
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.card}>
         <Text style={styles.muted}>
           {t("distance")}: {distanceKm} km
         </Text>
         <Text style={styles.muted}>
-          {t("deliveryFee")}: {deliveryFee==0 ? 'Free' : `${deliveryFee?.toLocaleString()} SYP` } 
+          {t("deliveryFee")}: {effectiveDeliveryFee==0 ? 'Free' : `${effectiveDeliveryFee?.toLocaleString()} SYP` } 
         </Text>
         <Text style={styles.muted}>
-          {t("total")}: {(subtotal + deliveryFee).toLocaleString()} SYP
+          {t("total")}: {total.toLocaleString()} SYP
         </Text>
       </View>
       <Button title={t("placeOrder")} onPress={placeOrder} disabled={!selected} />
@@ -190,4 +258,5 @@ const createStyles = (palette: any, isRTL: boolean) =>
       alignItems: "center",
     },
     secondaryText: { color: palette.accent, fontWeight: "700" },
+    errorText: { color: "#ef4444", fontWeight: "600" },
   });

@@ -158,9 +158,16 @@ export default function CategoryDetail() {
                     <Text style={styles.description} numberOfLines={2}>
                       {item.description}
                     </Text>
-                    <Text weight="bold" style={styles.price}>
-                      {item.price.toLocaleString()} SYP
-                    </Text>
+                    <View style={styles.priceRow}>
+                      {item.isPromoted && item.promoPrice !== undefined ? (
+                        <Text style={styles.oldPrice}>
+                          {item.price.toLocaleString()} SYP
+                        </Text>
+                      ) : null}
+                      <Text weight="bold" style={styles.price}>
+                        {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} SYP
+                      </Text>
+                    </View>
                   </View>
                   <View>
                     {existing ? (
@@ -182,7 +189,7 @@ export default function CategoryDetail() {
                             addItem({
                               productId: item._id,
                               name: item.name,
-                              price: item.price,
+                              price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
                               image: item.images?.[0]?.url,
                               quantity: 1,
                             })
@@ -198,7 +205,7 @@ export default function CategoryDetail() {
                           addItem({
                             productId: item._id,
                             name: item.name,
-                            price: item.price,
+                            price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
                             image: item.images?.[0]?.url,
                             quantity: 1,
                           })
@@ -316,6 +323,16 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       color: palette.mutted,
     },
 
+    priceRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    oldPrice: {
+      fontSize: 12,
+      color: palette.muted,
+      textDecorationLine: "line-through",
+    },
     price: {
       fontSize: 16,
       color: palette.accent,

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
 import type { Category, Product, ProductImage } from "../types/api";
-import { deleteProduct, fetchCategories, fetchProducts, getImageKitAuth, saveProduct } from "../api/client";
+import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchProducts, getImageKitAuth, saveProduct } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
@@ -20,11 +20,27 @@ const ProductsPage = () => {
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [editCategorySearch, setEditCategorySearch] = useState("");
+  const [showEditCategories, setShowEditCategories] = useState(false);
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
+  const [promoteProduct, setPromoteProduct] = useState<Product | null>(null);
+  const [promotePrice, setPromotePrice] = useState("");
+  const [promoteActive, setPromoteActive] = useState(true);
+  const [promoteSaving, setPromoteSaving] = useState(false);
+  const [promoteError, setPromoteError] = useState("");
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const [priceMode, setPriceMode] = useState<"INCREASE" | "DISCOUNT">("INCREASE");
+  const [priceAmountType, setPriceAmountType] = useState<"FIXED" | "PERCENT">("FIXED");
+  const [priceAmount, setPriceAmount] = useState("");
+  const [priceSaving, setPriceSaving] = useState(false);
+  const [priceError, setPriceError] = useState("");
   const { t } = useI18n();
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
     category: filterCategory || undefined,
+    includeUnavailable: true,
   });
 
   const loadProducts = (params?: { q?: string; category?: string }) => {
@@ -51,13 +67,27 @@ const ProductsPage = () => {
   };
 
   const openNewModal = () => {
-    setDraft({ images: [] });
+    setDraft({ images: [], categories: [], isAvailable: true });
     setFormError("");
+    setCategorySearch("");
     setShowNewModal(true);
   };
 
   const closeNewModal = () => {
     setShowNewModal(false);
+  };
+
+  const openPriceModal = () => {
+    setPriceMode("INCREASE");
+    setPriceAmountType("FIXED");
+    setPriceAmount("");
+    setPriceError("");
+    setShowPriceModal(true);
+  };
+
+  const closePriceModal = () => {
+    if (priceSaving) return;
+    setShowPriceModal(false);
   };
 
   const uploadToImageKit = async (
@@ -118,12 +148,12 @@ const ProductsPage = () => {
       name: p.name,
       description: p.description,
       price: p.price,
-      stock: p.stock,
+      isAvailable: p.isAvailable,
       images: p.images || [],
-      // backend validator expects an id string, so normalize populated categories
-      category: typeof p.category === "string" ? p.category : p.category?._id,
+      categories: Array.isArray(p.categories) ? p.categories.map((c) => (typeof c === "string" ? c : c._id)) : [],
     });
     setEditError("");
+    setEditCategorySearch("");
   };
 
   const removeNewImage = (fileId: string) => {
@@ -159,6 +189,174 @@ const ProductsPage = () => {
     setEditingId(null);
     setEditDraft({});
     setEditError("");
+    setShowEditCategories(false);
+  };
+
+  const openPromote = (product: Product) => {
+    setPromoteProduct(product);
+    setPromotePrice(String(product.promoPrice ?? product.price));
+    setPromoteActive(Boolean(product.isPromoted));
+    setPromoteError("");
+    setShowPromoteModal(true);
+  };
+
+  const closePromote = () => {
+    if (promoteSaving) return;
+    setShowPromoteModal(false);
+    setPromoteProduct(null);
+    setPromotePrice("");
+    setPromoteActive(true);
+    setPromoteError("");
+  };
+
+  const promoteValue = Number(promotePrice);
+  const promoteOldPrice = promoteProduct?.price ?? 0;
+  const hasPromoteValue =
+    Boolean(promoteProduct) && promotePrice.trim().length > 0 && !Number.isNaN(promoteValue) && promoteValue > 0;
+  const promoteDelta = hasPromoteValue && promoteOldPrice > 0
+    ? ((promoteOldPrice - promoteValue) / promoteOldPrice) * 100
+    : null;
+
+  const savePromote = async () => {
+    if (!promoteProduct) return;
+    if (promoteActive && !hasPromoteValue) {
+      setPromoteError(t("invalidAmount") || "Enter a valid amount");
+      return;
+    }
+    setPromoteSaving(true);
+    setPromoteError("");
+    try {
+      const payload: Partial<Product> = {
+        _id: promoteProduct._id,
+        isPromoted: promoteActive,
+        promoPrice: promoteActive ? promoteValue : undefined,
+      };
+      const saved = await saveProduct(payload);
+      setProducts((prev) => prev.map((p) => (p._id === saved._id ? saved : p)));
+      closePromote();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Update failed";
+      setPromoteError(msg);
+    } finally {
+      setPromoteSaving(false);
+    }
+  };
+
+  const submitPriceUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    const amountValue = Number(priceAmount);
+    if (!amountValue || amountValue <= 0 || Number.isNaN(amountValue)) {
+      setPriceError(t("invalidAmount") || "Enter a valid amount");
+      return;
+    }
+    if (priceAmountType === "PERCENT" && priceMode === "DISCOUNT" && amountValue > 100) {
+      setPriceError(t("maxDiscount") || "Percentage discount cannot exceed 100");
+      return;
+    }
+    setPriceSaving(true);
+    setPriceError("");
+    try {
+      await bulkUpdateProductPrices({
+        mode: priceMode,
+        amountType: priceAmountType,
+        amount: amountValue,
+      });
+      setShowPriceModal(false);
+      loadProducts(getFilterParams());
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Update failed";
+      setPriceError(msg);
+    } finally {
+      setPriceSaving(false);
+    }
+  };
+
+  const renderCategorySelect = (
+    selectedIds: string[] | undefined,
+    setSelected: (ids: string[]) => void,
+    search: string,
+    setSearch: (value: string) => void
+  ) => {
+    const list = selectedIds || [];
+    const filtered = categories.filter((c) => {
+      const term = search.trim().toLowerCase();
+      if (!term) return true;
+      return c.name?.toLowerCase().includes(term) || c.description?.toLowerCase().includes(term);
+    });
+
+    return (
+      <div className="multi-select">
+        <div className="flex">
+          <div className="multiSelectSearch">
+            <input
+              className="filter-input"
+              placeholder={t("searchCategory")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="ghost-btn" type="button" onClick={() => setSearch("")}>
+                {t("clear")}
+              </button>
+            )}
+          </div>
+
+          <div className="multi-select-actions">
+            <button
+              className="ghost-btn"
+              type="button"
+              onClick={() => {
+                if (list.length === categories.length) {
+                  setSelected([]);
+                } else {
+                  setSelected(categories.map((c) => c._id));
+                }
+              }}
+            >
+              {list.length === categories.length ? (t("clearAll") || "Clear all") : (t("selectAll") || "Select all")}
+            </button>
+            {list.length > 0 && (
+              <div className="multi-select-count">
+                {t("selected") || "Selected"}: {list.length}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="multi-select-list">
+          {filtered.length === 0 ? (
+            <div className="muted">{t("noResults") || "No results"}</div>
+          ) : (
+            filtered.map((c) => {
+              const checked = list.includes(c._id);
+              return (
+                <div key={c._id} className="checkboxContainer multi-select-item">
+                  <input
+                    id={`userSelect${c._id}`}
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() =>
+                      setSelected(checked ? list.filter((id) => id !== c._id) : [...list, c._id])
+                    }
+                  />
+                  <label htmlFor={`userSelect${c._id}`}>
+                    {c.name}
+                  </label>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const getCategoryLabels = (value?: Product["categories"]) => {
+    if (!value || value.length === 0) return "-";
+    const ids = value.map((c) => (typeof c === "string" ? c : c._id));
+    const labels = ids.map((id) => categories.find((c) => c._id === id)?.name || id);
+    if (labels.length <= 2) return labels.join(", ");
+    return `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
   };
 
   return (
@@ -187,9 +385,14 @@ const ProductsPage = () => {
               {t("clear")}
             </button>
           </div>
-          <button className="primary" onClick={openNewModal}>
-            {t("addProduct")}
-          </button>
+          <div className="flex" style={{gap:10}}>
+            <button className="primary" onClick={openNewModal}>
+              {t("addProduct")}
+            </button>
+            <button className="ghost-btn" type="button" onClick={openPriceModal}>
+              {t("changePrices") || "Change prices"}
+            </button>
+          </div>
         </div>
         <table className="table">
           <thead>
@@ -199,7 +402,8 @@ const ProductsPage = () => {
               <th>{t("description")}</th>
               <th>{t("category")}</th>
               <th>{t("price")}</th>
-              <th>{t("stock")}</th>
+              <th>{t("promoStatus") || "Promo"}</th>
+              <th>{t("available") || "Available"}</th>
               <th></th>
             </tr>
           </thead>
@@ -207,7 +411,7 @@ const ProductsPage = () => {
           <tbody>
             {products.length == 0 ? (
               <tr>
-                <td colSpan={6} className="muted">No products</td>
+                <td colSpan={8} className="muted">No products</td>
               </tr>
             ) : (
               products.map((product) => (
@@ -302,22 +506,14 @@ const ProductsPage = () => {
                   </td>
                   <td>
                     {editingId === product._id ? (
-                      <select
-                        value={(editDraft.category as string) || ""}
-                        onChange={(e) => setEditDraft({ ...editDraft, category: e.target.value })}
-                        required
-                      >
-                        <option value="">Select</option>
-                        {categories.map((c) => (
-                          <option key={c._id} value={c._id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex">
+                        <span>{getCategoryLabels(editDraft.categories as string[] | undefined)}</span>
+                        <button className="ghost-btn" type="button" onClick={() => setShowEditCategories(true)}>
+                          {t("changeCategories") || "Change categories"}
+                        </button>
+                      </div>
                     ) : (
-                      typeof product.category === "string"
-                        ? categories.find((c) => c._id === product.category)?.name || "-"
-                        : product.category?.name || "-"
+                      getCategoryLabels(product.categories)
                     )}
                   </td>
                   <td>
@@ -332,14 +528,23 @@ const ProductsPage = () => {
                     )}
                   </td>
                   <td>
+                    {product.isPromoted ? (t("yes") || "Yes") : (t("no") || "No")}
+                    {product.isPromoted && ` (${product.promoPrice?.toLocaleString()})`}
+                  </td>
+                  <td>
                     {editingId === product._id ? (
-                      <input
-                        type="number"
-                        value={editDraft.stock ?? product.stock}
-                        onChange={(e) => setEditDraft({ ...editDraft, stock: Number(e.target.value) })}
-                      />
+                      <div className="checkboxContainer">
+                        <input
+                          id={`productEditIsAvailable${product._id}`}
+                          type="checkbox"
+                          checked={Boolean(editDraft.isAvailable)}
+                          onChange={(e) => setEditDraft({ ...editDraft, isAvailable: e.target.checked })}
+                        />
+                        <label htmlFor={`productEditIsAvailable${product._id}`}></label>
+                      </div>
+
                     ) : (
-                      product.stock
+                      product.isAvailable ? (t("yes") || "Yes") : (t("no") || "No")
                     )}
                   </td>
 
@@ -362,6 +567,9 @@ const ProductsPage = () => {
                         <button className="ghost-btn" onClick={() => startEdit(product)}>
                           {t("edit")}
                         </button>
+                        <button className="ghost-btn" onClick={() => openPromote(product)}>
+                          {t("promote") || "Promote"}
+                        </button>
                         <button className="ghost-btn danger" onClick={() => deleteProduct(product._id).then(load)}>
                           {t("delete")}
                         </button>
@@ -374,6 +582,96 @@ const ProductsPage = () => {
           </tbody>
         </table>
       </Card>
+
+      {showEditCategories && editingId && (
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            setShowEditCategories(false);
+            setEditCategorySearch("");
+          }}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{t("changeCategories") || "Change categories"}</div>
+              <button
+                className="ghost-btn"
+                type="button"
+                onClick={() => {
+                  setShowEditCategories(false);
+                  setEditCategorySearch("");
+                }}
+              >
+                {t("close")}
+              </button>
+            </div>
+            {renderCategorySelect(
+              editDraft.categories as string[] | undefined,
+              (ids) => setEditDraft({ ...editDraft, categories: ids as any }),
+              editCategorySearch,
+              setEditCategorySearch
+            )}
+          </div>
+        </div>
+      )}
+
+      {showPromoteModal && promoteProduct && (
+        <div className="modal-backdrop" onClick={closePromote}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{t("promote") || "Promote"}</div>
+              <button className="ghost-btn" type="button" onClick={closePromote}>
+                {t("close")}
+              </button>
+            </div>
+            <div className="form">
+              <div className="checkboxContainer">
+                <input
+                  id="promoteActive"
+                  type="checkbox"
+                  checked={promoteActive}
+                  onChange={(e) => setPromoteActive(e.target.checked)}
+                />
+                <label htmlFor="promoteActive">{t("active") || "Active"}</label>
+              </div>
+              <label>
+                {t("oldPrice") || "Old price"}
+                <input value={promoteOldPrice.toLocaleString()} readOnly />
+              </label>
+              <label>
+                {t("newPrice") || "New price"}
+                <input
+                  type="number"
+                  value={promotePrice}
+                  onChange={(e) => setPromotePrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  disabled={!promoteActive}
+                />
+              </label>
+              <label>
+                {t("priceChange") || "Price change"}
+                <div>
+                  {!promoteActive || promoteDelta === null
+                    ? "-"
+                    : promoteDelta >= 0
+                      ? `${t("discount") || "Discount"}: ${promoteDelta.toFixed(1)}%`
+                      : `${t("increase") || "Increase"}: ${Math.abs(promoteDelta).toFixed(1)}%`}
+                </div>
+              </label>
+            </div>
+            {promoteError && <div className="error">{promoteError}</div>}
+            <div className="modal-actions">
+              <button className="ghost-btn" type="button" onClick={closePromote} disabled={promoteSaving}>
+                {t("close")}
+              </button>
+              <button className="primary" type="button" onClick={savePromote} disabled={promoteSaving}>
+                {promoteSaving ? (t("saving") || "Saving...") : t("save")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showNewModal && (
         <div className="modal-backdrop" onClick={closeNewModal}>
@@ -406,20 +704,26 @@ const ProductsPage = () => {
                   required
                 />
               </label>
-              <label>
-                {t("stock")}
-                <input type="number" value={draft.stock ?? 0} onChange={(e) => setDraft({ ...draft, stock: Number(e.target.value) })} />
-              </label>
+              <div className="checkboxContainer">
+                <input
+                  id="newProductIsAvailable"
+                  type="checkbox"
+                  checked={Boolean(draft.isAvailable)}
+                  onChange={(e) => setDraft({ ...draft, isAvailable: e.target.checked })}
+                />
+
+                <label htmlFor="newProductIsAvailable">
+                  {t("isAvailable") || "Is available"}
+                </label>
+              </div>
               <label>
                 {t("category")}
-                <select value={(draft.category as string) || ""} onChange={(e) => setDraft({ ...draft, category: e.target.value })} required>
-                  <option value="">Select</option>
-                  {categories.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                {renderCategorySelect(
+                  draft.categories as string[] | undefined,
+                  (ids) => setDraft({ ...draft, categories: ids as any }),
+                  categorySearch,
+                  setCategorySearch
+                )}
               </label>
               <label style={{ margin: 0 }}>
                 {t("images")} ({draft.images?.length})
@@ -477,6 +781,75 @@ const ProductsPage = () => {
                 </button>
                 <button className="primary" type="submit">
                   {t("save")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showPriceModal && (
+        <div className="modal-backdrop" onClick={closePriceModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{t("changePrices") || "Change prices"}</div>
+              <button className="ghost-btn" type="button" onClick={closePriceModal}>
+                {t("close")}
+              </button>
+            </div>
+            <form className="form" onSubmit={submitPriceUpdate}>
+              <label>
+                {t("changeType") || "Change type"}
+                <div className="flex-col">
+                  <div className="radioOption">
+                    <input
+                      id="priceChangeIncrease"
+                      type="radio"
+                      name="priceMode"
+                      checked={priceMode === "INCREASE"}
+                      onChange={() => setPriceMode("INCREASE")}
+                    />
+                    <label htmlFor="priceChangeIncrease">{t("increase") || "Increase"}</label>
+                  </div>
+                  <div className="radioOption">
+                    <input
+                      id="priceChangeDecrease"
+                      type="radio"
+                      name="priceMode"
+                      checked={priceMode === "DISCOUNT"}
+                      onChange={() => setPriceMode("DISCOUNT")}
+                    />
+                    <label htmlFor="priceChangeDecrease">{t("discount") || "Discount"}</label>
+                  </div>
+                </div>
+              </label>
+              <label>
+                {t("amountType") || "Amount type"}
+                <select
+                  value={priceAmountType}
+                  onChange={(e) => setPriceAmountType(e.target.value as "FIXED" | "PERCENT")}
+                >
+                  <option value="FIXED">{t("fixed") || "Fixed"}</option>
+                  <option value="PERCENT">{t("percent") || "Percent"}</option>
+                </select>
+              </label>
+              <label>
+                {t("amount")}
+                <input
+                  type="number"
+                  value={priceAmount}
+                  onChange={(e) => setPriceAmount(e.target.value)}
+                  min="0"
+                  step="0.01"
+                />
+              </label>
+              {priceError && <div className="error">{priceError}</div>}
+              <div className="modal-actions">
+                <button className="ghost-btn" type="button" onClick={closePriceModal} disabled={priceSaving}>
+                  {t("cancel")}
+                </button>
+                <button className="primary" type="submit" disabled={priceSaving}>
+                  {priceSaving ? (t("saving") || "Saving...") : t("apply")}
                 </button>
               </div>
             </form>

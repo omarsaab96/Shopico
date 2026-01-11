@@ -82,6 +82,7 @@
 
 button {
   font-family: inherit;
+  outline:none!important;
 }
 
 * {
@@ -505,6 +506,19 @@ nav::-webkit-scrollbar {
   position: absolute;
 }
 
+.react-datepicker__close-icon::after{
+  background-color: var(--text-primary);
+  content:'';
+  padding:0;
+  height:20px;
+  width:20px;
+  background-image: url(../public/close_white.png);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 12px;
+  display:block;
+}
+
 .checkboxContainer{
   position: relative;
 }
@@ -529,6 +543,10 @@ nav::-webkit-scrollbar {
   background-repeat: no-repeat;
   background-size: 13px;
   transition:all 0.3s ease-in-out;
+}
+
+.align-center{
+  align-items: center;
 }
 
 .checkboxContainer input{
@@ -563,6 +581,35 @@ nav::-webkit-scrollbar {
 .form select:hover {
   background: var(--gray-500);
 }
+
+.multiSelectSearch{
+  position:relative;
+  flex:1;
+}
+
+.multiSelectSearch .filter-input{
+  width:100%;
+}
+
+.clearSearchBtn{
+  position: absolute;
+  top:50%;
+  transform:TranslateY(-50%);
+  right:10px;
+  border:none;
+  padding:0;
+  background-color: var(--text-primary);
+  padding:0;
+  height:20px;
+  width:20px;
+  background-image: url(../public/close_white.png);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 12px;
+  cursor: pointer;
+  border-radius: 20px;
+}
+
 
 .row {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -647,13 +694,6 @@ nav::-webkit-scrollbar {
   display: flex;
   align-items: center;
   gap: 5px;
-}
-
-.listCenterItems span {
-  font-size: 12px;
-  background-color: var(--gray-300);
-  padding: 2px 5px;
-  border-radius: 5px;
 }
 
 .list-row {
@@ -882,6 +922,110 @@ nav::-webkit-scrollbar {
   gap: 10px;
   justify-content: flex-end;
   margin-top: 12px;
+}
+
+.multi-select {
+  display: grid;
+  gap: 8px;
+  /* padding: 10px; */
+  /* border-radius: 12px; */
+  /* border: 1px solid var(--gray-300);
+  background: var(--gray-100); */
+}
+
+.multi-select-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.multi-select-count {
+  color: var(--gray-600);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
+.multi-select-list {
+  max-height: 180px;
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--gray-300);
+  background: var(--bg-card);
+  max-height:200px;
+  overflow: auto;
+}
+
+.multi-select-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  margin-bottom:5px;
+}
+.multi-select-item:last-child {
+  margin-bottom:0px;
+}
+
+.multi-select-item label{
+  margin-bottom:0;
+}
+
+.radioRow {
+  /* display: flex; */
+  /* gap: 12px; */
+  /* align-items: center;
+  flex-wrap: wrap; */
+}
+
+.radioOption {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 600;
+  color: var(--gray-600);
+  position:relative;
+  margin-bottom:10px;
+}
+
+.radioOption:last-child {
+  margin-bottom:0px;
+}
+
+.radioOption input{
+  opacity: 0;
+  position: absolute;
+}
+
+.radioOption label{
+  padding-left: 30px;
+  position: relative;
+  margin-bottom:0;
+}
+
+.radioOption label::before{
+  content:'';
+  display:block;
+  position: absolute;
+  top:0px;
+  left:0;
+  width:18px;
+  height:18px;
+  border:1px solid black;
+  border-radius:20px;
+  background-image: url(../public/check.png);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 13px;
+  transition:all 0.3s ease-in-out;
+}
+
+.radioOption input:checked ~label::before{
+  background-color: var(--text-primary);
 }
 
 .react-datepicker {

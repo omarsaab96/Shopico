@@ -8,6 +8,8 @@ import { Wallet } from "../models/Wallet";
 import { WalletTransaction } from "../models/WalletTransaction";
 import { PointsTransaction } from "../models/PointsTransaction";
 import { Settings } from "../models/Settings";
+import { Coupon } from "../models/Coupon";
+import { CouponRedemption } from "../models/CouponRedemption";
 import { haversineDistanceKm, calculatePointsEarned } from "../utils/pricing";
 import { OrderStatus, PaymentMethod } from "../types";
 import { AuditLog } from "../models/AuditLog";
@@ -62,7 +64,8 @@ const buildOrderItems = async (itemsInput?: CheckoutItemInput[], userId?: Types.
     return itemsInput.map((item) => {
       const product = productMap.get(item.productId);
       if (!product) throw { status: 404, message: "Product not found" };
-      return { product: product._id, quantity: item.quantity, price: product.price };
+      const price = product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price;
+      return { product: product._id, quantity: item.quantity, price };
     });
   }
   if (!userId) throw { status: 400, message: "No items provided" };
@@ -103,6 +106,40 @@ const tryConsumeRewardToken = async (userId: Types.ObjectId, rewardValue: number
   return { applied: true, discount: rewardValue };
 };
 
+const normalizeCouponCode = (code: string) => code.trim().toUpperCase();
+
+const applyCoupon = async (
+  userId: Types.ObjectId,
+  subtotal: number,
+  deliveryFee: number,
+  code?: string
+) => {
+  if (!code) return { coupon: null, discount: 0 };
+  const normalized = normalizeCouponCode(code);
+  const coupon = await Coupon.findOne({ code: normalized, isActive: true });
+  if (!coupon) throw { status: 404, message: "Coupon not found" };
+  if (coupon.expiresAt && coupon.expiresAt.getTime() < Date.now()) {
+    throw { status: 400, message: "Coupon expired" };
+  }
+  if (coupon.assignedUsers && coupon.assignedUsers.length > 0) {
+    const allowed = coupon.assignedUsers.some((id) => id.toString() === userId.toString());
+    if (!allowed) {
+      throw { status: 403, message: "Coupon not available for this user" };
+    }
+  }
+  const usedCount = await CouponRedemption.countDocuments({ coupon: coupon._id, user: userId });
+  if (coupon.usageType === "SINGLE" && usedCount > 0) {
+    throw { status: 400, message: "Coupon already used" };
+  }
+  if (coupon.usageType === "MULTIPLE" && coupon.maxUses && usedCount >= coupon.maxUses) {
+    throw { status: 400, message: "Coupon usage limit reached" };
+  }
+  const rawDiscount = coupon.discountType === "PERCENT" ? (subtotal * coupon.discountValue) / 100 : coupon.discountValue;
+  const maxTotal = subtotal + deliveryFee;
+  const discount = coupon.freeDelivery ? deliveryFee : Math.max(0, Math.min(maxTotal, rawDiscount));
+  return { coupon, discount };
+};
+
 const maybeGenerateReward = async (userId: Types.ObjectId, newPoints: number) => {
   const settings = await getSettingsSnapshot();
   const threshold = settings.rewardThresholdPoints;
@@ -130,6 +167,7 @@ export const createOrder = async (
     paymentMethod: PaymentMethod;
     notes?: string;
     useReward?: boolean;
+    couponCode?: string;
     items?: CheckoutItemInput[];
   }
 ) => {
@@ -158,8 +196,9 @@ export const createOrder = async (
       ? 0
       : Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm;
 
+  const couponResult = await applyCoupon(userId, subtotal, deliveryFee, payload.couponCode);
   const rewardResult = await tryConsumeRewardToken(userId, settings.rewardValue, payload.useReward ?? false);
-  const discount = rewardResult.discount;
+  const discount = rewardResult.discount + couponResult.discount;
   const total = Math.max(0, subtotal + deliveryFee - discount);
 
   if (payload.paymentMethod === "WALLET") {
@@ -178,10 +217,17 @@ export const createOrder = async (
     deliveryFee,
     deliveryDistanceKm: distanceKm,
     discount,
+    couponCode: couponResult.coupon?.code,
+    couponDiscount: couponResult.discount,
     total,
     rewardApplied: rewardResult.applied,
     statusHistory: [{ status: "PENDING", at: new Date() }],
   });
+
+  if (couponResult.coupon) {
+    await CouponRedemption.create({ coupon: couponResult.coupon._id, user: userId, order: order._id });
+    await Coupon.findByIdAndUpdate(couponResult.coupon._id, { $inc: { usedCount: 1 } });
+  }
 
   await Cart.findOneAndUpdate({ user: userId }, { items: [] });
   await AuditLog.create({ user: userId, action: "ORDER_CREATED", metadata: { orderId: order._id } });

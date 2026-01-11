@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
-import type { Promotion, PromotionImage } from "../types/api";
-import { deletePromotion, fetchPromotions, getImageKitAuth, savePromotion } from "../api/client";
+import type { Announcement, AnnouncementImage } from "../types/api";
+import { deleteAnnouncement, fetchAnnouncements, getImageKitAuth, saveAnnouncement } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
 
-type PromotionDraft = Omit<Promotion, "startsAt" | "endsAt"> & {
+type AnnouncementDraft = Omit<Announcement, "startsAt" | "endsAt"> & {
   startsAt?: Date | string;
   endsAt?: Date | string;
 };
@@ -38,16 +38,16 @@ const toDate = (value?: Date | string) => {
   return date;
 };
 
-const PromotionsPage = () => {
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [draft, setDraft] = useState<PromotionDraft>({});
+const AnnouncementsPage = () => {
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [draft, setDraft] = useState<AnnouncementDraft>({});
   const [showNewModal, setShowNewModal] = useState(false);
   const [uploadingNew, setUploadingNew] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterFrom, setFilterFrom] = useState<Date | null>(null);
   const [filterTo, setFilterTo] = useState<Date | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<PromotionDraft>({});
+  const [editDraft, setEditDraft] = useState<AnnouncementDraft>({});
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
@@ -60,7 +60,7 @@ const PromotionsPage = () => {
   });
 
   const load = (params?: { q?: string; from?: string; to?: string }) =>
-    fetchPromotions(params).then(setPromotions).catch(console.error);
+    fetchAnnouncements(params).then(setAnnouncements).catch(console.error);
 
   useEffect(() => {
     load(getFilterParams());
@@ -88,7 +88,7 @@ const PromotionsPage = () => {
 
   const uploadToImageKit = async (
     file: File,
-    onDone: (img: PromotionImage) => void,
+    onDone: (img: AnnouncementImage) => void,
     setUploading: (v: boolean) => void,
     onError: (msg: string) => void
   ) => {
@@ -126,8 +126,8 @@ const PromotionsPage = () => {
         startsAt: toIso(draft.startsAt),
         endsAt: toIso(draft.endsAt),
       };
-      const saved = await savePromotion(payload);
-      setPromotions((prev) => [saved, ...prev]);
+      const saved = await saveAnnouncement(payload);
+      setAnnouncements((prev) => [saved, ...prev]);
       setDraft({});
       setFormError("");
       setShowNewModal(false);
@@ -138,12 +138,12 @@ const PromotionsPage = () => {
     }
   };
 
-  const startEdit = (promo: Promotion) => {
-    setEditingId(promo._id);
+  const startEdit = (announcement: Announcement) => {
+    setEditingId(announcement._id);
     setEditDraft({
-      ...promo,
-      startsAt: promo.startsAt,
-      endsAt: promo.endsAt,
+      ...announcement,
+      startsAt: announcement.startsAt,
+      endsAt: announcement.endsAt,
     });
     setEditError("");
   };
@@ -157,8 +157,8 @@ const PromotionsPage = () => {
         startsAt: toIso(editDraft.startsAt),
         endsAt: toIso(editDraft.endsAt),
       };
-      const saved = await savePromotion(payload);
-      setPromotions((prev) => prev.map((p) => (p._id === saved._id ? saved : p)));
+      const saved = await saveAnnouncement(payload);
+      setAnnouncements((prev) => prev.map((p) => (p._id === saved._id ? saved : p)));
       setEditingId(null);
       setEditDraft({});
       load();
@@ -179,12 +179,12 @@ const PromotionsPage = () => {
 
   return (
     <>
-      <Card title={t("nav.promotions") || "Promotions"} subTitle={`(${promotions.length})`}>
+      <Card title={t("nav.announcements") || "Announcements"} subTitle={`(${announcements.length})`}>
         <div className="page-header">
           <div className="filters">
             <input
               className="filter-input"
-              placeholder={t("searchPromotions") || "Search promotions"}
+              placeholder={t("searchAnnouncements") || "Search announcements"}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -197,6 +197,7 @@ const PromotionsPage = () => {
               timeFormat="HH:mm"
               timeIntervals={15}
               dateFormat="MM/dd/yyyy h:mm aa"
+              isClearable
             />
             <DatePicker
               className="filter-input date-picker"
@@ -207,6 +208,7 @@ const PromotionsPage = () => {
               timeFormat="HH:mm"
               timeIntervals={15}
               dateFormat="MM/dd/yyyy h:mm aa"
+              isClearable
             />
             <button className="ghost-btn" type="button" onClick={applyFilters}>
               {t("filter")}
@@ -216,7 +218,7 @@ const PromotionsPage = () => {
             </button>
           </div>
           <button className="primary" onClick={openNewModal}>
-            {t("addPromotion") || "Add promotion"}
+            {t("addAnnouncement") || "Add announcement"}
           </button>
         </div>
         <table className="table">
@@ -233,15 +235,15 @@ const PromotionsPage = () => {
             </tr>
           </thead>
           <tbody>
-            {promotions.length === 0 ? (
+            {announcements.length === 0 ? (
               <tr>
-                <td colSpan={8} className="muted">No promotions</td>
+                <td colSpan={8} className="muted">No announcements</td>
               </tr>
             ) : (
-              promotions.map((promo) => (
-                <tr key={promo._id} className="productRow">
+              announcements.map((announcement) => (
+                <tr key={announcement._id} className="productRow">
                   <td className="prodImgCell">
-                    {editingId === promo._id ? (
+                    {editingId === announcement._id ? (
                       <div className="thumb-row">
                         {editDraft.image?.url ? (
                           <div className="listImage">
@@ -252,83 +254,90 @@ const PromotionsPage = () => {
                           </div>
                         ) : (
                           <div className="defaultImage">
-                            <img src="promotionIcon.png" alt="" className="medium" />
+                            <img src="announcementIcon.png" alt="" className="medium" />
                           </div>
                         )}
                         <div className="uploadDiv" style={{ marginBottom: 10 }}>
-                          <label htmlFor={`promoImg${promo._id}`} className="uploadBtn">
-                            {editUploadingId === promo._id ? <img src="loading.gif" className="noFilter" /> : <img src="plusIcon.png" />}
+                          <label htmlFor={`promoImg${announcement._id}`} className="uploadBtn">
+                            {editUploadingId === announcement._id ?
+                              <img src="loading.gif" className="noFilter" />
+                              :
+                              editDraft.image?.url ?
+                                <img src="editIcon.png" />
+                                :
+                                <img src="plusIcon.png" />
+                            }
                           </label>
                           <input
-                            id={`promoImg${promo._id}`}
+                            id={`promoImg${announcement._id}`}
                             type="file"
                             accept="image/*"
                             className="uploadForm"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                setEditUploadingId(promo._id);
+                                setEditUploadingId(announcement._id);
                                 uploadToImageKit(
                                   file,
                                   (img) => setEditDraft((prev) => ({ ...prev, image: img })),
-                                  (flag) => (flag ? setEditUploadingId(promo._id) : setEditUploadingId(null)),
+                                  (flag) => (flag ? setEditUploadingId(announcement._id) : setEditUploadingId(null)),
                                   (msg) => setEditError(msg)
                                 );
                               }
                             }}
-                            disabled={editUploadingId === promo._id}
+                            disabled={editUploadingId === announcement._id}
                           />
                         </div>
                       </div>
-                    ) : promo.image?.url ? (
+                    ) : announcement.image?.url ? (
                       <div className="listImage">
-                        <img src={promo.image.url} alt="" />
+                        <img src={announcement.image.url} alt="" />
                       </div>
                     ) : (
                       <div className="defaultImage">
-                        <img src="promotionIcon.png" alt="" className="medium" />
+                        <img src="announcementIcon.png" alt="" className="medium" />
                       </div>
                     )}
                   </td>
                   <td>
-                    {editingId === promo._id ? (
+                    {editingId === announcement._id ? (
                       <input
                         value={editDraft.title || ""}
                         onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
                         placeholder="Optional"
                       />
                     ) : (
-                      promo.title || "-"
+                      announcement.title || "-"
                     )}
                   </td>
                   <td>
-                    {editingId === promo._id ? (
+                    {editingId === announcement._id ? (
                       <input
                         value={editDraft.description || ""}
                         onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
                         placeholder="Optional"
                       />
                     ) : (
-                      promo.description || "-"
+                      announcement.description || "-"
                     )}
                   </td>
                   <td>
-                    {editingId === promo._id ? (
+                    {editingId === announcement._id ? (
                       <input
                         value={editDraft.link || ""}
                         onChange={(e) => setEditDraft({ ...editDraft, link: e.target.value })}
                         placeholder="https://..."
                       />
-                    ) : promo.link ? (
-                      <a href={promo.link} target="_blank" rel="noreferrer">
-                        {promo.link}
+                    ) : announcement.link ? (
+                      <a href={announcement.link} target="_blank" rel="noreferrer">
+                        {announcement.link}
                       </a>
                     ) : (
                       "-"
                     )}
                   </td>
                   <td>
-                    {editingId === promo._id ? (
+                    {editingId === announcement._id ? (
                       <DatePicker
                         className="filter-input date-picker"
                         selected={toDate(editDraft.startsAt)}
@@ -337,15 +346,16 @@ const PromotionsPage = () => {
                         timeFormat="HH:mm"
                         timeIntervals={15}
                         dateFormat="MM/dd/yyyy h:mm aa"
+                        isClearable
                       />
-                    ) : promo.startsAt ? (
-                      new Date(promo.startsAt).toLocaleString()
+                    ) : announcement.startsAt ? (
+                      new Date(announcement.startsAt).toLocaleString()
                     ) : (
                       "-"
                     )}
                   </td>
                   <td>
-                    {editingId === promo._id ? (
+                    {editingId === announcement._id ? (
                       <DatePicker
                         className="filter-input date-picker"
                         selected={toDate(editDraft.endsAt)}
@@ -354,26 +364,32 @@ const PromotionsPage = () => {
                         timeFormat="HH:mm"
                         timeIntervals={15}
                         dateFormat="MM/dd/yyyy h:mm aa"
+                        isClearable
                       />
-                    ) : promo.endsAt ? (
-                      new Date(promo.endsAt).toLocaleString()
+                    ) : announcement.endsAt ? (
+                      new Date(announcement.endsAt).toLocaleString()
                     ) : (
                       "-"
                     )}
                   </td>
                   <td>
-                    {editingId === promo._id ? (
-                      <input
-                        type="checkbox"
-                        checked={Boolean(editDraft.isEnabled)}
-                        onChange={(e) => setEditDraft({ ...editDraft, isEnabled: e.target.checked })}
-                      />
+                    {editingId === announcement._id ? (
+                      <div className="checkboxContainer">
+                        <input
+                          id={`editCheckbox${announcement._id}`}
+                          type="checkbox"
+                          checked={Boolean(editDraft.isEnabled)}
+                          onChange={(e) => setEditDraft({ ...editDraft, isEnabled: e.target.checked })}
+                        />
+                        <label htmlFor={`editCheckbox${announcement._id}`}></label>
+                      </div>
+
                     ) : (
-                      promo.isEnabled ? "On" : "Off"
+                      announcement.isEnabled ? (t("yes") || "Yes") : (t("no") || "No")
                     )}
                   </td>
                   <td>
-                    {editingId === promo._id ? (
+                    {editingId === announcement._id ? (
                       <div className="flex">
                         <button className="ghost-btn" onClick={saveEdit}>
                           {t("save")}
@@ -381,17 +397,17 @@ const PromotionsPage = () => {
                         <button className="ghost-btn" onClick={cancelEdit}>
                           {t("cancel")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deletePromotion(promo._id).then(load)}>
+                        <button className="ghost-btn danger" onClick={() => deleteAnnouncement(announcement._id).then(load)}>
                           {t("delete")}
                         </button>
                         {editError && <div className="error">{editError}</div>}
                       </div>
                     ) : (
                       <div className="flex">
-                        <button className="ghost-btn" onClick={() => startEdit(promo)}>
+                        <button className="ghost-btn" onClick={() => startEdit(announcement)}>
                           {t("edit")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deletePromotion(promo._id).then(load)}>
+                        <button className="ghost-btn danger" onClick={() => deleteAnnouncement(announcement._id).then(load)}>
                           {t("delete")}
                         </button>
                       </div>
@@ -408,7 +424,7 @@ const PromotionsPage = () => {
         <div className="modal-backdrop" onClick={closeNewModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{t("newPromotion") || "New Promotion"}</div>
+              <div className="modal-title">{t("newAnnouncement") || "New Announcement"}</div>
               <button className="ghost-btn" type="button" onClick={closeNewModal}>
                 {t("close")}
               </button>
@@ -418,10 +434,12 @@ const PromotionsPage = () => {
                 {t("title") || "Title"}
                 <input value={draft.title || ""} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
               </label>
+
               <label>
                 {t("description")}
                 <input value={draft.description || ""} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
               </label>
+
               <label>
                 {t("link") || "Link"}
                 <input value={draft.link || ""} onChange={(e) => setDraft({ ...draft, link: e.target.value })} placeholder="https://..." />
@@ -438,6 +456,7 @@ const PromotionsPage = () => {
                     timeFormat="HH:mm"
                     timeIntervals={15}
                     dateFormat="MM/dd/yyyy h:mm aa"
+                    isClearable
                   />
                 </label>
 
@@ -451,6 +470,7 @@ const PromotionsPage = () => {
                     timeFormat="HH:mm"
                     timeIntervals={15}
                     dateFormat="MM/dd/yyyy h:mm aa"
+                    isClearable
                   />
                 </label>
               </div>
@@ -467,7 +487,6 @@ const PromotionsPage = () => {
                 </label>
               </div>
 
-
               <label style={{ margin: 0 }}>
                 {t("image")}
               </label>
@@ -481,13 +500,20 @@ const PromotionsPage = () => {
                   </div>
                 ) : (
                   <div className="defaultImage big">
-                    <img src="promotionIcon.png" alt="" className="medium" />
+                    <img src="announcementIcon.png" alt="" className="medium" />
                   </div>
                 )}
 
                 <div className="uploadDiv">
                   <label htmlFor="promoImgUpload" className="uploadBtn">
-                    {uploadingNew ? <img src="loading.gif" className="noFilter" /> : draft.image?.url ? <img src="editIcon.png" /> : <img src="plusIcon.png" />}
+                    {uploadingNew ?
+                      <img src="loading.gif" className="noFilter" />
+                      :
+                      draft.image?.url ?
+                        <img src="editIcon.png" />
+                        :
+                        <img src="plusIcon.png" />
+                    }
                   </label>
                   <input
                     type="file"
@@ -525,4 +551,4 @@ const PromotionsPage = () => {
   );
 };
 
-export default PromotionsPage;
+export default AnnouncementsPage;

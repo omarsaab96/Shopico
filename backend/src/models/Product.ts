@@ -9,9 +9,11 @@ export interface IProduct extends Document {
   name: string;
   description?: string;
   price: number;
-  category: mongoose.Types.ObjectId;
+  promoPrice?: number;
+  isPromoted: boolean;
+  categories: mongoose.Types.ObjectId[];
   images: IProductImage[];
-  stock: number;
+  isAvailable: boolean;
   isFeatured: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -30,9 +32,11 @@ const ProductSchema = new Schema<IProduct>(
     name: { type: String, required: true },
     description: { type: String },
     price: { type: Number, required: true },
-    category: { type: Schema.Types.ObjectId, ref: "Category", required: true },
+    promoPrice: { type: Number },
+    isPromoted: { type: Boolean, default: false },
+    categories: { type: [Schema.Types.ObjectId], ref: "Category", default: [] },
     images: { type: [ProductImageSchema], default: [] },
-    stock: { type: Number, default: 0 },
+    isAvailable: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
   },
   { timestamps: true }

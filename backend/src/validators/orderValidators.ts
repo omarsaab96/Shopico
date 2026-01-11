@@ -13,6 +13,7 @@ export const createOrderSchema = z.object({
   paymentMethod: z.enum(["CASH_ON_DELIVERY", "SHAM_CASH", "BANK_TRANSFER", "WALLET"]),
   notes: z.string().optional(),
   useReward: z.boolean().optional().default(false),
+  couponCode: z.string().optional(),
   items: z.array(orderItemSchema).optional(),
 });
 

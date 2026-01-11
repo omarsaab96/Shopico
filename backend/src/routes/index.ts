@@ -11,7 +11,8 @@ import uploadRoutes from "./upload.routes";
 import userRoutes from "./user.routes";
 import auditRoutes from "./audit.routes";
 import addressRoutes from "./address.routes";
-import promotionRoutes from "./promotion.routes";
+import announcementRoutes from "./announcement.routes";
+import couponRoutes from "./coupon.routes";
 
 const router = Router();
 
@@ -28,6 +29,7 @@ router.use("/uploads", uploadRoutes);
 router.use("/users", userRoutes);
 router.use("/audit", auditRoutes);
 router.use("/addresses", addressRoutes);
-router.use("/promotions", promotionRoutes);
+router.use("/announcements", announcementRoutes);
+router.use("/coupons", couponRoutes);
 
 export default router;

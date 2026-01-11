@@ -27,9 +27,11 @@ export interface Product {
   name: string;
   description?: string;
   price: number;
-  stock: number;
+  promoPrice?: number;
+  isPromoted?: boolean;
+  isAvailable: boolean;
   images: ProductImage[];
-  category: Category | string;
+  categories: Category[] | string[];
 }
 
 export interface OrderItem {
@@ -78,20 +80,42 @@ export interface Settings {
   rewardValue: number;
 }
 
-export interface PromotionImage {
+export interface AnnouncementImage {
   url: string;
   fileId: string;
 }
 
-export interface Promotion {
+export interface Announcement {
   _id: string;
   title?: string;
   description?: string;
   link?: string;
-  image?: PromotionImage;
+  image?: AnnouncementImage;
   startsAt?: string;
   endsAt?: string;
   isEnabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+
+export type CouponDiscountType = "PERCENT" | "FIXED";
+export type CouponUsageType = "SINGLE" | "MULTIPLE";
+
+export interface Coupon {
+  _id: string;
+  code: string;
+  title?: string;
+  description?: string;
+  discountType: CouponDiscountType;
+  discountValue: number;
+  freeDelivery: boolean;
+  expiresAt?: string;
+  assignedUsers?: ApiUser[] | string[] | null;
+  usageType: CouponUsageType;
+  maxUses?: number;
+  usedCount?: number;
+  isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

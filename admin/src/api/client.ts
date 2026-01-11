@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { ApiUser, Category, Product, Order, WalletTopUp, Settings, Promotion } from "../types/api";
+import type { ApiUser, Category, Product, Order, WalletTopUp, Settings, Announcement, Coupon } from "../types/api";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || "http://localhost:4000/api",
@@ -36,8 +36,13 @@ export const fetchCategories = async (params?: { q?: string }) => {
   return res.data.data;
 };
 
-export const fetchProducts = async (params?: { q?: string; category?: string }) => {
-  const res = await api.get<{ data: Product[] }>("/products", { params });
+export const fetchProducts = async (params?: { q?: string; category?: string; includeUnavailable?: boolean }) => {
+  const res = await api.get<{ data: Product[] }>("/products", {
+    params: {
+      ...params,
+      includeUnavailable: params?.includeUnavailable ? "true" : undefined,
+    },
+  });
   return res.data.data;
 };
 
@@ -51,6 +56,15 @@ export const saveProduct = async (payload: Partial<Product>) => {
 };
 
 export const deleteProduct = async (id: string) => api.delete(`/products/${id}`);
+
+export const bulkUpdateProductPrices = async (payload: {
+  mode: "INCREASE" | "DISCOUNT";
+  amountType: "FIXED" | "PERCENT";
+  amount: number;
+}) => {
+  const res = await api.post<{ data: { modifiedCount: number } }>("/products/bulk-price", payload);
+  return res.data.data;
+};
 
 export const fetchOrders = async (params?: { q?: string; status?: string; paymentStatus?: string }) => {
   const res = await api.get<{ data: Order[] }>("/orders/admin", { params });
@@ -89,20 +103,49 @@ export const getImageKitAuth = async () => {
   return res.data.data;
 };
 
-export const fetchPromotions = async (params?: { q?: string; from?: string; to?: string }) => {
-  const res = await api.get<{ data: Promotion[] }>("/promotions", { params });
+export const fetchAnnouncements = async (params?: { q?: string; from?: string; to?: string }) => {
+  const res = await api.get<{ data: Announcement[] }>("/announcements", { params });
   return res.data.data;
 };
 
-export const savePromotion = async (payload: Partial<Promotion>) => {
+export const saveAnnouncement = async (payload: Partial<Announcement>) => {
   if (payload._id) {
-    const res = await api.put<{ data: Promotion }>(`/promotions/${payload._id}`, payload);
+    const res = await api.put<{ data: Announcement }>(`/announcements/${payload._id}`, payload);
     return res.data.data;
   }
-  const res = await api.post<{ data: Promotion }>("/promotions", payload);
+  const res = await api.post<{ data: Announcement }>("/announcements", payload);
   return res.data.data;
 };
 
-export const deletePromotion = async (id: string) => api.delete(`/promotions/${id}`);
+export const deleteAnnouncement = async (id: string) => api.delete(`/announcements/${id}`);
+
+
+export const fetchCoupons = async (params?: {
+  q?: string;
+  consumed?: boolean;
+  enabled?: boolean;
+  expiresFrom?: string;
+  expiresTo?: string;
+}) => {
+  const res = await api.get<{ data: Coupon[] }>("/coupons", {
+    params: {
+      ...params,
+      consumed: params?.consumed === undefined ? undefined : String(params.consumed),
+      enabled: params?.enabled === undefined ? undefined : String(params.enabled),
+    },
+  });
+  return res.data.data;
+};
+
+export const saveCoupon = async (payload: Partial<Coupon>) => {
+  if (payload._id) {
+    const res = await api.put<{ data: Coupon }>(`/coupons/${payload._id}`, payload);
+    return res.data.data;
+  }
+  const res = await api.post<{ data: Coupon }>("/coupons", payload);
+  return res.data.data;
+};
+
+export const deleteCoupon = async (id: string) => api.delete(`/coupons/${id}`);
 
 export default api;
