@@ -77,3 +77,21 @@ export interface Settings {
   rewardThresholdPoints: number;
   rewardValue: number;
 }
+
+export interface PromotionImage {
+  url: string;
+  fileId: string;
+}
+
+export interface Promotion {
+  _id: string;
+  title?: string;
+  description?: string;
+  link?: string;
+  image?: PromotionImage;
+  startsAt?: string;
+  endsAt?: string;
+  isEnabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}

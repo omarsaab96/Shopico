@@ -1,0 +1,528 @@
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import Card from "../components/Card";
+import type { Promotion, PromotionImage } from "../types/api";
+import { deletePromotion, fetchPromotions, getImageKitAuth, savePromotion } from "../api/client";
+import { useI18n } from "../context/I18nContext";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+
+const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
+
+type PromotionDraft = Omit<Promotion, "startsAt" | "endsAt"> & {
+  startsAt?: Date | string;
+  endsAt?: Date | string;
+};
+
+const toIso = (value?: Date | string | null) => {
+  if (!value) return undefined;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
+};
+
+const getDefaultDates = () => {
+  const now = new Date();
+  const end = new Date();
+  end.setDate(end.getDate() + 30);
+  return {
+    startsAt: now,
+    endsAt: end,
+  };
+};
+
+const toDate = (value?: Date | string) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+};
+
+const PromotionsPage = () => {
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [draft, setDraft] = useState<PromotionDraft>({});
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [uploadingNew, setUploadingNew] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterFrom, setFilterFrom] = useState<Date | null>(null);
+  const [filterTo, setFilterTo] = useState<Date | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<PromotionDraft>({});
+  const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
+  const [formError, setFormError] = useState("");
+  const [editError, setEditError] = useState("");
+  const { t } = useI18n();
+
+  const getFilterParams = () => ({
+    q: searchTerm.trim() || undefined,
+    from: toIso(filterFrom),
+    to: toIso(filterTo),
+  });
+
+  const load = (params?: { q?: string; from?: string; to?: string }) =>
+    fetchPromotions(params).then(setPromotions).catch(console.error);
+
+  useEffect(() => {
+    load(getFilterParams());
+  }, []);
+
+  const applyFilters = () => {
+    load(getFilterParams());
+  };
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setFilterFrom(null);
+    setFilterTo(null);
+    load();
+  };
+
+  const openNewModal = () => {
+    const defaults = getDefaultDates();
+    setDraft({ ...defaults, isEnabled: true });
+    setFormError("");
+    setShowNewModal(true);
+  };
+
+  const closeNewModal = () => setShowNewModal(false);
+
+  const uploadToImageKit = async (
+    file: File,
+    onDone: (img: PromotionImage) => void,
+    setUploading: (v: boolean) => void,
+    onError: (msg: string) => void
+  ) => {
+    setUploading(true);
+    try {
+      const auth = await getImageKitAuth();
+      const publicKey = auth.publicKey || import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY;
+      const form = new FormData();
+      form.append("file", file);
+      form.append("fileName", file.name);
+      form.append("token", auth.token);
+      form.append("signature", auth.signature);
+      form.append("expire", String(auth.expire));
+      if (publicKey) form.append("publicKey", publicKey);
+      const res = await fetch(uploadUrl, { method: "POST", body: form });
+      const data = (await res.json()) as { url?: string; fileId?: string; message?: string };
+      if (!res.ok || !data?.url || !data?.fileId) {
+        const msg = data?.message || "Upload failed";
+        throw new Error(msg);
+      }
+      onDone({ url: data.url, fileId: data.fileId });
+    } catch (err: any) {
+      const message = err?.message || "Image upload failed";
+      onError(message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        ...draft,
+        startsAt: toIso(draft.startsAt),
+        endsAt: toIso(draft.endsAt),
+      };
+      const saved = await savePromotion(payload);
+      setPromotions((prev) => [saved, ...prev]);
+      setDraft({});
+      setFormError("");
+      setShowNewModal(false);
+      load();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Create failed";
+      setFormError(msg);
+    }
+  };
+
+  const startEdit = (promo: Promotion) => {
+    setEditingId(promo._id);
+    setEditDraft({
+      ...promo,
+      startsAt: promo.startsAt,
+      endsAt: promo.endsAt,
+    });
+    setEditError("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    try {
+      const payload = {
+        ...editDraft,
+        _id: editingId,
+        startsAt: toIso(editDraft.startsAt),
+        endsAt: toIso(editDraft.endsAt),
+      };
+      const saved = await savePromotion(payload);
+      setPromotions((prev) => prev.map((p) => (p._id === saved._id ? saved : p)));
+      setEditingId(null);
+      setEditDraft({});
+      load();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Update failed";
+      setEditError(msg);
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft({});
+    setEditError("");
+  };
+
+  const removeNewImage = () => setDraft((prev) => ({ ...prev, image: undefined }));
+  const removeEditImage = () => setEditDraft((prev) => ({ ...prev, image: undefined }));
+
+  return (
+    <>
+      <Card title={t("nav.promotions") || "Promotions"} subTitle={`(${promotions.length})`}>
+        <div className="page-header">
+          <div className="filters">
+            <input
+              className="filter-input"
+              placeholder={t("searchPromotions") || "Search promotions"}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <DatePicker
+              className="filter-input date-picker"
+              selected={filterFrom}
+              onChange={(date) => setFilterFrom(date)}
+              placeholderText={t("from") || "From"}
+              showTimeInput
+              timeFormat="HH:mm"
+              timeIntervals={15}
+              dateFormat="MM/dd/yyyy h:mm aa"
+            />
+            <DatePicker
+              className="filter-input date-picker"
+              selected={filterTo}
+              onChange={(date) => setFilterTo(date)}
+              placeholderText={t("till") || "Till"}
+              showTimeInput
+              timeFormat="HH:mm"
+              timeIntervals={15}
+              dateFormat="MM/dd/yyyy h:mm aa"
+            />
+            <button className="ghost-btn" type="button" onClick={applyFilters}>
+              {t("filter")}
+            </button>
+            <button className="ghost-btn" type="button" onClick={resetFilters}>
+              {t("clear")}
+            </button>
+          </div>
+          <button className="primary" onClick={openNewModal}>
+            {t("addPromotion") || "Add promotion"}
+          </button>
+        </div>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>{t("image")}</th>
+              <th>{t("title") || "Title"}</th>
+              <th>{t("description")}</th>
+              <th>{t("link") || "Link"}</th>
+              <th>{t("from") || "From"}</th>
+              <th>{t("till") || "Till"}</th>
+              <th>{t("enabled") || "Enabled"}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {promotions.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="muted">No promotions</td>
+              </tr>
+            ) : (
+              promotions.map((promo) => (
+                <tr key={promo._id} className="productRow">
+                  <td className="prodImgCell">
+                    {editingId === promo._id ? (
+                      <div className="thumb-row">
+                        {editDraft.image?.url ? (
+                          <div className="listImage">
+                            <img src={editDraft.image.url} alt="" />
+                            <button type="button" className="removeImageBtn" onClick={removeEditImage}>
+                              <img src="deleteIcon.png" alt="" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="defaultImage">
+                            <img src="promotionIcon.png" alt="" className="medium" />
+                          </div>
+                        )}
+                        <div className="uploadDiv" style={{ marginBottom: 10 }}>
+                          <label htmlFor={`promoImg${promo._id}`} className="uploadBtn">
+                            {editUploadingId === promo._id ? <img src="loading.gif" className="noFilter" /> : <img src="plusIcon.png" />}
+                          </label>
+                          <input
+                            id={`promoImg${promo._id}`}
+                            type="file"
+                            accept="image/*"
+                            className="uploadForm"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setEditUploadingId(promo._id);
+                                uploadToImageKit(
+                                  file,
+                                  (img) => setEditDraft((prev) => ({ ...prev, image: img })),
+                                  (flag) => (flag ? setEditUploadingId(promo._id) : setEditUploadingId(null)),
+                                  (msg) => setEditError(msg)
+                                );
+                              }
+                            }}
+                            disabled={editUploadingId === promo._id}
+                          />
+                        </div>
+                      </div>
+                    ) : promo.image?.url ? (
+                      <div className="listImage">
+                        <img src={promo.image.url} alt="" />
+                      </div>
+                    ) : (
+                      <div className="defaultImage">
+                        <img src="promotionIcon.png" alt="" className="medium" />
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    {editingId === promo._id ? (
+                      <input
+                        value={editDraft.title || ""}
+                        onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
+                        placeholder="Optional"
+                      />
+                    ) : (
+                      promo.title || "-"
+                    )}
+                  </td>
+                  <td>
+                    {editingId === promo._id ? (
+                      <input
+                        value={editDraft.description || ""}
+                        onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
+                        placeholder="Optional"
+                      />
+                    ) : (
+                      promo.description || "-"
+                    )}
+                  </td>
+                  <td>
+                    {editingId === promo._id ? (
+                      <input
+                        value={editDraft.link || ""}
+                        onChange={(e) => setEditDraft({ ...editDraft, link: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    ) : promo.link ? (
+                      <a href={promo.link} target="_blank" rel="noreferrer">
+                        {promo.link}
+                      </a>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td>
+                    {editingId === promo._id ? (
+                      <DatePicker
+                        className="filter-input date-picker"
+                        selected={toDate(editDraft.startsAt)}
+                        onChange={(date) => setEditDraft({ ...editDraft, startsAt: date || undefined })}
+                        showTimeInput
+                        timeFormat="HH:mm"
+                        timeIntervals={15}
+                        dateFormat="MM/dd/yyyy h:mm aa"
+                      />
+                    ) : promo.startsAt ? (
+                      new Date(promo.startsAt).toLocaleString()
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td>
+                    {editingId === promo._id ? (
+                      <DatePicker
+                        className="filter-input date-picker"
+                        selected={toDate(editDraft.endsAt)}
+                        onChange={(date) => setEditDraft({ ...editDraft, endsAt: date || undefined })}
+                        showTimeInput
+                        timeFormat="HH:mm"
+                        timeIntervals={15}
+                        dateFormat="MM/dd/yyyy h:mm aa"
+                      />
+                    ) : promo.endsAt ? (
+                      new Date(promo.endsAt).toLocaleString()
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td>
+                    {editingId === promo._id ? (
+                      <input
+                        type="checkbox"
+                        checked={Boolean(editDraft.isEnabled)}
+                        onChange={(e) => setEditDraft({ ...editDraft, isEnabled: e.target.checked })}
+                      />
+                    ) : (
+                      promo.isEnabled ? "On" : "Off"
+                    )}
+                  </td>
+                  <td>
+                    {editingId === promo._id ? (
+                      <div className="flex">
+                        <button className="ghost-btn" onClick={saveEdit}>
+                          {t("save")}
+                        </button>
+                        <button className="ghost-btn" onClick={cancelEdit}>
+                          {t("cancel")}
+                        </button>
+                        <button className="ghost-btn danger" onClick={() => deletePromotion(promo._id).then(load)}>
+                          {t("delete")}
+                        </button>
+                        {editError && <div className="error">{editError}</div>}
+                      </div>
+                    ) : (
+                      <div className="flex">
+                        <button className="ghost-btn" onClick={() => startEdit(promo)}>
+                          {t("edit")}
+                        </button>
+                        <button className="ghost-btn danger" onClick={() => deletePromotion(promo._id).then(load)}>
+                          {t("delete")}
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </Card>
+
+      {showNewModal && (
+        <div className="modal-backdrop" onClick={closeNewModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{t("newPromotion") || "New Promotion"}</div>
+              <button className="ghost-btn" type="button" onClick={closeNewModal}>
+                {t("close")}
+              </button>
+            </div>
+            <form className="form productRow" onSubmit={submit}>
+              <label>
+                {t("title") || "Title"}
+                <input value={draft.title || ""} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+              </label>
+              <label>
+                {t("description")}
+                <input value={draft.description || ""} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+              </label>
+              <label>
+                {t("link") || "Link"}
+                <input value={draft.link || ""} onChange={(e) => setDraft({ ...draft, link: e.target.value })} placeholder="https://..." />
+              </label>
+
+              <div style={{ display: 'flex', gap: '20px' }}>
+                <label style={{ flex: 1 }}>
+                  {t("from") || "From"}
+                  <DatePicker
+                    className="filter-input date-picker"
+                    selected={toDate(draft.startsAt)}
+                    onChange={(date) => setDraft({ ...draft, startsAt: date || undefined })}
+                    showTimeInput
+                    timeFormat="HH:mm"
+                    timeIntervals={15}
+                    dateFormat="MM/dd/yyyy h:mm aa"
+                  />
+                </label>
+
+                <label style={{ flex: 1 }}>
+                  {t("till") || "Till"}
+                  <DatePicker
+                    className="filter-input date-picker"
+                    selected={toDate(draft.endsAt)}
+                    onChange={(date) => setDraft({ ...draft, endsAt: date || undefined })}
+                    showTimeInput
+                    timeFormat="HH:mm"
+                    timeIntervals={15}
+                    dateFormat="MM/dd/yyyy h:mm aa"
+                  />
+                </label>
+              </div>
+
+              <div className="checkboxContainer">
+                <input
+                  id="isEnabled"
+                  type="checkbox"
+                  checked={Boolean(draft.isEnabled)}
+                  onChange={(e) => setDraft({ ...draft, isEnabled: e.target.checked })}
+                />
+                <label htmlFor="isEnabled">
+                  {t("enabled") || "Enabled"}
+                </label>
+              </div>
+
+
+              <label style={{ margin: 0 }}>
+                {t("image")}
+              </label>
+              <div className="thumb-row prodImgCell">
+                {draft.image?.url ? (
+                  <div className="thumb listImage newThumb">
+                    <img src={draft.image.url} alt="" />
+                    <button type="button" className="removeImageBtn" onClick={removeNewImage}>
+                      <img src="deleteIcon.png" alt="" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="defaultImage big">
+                    <img src="promotionIcon.png" alt="" className="medium" />
+                  </div>
+                )}
+
+                <div className="uploadDiv">
+                  <label htmlFor="promoImgUpload" className="uploadBtn">
+                    {uploadingNew ? <img src="loading.gif" className="noFilter" /> : draft.image?.url ? <img src="editIcon.png" /> : <img src="plusIcon.png" />}
+                  </label>
+                  <input
+                    type="file"
+                    id="promoImgUpload"
+                    accept="image/*"
+                    className="uploadForm"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file)
+                        uploadToImageKit(
+                          file,
+                          (img) => setDraft({ ...draft, image: img }),
+                          setUploadingNew,
+                          (msg) => setFormError(msg)
+                        );
+                    }}
+                    disabled={uploadingNew}
+                  />
+                </div>
+              </div>
+              {formError && <div className="error">{formError}</div>}
+              <div className="modal-actions">
+                <button className="ghost-btn" type="button" onClick={closeNewModal}>
+                  {t("cancel")}
+                </button>
+                <button className="primary" type="submit">
+                  {t("save")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default PromotionsPage;

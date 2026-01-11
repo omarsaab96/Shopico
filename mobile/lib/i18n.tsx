@@ -15,6 +15,8 @@ const baseStrings = {
   membership: "Membership",
   wallet: "Wallet",
   settings: "Settings",
+  promotions: "Promotions",
+  view: "View",
   addToCart: "Add to cart",
   placeOrder: "Place order",
   placingOrder: "Checking out",

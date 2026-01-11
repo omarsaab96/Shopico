@@ -11,6 +11,10 @@ import {
   ActivityIndicator,
   Keyboard,
   Platform,
+  Modal,
+  ScrollView,
+  useWindowDimensions,
+  Linking,
 } from "react-native";
 import {
   BottomSheetBackdrop,
@@ -39,11 +43,22 @@ type Product = { _id: string; name: string; description: string; price: number; 
 type SortOption = "relevance" | "priceAsc" | "priceDesc";
 type PriceFilter = "all" | "lt50k" | "lt100k" | "gte100k";
 type SavedAddress = { _id: string; address: string; label?: string; updatedAt?: string; createdAt?: string };
+type Promotion = {
+  _id: string;
+  title?: string;
+  description?: string;
+  link?: string;
+  image?: { url: string };
+  startsAt?: string;
+  endsAt?: string;
+  isEnabled?: boolean;
+};
 
 export default function Home() {
   const { user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -64,6 +79,9 @@ export default function Home() {
   const [profile, setProfile] = useState<any>(user);
   const [page, setPage] = useState(1);
   const searchInputRef = useRef<TextInput>(null);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [showPromotions, setShowPromotions] = useState(false);
+  const [promoIndex, setPromoIndex] = useState(0);
 
   const membershipLoadingRef = useRef(false);
   const sheetRef = useRef<BottomSheetModal>(null);
@@ -89,6 +107,8 @@ export default function Home() {
   );
 
   const fallbackLogo = isDark ? require("../assets/shopico_logo.png") : require("../assets/shopico_logo-black.png");
+  const promoWidth = Math.min(360, windowWidth - 32);
+  const hasPromotions = promotions.length > 0;
 
   const customFooter = (props: any) => (
     <BottomSheetFooter {...props}>
@@ -273,6 +293,18 @@ export default function Home() {
 
   useEffect(() => {
     api.get("/categories").then((res) => setCategories(res.data.data || []));
+  }, []);
+
+  useEffect(() => {
+    api
+      .get("/promotions/active")
+      .then((res) => {
+        const list = res.data.data || [];
+        setPromotions(list);
+        setPromoIndex(0);
+        if (list.length > 0) setShowPromotions(true);
+      })
+      .catch(() => setPromotions([]));
   }, []);
 
   useEffect(() => {
@@ -527,6 +559,60 @@ export default function Home() {
 
   return (
     <BottomSheetModalProvider>
+      <Modal visible={showPromotions && hasPromotions} transparent animationType="fade">
+        <View style={styles.promoBackdrop}>
+          <View style={[styles.promoSheet, { width: promoWidth }]}>
+            <View style={styles.promoHeader}>
+              <Text style={styles.promoTitle}>{t("promotions") ?? "Promotions"}</Text>
+              <TouchableOpacity onPress={() => setShowPromotions(false)} style={styles.promoClose}>
+                <Text style={styles.promoCloseText}>{t("close") ?? "Close"}</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                const nextIndex = Math.round(e.nativeEvent.contentOffset.x / promoWidth);
+                setPromoIndex(nextIndex);
+              }}
+            >
+              {promotions.map((promo) => (
+                <View key={promo._id} style={[styles.promoSlide, { width: promoWidth }]}>
+                  <View style={styles.promoImageWrap}>
+                    {promo.image?.url ? (
+                      <Image source={{ uri: promo.image.url }} style={styles.promoImage} />
+                    ) : (
+                      <Image source={fallbackLogo} style={styles.promoFallback} />
+                    )}
+                  </View>
+                  <View style={styles.promoContent}>
+                    {promo.title ? <Text style={styles.promoHeadline}>{promo.title}</Text> : null}
+                    {promo.description ? <Text style={styles.promoCopy}>{promo.description}</Text> : null}
+                  </View>
+                  {promo.link ? (
+                    <TouchableOpacity
+                      style={styles.promoLinkBtn}
+                      onPress={() => {
+                        Linking.openURL(promo.link);
+                      }}
+                    >
+                      <Text style={styles.promoLinkText}>{t("view") ?? "View"}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ))}
+            </ScrollView>
+            {promotions.length > 1 ? (
+              <View style={styles.promoDots}>
+                {promotions.map((promo, idx) => (
+                  <View key={promo._id} style={[styles.promoDot, idx === promoIndex && styles.promoDotActive]} />
+                ))}
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
       {/* <StatusBar style={isDark ? "light" : "dark"} /> */}
       <View style={styles.safe}>
         <View style={styles.container}>
@@ -1207,6 +1293,61 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     qtyVal: { color: palette.text, fontSize: 16, fontWeight: "900", minWidth: 24, textAlign: "center" },
 
     emptyText: { color: palette.muted, paddingHorizontal: 16, textAlign: align, marginTop: 10 },
+
+    promoBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(15, 23, 42, 0.55)",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 16,
+    },
+    promoSheet: {
+      backgroundColor: palette.card,
+      borderRadius: 20,
+      padding: 14,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: hairline,
+      ...cardShadow,
+    },
+    promoHeader: { flexDirection: row, alignItems: "center", justifyContent: "space-between" },
+    promoTitle: { color: palette.text, fontWeight: "900", fontSize: 16, textAlign: align },
+    promoClose: {
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 999,
+      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: hairline,
+    },
+    promoCloseText: { color: palette.text, fontWeight: "800", fontSize: 12 },
+    promoSlide: { gap: 10 },
+    promoImageWrap: {
+      height: 140,
+      borderRadius: 16,
+      backgroundColor: palette.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: hairline,
+    },
+    promoImage: { width: "100%", height: "100%", resizeMode: "cover" },
+    promoFallback: { width: 120, height: 40, resizeMode: "contain", opacity: isDark ? 0.9 : 0.8 },
+    promoContent: { gap: 6 },
+    promoHeadline: { color: palette.text, fontWeight: "900", fontSize: 18, textAlign: align },
+    promoCopy: { color: palette.muted, fontWeight: "600", textAlign: align },
+    promoLinkBtn: {
+      backgroundColor: palette.accent,
+      borderRadius: 14,
+      paddingVertical: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    promoLinkText: { color: "#fff", fontWeight: "900" },
+    promoDots: { flexDirection: row, justifyContent: "center", gap: 6 },
+    promoDot: { width: 6, height: 6, borderRadius: 999, backgroundColor: hairline },
+    promoDotActive: { width: 16, backgroundColor: palette.accent },
 
     // Sheets
     sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },

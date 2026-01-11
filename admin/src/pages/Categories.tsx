@@ -136,153 +136,151 @@ const CategoriesPage = () => {
 
   return (
     <>
-      <div className="page-header">
-        <div className="filters">
-          <input
-            className="filter-input"
-            placeholder={t("searchCategory")}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <button className="ghost-btn" type="button" onClick={applyFilters}>
-            {t("filter")}
-          </button>
-          <button className="ghost-btn" type="button" onClick={clearFilters}>
-            {t("clear")}
+      <Card title={t("nav.categories")} subTitle={`(${categories.length})`}>
+        <div className="page-header">
+          <div className="filters">
+            <input
+              className="filter-input"
+              placeholder={t("searchCategory")}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <button className="ghost-btn" type="button" onClick={applyFilters}>
+              {t("filter")}
+            </button>
+            <button className="ghost-btn" type="button" onClick={clearFilters}>
+              {t("clear")}
+            </button>
+          </div>
+          <button className="primary" onClick={openNewModal}>
+            {t("addCategory")}
           </button>
         </div>
-        <button className="primary" onClick={openNewModal}>
-          {t("addCategory")}
-        </button>
-      </div>
 
-      <div className="grid single-col">
-        <Card title={t("nav.categories")} subTitle={`(${categories.length})`}>
-          <table className="table">
-            <thead>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>{t("image")}</th>
+              <th>{t("name")}</th>
+              <th>{t("description")}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {categories.length == 0 ? (
               <tr>
-                <th>{t("image")}</th>
-                <th>{t("name")}</th>
-                <th>{t("description")}</th>
-                <th></th>
+                <td colSpan={6} className="muted">{t("noCategories")}</td>
               </tr>
-            </thead>
-            <tbody>
-              {categories.length == 0 ? (
-                <tr>
-                  <td colSpan={6} className="muted">{t("noCategories")}</td>
+            ) : (
+              categories.map((cat) => (
+                <tr key={cat._id} className="productRow">
+                  <td className="prodImgCell">
+                    {editingId === cat._id ? (
+                      <div className="thumb-row">
+                        {(() => {
+                          const currentImage = editDraft.imageUrl !== undefined ? editDraft.imageUrl : cat.imageUrl;
+                          return currentImage ? (
+                            <div className="listImage">
+                              <img src={currentImage} alt={cat.name} />
+                              <button type="button" className="removeImageBtn" onClick={removeEditImage}>
+                                <img src="deleteIcon.png" alt="" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="defaultImage">
+                              <img src="categoryIcon.png" alt="" className="small" />
+                            </div>
+                          );
+                        })()}
+                        <div className="uploadDiv" style={{ marginBottom: 10 }}>
+                          <label htmlFor={`catImg${cat._id}`} className="uploadBtn">
+                            {editUploadingId === cat._id ? <img src="loading.gif" className="noFilter" /> : <img src="plusIcon.png" />}
+                          </label>
+                          <input
+                            id={`catImg${cat._id}`}
+                            type="file"
+                            accept="image/*"
+                            className="uploadForm"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setEditUploadingId(cat._id);
+                                uploadToImageKit(
+                                  file,
+                                  (url) => setEditDraft((prev) => ({ ...prev, imageUrl: url })),
+                                  (flag) => (flag ? setEditUploadingId(cat._id) : setEditUploadingId(null)),
+                                  (msg) => setEditError(msg)
+                                );
+                              }
+                            }}
+                            disabled={editUploadingId === cat._id}
+                          />
+                        </div>
+                      </div>
+                    ) : cat.imageUrl ? (
+                      <div className="listImage" >
+                        <img src={cat.imageUrl} alt={cat.name} />
+                      </div>
+                    ) : (
+                      <div className="defaultImage">
+                        <img src="categoryIcon.png" alt="" className="small" />
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    {editingId === cat._id ? (
+                      <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
+                    ) : (
+                      cat.name
+                    )}
+                  </td>
+                  <td>
+                    {editingId === cat._id ? (
+                      <input
+                        value={editDraft.description || ""}
+                        onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
+                      />
+                    ) : (
+                      cat.description
+                    )}
+                  </td>
+                  <td style={{}}>
+                    {editingId === cat._id ? (
+                      <div className="flex">
+                        <button className="ghost-btn mr-10" onClick={saveEdit}>
+                          {t("save")}
+                        </button>
+                        <button className="ghost-btn mr-10" onClick={cancelEdit}>
+                          {t("cancel")}
+                        </button>
+                        <button
+                          className="ghost-btn danger"
+                          onClick={() => api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
+                        >
+                          {t("delete")}
+                        </button>
+                        {editError && <div className="error">{editError}</div>}
+                      </div>
+                    ) : (
+                      <div className="flex">
+                        <button className="ghost-btn mr-10" onClick={() => startEdit(cat)}>
+                          {t("edit")}
+                        </button>
+                        <button
+                          className="ghost-btn danger"
+                          onClick={() => api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
+                        >
+                          {t("delete")}
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
-              ) : (
-                categories.map((cat) => (
-                  <tr key={cat._id} className="productRow">
-                    <td className="prodImgCell">
-                      {editingId === cat._id ? (
-                        <div className="thumb-row">
-                          {(() => {
-                            const currentImage = editDraft.imageUrl !== undefined ? editDraft.imageUrl : cat.imageUrl;
-                            return currentImage ? (
-                              <div className="listImage">
-                                <img src={currentImage} alt={cat.name} />
-                                <button type="button" className="removeImageBtn" onClick={removeEditImage}>
-                                  <img src="deleteIcon.png" alt="" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="defaultImage">
-                                <img src="categoryIcon.png" alt="" className="small" />
-                              </div>
-                            );
-                          })()}
-                          <div className="uploadDiv" style={{ marginBottom: 10 }}>
-                            <label htmlFor={`catImg${cat._id}`} className="uploadBtn">
-                              {editUploadingId === cat._id ? <img src="loading.gif" className="noFilter" /> : <img src="plusIcon.png" />}
-                            </label>
-                            <input
-                              id={`catImg${cat._id}`}
-                              type="file"
-                              accept="image/*"
-                              className="uploadForm"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  setEditUploadingId(cat._id);
-                                  uploadToImageKit(
-                                    file,
-                                    (url) => setEditDraft((prev) => ({ ...prev, imageUrl: url })),
-                                    (flag) => (flag ? setEditUploadingId(cat._id) : setEditUploadingId(null)),
-                                    (msg) => setEditError(msg)
-                                  );
-                                }
-                              }}
-                              disabled={editUploadingId === cat._id}
-                            />
-                          </div>
-                        </div>
-                      ) : cat.imageUrl ? (
-                        <div className="listImage" >
-                          <img src={cat.imageUrl} alt={cat.name} />
-                        </div>
-                      ) : (
-                        <div className="defaultImage">
-                          <img src="categoryIcon.png" alt="" className="small" />
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {editingId === cat._id ? (
-                        <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
-                      ) : (
-                        cat.name
-                      )}
-                    </td>
-                    <td>
-                      {editingId === cat._id ? (
-                        <input
-                          value={editDraft.description || ""}
-                          onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
-                        />
-                      ) : (
-                        cat.description
-                      )}
-                    </td>
-                    <td style={{}}>
-                      {editingId === cat._id ? (
-                        <div className="flex">
-                          <button className="ghost-btn mr-10" onClick={saveEdit}>
-                            {t("save")}
-                          </button>
-                          <button className="ghost-btn mr-10" onClick={cancelEdit}>
-                            {t("cancel")}
-                          </button>
-                          <button
-                            className="ghost-btn danger"
-                            onClick={() => api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
-                          >
-                            {t("delete")}
-                          </button>
-                          {editError && <div className="error">{editError}</div>}
-                        </div>
-                      ) : (
-                        <div className="flex">
-                          <button className="ghost-btn mr-10" onClick={() => startEdit(cat)}>
-                            {t("edit")}
-                          </button>
-                          <button
-                            className="ghost-btn danger"
-                            onClick={() => api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
-                          >
-                            {t("delete")}
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </Card>
-      </div>
+              ))
+            )}
+          </tbody>
+        </table>
+      </Card>
 
       {showNewModal && (
         <div className="modal-backdrop" onClick={closeNewModal}>

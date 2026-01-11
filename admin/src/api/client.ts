@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { ApiUser, Category, Product, Order, WalletTopUp, Settings } from "../types/api";
+import type { ApiUser, Category, Product, Order, WalletTopUp, Settings, Promotion } from "../types/api";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || "http://localhost:4000/api",
@@ -88,5 +88,21 @@ export const getImageKitAuth = async () => {
   );
   return res.data.data;
 };
+
+export const fetchPromotions = async (params?: { q?: string; from?: string; to?: string }) => {
+  const res = await api.get<{ data: Promotion[] }>("/promotions", { params });
+  return res.data.data;
+};
+
+export const savePromotion = async (payload: Partial<Promotion>) => {
+  if (payload._id) {
+    const res = await api.put<{ data: Promotion }>(`/promotions/${payload._id}`, payload);
+    return res.data.data;
+  }
+  const res = await api.post<{ data: Promotion }>("/promotions", payload);
+  return res.data.data;
+};
+
+export const deletePromotion = async (id: string) => api.delete(`/promotions/${id}`);
 
 export default api;
