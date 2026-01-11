@@ -110,8 +110,11 @@ export interface Coupon {
   discountType: CouponDiscountType;
   discountValue: number;
   freeDelivery: boolean;
+  restricted?: boolean;
   expiresAt?: string;
   assignedUsers?: ApiUser[] | string[] | null;
+  assignedProducts?: Product[] | string[] | null;
+  assignedMembershipLevels?: string[] | null;
   usageType: CouponUsageType;
   maxUses?: number;
   usedCount?: number;

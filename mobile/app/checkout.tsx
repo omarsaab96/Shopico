@@ -32,6 +32,8 @@ export default function Checkout() {
   const [couponCode, setCouponCode] = useState("");
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponFreeDelivery, setCouponFreeDelivery] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [autoApplyDisabled, setAutoApplyDisabled] = useState(false);
   const [couponError, setCouponError] = useState("");
   const [applyingCoupon, setApplyingCoupon] = useState(false);
   const { palette } = useTheme();
@@ -91,20 +93,54 @@ export default function Checkout() {
   const effectiveDeliveryFee = couponFreeDelivery ? 0 : deliveryFee;
   const total = Math.max(0, subtotal + effectiveDeliveryFee - couponDiscount);
 
+  const fetchAvailableCoupons = useCallback(() => {
+    if (!user) return;
+    api
+      .post("/coupons/available", {
+        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        subtotal,
+        deliveryFee,
+      })
+      .then((res) => setAvailableCoupons(res.data.data || []))
+      .catch(() => setAvailableCoupons([]));
+  }, [user, items, subtotal, deliveryFee]);
+
+  useEffect(() => {
+    fetchAvailableCoupons();
+  }, [fetchAvailableCoupons]);
+
+  useEffect(() => {
+    if (autoApplyDisabled || couponCode.trim()) return;
+    if (!availableCoupons.length) return;
+    const sorted = [...availableCoupons].sort((a, b) => (b.discount || 0) - (a.discount || 0));
+    const best = sorted[0];
+    if (!best) return;
+    setCouponCode(best.code || "");
+    setCouponDiscount(best.discount || 0);
+    setCouponFreeDelivery(Boolean(best.freeDelivery));
+  }, [availableCoupons, autoApplyDisabled, couponCode]);
+
   const applyCoupon = async () => {
     if (!couponCode.trim()) {
       setCouponDiscount(0);
       setCouponError("");
+      setCouponFreeDelivery(false);
       return;
     }
     setApplyingCoupon(true);
     setCouponError("");
     try {
-      const res = await api.post("/coupons/validate", { code: couponCode.trim(), subtotal, deliveryFee });
+      const res = await api.post("/coupons/validate", {
+        code: couponCode.trim(),
+        subtotal,
+        deliveryFee,
+        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      });
       const freeDelivery = Boolean(res.data.data?.freeDelivery);
       const discount = freeDelivery ? 0 : res.data.data?.discount || 0;
       setCouponDiscount(discount);
       setCouponFreeDelivery(freeDelivery);
+      setAutoApplyDisabled(true);
     } catch (err: any) {
       const message = err?.response?.data?.message || t("invalidCoupon") || "Invalid coupon";
       setCouponDiscount(0);
@@ -113,6 +149,22 @@ export default function Checkout() {
     } finally {
       setApplyingCoupon(false);
     }
+  };
+
+  const applyAvailableCoupon = (coupon: any) => {
+    setCouponCode(coupon.code || "");
+    setCouponDiscount(coupon.discount || 0);
+    setCouponFreeDelivery(Boolean(coupon.freeDelivery));
+    setCouponError("");
+    setAutoApplyDisabled(true);
+  };
+
+  const removeCoupon = () => {
+    setCouponCode("");
+    setCouponDiscount(0);
+    setCouponFreeDelivery(false);
+    setCouponError("");
+    setAutoApplyDisabled(true);
   };
 
   const placeOrder = async () => {
@@ -167,6 +219,27 @@ export default function Checkout() {
       </View>
       <View style={styles.card}>
         <Text style={styles.section}>{t("coupon") ?? "Coupon"}</Text>
+        {availableCoupons.length > 0 && (
+          <View style={styles.couponList}>
+            {availableCoupons.map((c) => (
+              <TouchableOpacity
+                key={c._id || c.code}
+                style={[
+                  styles.couponPill,
+                  couponCode.trim().toUpperCase() === String(c.code || "").toUpperCase() && styles.couponPillActive,
+                ]}
+                onPress={() => applyAvailableCoupon(c)}
+              >
+                <Text style={styles.couponPillText}>{c.code}</Text>
+                {c.freeDelivery ? (
+                  <Text style={styles.couponPillMeta}>{t("freeDelivery") ?? "Free delivery"}</Text>
+                ) : (
+                  <Text style={styles.couponPillMeta}>-{Number(c.discount || 0).toLocaleString()} SYP</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         <View style={styles.rowBetween}>
           <TextInput
             style={[styles.input, styles.half]}
@@ -178,6 +251,7 @@ export default function Checkout() {
               setCouponDiscount(0);
               setCouponFreeDelivery(false);
               setCouponError("");
+              setAutoApplyDisabled(true);
             }}
             autoCapitalize="characters"
           />
@@ -189,6 +263,11 @@ export default function Checkout() {
             )}
           </TouchableOpacity>
         </View>
+        {(couponDiscount > 0 || couponFreeDelivery) ? (
+          <TouchableOpacity style={styles.removeCouponBtn} onPress={removeCoupon}>
+            <Text style={styles.removeCouponText}>{t("remove") ?? "Remove"}</Text>
+          </TouchableOpacity>
+        ) : null}
         {couponError ? <Text style={styles.errorText}>{couponError}</Text> : null}
         {couponFreeDelivery ? (
           <Text style={styles.muted}>
@@ -244,6 +323,30 @@ const createStyles = (palette: any, isRTL: boolean) =>
     pillActive: { backgroundColor: palette.accent, color: "#0f172a", borderColor: palette.accent },
     muted: { color: palette.muted },
     mutedSmall: { color: palette.muted, fontSize: 12 },
+    couponList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    couponPill: {
+      borderWidth: 1,
+      borderColor: palette.border,
+      borderRadius: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      backgroundColor: palette.surface,
+      gap: 2,
+    },
+    couponPillActive: { backgroundColor: palette.accent, borderColor: palette.accent },
+    couponPillText: { color: palette.text, fontWeight: "700" },
+    couponPillMeta: { color: palette.muted, fontSize: 12 },
+    removeCouponBtn: {
+      marginTop: 8,
+      alignSelf: "flex-start",
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surface,
+    },
+    removeCouponText: { color: palette.muted, fontWeight: "700" },
     section: { color: palette.text, fontWeight: "800" },
     addressBox: { gap: 4, marginBottom: 8 },
     addressLabel: { color: palette.text, fontWeight: "700" },

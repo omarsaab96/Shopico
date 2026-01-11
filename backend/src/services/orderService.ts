@@ -112,6 +112,7 @@ const applyCoupon = async (
   userId: Types.ObjectId,
   subtotal: number,
   deliveryFee: number,
+  items: { product: Types.ObjectId; quantity: number; price: number }[],
   code?: string
 ) => {
   if (!code) return { coupon: null, discount: 0 };
@@ -127,6 +128,13 @@ const applyCoupon = async (
       throw { status: 403, message: "Coupon not available for this user" };
     }
   }
+  if (coupon.assignedMembershipLevels && coupon.assignedMembershipLevels.length > 0) {
+    const user = await User.findById(userId).select("membershipLevel");
+    const level = user?.membershipLevel || "None";
+    if (!coupon.assignedMembershipLevels.includes(level)) {
+      throw { status: 403, message: "Coupon not available for this membership level" };
+    }
+  }
   const usedCount = await CouponRedemption.countDocuments({ coupon: coupon._id, user: userId });
   if (coupon.usageType === "SINGLE" && usedCount > 0) {
     throw { status: 400, message: "Coupon already used" };
@@ -134,8 +142,22 @@ const applyCoupon = async (
   if (coupon.usageType === "MULTIPLE" && coupon.maxUses && usedCount >= coupon.maxUses) {
     throw { status: 400, message: "Coupon usage limit reached" };
   }
-  const rawDiscount = coupon.discountType === "PERCENT" ? (subtotal * coupon.discountValue) / 100 : coupon.discountValue;
-  const maxTotal = subtotal + deliveryFee;
+  let eligibleSubtotal = subtotal;
+  if (coupon.assignedProducts && coupon.assignedProducts.length > 0) {
+    const eligibleIds = new Set(coupon.assignedProducts.map((id) => id.toString()));
+    eligibleSubtotal = items.reduce((sum, item) => {
+      if (!eligibleIds.has(item.product.toString())) return sum;
+      return sum + item.price * item.quantity;
+    }, 0);
+    if (eligibleSubtotal <= 0) {
+      throw { status: 400, message: "Coupon not applicable to these items" };
+    }
+  }
+
+  const rawDiscount = coupon.discountType === "PERCENT"
+    ? (eligibleSubtotal * coupon.discountValue) / 100
+    : coupon.discountValue;
+  const maxTotal = eligibleSubtotal;
   const discount = coupon.freeDelivery ? deliveryFee : Math.max(0, Math.min(maxTotal, rawDiscount));
   return { coupon, discount };
 };
@@ -196,7 +218,7 @@ export const createOrder = async (
       ? 0
       : Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm;
 
-  const couponResult = await applyCoupon(userId, subtotal, deliveryFee, payload.couponCode);
+  const couponResult = await applyCoupon(userId, subtotal, deliveryFee, items, payload.couponCode);
   const rewardResult = await tryConsumeRewardToken(userId, settings.rewardValue, payload.useReward ?? false);
   const discount = rewardResult.discount + couponResult.discount;
   const total = Math.max(0, subtotal + deliveryFee - discount);

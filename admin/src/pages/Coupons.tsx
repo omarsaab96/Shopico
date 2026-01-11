@@ -3,13 +3,15 @@ import type { FormEvent } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Card from "../components/Card";
-import api, { deleteCoupon, fetchCoupons, saveCoupon } from "../api/client";
-import type { ApiUser, Coupon } from "../types/api";
+import api, { deleteCoupon, fetchCoupons, fetchProducts, saveCoupon } from "../api/client";
+import type { ApiUser, Coupon, Product } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 
-type CouponDraft = Omit<Coupon, "expiresAt" | "assignedUsers"> & {
+type CouponDraft = Omit<Coupon, "expiresAt" | "assignedUsers" | "assignedProducts" | "assignedMembershipLevels"> & {
   expiresAt?: Date | string;
   assignedUsers?: string[];
+  assignedProducts?: string[];
+  assignedMembershipLevels?: string[];
 };
 
 const toIso = (value?: Date | string | null) => {
@@ -45,6 +47,7 @@ const toggleUser = (list: string[] = [], id: string) => {
 const CouponsPage = () => {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [enabledFilter, setEnabledFilter] = useState("");
   const [consumedFilter, setConsumedFilter] = useState("");
@@ -58,6 +61,12 @@ const CouponsPage = () => {
   const [editError, setEditError] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [editUserSearch, setEditUserSearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+  const [editProductSearch, setEditProductSearch] = useState("");
+  const [levelSearch, setLevelSearch] = useState("");
+  const [editLevelSearch, setEditLevelSearch] = useState("");
+  const [showEditProducts, setShowEditProducts] = useState(false);
+  const [showEditLevels, setShowEditLevels] = useState(false);
   const [showEditAssigned, setShowEditAssigned] = useState(false);
   const { t } = useI18n();
 
@@ -76,10 +85,14 @@ const CouponsPage = () => {
   const loadUsers = () => {
     api.get<{ data: ApiUser[] }>("/users").then((res) => setUsers(res.data.data)).catch(() => setUsers([]));
   };
+  const loadProducts = () => {
+    fetchProducts({ includeUnavailable: true }).then(setProducts).catch(() => setProducts([]));
+  };
 
   useEffect(() => {
     loadCoupons(getFilterParams());
     loadUsers();
+    loadProducts();
   }, []);
 
   const openNewModal = () => {
@@ -89,16 +102,23 @@ const CouponsPage = () => {
       discountValue: 10,
       freeDelivery: false,
       isActive: true,
+      restricted: false,
       assignedUsers: [],
+      assignedProducts: [],
+      assignedMembershipLevels: [],
     } as CouponDraft);
     setFormError("");
     setUserSearch("");
+    setProductSearch("");
+    setLevelSearch("");
     setShowNewModal(true);
   };
 
   const closeNewModal = () => {
     setShowNewModal(false);
     setUserSearch("");
+    setProductSearch("");
+    setLevelSearch("");
   };
 
   const submit = async (e: FormEvent) => {
@@ -109,6 +129,9 @@ const CouponsPage = () => {
         code: draft.code?.toUpperCase(),
         expiresAt: toIso(draft.expiresAt),
         assignedUsers: draft.assignedUsers || [],
+        assignedProducts: draft.assignedProducts || [],
+        assignedMembershipLevels: draft.assignedMembershipLevels || [],
+        restricted: Boolean(draft.restricted),
         maxUses: draft.usageType === "MULTIPLE" ? draft.maxUses : undefined,
         discountValue: draft.freeDelivery ? 0 : draft.discountValue,
       };
@@ -131,9 +154,14 @@ const CouponsPage = () => {
       assignedUsers: Array.isArray(coupon.assignedUsers)
         ? coupon.assignedUsers.map((u) => (typeof u === "string" ? u : u._id))
         : [],
+      assignedProducts: Array.isArray(coupon.assignedProducts)
+        ? coupon.assignedProducts.map((p) => (typeof p === "string" ? p : p._id))
+        : [],
+      assignedMembershipLevels: coupon.assignedMembershipLevels || [],
     });
     setEditError("");
     setEditUserSearch("");
+    setEditProductSearch("");
   };
 
   const saveEdit = async () => {
@@ -145,6 +173,9 @@ const CouponsPage = () => {
         code: editDraft.code?.toUpperCase(),
         expiresAt: toIso(editDraft.expiresAt),
         assignedUsers: editDraft.assignedUsers || [],
+        assignedProducts: editDraft.assignedProducts || [],
+        assignedMembershipLevels: editDraft.assignedMembershipLevels || [],
+        restricted: Boolean(editDraft.restricted),
         maxUses: editDraft.usageType === "MULTIPLE" ? editDraft.maxUses : undefined,
         discountValue: editDraft.freeDelivery ? 0 : editDraft.discountValue,
       };
@@ -164,7 +195,11 @@ const CouponsPage = () => {
     setEditDraft({});
     setEditError("");
     setShowEditAssigned(false);
+    setShowEditProducts(false);
+    setShowEditLevels(false);
     setEditUserSearch("");
+    setEditProductSearch("");
+    setEditLevelSearch("");
   };
 
   const applyFilters = () => loadCoupons(getFilterParams());
@@ -256,6 +291,166 @@ const CouponsPage = () => {
     );
   };
 
+  const renderProductSelect = (
+    selectedIds: string[] | undefined,
+    setSelected: (ids: string[]) => void,
+    search: string,
+    setSearch: (value: string) => void
+  ) => {
+    const list = selectedIds || [];
+    const filtered = products.filter((p) => {
+      const term = search.trim().toLowerCase();
+      if (!term) return true;
+      return p.name?.toLowerCase().includes(term) || p.description?.toLowerCase().includes(term);
+    });
+
+    return (
+      <div className="multi-select">
+        <div className="flex">
+          <div className="multiSelectSearch">
+            <input
+              className="filter-input"
+              placeholder={t("searchProducts") || "Search products"}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="clearSearchBtn" type="button" onClick={() => setSearch("")}>
+
+              </button>
+            )}
+          </div>
+
+          <div className="multi-select-actions">
+            <button
+              className="ghost-btn"
+              type="button"
+              onClick={() => {
+                if (list.length === products.length) {
+                  setSelected([]);
+                } else {
+                  setSelected(products.map((p) => p._id));
+                }
+              }}
+            >
+              {list.length === products.length ? (t("clearAll") || "Clear all") : (t("selectAll") || "Select all")}
+            </button>
+            {list.length > 0 && (
+              <div className="multi-select-count">
+                {t("selected") || "Selected"}: {list.length}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="multi-select-list">
+          {filtered.length === 0 ? (
+            <div className="muted">{t("noResults") || "No results"}</div>
+          ) : (
+            filtered.map((p) => {
+              const checked = list.includes(p._id);
+              return (
+                <div key={p._id} className="checkboxContainer multi-select-item">
+                  <input
+                    id={`productSelect${p._id}`}
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => setSelected(toggleUser(list, p._id))}
+                  />
+                  <label htmlFor={`productSelect${p._id}`}>
+                    {p.name}
+                  </label>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const membershipLevels = [
+    { value: "None", label: t("standard") || "Standard" },
+    { value: "Silver", label: t("level.silver") || "Silver" },
+    { value: "Gold", label: t("level.gold") || "Gold" },
+    { value: "Platinum", label: t("level.platinum") || "Platinum" },
+    { value: "Diamond", label: t("level.diamond") || "Diamond" },
+  ];
+
+  const renderLevelSelect = (
+    selectedIds: string[] | undefined,
+    setSelected: (ids: string[]) => void,
+    search: string,
+    setSearch: (value: string) => void
+  ) => {
+    const list = selectedIds || [];
+    const filtered = membershipLevels.filter((level) => {
+      const term = search.trim().toLowerCase();
+      if (!term) return true;
+      return level.label.toLowerCase().includes(term) || level.value.toLowerCase().includes(term);
+    });
+    return (
+      <div className="multi-select">
+        <div className="flex">
+          <div className="multiSelectSearch">
+            <input
+              className="filter-input"
+              placeholder={t("searchLevels") || "Search levels"}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="clearSearchBtn" type="button" onClick={() => setSearch("")}>
+
+              </button>
+            )}
+          </div>
+          <div className="multi-select-actions">
+          <button
+            className="ghost-btn"
+            type="button"
+            onClick={() => {
+              if (list.length === membershipLevels.length) {
+                setSelected([]);
+              } else {
+                setSelected(membershipLevels.map((l) => l.value));
+              }
+            }}
+          >
+            {list.length === membershipLevels.length ? (t("clearAll") || "Clear all") : (t("selectAll") || "Select all")}
+          </button>
+          {list.length > 0 && (
+            <div className="multi-select-count">
+              {t("selected") || "Selected"}: {list.length}
+            </div>
+          )}
+        </div>
+        </div>
+
+        <div className="multi-select-list">
+          {filtered.length === 0 ? (
+            <div className="muted">{t("noResults") || "No results"}</div>
+          ) : filtered.map((level) => {
+            const checked = list.includes(level.value);
+            return (
+              <div key={level.value} className="checkboxContainer multi-select-item">
+                <input
+                  id={`levelSelect${level.value}`}
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => setSelected(toggleUser(list, level.value))}
+                />
+                <label htmlFor={`levelSelect${level.value}`}>
+                  {level.label}
+                </label>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
 
@@ -321,6 +516,9 @@ const CouponsPage = () => {
               <th>{t("used") || "Used"}</th>
               <th>{t("expires") || "Expires"}</th>
               <th>{t("assignedTo") || "Assigned to"}</th>
+              <th>{t("assignedProducts") || "Products"}</th>
+              <th>{t("assignedLevels") || "Levels"}</th>
+              <th>{t("restricted") || "Restricted"}</th>
               <th>{t("enabled") || "Enabled"}</th>
               <th></th>
             </tr>
@@ -328,7 +526,7 @@ const CouponsPage = () => {
           <tbody>
             {coupons.length === 0 ? (
               <tr>
-                <td colSpan={8} className="muted">No coupons</td>
+                <td colSpan={12} className="muted">No coupons</td>
               </tr>
             ) : (
               coupons.map((coupon) => (
@@ -469,6 +667,45 @@ const CouponsPage = () => {
                   </td>
                   <td>
                     {editingId === coupon._id ? (
+                      <div className="flex align-center">
+                        <span>{(editDraft.assignedProducts || []).length || 0}</span>
+                        <button className="ghost-btn" type="button" onClick={() => setShowEditProducts(true)}>
+                          {t("changeProducts") || "Change products"}
+                        </button>
+                      </div>
+                    ) : (
+                      (coupon.assignedProducts || []).length || 0
+                    )}
+                  </td>
+                  <td>
+                    {editingId === coupon._id ? (
+                      <div className="flex align-center">
+                        <span>{(editDraft.assignedMembershipLevels || []).length || 0}</span>
+                        <button className="ghost-btn" type="button" onClick={() => setShowEditLevels(true)}>
+                          {t("changeLevels") || "Change levels"}
+                        </button>
+                      </div>
+                    ) : (
+                      (coupon.assignedMembershipLevels || []).length || 0
+                    )}
+                  </td>
+                  <td>
+                    {editingId === coupon._id ? (
+                      <div className="checkboxContainer">
+                        <input
+                          id={`couponRestricted${coupon._id}`}
+                          type="checkbox"
+                          checked={Boolean(editDraft.restricted)}
+                          onChange={(e) => setEditDraft({ ...editDraft, restricted: e.target.checked })}
+                        />
+                        <label htmlFor={`couponRestricted${coupon._id}`}></label>
+                      </div>
+                    ) : (
+                      coupon.restricted ? (t("yes") || "Yes") : (t("no") || "No")
+                    )}
+                  </td>
+                  <td>
+                    {editingId === coupon._id ? (
                       <div className="checkboxContainer">
                         <input
                           id={`couponIsEnabled${coupon._id}`}
@@ -539,6 +776,58 @@ const CouponsPage = () => {
               (ids) => setEditDraft({ ...editDraft, assignedUsers: ids }),
               editUserSearch,
               setEditUserSearch
+            )}
+          </div>
+        </div>
+      )}
+
+      {showEditProducts && editingId && (
+        <div className="modal-backdrop" onClick={() => {
+          setShowEditProducts(false);
+          setEditProductSearch("");
+        }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{t("changeProducts") || "Change products"}</div>
+              <button
+                className="ghost-btn"
+                type="button"
+                onClick={() => {
+                  setShowEditProducts(false);
+                  setEditProductSearch("");
+                }}
+              >
+                {t("close")}
+              </button>
+            </div>
+            {renderProductSelect(
+              editDraft.assignedProducts,
+              (ids) => setEditDraft({ ...editDraft, assignedProducts: ids }),
+              editProductSearch,
+              setEditProductSearch
+            )}
+          </div>
+        </div>
+      )}
+
+      {showEditLevels && editingId && (
+        <div className="modal-backdrop" onClick={() => setShowEditLevels(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{t("changeLevels") || "Change levels"}</div>
+              <button
+                className="ghost-btn"
+                type="button"
+                onClick={() => setShowEditLevels(false)}
+              >
+                {t("close")}
+              </button>
+            </div>
+            {renderLevelSelect(
+              editDraft.assignedMembershipLevels,
+              (ids) => setEditDraft({ ...editDraft, assignedMembershipLevels: ids }),
+              editLevelSearch,
+              setEditLevelSearch
             )}
           </div>
         </div>
@@ -616,6 +905,7 @@ const CouponsPage = () => {
                       <option value="FIXED">{t("fixed") || "Fixed"}</option>
                     </select>
                     <input
+                      className="fullWidthInput"
                       type="number"
                       value={draft.discountValue ?? 0}
                       onChange={(e) => setDraft({ ...draft, discountValue: Number(e.target.value) })}
@@ -625,18 +915,19 @@ const CouponsPage = () => {
 
               </div>
 
-              <label>
-                {t("usage") || "Usage"}
-                <select
-                  value={draft.usageType || "SINGLE"}
-                  onChange={(e) => setDraft({ ...draft, usageType: e.target.value as any })}
-                >
-                  <option value="SINGLE">{t("singleUse") || "Single"}</option>
-                  <option value="MULTIPLE">{t("multiUse") || "Multiple"}</option>
-                </select>
-              </label>
-              {draft.usageType === "MULTIPLE" && (
-                <label>
+              <div className="flex align-center">
+                <label style={{ marginBottom: 0, flex: 1 }}>
+                  {t("usage") || "Usage"}
+                  <select
+                    value={draft.usageType || "SINGLE"}
+                    onChange={(e) => setDraft({ ...draft, usageType: e.target.value as any })}
+                  >
+                    <option value="SINGLE">{t("singleUse") || "Single"}</option>
+                    <option value="MULTIPLE">{t("multiUse") || "Multiple"}</option>
+                  </select>
+                </label>
+
+                <label style={{ flex: 1, marginBottom: 0, opacity: draft.usageType === "MULTIPLE" ? 1 : 0 }}>
                   {t("maxUses") || "Max uses"}
                   <input
                     type="number"
@@ -644,11 +935,19 @@ const CouponsPage = () => {
                     onChange={(e) => setDraft({ ...draft, maxUses: e.target.value ? Number(e.target.value) : undefined })}
                   />
                 </label>
-              )}
+              </div>
 
               <label>
                 {t("assignedTo") || "Assigned to"}
                 {renderUserSelect(draft.assignedUsers, (ids) => setDraft({ ...draft, assignedUsers: ids }), userSearch, setUserSearch)}
+              </label>
+              <label>
+                {t("assignedProducts") || "Products"}
+                {renderProductSelect(draft.assignedProducts, (ids) => setDraft({ ...draft, assignedProducts: ids }), productSearch, setProductSearch)}
+              </label>
+              <label>
+                {t("assignedLevels") || "Membership levels"}
+                {renderLevelSelect(draft.assignedMembershipLevels, (ids) => setDraft({ ...draft, assignedMembershipLevels: ids }), levelSearch, setLevelSearch)}
               </label>
 
               <label>
@@ -674,6 +973,17 @@ const CouponsPage = () => {
                 />
                 <label htmlFor="isEnabled">
                   {t("enabled") || "Enabled"}
+                </label>
+              </div>
+              <div className="checkboxContainer">
+                <input
+                  id="isRestricted"
+                  type="checkbox"
+                  checked={Boolean(draft.restricted)}
+                  onChange={(e) => setDraft({ ...draft, restricted: e.target.checked })}
+                />
+                <label htmlFor="isRestricted">
+                  {t("restricted") || "Restricted"}
                 </label>
               </div>
 

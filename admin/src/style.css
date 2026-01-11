@@ -975,6 +975,10 @@ nav::-webkit-scrollbar {
   margin-bottom:0;
 }
 
+.fullWidthInput{
+  flex:1;
+}
+
 .radioRow {
   /* display: flex; */
   /* gap: 12px; */

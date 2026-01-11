@@ -10,8 +10,11 @@ export interface ICoupon extends Document {
   discountType: CouponDiscountType;
   discountValue: number;
   freeDelivery: boolean;
+  restricted: boolean;
   expiresAt?: Date;
   assignedUsers?: mongoose.Types.ObjectId[];
+  assignedProducts?: mongoose.Types.ObjectId[];
+  assignedMembershipLevels?: string[];
   usageType: CouponUsageType;
   maxUses?: number;
   usedCount: number;
@@ -28,8 +31,11 @@ const CouponSchema = new Schema<ICoupon>(
     discountType: { type: String, enum: ["PERCENT", "FIXED"], required: true },
     discountValue: { type: Number, required: true },
     freeDelivery: { type: Boolean, default: false },
+    restricted: { type: Boolean, default: false },
     expiresAt: { type: Date },
     assignedUsers: { type: [Schema.Types.ObjectId], ref: "User", default: [] },
+    assignedProducts: { type: [Schema.Types.ObjectId], ref: "Product", default: [] },
+    assignedMembershipLevels: { type: [String], default: [] },
     usageType: { type: String, enum: ["SINGLE", "MULTIPLE"], default: "SINGLE" },
     maxUses: { type: Number },
     usedCount: { type: Number, default: 0 },

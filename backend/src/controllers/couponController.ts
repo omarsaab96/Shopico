@@ -2,12 +2,58 @@ import { Types } from "mongoose";
 import { Coupon } from "../models/Coupon";
 import { CouponRedemption } from "../models/CouponRedemption";
 import { User } from "../models/User";
+import { Product } from "../models/Product";
 import { couponSchema, couponValidateSchema } from "../validators/couponValidators";
 import { catchAsync } from "../utils/catchAsync";
 import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
 
 const normalizeCode = (code: string) => code.trim().toUpperCase();
+
+const getProductPriceMap = async (items: { productId: string; quantity: number }[]) => {
+  const ids = items.map((i) => i.productId);
+  const products = await Product.find({ _id: { $in: ids } }).select("_id price promoPrice isPromoted");
+  return new Map(
+    products.map((p) => [
+      p._id.toString(),
+      p.isPromoted && p.promoPrice !== undefined ? p.promoPrice : p.price,
+    ])
+  );
+};
+
+const getEligibleSubtotal = (
+  coupon: { assignedProducts?: Types.ObjectId[] },
+  items: { productId: string; quantity: number }[],
+  priceMap: Map<string, number>,
+  fallbackSubtotal: number
+) => {
+  if (!coupon.assignedProducts || coupon.assignedProducts.length === 0) return fallbackSubtotal;
+  const eligibleIds = new Set(coupon.assignedProducts.map((id) => id.toString()));
+  return items.reduce((sum, item) => {
+    if (!eligibleIds.has(item.productId)) return sum;
+    const price = priceMap.get(item.productId);
+    if (price === undefined) return sum;
+    return sum + price * item.quantity;
+  }, 0);
+};
+
+const computeCouponDiscount = (
+  coupon: {
+    discountType: string;
+    discountValue: number;
+    freeDelivery: boolean;
+  },
+  eligibleSubtotal: number,
+  deliveryFee: number
+) => {
+  if (coupon.freeDelivery) return { discount: 0, freeDelivery: true };
+  const rawDiscount =
+    coupon.discountType === "PERCENT"
+      ? (eligibleSubtotal * coupon.discountValue) / 100
+      : coupon.discountValue;
+  const discount = Math.max(0, Math.min(eligibleSubtotal, rawDiscount));
+  return { discount, freeDelivery: false };
+};
 
 const ensureValidDiscount = (payload: {
   discountType?: string;
@@ -86,7 +132,10 @@ export const listCoupons = catchAsync(async (req, res) => {
     if (orClauses.length) filter.$or = orClauses;
   }
 
-  const coupons = await Coupon.find(filter).sort({ createdAt: -1 }).populate("assignedUsers", "name email");
+  const coupons = await Coupon.find(filter)
+    .sort({ createdAt: -1 })
+    .populate("assignedUsers", "name email")
+    .populate("assignedProducts", "name");
   if (consumed === "true" || consumed === "false") {
     const wantConsumed = consumed === "true";
     const filtered = coupons.filter((coupon) => {
@@ -109,6 +158,8 @@ export const createCoupon = catchAsync(async (req, res) => {
     ...payload,
     code,
     assignedUsers: payload.assignedUsers?.length ? payload.assignedUsers.map((id) => new Types.ObjectId(id)) : [],
+    assignedProducts: payload.assignedProducts?.length ? payload.assignedProducts.map((id) => new Types.ObjectId(id)) : [],
+    assignedMembershipLevels: payload.assignedMembershipLevels?.length ? payload.assignedMembershipLevels : [],
   });
   sendSuccess(res, coupon, "Coupon created", 201);
 });
@@ -128,6 +179,12 @@ export const updateCoupon = catchAsync(async (req, res) => {
       unset.assignedUsers = 1;
       delete update.assignedUsers;
     }
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, "assignedProducts")) {
+    update.assignedProducts = payload.assignedProducts?.map((id) => new Types.ObjectId(id)) || [];
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, "assignedMembershipLevels")) {
+    update.assignedMembershipLevels = payload.assignedMembershipLevels || [];
   }
   if (Object.prototype.hasOwnProperty.call(req.body, "expiresAt") && !payload.expiresAt) {
     unset.expiresAt = 1;
@@ -149,6 +206,52 @@ export const deleteCoupon = catchAsync(async (req, res) => {
   sendSuccess(res, deleted, "Coupon deleted");
 });
 
+export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => {
+  const { items = [], subtotal = 0, deliveryFee = 0 } = req.body as {
+    items?: { productId: string; quantity: number }[];
+    subtotal?: number;
+    deliveryFee?: number;
+  };
+  const now = new Date();
+  const coupons = await Coupon.find({
+    isActive: true,
+    restricted: { $ne: true },
+    $or: [{ expiresAt: null }, { expiresAt: { $gte: now } }, { expiresAt: { $exists: false } }],
+  });
+
+  const priceMap = items.length > 0 ? await getProductPriceMap(items) : new Map<string, number>();
+
+  const available = [];
+  for (const coupon of coupons) {
+    if (coupon.assignedUsers && coupon.assignedUsers.length > 0) {
+      const allowed = coupon.assignedUsers.some((id) => id.toString() === req.user?._id.toString());
+      if (!allowed) continue;
+    }
+    if (coupon.assignedMembershipLevels && coupon.assignedMembershipLevels.length > 0) {
+      const level = req.user?.membershipLevel || "None";
+      if (!coupon.assignedMembershipLevels.includes(level)) continue;
+    }
+    const usedCount = await CouponRedemption.countDocuments({ coupon: coupon._id, user: req.user!._id });
+    if (coupon.usageType === "SINGLE" && usedCount > 0) continue;
+    if (coupon.usageType === "MULTIPLE" && coupon.maxUses && usedCount >= coupon.maxUses) continue;
+
+    const eligibleSubtotal = getEligibleSubtotal(coupon, items, priceMap, subtotal);
+    if (coupon.assignedProducts && coupon.assignedProducts.length > 0 && eligibleSubtotal <= 0) continue;
+
+    const { discount, freeDelivery } = computeCouponDiscount(coupon, eligibleSubtotal, deliveryFee);
+    available.push({
+      _id: coupon._id,
+      code: coupon.code,
+      title: coupon.title,
+      description: coupon.description,
+      freeDelivery,
+      discount,
+    });
+  }
+
+  sendSuccess(res, available);
+});
+
 export const validateCoupon = catchAsync(async (req: AuthRequest, res) => {
   const payload = couponValidateSchema.parse(req.body);
   const code = normalizeCode(payload.code);
@@ -165,6 +268,12 @@ export const validateCoupon = catchAsync(async (req: AuthRequest, res) => {
       return res.status(403).json({ success: false, message: "Coupon not available for this user" });
     }
   }
+  if (coupon.assignedMembershipLevels && coupon.assignedMembershipLevels.length > 0) {
+    const level = req.user?.membershipLevel || "None";
+    if (!coupon.assignedMembershipLevels.includes(level)) {
+      return res.status(403).json({ success: false, message: "Coupon not available for this membership level" });
+    }
+  }
 
   const usedCount = await CouponRedemption.countDocuments({ coupon: coupon._id, user: req.user!._id });
   if (coupon.usageType === "SINGLE" && usedCount > 0) {
@@ -174,19 +283,24 @@ export const validateCoupon = catchAsync(async (req: AuthRequest, res) => {
     return res.status(400).json({ success: false, message: "Coupon usage limit reached" });
   }
 
-  const rawDiscount =
-    coupon.discountType === "PERCENT"
-      ? (payload.subtotal * coupon.discountValue) / 100
-      : coupon.discountValue;
-  const maxTotal = payload.subtotal + (payload.deliveryFee || 0);
-  const discount = coupon.freeDelivery
-    ? 0
-    : Math.max(0, Math.min(maxTotal, rawDiscount));
+  let eligibleSubtotal = payload.subtotal;
+  if (coupon.assignedProducts && coupon.assignedProducts.length > 0) {
+    if (!payload.items || payload.items.length === 0) {
+      return res.status(400).json({ success: false, message: "Coupon items are required" });
+    }
+    const priceMap = await getProductPriceMap(payload.items);
+    eligibleSubtotal = getEligibleSubtotal(coupon, payload.items, priceMap, payload.subtotal);
+    if (eligibleSubtotal <= 0) {
+      return res.status(400).json({ success: false, message: "Coupon not applicable to these items" });
+    }
+  }
+
+  const result = computeCouponDiscount(coupon, eligibleSubtotal, payload.deliveryFee || 0);
   sendSuccess(res, {
     code: coupon.code,
-    discount,
+    discount: result.discount,
     discountType: coupon.discountType,
     discountValue: coupon.discountValue,
-    freeDelivery: coupon.freeDelivery,
+    freeDelivery: result.freeDelivery,
   });
 });
