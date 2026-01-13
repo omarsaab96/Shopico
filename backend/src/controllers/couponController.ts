@@ -276,6 +276,11 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
       description: coupon.description,
       freeDelivery,
       discount,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      maxUses: coupon.maxUses,
+      usageType: coupon.usageType,
+      usedCount: coupon.usedCount
     });
   }
 

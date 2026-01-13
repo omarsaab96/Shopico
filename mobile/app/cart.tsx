@@ -17,6 +17,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import LottieView from "lottie-react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function CartScreen() {
   const router = useRouter();
@@ -38,15 +39,17 @@ export default function CartScreen() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [inputCouponCode, setInputCouponCode] = useState("");
-  const [selectedCoupons, setSelectedCoupons] = useState<Array<{ code: string; discount: number; freeDelivery: boolean }>>([]);
+  const [selectedCoupons, setSelectedCoupons] = useState<Array<{ code: string; discount: number; freeDelivery: boolean; discountType?: string; discountValue?: number }>>([]);
   const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
   const [autoApplyDisabled, setAutoApplyDisabled] = useState(false);
   const [couponError, setCouponError] = useState("");
   const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [couponsLoading, setCouponsLoading] = useState(false);
   const paymentMethods = ["WALLET", "CASH_ON_DELIVERY", "SHAM_CASH"] as const;
   const { height: windowHeight } = useWindowDimensions();
   const [paymentMethod, setPaymentMethod] = useState<typeof paymentMethods[number]>("WALLET");
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [showCouponOptions, setShowCouponOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
@@ -309,10 +312,12 @@ export default function CartScreen() {
     setCheckoutError(null);
     setShowAddresses(false);
     setShowPaymentOptions(false);
+    setShowCouponOptions(false);
     setCheckoutOpen(true);
     setInputCouponCode("");
     setSelectedCoupons([]);
     setAvailableCoupons([]);
+    setCouponsLoading(false);
     setAutoApplyDisabled(false);
     setCouponError("");
     setApplyingCoupon(false);
@@ -356,6 +361,7 @@ export default function CartScreen() {
 
   const fetchAvailableCoupons = useCallback(() => {
     if (!user || !items.length) return;
+    setCouponsLoading(true);
     api
       .post("/coupons/available", {
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
@@ -363,7 +369,8 @@ export default function CartScreen() {
         deliveryFee,
       })
       .then((res) => setAvailableCoupons(res.data.data || []))
-      .catch(() => setAvailableCoupons([]));
+      .catch(() => setAvailableCoupons([]))
+      .finally(() => setCouponsLoading(false));
   }, [user, items, subtotal, deliveryFee]);
 
   useEffect(() => {
@@ -377,8 +384,26 @@ export default function CartScreen() {
     const sorted = [...availableCoupons].sort((a, b) => (b.discount || 0) - (a.discount || 0));
     const best = sorted[0];
     if (!best) return;
-    setSelectedCoupons([{ code: best.code || "", discount: best.discount || 0, freeDelivery: Boolean(best.freeDelivery) }]);
+    setSelectedCoupons([{
+      code: best.code || "",
+      discount: best.discount || 0,
+      freeDelivery: Boolean(best.freeDelivery),
+      discountType: best.discountType,
+      discountValue: best.discountValue,
+    }]);
   }, [availableCoupons, autoApplyDisabled, inputCouponCode, selectedCoupons.length]);
+
+  const renderCouponMetaDb = (coupon: { freeDelivery: boolean; discountType?: string; discountValue?: number; discount?: number }) => {
+    if (coupon.freeDelivery) return t("freeDelivery") ?? "Free delivery";
+    if (coupon.discountType === "PERCENT") return `${Number(coupon.discountValue || 0)}`;
+    if (coupon.discountValue !== undefined) return `-${Number(coupon.discountValue || 0).toLocaleString()} ${t("syp")}`;
+    return `-${Number(coupon.discount || 0).toLocaleString()} ${t("syp")}`;
+  };
+
+  const renderCouponMetaApplied = (coupon: { freeDelivery: boolean; discount?: number }) => {
+    if (coupon.freeDelivery) return t("freeDelivery") ?? "Free delivery";
+    return `-${Number(coupon.discount || 0).toLocaleString()} ${t("syp")}`;
+  };
 
   const applyCoupon = async () => {
     if (!inputCouponCode.trim()) {
@@ -401,7 +426,13 @@ export default function CartScreen() {
       });
       const freeDelivery = Boolean(res.data.data?.freeDelivery);
       const discount = freeDelivery ? 0 : res.data.data?.discount || 0;
-      const next = { code: normalized, discount, freeDelivery };
+      const next = {
+        code: normalized,
+        discount,
+        freeDelivery,
+        discountType: res.data.data?.discountType,
+        discountValue: res.data.data?.discountValue,
+      };
       setSelectedCoupons((prev) => {
         const filtered = prev.filter((c) => c.code.toUpperCase() !== normalized);
         if (!allowMultipleCoupons) return [next];
@@ -425,7 +456,13 @@ export default function CartScreen() {
       const exists = prev.some((c) => c.code.toUpperCase() === normalized);
       const filtered = prev.filter((c) => c.code.toUpperCase() !== normalized);
       if (exists) return filtered;
-      const next = { code: nextCode, discount: coupon.discount || 0, freeDelivery: Boolean(coupon.freeDelivery) };
+      const next = {
+        code: nextCode,
+        discount: coupon.discount || 0,
+        freeDelivery: Boolean(coupon.freeDelivery),
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+      };
       if (!allowMultipleCoupons) return [next];
       return [...filtered, next];
     });
@@ -541,36 +578,38 @@ export default function CartScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <FlatList
-            data={items}
-            keyExtractor={(i) => i.productId}
-            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} />}
-            renderItem={({ item }) => (
-              <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text weight="bold" style={styles.name}>{item.name}</Text>
-                  <Text style={styles.muted}>
-                    {item.price.toLocaleString()} SYP
-                  </Text>
-                </View>
-                <View style={styles.qtyRow}>
+          <>
+            <FlatList
+              data={items}
+              keyExtractor={(i) => i.productId}
+              ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} />}
+              renderItem={({ item }) => (
+                <View style={styles.row}>
+                  <View style={{ flex: 1 }}>
+                    <Text weight="bold" style={styles.name}>{item.name}</Text>
+                    <Text style={styles.muted}>
+                      {item.price.toLocaleString()} SYP
+                    </Text>
+                  </View>
                   <View style={styles.qtyRow}>
-                    <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity - 1)}>
-                      <Text weight="bold" style={styles.qtySymbol}>-</Text>
-                    </TouchableOpacity>
-                    <Text weight="bold" style={styles.qtyValue}>{item.quantity}</Text>
-                    <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity + 1)}>
-                      <Text weight="bold" style={styles.qtySymbol}>+</Text>
+                    <View style={styles.qtyRow}>
+                      <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity - 1)}>
+                        <Text weight="bold" style={styles.qtySymbol}>-</Text>
+                      </TouchableOpacity>
+                      <Text weight="bold" style={styles.qtyValue}>{item.quantity}</Text>
+                      <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity + 1)}>
+                        <Text weight="bold" style={styles.qtySymbol}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity onPress={() => confirmRemove(item.productId)} style={styles.removeFromCartBtn}>
+                      <MaterialIcons name="delete" size={20} color="#fff" />
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity onPress={() => confirmRemove(item.productId)} style={styles.removeFromCartBtn}>
-                    <MaterialIcons name="delete" size={20} color="#fff" />
-                  </TouchableOpacity>
                 </View>
-              </View>
-            )}
-          />
+              )}
+            />
+          </>
         )}
 
         {items.length > 0 && <View style={styles.totalRow}>
@@ -645,7 +684,7 @@ export default function CartScreen() {
         enablePanDownToClose
         backdropComponent={renderBackdrop}
         enableDynamicSizing
-        maxDynamicContentSize={windowHeight * 0.8}
+        maxDynamicContentSize={windowHeight * 0.82}
         footerComponent={customFooter}
         onDismiss={() => {
           setSubmitting(false);
@@ -654,9 +693,11 @@ export default function CartScreen() {
           setHideFooter(false);
           setSuccessOrderId(null);
           setCheckoutOpen(false);
+          setShowCouponOptions(false);
           setInputCouponCode("");
           setSelectedCoupons([]);
           setAvailableCoupons([]);
+          setCouponsLoading(false);
           setAutoApplyDisabled(false);
           setCouponError("");
           setApplyingCoupon(false);
@@ -880,7 +921,7 @@ export default function CartScreen() {
                                 <ActivityIndicator color={palette.accent} size="small" />
                               ) : (
                                 <Text style={[{ fontWeight: '700' }, !walletLoading && walletInsufficient && { color: '#ff5555' }]}>
-                                  {t("balance")}: {walletBalance.toLocaleString()} SYP
+                                  {t("balance")}: {walletBalance.toLocaleString()} {t('syp')}
                                 </Text>
                               )}
                             </View>
@@ -910,55 +951,146 @@ export default function CartScreen() {
                     )}
                   </Animated.View>
 
-                  <View style={{ marginTop: 12, paddingHorizontal: 16 }}>
-                    <Text weight="medium" style={styles.section}>{t("coupon") ?? "Coupon"}</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.couponSlider}
-                      keyboardShouldPersistTaps="handled"
-                    >
-                      {availableCoupons.map((c) => (
-                        <TouchableOpacity
-                          key={c._id || c.code}
-                          style={[
-                            styles.couponPill,
-                            selectedCoupons.some((sel) => sel.code.toUpperCase() === String(c.code || "").toUpperCase()) && styles.couponPillActive,
-                          ]}
-                          onPress={() => applyAvailableCoupon(c)}
-                        >
-                          <Text style={styles.couponPillText}>{c.code}</Text>
-                          {c.freeDelivery ? (
-                            <Text style={styles.couponPillMeta}>{t("freeDelivery") ?? "Free delivery"}</Text>
-                          ) : (
-                            <Text style={styles.couponPillMeta}>-{Number(c.discount || 0).toLocaleString()} SYP</Text>
-                          )}
-                        </TouchableOpacity>
-                      ))}
-                      <View style={[styles.couponPill, styles.couponInputPill]}>
-                        <TextInput
-                          style={styles.couponInput}
-                          placeholder={t("couponCode") ?? "Enter code"}
-                          placeholderTextColor={palette.muted}
-                          value={inputCouponCode}
-                          onChangeText={(value) => {
-                            setInputCouponCode(value);
-                            setCouponError("");
-                            setAutoApplyDisabled(true);
-                          }}
-                          autoCapitalize="characters"
-                        />
-                        <TouchableOpacity style={styles.couponApplyBtn} onPress={applyCoupon} disabled={applyingCoupon}>
-                          {applyingCoupon ? (
-                            <ActivityIndicator size="small" color={palette.accent} />
-                          ) : (
-                            <Text weight="bold" style={styles.addressBtnText}>{t("apply") ?? "Apply"}</Text>
-                          )}
-                        </TouchableOpacity>
+                  <Animated.View
+                    style={{
+                      paddingHorizontal: 16,
+                      opacity: paymentAnim,
+                      // transform: [
+                      //   { translateX: paymentAnim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }) },
+                      // ],
+                    }}
+                  >
+                    <View style={{ marginTop: 12 }}>
+                      <View style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        backgroundColor: palette.surface,
+                        padding: 10,
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                      }}>
+                        <Text weight="medium" style={styles.section}>{t("coupons") ?? "Coupons"}</Text>
+                        {!showCouponOptions ? (
+                          <TouchableOpacity style={styles.addressBtn} onPress={() => setShowCouponOptions(true)}>
+                            <Text weight="bold" style={styles.addressBtnText}>{t("change") ?? "Change"}</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <View style={[styles.couponPill, styles.couponInputPill]}>
+                              <TextInput
+                                style={styles.couponInput}
+                                placeholder={t("couponCode") ?? "Code"}
+                                placeholderTextColor={palette.muted}
+                                value={inputCouponCode}
+                                onChangeText={(value) => {
+                                  setInputCouponCode(value);
+                                  setCouponError("");
+                                  setAutoApplyDisabled(true);
+                                }}
+                                autoCapitalize="characters"
+                              />
+                              <TouchableOpacity style={styles.couponApplyBtn} onPress={applyCoupon} disabled={applyingCoupon}>
+                                {applyingCoupon ? (
+                                  <ActivityIndicator size="small" color={palette.accent} />
+                                ) : (
+                                  <Text weight="bold" style={styles.addressBtnText}>{t("apply") ?? "Apply"}</Text>
+                                )}
+                              </TouchableOpacity>
+                            </View>
+
+                            <TouchableOpacity style={styles.addressBtn} onPress={() => setShowCouponOptions(false)}>
+                              <Text weight="bold" style={styles.addressBtnText}>{t("cancel") ?? "Cancel"}</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
                       </View>
-                    </ScrollView>
-                    {couponError ? <Text style={styles.errorText}>{couponError}</Text> : null}
-                  </View>
+
+                      {!showCouponOptions ? (
+                        <View style={styles.addressBox}>
+                          <View style={{
+                            backgroundColor: "#fff",
+                            padding: 10,
+                            borderRadius: 20,
+                            gap: 6
+                          }}>
+                            {selectedCoupons.length ? (
+                              <View style={styles.couponList}>
+                                {selectedCoupons.map((c) => (
+                                  <View key={c.code} style={[styles.couponPill]}>
+                                    <Text style={styles.couponPillText}>{c.code}</Text>
+                                    <Text style={styles.couponPillMeta}>{renderCouponMetaApplied(c)}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            ) : couponsLoading ? (
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                <ActivityIndicator size="small" color={palette.accent} />
+                              </View>
+                            ) : (
+                              <Text style={styles.sheetText}>{t("noResults") ?? "No coupons selected"}</Text>
+                            )}
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={styles.addressBox}>
+                          <View style={{
+                            backgroundColor: "#fff",
+                            padding: 10,
+                            borderRadius: 20,
+                            gap: 8
+                          }}>
+                            <ScrollView
+                              horizontal
+                              showsHorizontalScrollIndicator={false}
+                              contentContainerStyle={styles.couponSlider}
+                              keyboardShouldPersistTaps="handled"
+                            >
+                              {couponsLoading && (
+                                <View style={[styles.couponPill, styles.couponLoadingPill]}>
+                                  <ActivityIndicator size="small" color={palette.accent} />
+                                  <Text style={styles.sheetText}>{t("loading") ?? "Loading"}...</Text>
+                                </View>
+                              )}
+                              {availableCoupons.map((c) => (
+                                <TouchableOpacity key={c._id || c.code} style={styles.wrapper} onPress={() => applyAvailableCoupon(c)}>
+                                  <View style={styles.coupon}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                      <Text style={styles.percent}>
+                                        {c.freeDelivery
+                                          ? (c.usageType === "SINGLE" ? "1" : c.maxUses-c.usedCount)
+                                          : renderCouponMetaDb(c)}
+                                      </Text>
+                                      {!c.freeDelivery && <View style={{ gap: 0 }}>
+                                        <Text style={styles.percentSign}>%</Text>
+                                        <Text style={styles.off}>OFF</Text>
+                                      </View>}
+                                    </View>
+                                    <Text style={styles.subtitle}>
+                                      {c.freeDelivery ? "Free delivery" : "Discount"}
+                                    </Text>
+                                    {/* <Text style={styles.subtitle}>DISCOUNT COUPON</Text> */}
+
+                                    {/* Side cuts */}
+                                    <View style={[styles.cut, styles.leftCut]} />
+                                    <View style={[styles.cut, styles.rightCut]} />
+                                  </View>
+
+                                  {/* Bottom area */}
+                                  <View style={styles.couponBottom}>
+                                    <Text style={styles.buttonText}>
+                                      Use
+                                    </Text>
+                                  </View>
+                                </TouchableOpacity>
+                              ))}
+                            </ScrollView>
+                            {couponError ? <Text style={styles.errorText}>{couponError}</Text> : null}
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  </Animated.View>
                 </Animated.View>
               )}
             </Animated.View>
@@ -1091,39 +1223,40 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       backgroundColor: palette.card,
     },
     addressBtnText: { color: palette.accent },
-    couponSlider: { gap: 10, paddingVertical: 8, paddingRight: 8 },
+    couponSlider: { gap: 10, paddingRight: 8 },
     couponInput: {
-      flex: 1,
+      width: 90,
+      height: 30,
       color: palette.text,
-      paddingVertical: 2,
-      paddingHorizontal: 0,
+      backgroundColor: palette.card,
+      borderRadius: 10,
+      paddingVertical: 0
     },
     couponInputPill: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      minWidth: 220,
+      padding: 0
+    },
+    couponLoadingPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
     },
     couponApplyBtn: {
       paddingVertical: 4,
       paddingHorizontal: 8,
       borderRadius: 8,
-      borderWidth: 1,
-      borderColor: palette.border,
       backgroundColor: palette.card,
     },
     couponPill: {
-      borderWidth: 1,
-      borderColor: palette.border,
-      borderRadius: 10,
-      paddingVertical: 8,
-      paddingHorizontal: 10,
-      backgroundColor: palette.surface,
-      gap: 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between'
     },
     couponPillActive: { backgroundColor: palette.accent, borderColor: palette.accent },
     couponPillText: { color: palette.text, fontWeight: "700" },
-    couponPillMeta: { color: palette.muted, fontSize: 12 },
+    couponPillMeta: { color: palette.text, fontWeight: "700" },
     pillRow: {
       padding: 10,
       borderRadius: 10,
@@ -1206,4 +1339,81 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       backgroundColor: palette.surface,
     },
     debugBtnText: { color: palette.muted, fontSize: 12 },
+
+
+
+    wrapper: {
+      overflow: "hidden",
+      backgroundColor:palette.accent,
+      width:100,
+      borderRadius:10
+    },
+
+    coupon: {
+      backgroundColor: palette.surface,
+      paddingVertical: 15,
+      alignItems: "center",
+      position: "relative",
+      borderRadius:10
+    },
+
+    percent: {
+      fontSize: 48,
+      fontWeight: "800",
+      color: palette.accent,
+      lineHeight: 48,
+    },
+
+    percentSign: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: palette.accent,
+      lineHeight: 20
+    },
+
+    off: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: palette.accent,
+      lineHeight: 16
+    },
+
+    subtitle: {
+      fontSize: 10,
+      color: isDark ? palette.card : palette.text,
+      opacity: 0.8,
+      letterSpacing: 1,
+      textTransform:'uppercase'
+    },
+
+    cut: {
+      width: 20,
+      height: 10,
+      borderRadius: 10,
+      position: "absolute",
+      left:40,
+    },
+
+    leftCut: {
+      top: -5,      
+      backgroundColor: "#fff",
+    },
+
+    rightCut: {
+      bottom: -5,
+      backgroundColor: palette.accent,
+    },
+
+    couponBottom: {
+      padding:2,
+      alignItems: "center",
+      flexDirection: 'row',
+      gap: 5,
+      justifyContent: 'center',
+      backgroundColor:palette.accent
+    },
+    buttonText:{
+      color:'#fff',
+      fontWeight:'700'
+    }
   });
