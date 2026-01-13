@@ -37,6 +37,8 @@ const baseStrings = {
   light: "Light",
   dark: "Dark",
   usePoints: "Use points reward",
+  use: "Use",
+  used: "Used",
   yes: "Yes",
   no: "No",
   distance: "Distance",
@@ -208,6 +210,9 @@ const arStrings: Record<string, string> = {
   light: "فاتح",
   dark: "داكن",
   usePoints: "استخدم نقاط المكافأة",
+
+  use: "استخدم",
+  used: "مستخدم",
   yes: "نعم",
   no: "لا",
   distance: "المسافة",
