@@ -341,7 +341,7 @@ export default function Home() {
     return () => clearTimeout(handle);
   }, [search]);
 
-  
+
 
   const hasQuery = debouncedSearch.length > 0;
   const searching = loadingProducts && hasQuery;
@@ -649,7 +649,7 @@ export default function Home() {
             columnWrapperStyle={styles.productRow}
             ListHeaderComponent={
               <View>
-                <View style={{ paddingHorizontal: 0,marginBottom:16,gap:10 }}>
+                <View style={{ paddingHorizontal: 0, marginBottom: 16, gap: 10 }}>
                   {renderTopBar()}
                   <View style={styles.greetingWrap}>
                     <View style={styles.greetingCol}>
@@ -729,21 +729,29 @@ export default function Home() {
                           />
                         </View>
 
+                        <View style={{ flexDirection: 'row', justifyContent: 'center', position: 'relative' }}>
+                          {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
+                            <Text style={[styles.promoBadge,]}>
+                              {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
+                            </Text>
+                          ) : null}
+                        </View>
+
                         <Text style={styles.productName} numberOfLines={1}>
                           {item.name}
                         </Text>
 
                         <Text style={styles.productDesc} numberOfLines={2}>
-                          {item.description}
+                          {item.description ? item.description : '-'}
                         </Text>
 
                         <View style={styles.priceRow}>
-                          {item.isPromoted && item.promoPrice !== undefined ? (
-                            <Text style={styles.productOldPrice}>
-                              {item.price.toLocaleString()} {t("syp")}
-                            </Text>
-                          ) : null}
-                          <Text style={styles.productPrice}>
+                          <Text style={[styles.productOldPrice]} numberOfLines={1}>
+                            {item.isPromoted && item.promoPrice !== undefined
+                              && `${item.price.toLocaleString()} ${t("syp")}`
+                            }
+                          </Text>
+                          <Text style={[styles.productPrice]}>
                             {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} {t("syp")}
                           </Text>
                         </View>
@@ -1067,7 +1075,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       gap: 5,
     },
     addressLabel: { color: palette.muted, fontSize: 13, },
-    addressValue: { color: palette.muted, fontSize: 13, fontWeight: "700",textAlign:'left' },
+    addressValue: { color: palette.muted, fontSize: 13, fontWeight: "700", textAlign: 'left' },
 
     walletCard: {
       borderRadius: 20,
@@ -1100,8 +1108,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     walletRow: { flexDirection: 'row', gap: 12, alignItems: "flex-start" },
     walletTextCol: { flex: 1, gap: 8 },
 
-    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", textAlign:'left'  },
-    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign:'left'  },
+    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", textAlign: 'left' },
+    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign: 'left' },
 
     walletBadgeRow: { flexDirection: row, justifyContent: isRTL ? "flex-end" : "flex-start" },
     levelPill: {
@@ -1154,8 +1162,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     searchIcon: {
       position: "absolute",
       top: 14,
-      left: isRTL?undefined:14,
-      right: isRTL?14:undefined,
+      left: isRTL ? undefined : 14,
+      right: isRTL ? 14 : undefined,
       opacity: 0.9,
     },
     searchInput: {
@@ -1168,8 +1176,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     searchRight: {
       position: "absolute",
       top: 14,
-      right: isRTL?undefined:14,
-      left: isRTL?14:undefined
+      right: isRTL ? undefined : 14,
+      left: isRTL ? 14 : undefined
     },
 
     filterBtn: {
@@ -1202,8 +1210,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       alignItems: "center",
       justifyContent: "space-between",
     },
-    sectionTitle: { color: palette.text, fontSize: 16,textAlign:'left' },
-    sectionAction: { color: palette.accent, fontWeight: "900",textAlign:'left' },
+    sectionTitle: { color: palette.text, fontSize: 16, textAlign: 'left' },
+    sectionAction: { color: palette.accent, fontWeight: "900", textAlign: 'left' },
 
     catRow: { gap: 12 },
     catCard: {
@@ -1279,14 +1287,15 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       marginBottom: 10
     },
     productImg: { height: '100%', aspectRatio: 4 / 3, resizeMode: "contain" },
-    productName: { color: palette.text, fontWeight: "900", marginBottom: isRTL?0:4, textAlign:'left' },
-    productDesc: { color: palette.muted, fontSize: 12, marginBottom:  isRTL?0:10, textAlign:'left'  },
+    productName: { color: palette.text, fontWeight: "900", marginBottom: isRTL ? 0 : 4, textAlign: 'left' },
+    productDesc: { color: palette.muted, fontSize: 12, marginBottom: isRTL ? 0 : 10, textAlign: 'left' },
 
     priceRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      marginBottom: 5,
+      // flexDirection: "row",
+      // alignItems: "center",
+      // gap: 0,
+      // marginBottom: 5,
+      // flexWrap: 'wrap'
     },
     productOldPrice: {
       color: palette.muted,
@@ -1294,7 +1303,20 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontSize: 12,
       textDecorationLine: "line-through",
     },
-    productPrice: { color: palette.accent, fontWeight: "900", fontSize: 16 },
+    promoBadge: {
+      backgroundColor: palette.accent,
+      color: "#fff",
+      fontSize: 11,
+      fontWeight: "800",
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 10,
+      borderWidth: 3,
+      borderColor: palette.card,
+      position: 'absolute',
+      bottom: 0
+    },
+    productPrice: { color: palette.accent, fontWeight: "900", fontSize: 16, lineHeight: 16 },
 
     addBtn: {
       backgroundColor: palette.accent,
@@ -1385,7 +1407,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },
     sheetContent: { flex: 1, gap: 6 },
     sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: 'left' },
-    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign:'left' },
+    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign: 'left' },
     sheetPills: { flexDirection: 'row', flexWrap: "wrap", gap: 10 },
 
     pill: {
@@ -1403,7 +1425,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     pillText: { color: palette.text, fontWeight: "800" },
     pillTextActive: { color: palette.text, fontWeight: "900" },
 
-    sheetText: { color: palette.muted, fontWeight: "700",textAlign:'left' },
+    sheetText: { color: palette.muted, fontWeight: "700", textAlign: 'left' },
 
     sheetFooterWrap: {
       flexDirection: row,
@@ -1462,7 +1484,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "space-between",
       gap: 10,
     },
-    kvLabel: { color: palette.muted, textAlign:'left' },
-    kvValue: { color: palette.text, fontWeight: "900", textAlign:'left' },
+    kvLabel: { color: palette.muted, textAlign: 'left' },
+    kvValue: { color: palette.text, fontWeight: "900", textAlign: 'left' },
   });
 };

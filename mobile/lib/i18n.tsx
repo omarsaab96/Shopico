@@ -20,6 +20,7 @@ const baseStrings = {
   addToCart: "Add to cart",
   placeOrder: "Place order",
   placingOrder: "Checking out",
+  placeOrderSentenceLinker:"for",
   login: "Login",
   register: "Create account",
   forgotPassword: "Reset password",
@@ -27,6 +28,7 @@ const baseStrings = {
   password: "Password",
   name: "Full name",
   continue: "Continue",
+  loggingIn:'Logging in',
   backToLogin: "Back to login",
   pushNotifications: "Push notifications",
   language: "Language",
@@ -134,6 +136,9 @@ const baseStrings = {
   startBrowsing: "Start browsing",
   confirmClearCart: "Clear cart?",
   confirmClearCartCopy: "This will remove all items from your cart.",
+  orderPlaced: "Order placed!",
+  orderPlacedCopy: "Your order is confirmed and on its way.",
+  trackOrder: "Track order",
   back: "Back",
   viewAll: "View all",
   tapToSetLocation: "Enter coordinates to set location",
@@ -168,8 +173,9 @@ const baseStrings = {
   WalletBalance: "Wallet balance",
   syp: "SYP",
   km:"Km",
-  alreadyHaveAnAccount:"Already have an account?",
-  addNewAddress:"Add a new address"
+  alreadyHaveAnAccount: "Already have an account?",
+  addNewAddress: "Add a new address",
+  off: "off",
 };
 
 const arStrings: Record<string, string> = {
@@ -184,6 +190,7 @@ const arStrings: Record<string, string> = {
   addToCart: "أضف إلى السلة",
   placeOrder: "تأكيد الطلب",
   placingOrder: "جارٍ إتمام الطلب",
+  placeOrderSentenceLinker:"بقيمة",
   login: "تسجيل الدخول",
   register: "إنشاء حساب",
   forgotPassword: "استعادة كلمة المرور",
@@ -191,6 +198,7 @@ const arStrings: Record<string, string> = {
   password: "كلمة المرور",
   name: "الاسم الكامل",
   continue: "متابعة",
+  loggingIn:'جار تسجيل الدخول',
   backToLogin: "العودة لتسجيل الدخول",
   pushNotifications: "إشعارات الدفع",
   language: "اللغة",

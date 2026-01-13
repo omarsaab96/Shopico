@@ -12,6 +12,7 @@ type CouponDraft = Omit<Coupon, "expiresAt" | "assignedUsers" | "assignedProduct
   assignedUsers?: string[];
   assignedProducts?: string[];
   assignedMembershipLevels?: string[];
+  assignmentType?: "RESTRICTED" | "USERS" | "PRODUCTS" | "LEVELS";
 };
 
 const toIso = (value?: Date | string | null) => {
@@ -102,10 +103,11 @@ const CouponsPage = () => {
       discountValue: 10,
       freeDelivery: false,
       isActive: true,
-      restricted: false,
+      restricted: true,
       assignedUsers: [],
       assignedProducts: [],
       assignedMembershipLevels: [],
+      assignmentType: "RESTRICTED",
     } as CouponDraft);
     setFormError("");
     setUserSearch("");
@@ -124,14 +126,16 @@ const CouponsPage = () => {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     try {
+      const { assignmentType, ...rest } = draft;
+      const restricted = assignmentType === "RESTRICTED";
       const payload = {
-        ...draft,
+        ...rest,
         code: draft.code?.toUpperCase(),
         expiresAt: toIso(draft.expiresAt),
-        assignedUsers: draft.assignedUsers || [],
-        assignedProducts: draft.assignedProducts || [],
-        assignedMembershipLevels: draft.assignedMembershipLevels || [],
-        restricted: Boolean(draft.restricted),
+        assignedUsers: assignmentType === "USERS" ? (draft.assignedUsers || []) : [],
+        assignedProducts: assignmentType === "PRODUCTS" ? (draft.assignedProducts || []) : [],
+        assignedMembershipLevels: assignmentType === "LEVELS" ? (draft.assignedMembershipLevels || []) : [],
+        restricted,
         maxUses: draft.usageType === "MULTIPLE" ? draft.maxUses : undefined,
         discountValue: draft.freeDelivery ? 0 : draft.discountValue,
       };
@@ -148,9 +152,18 @@ const CouponsPage = () => {
   };
 
   const startEdit = (coupon: Coupon) => {
+    const assignmentType =
+      coupon.assignedUsers && coupon.assignedUsers.length > 0
+        ? "USERS"
+        : coupon.assignedProducts && coupon.assignedProducts.length > 0
+          ? "PRODUCTS"
+          : coupon.assignedMembershipLevels && coupon.assignedMembershipLevels.length > 0
+            ? "LEVELS"
+            : "RESTRICTED";
     setEditingId(coupon._id);
     setEditDraft({
       ...coupon,
+      assignmentType,
       assignedUsers: Array.isArray(coupon.assignedUsers)
         ? coupon.assignedUsers.map((u) => (typeof u === "string" ? u : u._id))
         : [],
@@ -167,15 +180,17 @@ const CouponsPage = () => {
   const saveEdit = async () => {
     if (!editingId) return;
     try {
+      const { assignmentType, ...rest } = editDraft;
+      const restricted = assignmentType === "RESTRICTED";
       const payload = {
-        ...editDraft,
+        ...rest,
         _id: editingId,
         code: editDraft.code?.toUpperCase(),
         expiresAt: toIso(editDraft.expiresAt),
-        assignedUsers: editDraft.assignedUsers || [],
-        assignedProducts: editDraft.assignedProducts || [],
-        assignedMembershipLevels: editDraft.assignedMembershipLevels || [],
-        restricted: Boolean(editDraft.restricted),
+        assignedUsers: assignmentType === "USERS" ? (editDraft.assignedUsers || []) : [],
+        assignedProducts: assignmentType === "PRODUCTS" ? (editDraft.assignedProducts || []) : [],
+        assignedMembershipLevels: assignmentType === "LEVELS" ? (editDraft.assignedMembershipLevels || []) : [],
+        restricted,
         maxUses: editDraft.usageType === "MULTIPLE" ? editDraft.maxUses : undefined,
         discountValue: editDraft.freeDelivery ? 0 : editDraft.discountValue,
       };
@@ -656,37 +671,73 @@ const CouponsPage = () => {
                   <td>
                     {editingId === coupon._id ? (
                       <div className="flex align-center">
-                        <span>{getAssignedLabel(editDraft.assignedUsers)}</span>
-                        <button className="ghost-btn" type="button" onClick={() => setShowEditAssigned(true)}>
-                          {t("changeAssigned") || "Change assigned"}
-                        </button>
+                        <select
+                          value={editDraft.assignmentType || "RESTRICTED"}
+                          onChange={(e) =>
+                            setEditDraft({
+                              ...editDraft,
+                              assignmentType: e.target.value as CouponDraft["assignmentType"],
+                              assignedUsers: e.target.value === "USERS" ? editDraft.assignedUsers : [],
+                              assignedProducts: e.target.value === "PRODUCTS" ? editDraft.assignedProducts : [],
+                              assignedMembershipLevels: e.target.value === "LEVELS" ? editDraft.assignedMembershipLevels : [],
+                              restricted: e.target.value === "RESTRICTED",
+                            })
+                          }
+                        >
+                          <option value="RESTRICTED">{t("assignmentRestricted") || "Restricted"}</option>
+                          <option value="USERS">{t("assignmentUsers") || "Users"}</option>
+                          <option value="PRODUCTS">{t("assignmentProducts") || "Products"}</option>
+                          <option value="LEVELS">{t("assignmentLevels") || "Levels"}</option>
+                        </select>
+                        {editDraft.assignmentType === "USERS" && (
+                          <>
+                            <span>{getAssignedLabel(editDraft.assignedUsers)}</span>
+                            <button className="ghost-btn" type="button" onClick={() => setShowEditAssigned(true)}>
+                              {t("changeAssigned") || "Change assigned"}
+                            </button>
+                          </>
+                        )}
                       </div>
                     ) : (
-                      getAssignedLabel(coupon.assignedUsers)
+                      coupon.assignedUsers && coupon.assignedUsers.length > 0
+                        ? getAssignedLabel(coupon.assignedUsers)
+                        : "-"
                     )}
                   </td>
                   <td>
                     {editingId === coupon._id ? (
-                      <div className="flex align-center">
-                        <span>{(editDraft.assignedProducts || []).length || 0}</span>
-                        <button className="ghost-btn" type="button" onClick={() => setShowEditProducts(true)}>
-                          {t("changeProducts") || "Change products"}
-                        </button>
-                      </div>
+                      editDraft.assignmentType === "PRODUCTS" ? (
+                        <div className="flex align-center">
+                          <span>{(editDraft.assignedProducts || []).length || 0}</span>
+                          <button className="ghost-btn" type="button" onClick={() => setShowEditProducts(true)}>
+                            {t("changeProducts") || "Change products"}
+                          </button>
+                        </div>
+                      ) : (
+                        "-"
+                      )
                     ) : (
-                      (coupon.assignedProducts || []).length || 0
+                      coupon.assignedProducts && coupon.assignedProducts.length > 0
+                        ? (coupon.assignedProducts || []).length
+                        : "-"
                     )}
                   </td>
                   <td>
                     {editingId === coupon._id ? (
-                      <div className="flex align-center">
-                        <span>{(editDraft.assignedMembershipLevels || []).length || 0}</span>
-                        <button className="ghost-btn" type="button" onClick={() => setShowEditLevels(true)}>
-                          {t("changeLevels") || "Change levels"}
-                        </button>
-                      </div>
+                      editDraft.assignmentType === "LEVELS" ? (
+                        <div className="flex align-center">
+                          <span>{(editDraft.assignedMembershipLevels || []).length || 0}</span>
+                          <button className="ghost-btn" type="button" onClick={() => setShowEditLevels(true)}>
+                            {t("changeLevels") || "Change levels"}
+                          </button>
+                        </div>
+                      ) : (
+                        "-"
+                      )
                     ) : (
-                      (coupon.assignedMembershipLevels || []).length || 0
+                      coupon.assignedMembershipLevels && coupon.assignedMembershipLevels.length > 0
+                        ? (coupon.assignedMembershipLevels || []).length
+                        : "-"
                     )}
                   </td>
                   <td>
@@ -938,17 +989,56 @@ const CouponsPage = () => {
               </div>
 
               <label>
-                {t("assignedTo") || "Assigned to"}
-                {renderUserSelect(draft.assignedUsers, (ids) => setDraft({ ...draft, assignedUsers: ids }), userSearch, setUserSearch)}
+                {t("assignmentType") || "Assignment"}
+                <div className="tab-row">
+                  {(() => {
+                    const currentType = draft.assignmentType || "RESTRICTED";
+                    return (["RESTRICTED", "USERS", "PRODUCTS", "LEVELS"] as const).map((type) => (
+                      <button
+                        key={type}
+                        className={`tab-btn ${currentType === type ? "active" : ""}`}
+                        type="button"
+                        onClick={() =>
+                          setDraft({
+                            ...draft,
+                            assignmentType: type,
+                            assignedUsers: type === "USERS" ? draft.assignedUsers : [],
+                            assignedProducts: type === "PRODUCTS" ? draft.assignedProducts : [],
+                            assignedMembershipLevels: type === "LEVELS" ? draft.assignedMembershipLevels : [],
+                            restricted: type === "RESTRICTED",
+                          })
+                        }
+                      >
+                        {type === "RESTRICTED"
+                          ? (t("assignmentRestricted") || "Restricted")
+                          : type === "USERS"
+                            ? (t("assignmentUsers") || "Users")
+                            : type === "PRODUCTS"
+                              ? (t("assignmentProducts") || "Products")
+                              : (t("assignmentLevels") || "Levels")}
+                      </button>
+                    ));
+                  })()}
+                </div>
               </label>
-              <label>
-                {t("assignedProducts") || "Products"}
-                {renderProductSelect(draft.assignedProducts, (ids) => setDraft({ ...draft, assignedProducts: ids }), productSearch, setProductSearch)}
-              </label>
-              <label>
-                {t("assignedLevels") || "Membership levels"}
-                {renderLevelSelect(draft.assignedMembershipLevels, (ids) => setDraft({ ...draft, assignedMembershipLevels: ids }), levelSearch, setLevelSearch)}
-              </label>
+              {(draft.assignmentType || "RESTRICTED") === "USERS" && (
+                <label>
+                  {t("assignmentUsers") || "Users"}
+                  {renderUserSelect(draft.assignedUsers, (ids) => setDraft({ ...draft, assignedUsers: ids }), userSearch, setUserSearch)}
+                </label>
+              )}
+              {(draft.assignmentType || "RESTRICTED") === "PRODUCTS" && (
+                <label>
+                  {t("assignedProducts") || "Products"}
+                  {renderProductSelect(draft.assignedProducts, (ids) => setDraft({ ...draft, assignedProducts: ids }), productSearch, setProductSearch)}
+                </label>
+              )}
+              {(draft.assignmentType || "RESTRICTED") === "LEVELS" && (
+                <label>
+                  {t("assignedLevels") || "Membership levels"}
+                  {renderLevelSelect(draft.assignedMembershipLevels, (ids) => setDraft({ ...draft, assignedMembershipLevels: ids }), levelSearch, setLevelSearch)}
+                </label>
+              )}
 
               <label>
                 {t("expires") || "Expires"}
@@ -975,7 +1065,7 @@ const CouponsPage = () => {
                   {t("enabled") || "Enabled"}
                 </label>
               </div>
-              <div className="checkboxContainer">
+              {/* <div className="checkboxContainer">
                 <input
                   id="isRestricted"
                   type="checkbox"
@@ -985,7 +1075,7 @@ const CouponsPage = () => {
                 <label htmlFor="isRestricted">
                   {t("restricted") || "Restricted"}
                 </label>
-              </div>
+              </div> */}
 
               {formError && <div className="error">{formError}</div>}
               <div className="modal-actions">

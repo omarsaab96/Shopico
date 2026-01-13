@@ -167,6 +167,11 @@ export default function CategoryDetail() {
                       <Text weight="bold" style={styles.price}>
                         {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} SYP
                       </Text>
+                      {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
+                        <Text style={styles.promoBadge}>
+                          {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
+                        </Text>
+                      ) : null}
                     </View>
                   </View>
                   <View>
@@ -332,6 +337,15 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       fontSize: 12,
       color: palette.muted,
       textDecorationLine: "line-through",
+    },
+    promoBadge: {
+      backgroundColor: palette.accent,
+      color: "#0f172a",
+      fontSize: 11,
+      fontWeight: "800",
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 8,
     },
     price: {
       fontSize: 16,

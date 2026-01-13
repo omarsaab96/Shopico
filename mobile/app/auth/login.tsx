@@ -1,6 +1,6 @@
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { TextInput, View, StyleSheet, TouchableOpacity } from "react-native";
+import { TextInput, View, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import Button from "../../components/Button";
 import Screen from "../../components/Screen";
 import Text from "../../components/Text";
@@ -12,21 +12,26 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 export default function Login() {
   const { login } = useAuth();
   const router = useRouter();
+  const [loggingIn, setLoggingIn] = useState(false);
   const [email, setEmail] = useState("omar@email.com");
   const [password, setPassword] = useState("Pass@123");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const { palette } = useTheme();
+  const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
-  const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
+  const styles = useMemo(() => createStyles(palette, isDark, isRTL), [palette, isRTL]);
 
   const submit = async () => {
+    setLoggingIn(true)
     try {
-      await login(email, password);
+      const response = await login(email, password);
+      console.log(response)
       router.replace("/(tabs)/store");
     } catch (err) {
       console.error(err);
       setError(t("invalidCredentials"));
+    }finally{
+      setLoggingIn(false)
     }
   };
 
@@ -59,15 +64,22 @@ export default function Login() {
                 placeholderTextColor={palette.muted}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.toggle}>
-                {showPassword ? 
+                {showPassword ?
                   <AntDesign name="eye-invisible" size={20} color="black" />
-                : 
+                  :
                   <AntDesign name="eye" size={20} color="black" />
                 }
               </TouchableOpacity>
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Button title={t("continue")} onPress={submit} />
+
+            <TouchableOpacity style={styles.cta} onPress={() => { submit() }}>
+              <Text style={styles.ctaText}>
+                {loggingIn ? t("loggingIn") : t("login")}
+              </Text>
+              {loggingIn && <ActivityIndicator size={'small'} color={'#fff'} />}
+            </TouchableOpacity>
+
             <View style={styles.row}>
               <Link href="/auth/forgot" style={styles.link}>
                 {t("forgotPassword")}
@@ -83,7 +95,7 @@ export default function Login() {
   );
 }
 
-const createStyles = (palette: any, isRTL: boolean) =>
+const createStyles = (palette: any, isDark: any, isRTL: boolean) =>
   StyleSheet.create({
     hero: { gap: 6, marginBottom: 18 },
     kicker: { color: palette.accent, textAlign: "left" },
@@ -112,10 +124,26 @@ const createStyles = (palette: any, isRTL: boolean) =>
       padding: 12,
       borderWidth: 1,
       borderColor: palette.border,
-      textAlign:isRTL?'right':'left'
+      textAlign: isRTL ? 'right' : 'left'
     },
-    toggle: { position: 'absolute', alignSelf: "flex-end", top: 12, right: isRTL?undefined:10,left: isRTL?10:undefined },
+    toggle: { position: 'absolute', alignSelf: "flex-end", top: 12, right: isRTL ? undefined : 10, left: isRTL ? 10 : undefined },
     error: { color: "#f87171" },
     row: { flexDirection: "row", justifyContent: "space-between" },
     link: { color: palette.accent },
+    cta: {
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: palette.accent,
+      shadowColor: palette.accent,
+      shadowOpacity: isDark ? 0.3 : 0.15,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap:10
+    },
+    ctaText: {
+      color: "#fff", fontSize: 16,fontWeight:'700'
+    }
   });

@@ -13,7 +13,8 @@ export default function TabsLayout() {
   const { t, isRTL, lang } = useI18n();
   const insets = useSafeAreaInsets();
   const { items } = useCart();
-  const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
+  // const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
+  const itemCount = items.length;
   const tabIcons: Record<string, keyof typeof Feather.glyphMap> = {
     store: "home",
     cart: "shopping-cart",

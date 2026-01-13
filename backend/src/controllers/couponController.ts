@@ -10,6 +10,25 @@ import { AuthRequest } from "../types/auth";
 
 const normalizeCode = (code: string) => code.trim().toUpperCase();
 
+const resolveAssignments = (payload: {
+  assignedUsers?: string[] | null;
+  assignedProducts?: string[] | null;
+  assignedMembershipLevels?: string[] | null;
+}) => {
+  const users = payload.assignedUsers || [];
+  const products = payload.assignedProducts || [];
+  const levels = payload.assignedMembershipLevels || [];
+  const hasUsers = users.length > 0;
+  const hasProducts = products.length > 0;
+  const hasLevels = levels.length > 0;
+  const total = Number(hasUsers) + Number(hasProducts) + Number(hasLevels);
+  if (total > 1) return { error: "Coupon can be assigned to only one type" };
+  if (hasUsers) return { users, products: [], levels: [] };
+  if (hasProducts) return { users: [], products, levels: [] };
+  if (hasLevels) return { users: [], products: [], levels };
+  return { users: [], products: [], levels: [] };
+};
+
 const getProductPriceMap = async (items: { productId: string; quantity: number }[]) => {
   const ids = items.map((i) => i.productId);
   const products = await Product.find({ _id: { $in: ids } }).select("_id price promoPrice isPromoted");
@@ -153,13 +172,15 @@ export const createCoupon = catchAsync(async (req, res) => {
   if (payload.freeDelivery && payload.discountValue === undefined) payload.discountValue = 0;
   const error = ensureValidDiscount(payload);
   if (error) return res.status(400).json({ success: false, message: error });
+  const assignments = resolveAssignments(payload);
+  if ("error" in assignments) return res.status(400).json({ success: false, message: assignments.error });
   const code = normalizeCode(payload.code);
   const coupon = await Coupon.create({
     ...payload,
     code,
-    assignedUsers: payload.assignedUsers?.length ? payload.assignedUsers.map((id) => new Types.ObjectId(id)) : [],
-    assignedProducts: payload.assignedProducts?.length ? payload.assignedProducts.map((id) => new Types.ObjectId(id)) : [],
-    assignedMembershipLevels: payload.assignedMembershipLevels?.length ? payload.assignedMembershipLevels : [],
+    assignedUsers: assignments.users.length ? assignments.users.map((id) => new Types.ObjectId(id)) : [],
+    assignedProducts: assignments.products.length ? assignments.products.map((id) => new Types.ObjectId(id)) : [],
+    assignedMembershipLevels: assignments.levels.length ? assignments.levels : [],
   });
   sendSuccess(res, coupon, "Coupon created", 201);
 });
@@ -169,22 +190,31 @@ export const updateCoupon = catchAsync(async (req, res) => {
   if (payload.freeDelivery && payload.discountValue === undefined) payload.discountValue = 0;
   const error = ensureValidDiscount(payload);
   if (error) return res.status(400).json({ success: false, message: error });
+  const assignments = resolveAssignments(payload);
+  if ("error" in assignments) return res.status(400).json({ success: false, message: assignments.error });
   if (payload.code) payload.code = normalizeCode(payload.code);
   const update: Record<string, any> = { ...payload };
   const unset: Record<string, 1> = {};
   if (Object.prototype.hasOwnProperty.call(req.body, "assignedUsers")) {
-    if (payload.assignedUsers && payload.assignedUsers.length > 0) {
-      update.assignedUsers = payload.assignedUsers.map((id) => new Types.ObjectId(id));
-    } else {
-      unset.assignedUsers = 1;
-      delete update.assignedUsers;
-    }
+    update.assignedUsers = assignments.users.map((id) => new Types.ObjectId(id));
   }
   if (Object.prototype.hasOwnProperty.call(req.body, "assignedProducts")) {
-    update.assignedProducts = payload.assignedProducts?.map((id) => new Types.ObjectId(id)) || [];
+    update.assignedProducts = assignments.products.map((id) => new Types.ObjectId(id));
   }
   if (Object.prototype.hasOwnProperty.call(req.body, "assignedMembershipLevels")) {
-    update.assignedMembershipLevels = payload.assignedMembershipLevels || [];
+    update.assignedMembershipLevels = assignments.levels;
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, "assignedUsers") && assignments.users.length === 0) {
+    unset.assignedUsers = 1;
+    delete update.assignedUsers;
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, "assignedProducts") && assignments.products.length === 0) {
+    unset.assignedProducts = 1;
+    delete update.assignedProducts;
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, "assignedMembershipLevels") && assignments.levels.length === 0) {
+    unset.assignedMembershipLevels = 1;
+    delete update.assignedMembershipLevels;
   }
   if (Object.prototype.hasOwnProperty.call(req.body, "expiresAt") && !payload.expiresAt) {
     unset.expiresAt = 1;

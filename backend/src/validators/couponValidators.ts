@@ -21,6 +21,18 @@ export const couponSchema = z.object({
   usageType: z.enum(["SINGLE", "MULTIPLE"]).optional(),
   maxUses: z.number().int().positive().optional(),
   isActive: z.boolean().optional(),
+}).superRefine((value, ctx) => {
+  const hasUsers = (value.assignedUsers || []).length > 0;
+  const hasProducts = (value.assignedProducts || []).length > 0;
+  const hasLevels = (value.assignedMembershipLevels || []).length > 0;
+  const total = Number(hasUsers) + Number(hasProducts) + Number(hasLevels);
+  if (total > 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["assignedUsers"],
+      message: "Coupon can be assigned to only one type",
+    });
+  }
 });
 
 export const couponValidateSchema = z.object({

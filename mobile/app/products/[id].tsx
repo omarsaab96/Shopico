@@ -47,6 +47,11 @@ export default function ProductDetail() {
         <Text style={styles.price}>
           {(product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price)?.toLocaleString()} SYP
         </Text>
+        {product.isPromoted && product.promoPrice !== undefined && product.price > 0 ? (
+          <Text style={styles.promoBadge}>
+            {Math.round((1 - product.promoPrice / product.price) * 100)}% {t("off") ?? "off"}
+          </Text>
+        ) : null}
       </View>
       <Text style={styles.desc}>{product.description}</Text>
       {existing ? (
@@ -117,6 +122,15 @@ const createStyles = (palette: any, isRTL: boolean) =>
       marginVertical: 4,
     },
     oldPrice: { color: palette.muted, fontSize: 14, textDecorationLine: "line-through" },
+    promoBadge: {
+      backgroundColor: palette.accent,
+      color: "#0f172a",
+      fontSize: 11,
+      fontWeight: "800",
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 10,
+    },
     price: { color: palette.accent, fontSize: 18, textAlign: isRTL ? "right" : "left" },
     desc: { color: palette.muted, marginBottom: 12, textAlign: isRTL ? "right" : "left" },
     qtyRow: {
