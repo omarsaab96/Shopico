@@ -29,13 +29,18 @@ const resolveAssignments = (payload: {
   return { users: [], products: [], levels: [] };
 };
 
-const getProductPriceMap = async (items: { productId: string; quantity: number }[]) => {
+type ProductMeta = { price: number; name?: string | null };
+
+const getProductMetaMap = async (items: { productId: string; quantity: number }[]) => {
   const ids = items.map((i) => i.productId);
-  const products = await Product.find({ _id: { $in: ids } }).select("_id price promoPrice isPromoted");
+  const products = await Product.find({ _id: { $in: ids } }).select("_id name price promoPrice isPromoted");
   return new Map(
     products.map((p) => [
       p._id.toString(),
-      p.isPromoted && p.promoPrice !== undefined ? p.promoPrice : p.price,
+      {
+        price: p.isPromoted && p.promoPrice !== undefined ? p.promoPrice : p.price,
+        name: p.name,
+      },
     ])
   );
 };
@@ -43,16 +48,16 @@ const getProductPriceMap = async (items: { productId: string; quantity: number }
 const getEligibleSubtotal = (
   coupon: { assignedProducts?: Types.ObjectId[] },
   items: { productId: string; quantity: number }[],
-  priceMap: Map<string, number>,
+  priceMap: Map<string, ProductMeta>,
   fallbackSubtotal: number
 ) => {
   if (!coupon.assignedProducts || coupon.assignedProducts.length === 0) return fallbackSubtotal;
   const eligibleIds = new Set(coupon.assignedProducts.map((id) => id.toString()));
   return items.reduce((sum, item) => {
     if (!eligibleIds.has(item.productId)) return sum;
-    const price = priceMap.get(item.productId);
-    if (price === undefined) return sum;
-    return sum + price * item.quantity;
+    const meta = priceMap.get(item.productId);
+    if (!meta) return sum;
+    return sum + meta.price * item.quantity;
   }, 0);
 };
 
@@ -158,7 +163,11 @@ export const listCoupons = catchAsync(async (req, res) => {
   if (consumed === "true" || consumed === "false") {
     const wantConsumed = consumed === "true";
     const filtered = coupons.filter((coupon) => {
-      const threshold = coupon.usageType === "SINGLE" ? 1 : (coupon.maxUses ?? Number.POSITIVE_INFINITY);
+      const legacyScope = coupon.maxUsesScope || "PER_USER";
+      const globalCap = coupon.maxUsesGlobal ?? (legacyScope === "GLOBAL" ? coupon.maxUses : undefined);
+      const threshold = coupon.usageType === "SINGLE"
+        ? 1
+        : (globalCap ?? Number.POSITIVE_INFINITY);
       const isConsumed = coupon.usedCount >= threshold;
       return wantConsumed ? isConsumed : !isConsumed;
     });
@@ -249,7 +258,7 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
     $or: [{ expiresAt: null }, { expiresAt: { $gte: now } }, { expiresAt: { $exists: false } }],
   });
 
-  const priceMap = items.length > 0 ? await getProductPriceMap(items) : new Map<string, number>();
+  const priceMap = items.length > 0 ? await getProductMetaMap(items) : new Map<string, ProductMeta>();
 
   const available = [];
   for (const coupon of coupons) {
@@ -261,14 +270,34 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
       const level = req.user?.membershipLevel || "None";
       if (!coupon.assignedMembershipLevels.includes(level)) continue;
     }
-    const usedCount = await CouponRedemption.countDocuments({ coupon: coupon._id, user: req.user!._id });
-    if (coupon.usageType === "SINGLE" && usedCount > 0) continue;
-    if (coupon.usageType === "MULTIPLE" && coupon.maxUses && usedCount >= coupon.maxUses) continue;
+    const userUsedCount = await CouponRedemption.countDocuments({ coupon: coupon._id, user: req.user!._id });
+    const legacyScope = coupon.maxUsesScope || "PER_USER";
+    const maxUsesPerUser = coupon.maxUsesPerUser ?? (legacyScope === "PER_USER" ? coupon.maxUses : undefined);
+    const maxUsesGlobal = coupon.maxUsesGlobal ?? (legacyScope === "GLOBAL" ? coupon.maxUses : undefined);
+    if (coupon.usageType === "SINGLE" && userUsedCount > 0) continue;
+    if (coupon.usageType === "MULTIPLE") {
+      if (maxUsesPerUser && userUsedCount >= maxUsesPerUser) continue;
+      if (maxUsesGlobal && (coupon.usedCount || 0) >= maxUsesGlobal) continue;
+    }
 
     const eligibleSubtotal = getEligibleSubtotal(coupon, items, priceMap, subtotal);
     if (coupon.assignedProducts && coupon.assignedProducts.length > 0 && eligibleSubtotal <= 0) continue;
 
     const { discount, freeDelivery } = computeCouponDiscount(coupon, eligibleSubtotal, deliveryFee);
+    let assignedProductName: string | undefined;
+    if (coupon.assignedProducts && coupon.assignedProducts.length > 0) {
+      if (coupon.assignedProducts.length === 1) {
+        const meta = priceMap.get(coupon.assignedProducts[0].toString());
+        assignedProductName = meta?.name ?? undefined;
+      } else {
+        const assignedIds = new Set(coupon.assignedProducts.map((id) => id.toString()));
+        const matched = items.find((item) => assignedIds.has(item.productId));
+        if (matched) {
+          assignedProductName = priceMap.get(matched.productId)?.name ?? undefined;
+        }
+      }
+    }
+
     available.push({
       _id: coupon._id,
       code: coupon.code,
@@ -279,8 +308,13 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
       discountType: coupon.discountType,
       discountValue: coupon.discountValue,
       maxUses: coupon.maxUses,
+      maxUsesScope: legacyScope,
+      maxUsesPerUser,
+      maxUsesGlobal,
       usageType: coupon.usageType,
-      usedCount: coupon.usedCount
+      usedCount: coupon.usedCount,
+      userUsedCount,
+      assignedProductName,
     });
   }
 
@@ -310,12 +344,20 @@ export const validateCoupon = catchAsync(async (req: AuthRequest, res) => {
     }
   }
 
-  const usedCount = await CouponRedemption.countDocuments({ coupon: coupon._id, user: req.user!._id });
-  if (coupon.usageType === "SINGLE" && usedCount > 0) {
+  const userUsedCount = await CouponRedemption.countDocuments({ coupon: coupon._id, user: req.user!._id });
+  const legacyScope = coupon.maxUsesScope || "PER_USER";
+  const maxUsesPerUser = coupon.maxUsesPerUser ?? (legacyScope === "PER_USER" ? coupon.maxUses : undefined);
+  const maxUsesGlobal = coupon.maxUsesGlobal ?? (legacyScope === "GLOBAL" ? coupon.maxUses : undefined);
+  if (coupon.usageType === "SINGLE" && userUsedCount > 0) {
     return res.status(400).json({ success: false, message: "Coupon already used" });
   }
-  if (coupon.usageType === "MULTIPLE" && coupon.maxUses && usedCount >= coupon.maxUses) {
-    return res.status(400).json({ success: false, message: "Coupon usage limit reached" });
+  if (coupon.usageType === "MULTIPLE") {
+    if (maxUsesPerUser && userUsedCount >= maxUsesPerUser) {
+      return res.status(400).json({ success: false, message: "Coupon usage limit reached" });
+    }
+    if (maxUsesGlobal && (coupon.usedCount || 0) >= maxUsesGlobal) {
+      return res.status(400).json({ success: false, message: "Coupon usage limit reached" });
+    }
   }
 
   let eligibleSubtotal = payload.subtotal;
@@ -323,7 +365,7 @@ export const validateCoupon = catchAsync(async (req: AuthRequest, res) => {
     if (!payload.items || payload.items.length === 0) {
       return res.status(400).json({ success: false, message: "Coupon items are required" });
     }
-    const priceMap = await getProductPriceMap(payload.items);
+    const priceMap = await getProductMetaMap(payload.items);
     eligibleSubtotal = getEligibleSubtotal(coupon, payload.items, priceMap, payload.subtotal);
     if (eligibleSubtotal <= 0) {
       return res.status(400).json({ success: false, message: "Coupon not applicable to these items" });
@@ -337,5 +379,12 @@ export const validateCoupon = catchAsync(async (req: AuthRequest, res) => {
     discountType: coupon.discountType,
     discountValue: coupon.discountValue,
     freeDelivery: result.freeDelivery,
+    usageType: coupon.usageType,
+    maxUses: coupon.maxUses,
+    maxUsesScope: legacyScope,
+    maxUsesPerUser,
+    maxUsesGlobal,
+    usedCount: coupon.usedCount,
+    userUsedCount,
   });
 });

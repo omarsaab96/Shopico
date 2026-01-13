@@ -135,12 +135,20 @@ const applyCoupon = async (
       throw { status: 403, message: "Coupon not available for this membership level" };
     }
   }
-  const usedCount = await CouponRedemption.countDocuments({ coupon: coupon._id, user: userId });
-  if (coupon.usageType === "SINGLE" && usedCount > 0) {
+  const userUsedCount = await CouponRedemption.countDocuments({ coupon: coupon._id, user: userId });
+  const legacyScope = coupon.maxUsesScope || "PER_USER";
+  const maxUsesPerUser = coupon.maxUsesPerUser ?? (legacyScope === "PER_USER" ? coupon.maxUses : undefined);
+  const maxUsesGlobal = coupon.maxUsesGlobal ?? (legacyScope === "GLOBAL" ? coupon.maxUses : undefined);
+  if (coupon.usageType === "SINGLE" && userUsedCount > 0) {
     throw { status: 400, message: "Coupon already used" };
   }
-  if (coupon.usageType === "MULTIPLE" && coupon.maxUses && usedCount >= coupon.maxUses) {
-    throw { status: 400, message: "Coupon usage limit reached" };
+  if (coupon.usageType === "MULTIPLE") {
+    if (maxUsesPerUser && userUsedCount >= maxUsesPerUser) {
+      throw { status: 400, message: "Coupon usage limit reached" };
+    }
+    if (maxUsesGlobal && (coupon.usedCount || 0) >= maxUsesGlobal) {
+      throw { status: 400, message: "Coupon usage limit reached" };
+    }
   }
   let eligibleSubtotal = subtotal;
   if (coupon.assignedProducts && coupon.assignedProducts.length > 0) {

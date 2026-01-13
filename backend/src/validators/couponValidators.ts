@@ -20,6 +20,9 @@ export const couponSchema = z.object({
   assignedMembershipLevels: z.array(z.string()).optional().nullable(),
   usageType: z.enum(["SINGLE", "MULTIPLE"]).optional(),
   maxUses: z.number().int().positive().optional(),
+  maxUsesScope: z.enum(["PER_USER", "GLOBAL"]).optional(),
+  maxUsesPerUser: z.number().int().positive().optional(),
+  maxUsesGlobal: z.number().int().positive().optional(),
   isActive: z.boolean().optional(),
 }).superRefine((value, ctx) => {
   const hasUsers = (value.assignedUsers || []).length > 0;

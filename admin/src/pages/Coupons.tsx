@@ -99,6 +99,8 @@ const CouponsPage = () => {
   const openNewModal = () => {
     setDraft({
       usageType: "SINGLE",
+      maxUsesPerUser: undefined,
+      maxUsesGlobal: undefined,
       discountType: "PERCENT",
       discountValue: 10,
       freeDelivery: false,
@@ -136,7 +138,8 @@ const CouponsPage = () => {
         assignedProducts: assignmentType === "PRODUCTS" ? (draft.assignedProducts || []) : [],
         assignedMembershipLevels: assignmentType === "LEVELS" ? (draft.assignedMembershipLevels || []) : [],
         restricted,
-        maxUses: draft.usageType === "MULTIPLE" ? draft.maxUses : undefined,
+        maxUsesPerUser: draft.usageType === "MULTIPLE" ? draft.maxUsesPerUser : undefined,
+        maxUsesGlobal: draft.usageType === "MULTIPLE" ? draft.maxUsesGlobal : undefined,
         discountValue: draft.freeDelivery ? 0 : draft.discountValue,
       };
       const saved = await saveCoupon(payload);
@@ -152,6 +155,9 @@ const CouponsPage = () => {
   };
 
   const startEdit = (coupon: Coupon) => {
+    const legacyScope = coupon.maxUsesScope || "PER_USER";
+    const resolvedPerUser = coupon.maxUsesPerUser ?? (legacyScope === "PER_USER" ? coupon.maxUses : undefined);
+    const resolvedGlobal = coupon.maxUsesGlobal ?? (legacyScope === "GLOBAL" ? coupon.maxUses : undefined);
     const assignmentType =
       coupon.assignedUsers && coupon.assignedUsers.length > 0
         ? "USERS"
@@ -171,6 +177,8 @@ const CouponsPage = () => {
         ? coupon.assignedProducts.map((p) => (typeof p === "string" ? p : p._id))
         : [],
       assignedMembershipLevels: coupon.assignedMembershipLevels || [],
+      maxUsesPerUser: resolvedPerUser,
+      maxUsesGlobal: resolvedGlobal,
     });
     setEditError("");
     setEditUserSearch("");
@@ -191,7 +199,8 @@ const CouponsPage = () => {
         assignedProducts: assignmentType === "PRODUCTS" ? (editDraft.assignedProducts || []) : [],
         assignedMembershipLevels: assignmentType === "LEVELS" ? (editDraft.assignedMembershipLevels || []) : [],
         restricted,
-        maxUses: editDraft.usageType === "MULTIPLE" ? editDraft.maxUses : undefined,
+        maxUsesPerUser: editDraft.usageType === "MULTIPLE" ? editDraft.maxUsesPerUser : undefined,
+        maxUsesGlobal: editDraft.usageType === "MULTIPLE" ? editDraft.maxUsesGlobal : undefined,
         discountValue: editDraft.freeDelivery ? 0 : editDraft.discountValue,
       };
       const saved = await saveCoupon(payload);
@@ -633,20 +642,39 @@ const CouponsPage = () => {
                           <option value="MULTIPLE">{t("multiUse") || "Multiple"}</option>
                         </select>
                         {editDraft.usageType === "MULTIPLE" && (
-                          <input
-                            type="number"
-                            placeholder={t("maxUses") || "Max uses"}
-                            value={editDraft.maxUses ?? ""}
-                            onChange={(e) =>
-                              setEditDraft({ ...editDraft, maxUses: e.target.value ? Number(e.target.value) : undefined })
-                            }
-                          />
+                          <>
+                            <input
+                              type="number"
+                              placeholder={t("maxUsesPerUser") || "Max per user"}
+                              value={editDraft.maxUsesPerUser ?? ""}
+                              onChange={(e) =>
+                                setEditDraft({ ...editDraft, maxUsesPerUser: e.target.value ? Number(e.target.value) : undefined })
+                              }
+                            />
+                            <input
+                              type="number"
+                              placeholder={t("maxUsesGlobal") || "Max global"}
+                              value={editDraft.maxUsesGlobal ?? ""}
+                              onChange={(e) =>
+                                setEditDraft({ ...editDraft, maxUsesGlobal: e.target.value ? Number(e.target.value) : undefined })
+                              }
+                            />
+                          </>
                         )}
                       </div>
                     ) : (
                       coupon.usageType === "SINGLE"
                         ? (t("singleUse") || "Single")
-                        : `${t("multiUse") || "Multiple"}${coupon.maxUses ? ` (${t("maxUses") || "Max"} ${coupon.maxUses})` : ""}`
+                        : (() => {
+                          const legacyScope = coupon.maxUsesScope || "PER_USER";
+                          const perUser = coupon.maxUsesPerUser ?? (legacyScope === "PER_USER" ? coupon.maxUses : undefined);
+                          const global = coupon.maxUsesGlobal ?? (legacyScope === "GLOBAL" ? coupon.maxUses : undefined);
+                          if (!perUser && !global) return t("multiUse") || "Multiple";
+                          const parts = [];
+                          if (perUser) parts.push(`${t("perUser") || "Per user"} ${perUser}`);
+                          if (global) parts.push(`${t("global") || "Global"} ${global}`);
+                          return `${t("multiUse") || "Multiple"} (${parts.join(" / ")})`;
+                        })()
                     )}
                   </td>
                   <td>{coupon.usedCount ?? 0}</td>
@@ -978,14 +1006,26 @@ const CouponsPage = () => {
                   </select>
                 </label>
 
-                <label style={{ flex: 1, marginBottom: 0, opacity: draft.usageType === "MULTIPLE" ? 1 : 0 }}>
-                  {t("maxUses") || "Max uses"}
-                  <input
-                    type="number"
-                    value={draft.maxUses ?? ""}
-                    onChange={(e) => setDraft({ ...draft, maxUses: e.target.value ? Number(e.target.value) : undefined })}
-                  />
-                </label>
+                {draft.usageType === "MULTIPLE" && (
+                  <>
+                    <label style={{ flex: 1, marginBottom: 0 }}>
+                      {t("maxUsesPerUser") || "Max per user"}
+                      <input
+                        type="number"
+                        value={draft.maxUsesPerUser ?? ""}
+                        onChange={(e) => setDraft({ ...draft, maxUsesPerUser: e.target.value ? Number(e.target.value) : undefined })}
+                      />
+                    </label>
+                    <label style={{ flex: 1, marginBottom: 0 }}>
+                      {t("maxUsesGlobal") || "Max global"}
+                      <input
+                        type="number"
+                        value={draft.maxUsesGlobal ?? ""}
+                        onChange={(e) => setDraft({ ...draft, maxUsesGlobal: e.target.value ? Number(e.target.value) : undefined })}
+                      />
+                    </label>
+                  </>
+                )}
               </div>
 
               <label>

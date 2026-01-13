@@ -102,6 +102,7 @@ export interface Announcement {
 
 export type CouponDiscountType = "PERCENT" | "FIXED";
 export type CouponUsageType = "SINGLE" | "MULTIPLE";
+export type CouponMaxUsesScope = "PER_USER" | "GLOBAL";
 
 export interface Coupon {
   _id: string;
@@ -118,6 +119,9 @@ export interface Coupon {
   assignedMembershipLevels?: string[] | null;
   usageType: CouponUsageType;
   maxUses?: number;
+  maxUsesScope?: CouponMaxUsesScope;
+  maxUsesPerUser?: number;
+  maxUsesGlobal?: number;
   usedCount?: number;
   isActive: boolean;
   createdAt?: string;

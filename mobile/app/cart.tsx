@@ -1,7 +1,8 @@
 import { Link } from "expo-router";
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, Pressable, TouchableOpacity, Image, FlatList, RefreshControl, ActivityIndicator, ScrollView, Animated, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, Pressable, TouchableOpacity, Image, FlatList, RefreshControl, ActivityIndicator, Animated, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform } from "react-native";
+import { ScrollView as GestureScrollView } from "react-native-gesture-handler";
 import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetFooter, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -18,6 +19,9 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import LottieView from "lottie-react-native";
 import { Ionicons } from "@expo/vector-icons";
+
+const COUPON_CARD_GAP = 15;
+const COUPON_CARD_MAX_WIDTH = 200;
 
 export default function CartScreen() {
   const router = useRouter();
@@ -74,6 +78,8 @@ export default function CartScreen() {
   const [successHeight, setSuccessHeight] = useState(0);
   const [footerHeight, setFooterHeight] = useState(0);
   const lottieRef = useRef(null);
+  const couponScrollRef = useRef<any>(null);
+  const pendingCouponScrollToEnd = useRef(false);
 
   const disableAutoApply = () => {
     autoApplyDisabledRef.current = true;
@@ -404,16 +410,59 @@ export default function CartScreen() {
     }]);
   }, [availableCoupons, autoApplyDisabled, inputCouponCode, selectedCoupons.length]);
 
+  useEffect(() => {
+    if (!pendingCouponScrollToEnd.current) return;
+    if (!showCouponOptions) return;
+    pendingCouponScrollToEnd.current = false;
+    requestAnimationFrame(() => {
+      couponScrollRef.current?.scrollToEnd?.({ animated: true });
+    });
+  }, [availableCoupons.length, showCouponOptions]);
+
   const renderCouponMetaDb = (coupon: { freeDelivery: boolean; discountType?: string; discountValue?: number; discount?: number }) => {
     if (coupon.freeDelivery) return t("freeDelivery") ?? "Free delivery";
     if (coupon.discountType === "PERCENT") return `${Number(coupon.discountValue || 0)}`;
-    if (coupon.discountValue !== undefined) return `-${Number(coupon.discountValue || 0).toLocaleString()} ${t("syp")}`;
-    return `-${Number(coupon.discount || 0).toLocaleString()} ${t("syp")}`;
+    if (coupon.discountValue !== undefined) return `-${Number(coupon.discountValue || 0).toLocaleString()}`;
+    return `-${Number(coupon.discount || 0).toLocaleString()}`;
   };
 
   const renderCouponMetaApplied = (coupon: { freeDelivery: boolean; discount?: number }) => {
     if (coupon.freeDelivery) return t("freeDelivery") ?? "Free delivery";
     return `-${Number(coupon.discount || 0).toLocaleString()} ${t("syp")}`;
+  };
+
+  const renderCouponUsesLeft = (coupon: {
+    usageType?: string;
+    maxUses?: number;
+    maxUsesScope?: string;
+    maxUsesPerUser?: number;
+    maxUsesGlobal?: number;
+    usedCount?: number;
+    userUsedCount?: number;
+  }) => {
+    if (coupon.usageType === "SINGLE") return "1";
+    const legacyScope = coupon.maxUsesScope || "PER_USER";
+    const perUserLimit = coupon.maxUsesPerUser ?? (legacyScope === "PER_USER" ? coupon.maxUses : undefined);
+    const globalLimit = coupon.maxUsesGlobal ?? (legacyScope === "GLOBAL" ? coupon.maxUses : undefined);
+    const perUserRemaining = perUserLimit !== undefined
+      ? Math.max(0, perUserLimit - (coupon.userUsedCount ?? 0))
+      : undefined;
+    const globalRemaining = globalLimit !== undefined
+      ? Math.max(0, globalLimit - (coupon.usedCount ?? 0))
+      : undefined;
+    if (perUserRemaining === undefined && globalRemaining === undefined) return "N/A";
+    if (perUserRemaining === undefined) return String(globalRemaining);
+    if (globalRemaining === undefined) return String(perUserRemaining);
+    return String(Math.min(perUserRemaining, globalRemaining));
+  };
+
+  const formatFixedParts = (value: number) => {
+    const formatted = Number(value || 0).toLocaleString();
+    const sign = formatted.startsWith("-") ? "-" : "";
+    const unsigned = sign ? formatted.slice(1) : formatted;
+    const match = unsigned.match(/^([^,.]+)(.*)$/);
+    if (!match) return { main: formatted, tail: "" };
+    return { main: `${sign}${match[1]}`, tail: match[2] || "" };
   };
 
   const isCouponSelected = useCallback((code: string) => {
@@ -450,6 +499,28 @@ export default function CartScreen() {
         discountType: res.data.data?.discountType,
         discountValue: res.data.data?.discountValue,
       };
+      setAvailableCoupons((prev) => {
+        const exists = prev.some((c) => String(c.code || "").toUpperCase() === normalized);
+        if (exists) return prev;
+        pendingCouponScrollToEnd.current = true;
+        return [
+          ...prev,
+          {
+            code: normalized,
+            discount,
+            freeDelivery,
+            discountType: res.data.data?.discountType,
+            discountValue: res.data.data?.discountValue,
+            usageType: res.data.data?.usageType || "SINGLE",
+            maxUses: res.data.data?.maxUses,
+            maxUsesScope: res.data.data?.maxUsesScope,
+            maxUsesPerUser: res.data.data?.maxUsesPerUser,
+            maxUsesGlobal: res.data.data?.maxUsesGlobal,
+            usedCount: res.data.data?.usedCount ?? 0,
+            userUsedCount: res.data.data?.userUsedCount ?? 0,
+          },
+        ];
+      });
       setSelectedCoupons((prev) => {
         const filtered = prev.filter((c) => c.code.toUpperCase() !== normalized);
         if (!allowMultipleCoupons) return [next];
@@ -995,8 +1066,11 @@ export default function CartScreen() {
                         ) : (
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                             <View style={[styles.couponPill, styles.couponInputPill]}>
+                              {couponError &&
+                                <FontAwesome6 name="circle-exclamation" size={14} color="#ff5555" />
+                              }
                               <TextInput
-                                style={styles.couponInput}
+                                style={[styles.couponInput,couponError && {borderWidth:1,borderColor:'#ff5555'}]}
                                 placeholder={t("couponCode") ?? "Code"}
                                 placeholderTextColor={palette.muted}
                                 value={inputCouponCode}
@@ -1005,7 +1079,7 @@ export default function CartScreen() {
                                   setCouponError("");
                                   disableAutoApply();
                                 }}
-                                autoCapitalize="characters"
+                                autoCapitalize="sentences"
                               />
                               <TouchableOpacity style={styles.couponApplyBtn} onPress={applyCoupon} disabled={applyingCoupon}>
                                 {applyingCoupon ? (
@@ -1017,7 +1091,7 @@ export default function CartScreen() {
                             </View>
 
                             <TouchableOpacity style={styles.addressBtn} onPress={() => setShowCouponOptions(false)}>
-                              <Text weight="bold" style={styles.addressBtnText}>{t("cancel") ?? "Cancel"}</Text>
+                              <Text weight="bold" style={styles.addressBtnText}>{t("done") ?? "Done"}</Text>
                             </TouchableOpacity>
                           </View>
                         )}
@@ -1056,11 +1130,13 @@ export default function CartScreen() {
                             borderRadius: 20,
                             gap: 8
                           }}>
-                            <ScrollView
+                            <GestureScrollView
+                              ref={couponScrollRef}
                               horizontal
                               showsHorizontalScrollIndicator={false}
                               contentContainerStyle={styles.couponSlider}
                               keyboardShouldPersistTaps="handled"
+                              nestedScrollEnabled
                             >
                               {couponsLoading && (
                                 <View style={[styles.couponPill, styles.couponLoadingPill]}>
@@ -1072,20 +1148,34 @@ export default function CartScreen() {
                                 // {isCouponSelected(c.code) &&}
                                 <Pressable key={c._id || c.code} style={styles.wrapper} onPress={() => applyAvailableCoupon(c)}>
                                   <View style={styles.coupon}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <View style={{ flexDirection: 'row', alignItems: c.discountType === "FIXED" ? 'baseline' : 'center' }}>
                                       <Text style={styles.percent}>
                                         {c.freeDelivery
-                                          ? (c.usageType === "SINGLE" ? "1" : c.maxUses - c.usedCount)
-                                          : renderCouponMetaDb(c)}
+                                          ? renderCouponUsesLeft(c)
+                                          : c.discountType === "FIXED"
+                                            ? (() => {
+                                              const parts = formatFixedParts(c.discountValue ?? c.discount ?? 0);
+                                              return (
+                                                <>
+                                                  {parts.main}
+                                                  {parts.tail ? <Text style={styles.percentMinor}>{parts.tail}</Text> : null}
+                                                </>
+                                              );
+                                            })()
+                                            : renderCouponMetaDb(c)}
                                       </Text>
-                                      {!c.freeDelivery && <View style={{ gap: 0 }}>
+                                      {!c.freeDelivery && c.discountType == "PERCENT" && <View style={{ gap: 0 }}>
                                         <Text style={styles.percentSign}>%</Text>
                                         <Text style={styles.off}>OFF</Text>
                                       </View>}
+                                      {!c.freeDelivery && c.discountType == "FIXED" && <View style={{ gap: 0 }}>
+                                        <Text style={styles.percentSign}>{t('syp')}</Text>
+                                      </View>}
                                     </View>
-                                    <Text style={styles.subtitle}>
-                                      {c.freeDelivery ? "Free delivery" : "Discount"}
+                                    <Text style={styles.subtitle} numberOfLines={1}>
+                                      {c.freeDelivery ? "Free delivery" : "Discount"} {c.assignedProductName && ` - ${c.assignedProductName}`}
                                     </Text>
+
                                     {/* <Text style={styles.subtitle}>DISCOUNT COUPON</Text> */}
 
                                     {/* Side cuts */}
@@ -1105,8 +1195,8 @@ export default function CartScreen() {
                                   </View>
                                 </Pressable>
                               ))}
-                            </ScrollView>
-                            {couponError ? <Text style={styles.errorText}>{couponError}</Text> : null}
+                            </GestureScrollView>
+
                           </View>
                         </View>
                       )}
@@ -1244,7 +1334,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       backgroundColor: palette.card,
     },
     addressBtnText: { color: palette.accent },
-    couponSlider: { gap: 15, paddingHorizontal: 8 },
+    couponSlider: { gap: COUPON_CARD_GAP, paddingHorizontal: 8 },
     couponInput: {
       width: 90,
       height: 30,
@@ -1364,28 +1454,28 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
 
 
     wrapper: {
-      marginTop:10,
-      marginBottom:15,
+      marginTop: 10,
+      marginBottom: 15,
       // overflow: "hidden",
       backgroundColor: palette.accent,
-      width: 100,
+      maxWidth: COUPON_CARD_MAX_WIDTH,
       borderRadius: 10,
-      // iOS shadow
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.25,
-      shadowRadius: 10,
+      // // iOS shadow
+      // shadowColor: "#000",
+      // shadowOffset: { width: 0, height: 6 },
+      // shadowOpacity: 0.25,
+      // shadowRadius: 10,
 
-      // Android shadow
-      elevation: 8,
+      // // Android shadow
+      // elevation: 8,
     },
 
     coupon: {
       backgroundColor: palette.surface,
-      paddingVertical: 15,
+      padding: 15,
       alignItems: "center",
       position: "relative",
-      borderRadius: 10
+      borderRadius: 10,
     },
 
     percent: {
@@ -1393,6 +1483,12 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       fontWeight: "800",
       color: palette.accent,
       lineHeight: 48,
+    },
+    percentMinor: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: palette.accent,
+      lineHeight: 24,
     },
 
     percentSign: {
@@ -1416,13 +1512,20 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       letterSpacing: 1,
       textTransform: 'uppercase'
     },
+    couponProductName: {
+      fontSize: 10,
+      color: palette.text,
+      opacity: 0.7,
+      textAlign: "center",
+    },
 
     cut: {
       width: 20,
       height: 10,
       borderRadius: 10,
       position: "absolute",
-      left: 40,
+      left: '50%',
+      marginLeft: 5,
     },
 
     check: {

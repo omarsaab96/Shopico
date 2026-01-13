@@ -2,6 +2,7 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export type CouponDiscountType = "PERCENT" | "FIXED";
 export type CouponUsageType = "SINGLE" | "MULTIPLE";
+export type CouponMaxUsesScope = "PER_USER" | "GLOBAL";
 
 export interface ICoupon extends Document {
   code: string;
@@ -17,6 +18,9 @@ export interface ICoupon extends Document {
   assignedMembershipLevels?: string[];
   usageType: CouponUsageType;
   maxUses?: number;
+  maxUsesScope?: CouponMaxUsesScope;
+  maxUsesPerUser?: number;
+  maxUsesGlobal?: number;
   usedCount: number;
   isActive: boolean;
   createdAt: Date;
@@ -38,6 +42,9 @@ const CouponSchema = new Schema<ICoupon>(
     assignedMembershipLevels: { type: [String], default: [] },
     usageType: { type: String, enum: ["SINGLE", "MULTIPLE"], default: "SINGLE" },
     maxUses: { type: Number },
+    maxUsesScope: { type: String, enum: ["PER_USER", "GLOBAL"], default: "PER_USER" },
+    maxUsesPerUser: { type: Number },
+    maxUsesGlobal: { type: Number },
     usedCount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },
