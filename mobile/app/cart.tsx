@@ -1,7 +1,7 @@
 import { Link } from "expo-router";
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, TouchableOpacity, Image, FlatList, RefreshControl, ActivityIndicator, ScrollView, Animated, useWindowDimensions } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Image, FlatList, RefreshControl, ActivityIndicator, ScrollView, Animated, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetFooter, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -33,6 +33,16 @@ export default function CartScreen() {
   const [selectedAddress, setSelectedAddress] = useState<any | null>(null);
   const [settings, setSettings] = useState<any | null>(null);
   const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [inputCouponCode, setInputCouponCode] = useState("");
+  const [selectedCoupons, setSelectedCoupons] = useState<Array<{ code: string; discount: number; freeDelivery: boolean }>>([]);
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [autoApplyDisabled, setAutoApplyDisabled] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
   const paymentMethods = ["WALLET", "CASH_ON_DELIVERY", "SHAM_CASH"] as const;
   const { height: windowHeight } = useWindowDimensions();
   const [paymentMethod, setPaymentMethod] = useState<typeof paymentMethods[number]>("WALLET");
@@ -61,6 +71,12 @@ export default function CartScreen() {
   const [footerHeight, setFooterHeight] = useState(0);
   const lottieRef = useRef(null);
 
+  useEffect(() => {
+    if (!checkoutSuccess) {
+      footerPaddingAnim.setValue(footerHeight + 24);
+    }
+  }, [checkoutSuccess, footerHeight, footerPaddingAnim]);
+
 
   useEffect(() => {
     AsyncStorage.getItem("cart-remove-skip").then((val) => setSkipConfirm(val === "true"));
@@ -73,26 +89,35 @@ export default function CartScreen() {
   };
 
   const loadSettings = () => {
-    api.get("/settings").then((res) => setSettings(res.data.data)).catch(() => setSettings(null));
+    setSettingsLoading(true);
+    api.get("/settings")
+      .then((res) => setSettings(res.data.data))
+      .catch(() => setSettings(null))
+      .finally(() => setSettingsLoading(false));
   };
 
   const loadWallet = () => {
     if (!user) {
       setWalletBalance(0);
+      setWalletLoading(false);
       return;
     }
+    setWalletLoading(true);
     api
       .get("/wallet")
       .then((res) => setWalletBalance(res.data.data.wallet?.balance || 0))
-      .catch(() => setWalletBalance(0));
+      .catch(() => setWalletBalance(0))
+      .finally(() => setWalletLoading(false));
   };
 
   const loadAddresses = () => {
     if (!user) {
       setAddresses([]);
       setSelectedAddress(null);
+      setAddressesLoading(false);
       return;
     }
+    setAddressesLoading(true);
     api.get("/addresses")
       .then((res) => {
         const list = res.data.data || [];
@@ -109,7 +134,8 @@ export default function CartScreen() {
       .catch(() => {
         setAddresses([]);
         setSelectedAddress(null);
-      });
+      })
+      .finally(() => setAddressesLoading(false));
   };
 
   useEffect(() => {
@@ -229,6 +255,7 @@ export default function CartScreen() {
       addressRefreshOnVisit.current = false;
       return () => {
         addressRefreshOnVisit.current = false;
+        checkoutSheetRef.current?.dismiss();
       };
     }, [])
   );
@@ -282,6 +309,13 @@ export default function CartScreen() {
     setCheckoutError(null);
     setShowAddresses(false);
     setShowPaymentOptions(false);
+    setCheckoutOpen(true);
+    setInputCouponCode("");
+    setSelectedCoupons([]);
+    setAvailableCoupons([]);
+    setAutoApplyDisabled(false);
+    setCouponError("");
+    setApplyingCoupon(false);
     contentAnim.setValue(1);
     footerAnim.setValue(1);
     addressAnim.setValue(1);
@@ -312,8 +346,92 @@ export default function CartScreen() {
     settings && selectedAddress && distanceKm > settings.deliveryFreeKm
       ? Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm
       : 0;
-  const orderTotal = subtotal + deliveryFee;
+  const hasFreeDeliveryCoupon = selectedCoupons.some((c) => c.freeDelivery);
+  const couponDiscountTotal = selectedCoupons.reduce((sum, c) => sum + (c.freeDelivery ? 0 : c.discount || 0), 0);
+  const effectiveDeliveryFee = hasFreeDeliveryCoupon ? 0 : deliveryFee;
+  const orderTotal = Math.max(0, subtotal + effectiveDeliveryFee - couponDiscountTotal);
   const walletInsufficient = paymentMethod === "WALLET" && walletBalance < orderTotal;
+  const checkoutLoading = addressesLoading || walletLoading || settingsLoading;
+  const allowMultipleCoupons = settings?.allowMultipleCoupons ?? false;
+
+  const fetchAvailableCoupons = useCallback(() => {
+    if (!user || !items.length) return;
+    api
+      .post("/coupons/available", {
+        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        subtotal,
+        deliveryFee,
+      })
+      .then((res) => setAvailableCoupons(res.data.data || []))
+      .catch(() => setAvailableCoupons([]));
+  }, [user, items, subtotal, deliveryFee]);
+
+  useEffect(() => {
+    if (!checkoutOpen) return;
+    fetchAvailableCoupons();
+  }, [checkoutOpen, fetchAvailableCoupons]);
+
+  useEffect(() => {
+    if (autoApplyDisabled || inputCouponCode.trim() || selectedCoupons.length > 0) return;
+    if (!availableCoupons.length) return;
+    const sorted = [...availableCoupons].sort((a, b) => (b.discount || 0) - (a.discount || 0));
+    const best = sorted[0];
+    if (!best) return;
+    setSelectedCoupons([{ code: best.code || "", discount: best.discount || 0, freeDelivery: Boolean(best.freeDelivery) }]);
+  }, [availableCoupons, autoApplyDisabled, inputCouponCode, selectedCoupons.length]);
+
+  const applyCoupon = async () => {
+    if (!inputCouponCode.trim()) {
+      setCouponError("");
+      return;
+    }
+    const normalized = inputCouponCode.trim().toUpperCase();
+    if (selectedCoupons.some((c) => c.code.toUpperCase() === normalized)) {
+      setCouponError("Coupon already selected");
+      return;
+    }
+    setApplyingCoupon(true);
+    setCouponError("");
+    try {
+      const res = await api.post("/coupons/validate", {
+        code: normalized,
+        subtotal,
+        deliveryFee,
+        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      });
+      const freeDelivery = Boolean(res.data.data?.freeDelivery);
+      const discount = freeDelivery ? 0 : res.data.data?.discount || 0;
+      const next = { code: normalized, discount, freeDelivery };
+      setSelectedCoupons((prev) => {
+        const filtered = prev.filter((c) => c.code.toUpperCase() !== normalized);
+        if (!allowMultipleCoupons) return [next];
+        return [...filtered, next];
+      });
+      setInputCouponCode("");
+      setAutoApplyDisabled(true);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || t("invalidCoupon") || "Invalid coupon";
+      setCouponError(message);
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
+
+  const applyAvailableCoupon = (coupon: any) => {
+    const nextCode = String(coupon.code || "").trim();
+    if (!nextCode) return;
+    const normalized = nextCode.toUpperCase();
+    setSelectedCoupons((prev) => {
+      const exists = prev.some((c) => c.code.toUpperCase() === normalized);
+      const filtered = prev.filter((c) => c.code.toUpperCase() !== normalized);
+      if (exists) return filtered;
+      const next = { code: nextCode, discount: coupon.discount || 0, freeDelivery: Boolean(coupon.freeDelivery) };
+      if (!allowMultipleCoupons) return [next];
+      return [...filtered, next];
+    });
+    setCouponError("");
+    setAutoApplyDisabled(true);
+  };
 
   const placeOrder = async () => {
     if (!user || !selectedAddress) return;
@@ -323,6 +441,7 @@ export default function CartScreen() {
       const res = await api.post("/orders", {
         addressId: selectedAddress._id,
         paymentMethod,
+        couponCodes: selectedCoupons.length ? selectedCoupons.map((c) => c.code) : undefined,
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       });
       const created = res?.data?.data;
@@ -373,21 +492,29 @@ export default function CartScreen() {
             <Text style={styles.sheetText}>
               {t("subtotal")}: {subtotal.toLocaleString()} SYP
             </Text>
+
             <Text style={styles.sheetText}>
-              {t("deliveryFee")}: {deliveryFee?.toLocaleString()} SYP
+              {t("discount") ?? "Discount"}:{" "}
+              {couponDiscountTotal > 0
+                ? `-${couponDiscountTotal.toLocaleString()} ${t("syp")}`
+                : `0 ${t("syp")}`}
             </Text>
+
             {/* {walletInsufficient && (
                 <Text style={[styles.sheetText, { color: "red" }]}>
                   {t("balance")}: {walletBalance.toLocaleString()} SYP 
                 </Text>
               )} */}
+            <Text style={styles.sheetText}>
+              {t("deliveryFee")}: {hasFreeDeliveryCoupon ? (t("freeDelivery") ?? "Free delivery") : `${effectiveDeliveryFee?.toLocaleString()} SYP`}
+            </Text>
 
           </View>
 
           <TouchableOpacity
-            style={[styles.primaryBtn, (!selectedAddress || submitting || walletInsufficient) && { opacity: 0.8 }]}
+            style={[styles.primaryBtn, (!selectedAddress || submitting || walletInsufficient || checkoutLoading) && { opacity: 0.8 }]}
             onPress={placeOrder}
-            disabled={!selectedAddress || submitting || walletInsufficient}
+            disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading}
           >
             <Text style={styles.primaryBtnText}>
               {submitting ? t("placingOrder") : t("placeOrder")}
@@ -526,246 +653,317 @@ export default function CartScreen() {
           setShowSuccessContent(false);
           setHideFooter(false);
           setSuccessOrderId(null);
+          setCheckoutOpen(false);
+          setInputCouponCode("");
+          setSelectedCoupons([]);
+          setAvailableCoupons([]);
+          setAutoApplyDisabled(false);
+          setCouponError("");
+          setApplyingCoupon(false);
         }}
         backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
         handleIndicatorStyle={{ backgroundColor: palette.muted }}
       >
-        <BottomSheetScrollView
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 0 }}
         >
-          <Animated.View style={{ paddingBottom: footerPaddingAnim }}>
-            {showSuccessContent && (
-              <Animated.View
-                style={[
-                  styles.successWrap,
-                  {
-                    opacity: successContentAnim,
-                    transform: [
-                      { translateY: successContentAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) },
-                    ],
-                  },
-                ]}
-              >
-                <Animated.View style={[
-                  styles.successIcon,
-                  {
-                    transform: [{ scale: successAnim }],
-                    opacity: successAnim,
-                  },
-                ]}>
-                  <LottieView
-                    ref={lottieRef}
-                    loop={false}
-                    style={{ width: 200, height: 200 }}
-                    source={require("../assets/orderSuccess.json")}
-                    onAnimationFinish={() => {
-                      lottieRef.current?.play(145, 145);
-                    }}
-                  />
-                </Animated.View>
-                <Text weight="bold" style={styles.successTitle}>{t("orderPlaced") ?? "Order placed!"}</Text>
-                <Text style={styles.successText}>{t("orderPlacedCopy") ?? "Your order is confirmed and on its way."}</Text>
-
-                <TouchableOpacity style={[styles.primaryBtn, { width: '100%' }]} onPress={() => {
-                  checkoutSheetRef.current?.dismiss();
-                  if (successOrderId) {
-                    router.push(`/orders/${successOrderId}`);
-                  } else {
-                    router.replace("/(tabs)/orders");
-                  }
-                }}>
-                  <Text style={styles.primaryBtnText}>{t("trackOrder") ?? "Track order"}</Text>
-                </TouchableOpacity>
-
-              </Animated.View>
-            )}
-
-            {!showSuccessContent && (
-              <Animated.View
-                onLayout={(event) => setContentHeight(event.nativeEvent.layout.height)}
-                style={{
-                  opacity: contentAnim,
-                  // transform: [
-                  //   { translateX: contentAnim.interpolate({ inputRange: [0, 1], outputRange: [80, 0] }) },
-                  // ],
-                }}
-              >
+          <BottomSheetScrollView
+            showsVerticalScrollIndicator={false}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 0 }}
+          >
+            <Animated.View style={{ paddingBottom: footerPaddingAnim }}>
+              {showSuccessContent && (
                 <Animated.View
+                  style={[
+                    styles.successWrap,
+                    {
+                      opacity: successContentAnim,
+                      transform: [
+                        { translateY: successContentAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) },
+                      ],
+                    },
+                  ]}
+                >
+                  <Animated.View style={[
+                    styles.successIcon,
+                    {
+                      transform: [{ scale: successAnim }],
+                      opacity: successAnim,
+                    },
+                  ]}>
+                    <LottieView
+                      ref={lottieRef}
+                      loop={false}
+                      style={{ width: 200, height: 200 }}
+                      source={require("../assets/orderSuccess.json")}
+                      onAnimationFinish={() => {
+                        lottieRef.current?.play(145, 145);
+                      }}
+                    />
+                  </Animated.View>
+                  <Text weight="bold" style={styles.successTitle}>{t("orderPlaced") ?? "Order placed!"}</Text>
+                  <Text style={styles.successText}>{t("orderPlacedCopy") ?? "Your order is confirmed and on its way."}</Text>
+
+                  <TouchableOpacity style={[styles.primaryBtn, { width: '100%' }]} onPress={() => {
+                    checkoutSheetRef.current?.dismiss();
+                    if (successOrderId) {
+                      router.push(`/orders/${successOrderId}`);
+                    } else {
+                      router.replace("/(tabs)/orders");
+                    }
+                  }}>
+                    <Text style={styles.primaryBtnText}>{t("trackOrder") ?? "Track order"}</Text>
+                  </TouchableOpacity>
+
+                </Animated.View>
+              )}
+
+              {!showSuccessContent && (
+                <Animated.View
+                  onLayout={(event) => setContentHeight(event.nativeEvent.layout.height)}
                   style={{
                     opacity: contentAnim,
                     // transform: [
-                    //   { translateX: contentAnim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }) },
+                    //   { translateX: contentAnim.interpolate({ inputRange: [0, 1], outputRange: [80, 0] }) },
                     // ],
                   }}
                 >
-                  <Text weight="bold" style={[styles.sheetTitle, { paddingTop: 16, paddingHorizontal: 16 }]}>{t("checkout")}</Text>
-                </Animated.View>
+                  <Animated.View
+                    style={{
+                      opacity: contentAnim,
+                      // transform: [
+                      //   { translateX: contentAnim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }) },
+                      // ],
+                    }}
+                  >
+                    <Text weight="bold" style={[styles.sheetTitle, { paddingTop: 16, paddingHorizontal: 16 }]}>{t("checkout")}</Text>
+                  </Animated.View>
 
-                <Animated.View
-                  style={{
-                    marginBottom: 20,
-                    paddingHorizontal: 16,
-                    opacity: addressAnim,
-                    // transform: [
-                    //   { translateX: addressAnim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }) },
-                    // ],
-                  }}
-                >
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    backgroundColor: palette.surface,
-                    padding: 10,
-                    borderTopLeftRadius: 20,
-                    borderTopRightRadius: 20, marginBottom: -2
-                  }}>
-
-                    <Text weight="medium" style={styles.section}>{t("address")}</Text>
-
-                    {!showAddresses ? (
-                      <TouchableOpacity style={styles.addressBtn} onPress={() => { setShowAddresses(true) }}>
-                        <Text weight="bold" style={styles.addressBtnText}>{selectedAddress ? t("change") ?? "Change address" : t("addAddress") ?? "Add address"}</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <TouchableOpacity style={styles.addressBtn} onPress={() => { setShowAddresses(false) }}>
-                          <Text weight="bold" style={styles.addressBtnText}>{t("cancel") ?? "Cancel"}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.addressBtn} onPress={() => { router.push("/addresses") }}>
-                          <Text weight="bold" style={styles.addressBtnText}>{t("manageAddresses") ?? "Manage addresses"}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-
-                  {!showAddresses && selectedAddress &&
-                    <View style={styles.addressBox}>
-                      <View style={{
-                        backgroundColor: "#fff",
-                        padding: 10,
-                        borderRadius: 20,
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}>
-                        <View>
-                          <Text weight="bold" style={styles.addressLabel}>{selectedAddress.label}</Text>
-                          <Text style={styles.addressText}>{selectedAddress.address}</Text>
-                        </View>
-                        <View style={{ alignItems: 'center' }}>
-                          {distanceKm > 1 && <Text style={styles.oldDistance}>{distanceKm} Km</Text>}
-                          <Text weight="bold" style={styles.distance}>{distanceKm > 1 ? Math.ceil(distanceKm - 1) : distanceKm} Km</Text>
-                        </View>
-                      </View>
-                    </View>
-                  }
-
-                  {showAddresses && addresses.length > 0 && (
-                    <View style={styles.addressBox}>
-                      <View style={{
-                        backgroundColor: "#fff",
-                        padding: 10,
-                        borderRadius: 20,
-                        gap: 5
-                      }}>
-                        {addresses.map((addr) => (
-                          <TouchableOpacity
-                            key={addr._id}
-                            style={[styles.pillRow, selectedAddress?._id === addr._id && styles.pillRowActive]}
-                            onPress={() => { setSelectedAddress(addr); setShowAddresses(false) }}
-                          >
-                            {selectedAddress?._id === addr._id && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, { right: 5 }]} />}
-                            <Text weight="bold" style={styles.addressLabel}>{addr.label}</Text>
-                            <Text style={styles.addressText}>{addr.address}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-
-                </Animated.View>
-
-                <Animated.View
-                  style={{
-                    paddingHorizontal: 16,
-                    opacity: paymentAnim,
-                    // transform: [
-                    //   { translateX: paymentAnim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }) },
-                    // ],
-                  }}
-                >
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    backgroundColor: palette.surface,
-                    padding: 10,
-                    borderTopLeftRadius: 20,
-                    borderTopRightRadius: 20,
-                  }}>
-                    <Text weight="medium" style={styles.section}>{t("paymentMethod") ?? "Payment"}</Text>
-                    {!showPaymentOptions ? (
-                      <TouchableOpacity style={styles.addressBtn} onPress={() => setShowPaymentOptions(true)}>
-                        <Text weight="bold" style={styles.addressBtnText}>{t("change") ?? "Change"}</Text>
-                      </TouchableOpacity>
-                    ) :
-                      <TouchableOpacity style={styles.addressBtn} onPress={() => setShowPaymentOptions(false)}>
-                        <Text weight="bold" style={styles.addressBtnText}>{t("cancel") ?? "Cancel"}</Text>
-                      </TouchableOpacity>
-                    }
-                  </View>
-
-                  {!showPaymentOptions ? (
-                    <View style={styles.addressBox}>
-                      <View style={[styles.sheetText, {
-                        backgroundColor: "#fff",
-                        padding: 10,
-                        borderRadius: 20
-                      },
-                      paymentMethod === "WALLET" && { flexDirection: 'row', justifyContent: 'space-between' },
-                      ]}>
-                        <Text weight="bold">{paymentMethod}</Text>
-
-                        {paymentMethod === "WALLET" && (
-                          <View style={{ flexDirection: 'row', gap: 5, alignItems: 'baseline' }}>
-                            {walletInsufficient && <FontAwesome6 name="circle-exclamation" size={14} color="#ff5555" />}
-                            <Text style={[{ fontWeight: '700' }, walletInsufficient && { color: '#ff5555' }]}>
-                              {t("balance")}: {walletBalance.toLocaleString()} SYP
-                            </Text>
-                          </View>
+                  <Animated.View
+                    style={{
+                      marginBottom: 20,
+                      paddingHorizontal: 16,
+                      opacity: addressAnim,
+                      // transform: [
+                      //   { translateX: addressAnim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }) },
+                      // ],
+                    }}
+                  >
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      backgroundColor: palette.surface,
+                      padding: 10,
+                      borderTopLeftRadius: 20,
+                      borderTopRightRadius: 20, marginBottom: -2
+                    }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <Text weight="medium" style={styles.section}>
+                          {t("address")}
+                        </Text>
+                        {addressesLoading && (
+                          <ActivityIndicator size='small' color={palette.accent} />
                         )}
                       </View>
-                    </View>
-                  ) : (
-                    <View style={styles.addressBox}>
-                      <View style={{
-                        backgroundColor: "#fff",
-                        padding: 10,
-                        borderRadius: 20,
-                        gap: 5
-                      }}>
-                        {paymentMethods.map((method) => (
-                          <TouchableOpacity
-                            key={method}
-                            style={[styles.pillRow, paymentMethod === method && styles.pillRowActive]}
-                            onPress={() => selectPaymentMethod(method)}
-                          >
-                            {paymentMethod === method && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, { top: 10 }, { right: 5 }]} />}
-                            <Text weight="bold" style={[styles.pillText, paymentMethod === method && styles.pillTextActive]}>{method}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                </Animated.View>
-              </Animated.View>
-            )}
-          </Animated.View>
 
-        </BottomSheetScrollView>
+                      {!showAddresses ? (
+                        <TouchableOpacity style={styles.addressBtn} onPress={() => { setShowAddresses(true) }}>
+                          <Text weight="bold" style={styles.addressBtnText}>{selectedAddress ? t("change") ?? "Change address" : t("addAddress") ?? "Add address"}</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                          <TouchableOpacity style={styles.addressBtn} onPress={() => { setShowAddresses(false) }}>
+                            <Text weight="bold" style={styles.addressBtnText}>{t("cancel") ?? "Cancel"}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.addressBtn} onPress={() => { router.push("/addresses") }}>
+                            <Text weight="bold" style={styles.addressBtnText}>{t("manageAddresses") ?? "Manage addresses"}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+
+                    {!showAddresses && selectedAddress &&
+                      <View style={styles.addressBox}>
+                        <View style={{
+                          backgroundColor: "#fff",
+                          padding: 10,
+                          borderRadius: 20,
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <View>
+                            <Text weight="bold" style={styles.addressLabel}>{selectedAddress.label}</Text>
+                            <Text style={styles.addressText}>{selectedAddress.address}</Text>
+                          </View>
+                          <View style={{ alignItems: 'center' }}>
+                            {distanceKm > 1 && <Text style={styles.oldDistance}>{distanceKm} Km</Text>}
+                            <Text weight="bold" style={styles.distance}>{distanceKm > 1 ? Math.ceil(distanceKm - 1) : distanceKm} Km</Text>
+                          </View>
+                        </View>
+                      </View>
+                    }
+
+                    {!addressesLoading && showAddresses && addresses.length > 0 && (
+                      <View style={styles.addressBox}>
+                        <View style={{
+                          backgroundColor: "#fff",
+                          padding: 10,
+                          borderRadius: 20,
+                          gap: 5
+                        }}>
+                          {addresses.map((addr) => (
+                            <TouchableOpacity
+                              key={addr._id}
+                              style={[styles.pillRow, selectedAddress?._id === addr._id && styles.pillRowActive]}
+                              onPress={() => { setSelectedAddress(addr); setShowAddresses(false) }}
+                            >
+                              {selectedAddress?._id === addr._id && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, { right: 5 }]} />}
+                              <Text weight="bold" style={styles.addressLabel}>{addr.label}</Text>
+                              <Text style={styles.addressText}>{addr.address}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+
+                  </Animated.View>
+
+                  <Animated.View
+                    style={{
+                      paddingHorizontal: 16,
+                      opacity: paymentAnim,
+                      // transform: [
+                      //   { translateX: paymentAnim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }) },
+                      // ],
+                    }}
+                  >
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      backgroundColor: palette.surface,
+                      padding: 10,
+                      borderTopLeftRadius: 20,
+                      borderTopRightRadius: 20,
+                    }}>
+                      <Text weight="medium" style={styles.section}>{t("paymentMethod") ?? "Payment"}</Text>
+                      {!showPaymentOptions ? (
+                        <TouchableOpacity style={styles.addressBtn} onPress={() => setShowPaymentOptions(true)}>
+                          <Text weight="bold" style={styles.addressBtnText}>{t("change") ?? "Change"}</Text>
+                        </TouchableOpacity>
+                      ) :
+                        <TouchableOpacity style={styles.addressBtn} onPress={() => setShowPaymentOptions(false)}>
+                          <Text weight="bold" style={styles.addressBtnText}>{t("cancel") ?? "Cancel"}</Text>
+                        </TouchableOpacity>
+                      }
+                    </View>
+
+                    {!showPaymentOptions ? (
+                      <View style={styles.addressBox}>
+                        <View style={[styles.sheetText, {
+                          backgroundColor: "#fff",
+                          padding: 10,
+                          borderRadius: 20
+                        },
+                        paymentMethod === "WALLET" && { flexDirection: 'row', justifyContent: 'space-between' },
+                        ]}>
+                          <Text weight="bold">{paymentMethod}</Text>
+
+                          {paymentMethod === "WALLET" && (
+                            <View style={{ flexDirection: 'row', gap: 5, alignItems: 'baseline' }}>
+                              {!walletLoading && walletInsufficient && <FontAwesome6 name="circle-exclamation" size={14} color="#ff5555" />}
+                              {walletLoading ? (
+                                <ActivityIndicator color={palette.accent} size="small" />
+                              ) : (
+                                <Text style={[{ fontWeight: '700' }, !walletLoading && walletInsufficient && { color: '#ff5555' }]}>
+                                  {t("balance")}: {walletBalance.toLocaleString()} SYP
+                                </Text>
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.addressBox}>
+                        <View style={{
+                          backgroundColor: "#fff",
+                          padding: 10,
+                          borderRadius: 20,
+                          gap: 5
+                        }}>
+                          {paymentMethods.map((method) => (
+                            <TouchableOpacity
+                              key={method}
+                              style={[styles.pillRow, paymentMethod === method && styles.pillRowActive]}
+                              onPress={() => selectPaymentMethod(method)}
+                            >
+                              {paymentMethod === method && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, { top: 10 }, { right: 5 }]} />}
+                              <Text weight="bold" style={[styles.pillText, paymentMethod === method && styles.pillTextActive]}>{method}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </Animated.View>
+
+                  <View style={{ marginTop: 12, paddingHorizontal: 16 }}>
+                    <Text weight="medium" style={styles.section}>{t("coupon") ?? "Coupon"}</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.couponSlider}
+                      keyboardShouldPersistTaps="handled"
+                    >
+                      {availableCoupons.map((c) => (
+                        <TouchableOpacity
+                          key={c._id || c.code}
+                          style={[
+                            styles.couponPill,
+                            selectedCoupons.some((sel) => sel.code.toUpperCase() === String(c.code || "").toUpperCase()) && styles.couponPillActive,
+                          ]}
+                          onPress={() => applyAvailableCoupon(c)}
+                        >
+                          <Text style={styles.couponPillText}>{c.code}</Text>
+                          {c.freeDelivery ? (
+                            <Text style={styles.couponPillMeta}>{t("freeDelivery") ?? "Free delivery"}</Text>
+                          ) : (
+                            <Text style={styles.couponPillMeta}>-{Number(c.discount || 0).toLocaleString()} SYP</Text>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                      <View style={[styles.couponPill, styles.couponInputPill]}>
+                        <TextInput
+                          style={styles.couponInput}
+                          placeholder={t("couponCode") ?? "Enter code"}
+                          placeholderTextColor={palette.muted}
+                          value={inputCouponCode}
+                          onChangeText={(value) => {
+                            setInputCouponCode(value);
+                            setCouponError("");
+                            setAutoApplyDisabled(true);
+                          }}
+                          autoCapitalize="characters"
+                        />
+                        <TouchableOpacity style={styles.couponApplyBtn} onPress={applyCoupon} disabled={applyingCoupon}>
+                          {applyingCoupon ? (
+                            <ActivityIndicator size="small" color={palette.accent} />
+                          ) : (
+                            <Text weight="bold" style={styles.addressBtnText}>{t("apply") ?? "Apply"}</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </ScrollView>
+                    {couponError ? <Text style={styles.errorText}>{couponError}</Text> : null}
+                  </View>
+                </Animated.View>
+              )}
+            </Animated.View>
+          </BottomSheetScrollView>
+        </KeyboardAvoidingView>
       </BottomSheetModal>
     </BottomSheetModalProvider>
   );
@@ -893,6 +1091,39 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       backgroundColor: palette.card,
     },
     addressBtnText: { color: palette.accent },
+    couponSlider: { gap: 10, paddingVertical: 8, paddingRight: 8 },
+    couponInput: {
+      flex: 1,
+      color: palette.text,
+      paddingVertical: 2,
+      paddingHorizontal: 0,
+    },
+    couponInputPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      minWidth: 220,
+    },
+    couponApplyBtn: {
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.card,
+    },
+    couponPill: {
+      borderWidth: 1,
+      borderColor: palette.border,
+      borderRadius: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      backgroundColor: palette.surface,
+      gap: 2,
+    },
+    couponPillActive: { backgroundColor: palette.accent, borderColor: palette.accent },
+    couponPillText: { color: palette.text, fontWeight: "700" },
+    couponPillMeta: { color: palette.muted, fontSize: 12 },
     pillRow: {
       padding: 10,
       borderRadius: 10,
@@ -917,6 +1148,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       gap: 5
     },
     primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: '700' },
+    errorText: { color: "#ef4444", fontWeight: "600" },
     successWrap: {
       alignItems: "center",
       justifyContent: "center",

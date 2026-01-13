@@ -538,7 +538,7 @@ nav::-webkit-scrollbar {
   height:18px;
   border:1px solid black;
   border-radius:8px;
-  background-image: url(../public/check.png);
+  background-image: url(../check.png);
   background-position: center;
   background-repeat: no-repeat;
   background-size: 13px;
@@ -1044,7 +1044,7 @@ nav::-webkit-scrollbar {
   height:18px;
   border:1px solid black;
   border-radius:20px;
-  background-image: url(../public/check.png);
+  background-image: url(../check.png);
   background-position: center;
   background-repeat: no-repeat;
   background-size: 13px;

@@ -1,8 +1,8 @@
 import { catchAsync } from "../utils/catchAsync";
 import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
-import { topUpRequestSchema, updateTopUpSchema } from "../validators/walletValidators";
-import { getWalletDetails, listTopUps, requestTopUp, updateTopUpStatus } from "../services/walletService";
+import { adminTopUpSchema, topUpRequestSchema, updateTopUpSchema } from "../validators/walletValidators";
+import { adminTopUpWallet, getWalletDetails, listTopUps, requestTopUp, updateTopUpStatus } from "../services/walletService";
 
 export const getWallet = catchAsync(async (req: AuthRequest, res) => {
   const data = await getWalletDetails(req.user!._id);
@@ -25,4 +25,10 @@ export const adminUpdateTopUp = catchAsync(async (req, res) => {
   const payload = updateTopUpSchema.parse(req.body);
   const topUp = await updateTopUpStatus(req.params.id, payload.status, payload.adminNote);
   sendSuccess(res, topUp, "Top-up updated");
+});
+
+export const adminTopUp = catchAsync(async (req: AuthRequest, res) => {
+  const payload = adminTopUpSchema.parse(req.body);
+  const data = await adminTopUpWallet(req.user!._id, payload.userId, payload.amount, payload.note);
+  sendSuccess(res, data, "Wallet topped up");
 });

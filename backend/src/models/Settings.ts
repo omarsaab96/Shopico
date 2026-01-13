@@ -12,6 +12,7 @@ export interface ISettings extends Document {
   storeLng: number;
   deliveryFreeKm: number;
   deliveryRatePerKm: number;
+  allowMultipleCoupons: boolean;
   membershipGraceDays: number;
   membershipThresholds: IMembershipThresholds;
   pointsPerAmount: number;
@@ -37,6 +38,7 @@ const SettingsSchema = new Schema<ISettings>(
     storeLng: { type: Number, default: 0 },
     deliveryFreeKm: { type: Number, default: 1 },
     deliveryRatePerKm: { type: Number, default: 5000 },
+    allowMultipleCoupons: { type: Boolean, default: false },
     membershipGraceDays: { type: Number, default: 14 },
     membershipThresholds: { type: MembershipThresholdSchema, default: () => ({}) },
     pointsPerAmount: { type: Number, default: 10000 },

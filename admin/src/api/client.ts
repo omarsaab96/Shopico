@@ -86,6 +86,15 @@ export const updateTopUp = async (id: string, status: string, adminNote?: string
   return res.data.data;
 };
 
+export const adminTopUpUser = async (userId: string, amount: number, note?: string) => {
+  const res = await api.post<{ data: { wallet: { balance: number } } }>("/wallet/topups/admin/manual", {
+    userId,
+    amount,
+    note,
+  });
+  return res.data.data;
+};
+
 export const fetchSettings = async () => {
   const res = await api.get<{ data: Settings }>("/settings");
   return res.data.data;

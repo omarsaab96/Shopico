@@ -73,6 +73,7 @@ export interface Settings {
   storeLng: number;
   deliveryFreeKm: number;
   deliveryRatePerKm: number;
+  allowMultipleCoupons: boolean;
   membershipGraceDays: number;
   membershipThresholds: { silver: number; gold: number; platinum: number; diamond: number };
   pointsPerAmount: number;

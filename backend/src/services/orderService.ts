@@ -115,7 +115,7 @@ const applyCoupon = async (
   items: { product: Types.ObjectId; quantity: number; price: number }[],
   code?: string
 ) => {
-  if (!code) return { coupon: null, discount: 0 };
+  if (!code) return { coupon: null, discount: 0, freeDelivery: false };
   const normalized = normalizeCouponCode(code);
   const coupon = await Coupon.findOne({ code: normalized, isActive: true });
   if (!coupon) throw { status: 404, message: "Coupon not found" };
@@ -159,7 +159,35 @@ const applyCoupon = async (
     : coupon.discountValue;
   const maxTotal = eligibleSubtotal;
   const discount = coupon.freeDelivery ? deliveryFee : Math.max(0, Math.min(maxTotal, rawDiscount));
-  return { coupon, discount };
+  return { coupon, discount, freeDelivery: coupon.freeDelivery };
+};
+
+const applyCoupons = async (
+  userId: Types.ObjectId,
+  subtotal: number,
+  deliveryFee: number,
+  items: { product: Types.ObjectId; quantity: number; price: number }[],
+  codes: string[]
+) => {
+  if (!codes.length) return { coupons: [], discount: 0 };
+  let freeDeliveryApplied = false;
+  let discountTotal = 0;
+  const coupons = [];
+  for (const code of codes) {
+    const result = await applyCoupon(userId, subtotal, deliveryFee, items, code);
+    if (!result.coupon) continue;
+    let discount = result.discount;
+    if (result.freeDelivery) {
+      if (freeDeliveryApplied) {
+        discount = 0;
+      } else {
+        freeDeliveryApplied = true;
+      }
+    }
+    discountTotal += discount;
+    coupons.push(result.coupon);
+  }
+  return { coupons, discount: discountTotal };
 };
 
 const maybeGenerateReward = async (userId: Types.ObjectId, newPoints: number) => {
@@ -190,6 +218,7 @@ export const createOrder = async (
     notes?: string;
     useReward?: boolean;
     couponCode?: string;
+    couponCodes?: string[];
     items?: CheckoutItemInput[];
   }
 ) => {
@@ -218,7 +247,14 @@ export const createOrder = async (
       ? 0
       : Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm;
 
-  const couponResult = await applyCoupon(userId, subtotal, deliveryFee, items, payload.couponCode);
+  const requestedCodes = (payload.couponCodes && payload.couponCodes.length)
+    ? payload.couponCodes
+    : payload.couponCode ? [payload.couponCode] : [];
+  const normalizedCodes = Array.from(new Set(requestedCodes.map(normalizeCouponCode))).filter(Boolean);
+  if (!settings.allowMultipleCoupons && normalizedCodes.length > 1) {
+    throw { status: 400, message: "Multiple coupons are not allowed" };
+  }
+  const couponResult = await applyCoupons(userId, subtotal, deliveryFee, items, normalizedCodes);
   const rewardResult = await tryConsumeRewardToken(userId, settings.rewardValue, payload.useReward ?? false);
   const discount = rewardResult.discount + couponResult.discount;
   const total = Math.max(0, subtotal + deliveryFee - discount);
@@ -239,16 +275,22 @@ export const createOrder = async (
     deliveryFee,
     deliveryDistanceKm: distanceKm,
     discount,
-    couponCode: couponResult.coupon?.code,
+    couponCode: couponResult.coupons[0]?.code,
+    couponCodes: couponResult.coupons.map((c) => c.code),
     couponDiscount: couponResult.discount,
     total,
     rewardApplied: rewardResult.applied,
     statusHistory: [{ status: "PENDING", at: new Date() }],
   });
 
-  if (couponResult.coupon) {
-    await CouponRedemption.create({ coupon: couponResult.coupon._id, user: userId, order: order._id });
-    await Coupon.findByIdAndUpdate(couponResult.coupon._id, { $inc: { usedCount: 1 } });
+  if (couponResult.coupons.length) {
+    await CouponRedemption.insertMany(
+      couponResult.coupons.map((coupon) => ({ coupon: coupon._id, user: userId, order: order._id }))
+    );
+    await Coupon.updateMany(
+      { _id: { $in: couponResult.coupons.map((c) => c._id) } },
+      { $inc: { usedCount: 1 } }
+    );
   }
 
   await Cart.findOneAndUpdate({ user: userId }, { items: [] });

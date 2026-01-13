@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Card from "../components/Card";
-import api from "../api/client";
+import api, { adminTopUpUser } from "../api/client";
 import type { ApiUser } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 
@@ -16,6 +16,10 @@ const UsersPage = () => {
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [selected, setSelected] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState("");
+  const [topupAmount, setTopupAmount] = useState("");
+  const [topupNote, setTopupNote] = useState("");
+  const [topupLoading, setTopupLoading] = useState(false);
+  const [topupError, setTopupError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const { t } = useI18n();
@@ -33,15 +37,50 @@ const UsersPage = () => {
     loadUsers();
   }, []);
 
+  useEffect(() => {
+    setTopupAmount("");
+    setTopupNote("");
+    setTopupError("");
+    setTopupLoading(false);
+  }, [selected?.user?._id]);
+
+  const fetchUserDetails = async (id: string) => {
+    const res = await api.get<{ data: UserDetails }>(`/users/${id}`);
+    return res.data.data;
+  };
+
   const loadDetails = async (id: string) => {
     setLoading(id)
-    const res = await api.get<{ data: UserDetails }>(`/users/${id}`);
-    setSelected(res.data.data);
+    const data = await fetchUserDetails(id);
+    setSelected(data);
     setLoading("")
   };
 
   const closeDetails = () => {
     setSelected(null);
+  };
+
+  const handleTopUp = async () => {
+    if (!selected) return;
+    const amountValue = Number(topupAmount);
+    if (!amountValue || amountValue <= 0) {
+      setTopupError(t("invalidAmount"));
+      return;
+    }
+    setTopupLoading(true);
+    setTopupError("");
+    try {
+      await adminTopUpUser(selected.user._id, amountValue, topupNote.trim() || undefined);
+      const data = await fetchUserDetails(selected.user._id);
+      setSelected(data);
+      setTopupAmount("");
+      setTopupNote("");
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || "Failed to top up wallet";
+      setTopupError(message);
+    } finally {
+      setTopupLoading(false);
+    }
   };
 
   const formatDateTime = (dateTime: string): string => {
@@ -186,6 +225,36 @@ const UsersPage = () => {
               <div>
                 <div className="muted">{t("points")}</div>
                 <div className="stat-value">{selected.user.points || 0}</div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <h4>{t("topUpWallet")}</h4>
+              <div className="form">
+                <label>
+                  {t("amount")}
+                  <input
+                    type="number"
+                    min="1"
+                    value={topupAmount}
+                    onChange={(e) => setTopupAmount(e.target.value)}
+                    placeholder="0"
+                  />
+                </label>
+                <label>
+                  {t("note")}
+                  <input
+                    value={topupNote}
+                    onChange={(e) => setTopupNote(e.target.value)}
+                    placeholder={t("note")}
+                  />
+                </label>
+                {topupError && <div className="error">{topupError}</div>}
+                <div className="modal-actions">
+                  <button className="ghost-btn" type="button" onClick={handleTopUp} disabled={topupLoading}>
+                    {topupLoading ? t("saving") : t("topUp")}
+                  </button>
+                </div>
               </div>
             </div>
 

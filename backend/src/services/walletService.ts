@@ -66,3 +66,40 @@ export const updateTopUpStatus = async (
   await AuditLog.create({ action: "TOPUP_STATUS", metadata: { topUpId, status } });
   return topUp;
 };
+
+export const adminTopUpWallet = async (
+  adminId: Types.ObjectId,
+  userId: string,
+  amount: number,
+  note?: string
+) => {
+  const user = await User.findById(userId);
+  if (!user) throw { status: 404, message: "User not found" };
+
+  let wallet = await Wallet.findOne({ user: user._id });
+  if (!wallet) {
+    wallet = await Wallet.create({ user: user._id, balance: 0 });
+  }
+
+  wallet.balance += amount;
+  await wallet.save();
+
+  const transaction = await WalletTransaction.create({
+    user: user._id,
+    amount,
+    type: "CREDIT",
+    source: "ADMIN_TOPUP",
+    reference: adminId.toString(),
+    balanceAfter: wallet.balance,
+    metadata: { note, adminId: adminId.toString() },
+  });
+
+  await updateMembershipOnBalanceChange(user, wallet.balance);
+  await AuditLog.create({
+    user: adminId,
+    action: "ADMIN_TOPUP",
+    metadata: { userId: user._id.toString(), amount, note },
+  });
+
+  return { wallet, transaction };
+};

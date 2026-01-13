@@ -14,6 +14,7 @@ export const createOrderSchema = z.object({
   notes: z.string().optional(),
   useReward: z.boolean().optional().default(false),
   couponCode: z.string().optional(),
+  couponCodes: z.array(z.string().min(1)).optional(),
   items: z.array(orderItemSchema).optional(),
 });
 

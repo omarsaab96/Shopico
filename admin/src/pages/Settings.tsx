@@ -22,6 +22,7 @@ const SettingsPage = () => {
   };
 
   const updateField = (key: keyof Settings, value: number) => setSettings({ ...settings, [key]: value });
+  const updateToggle = (key: keyof Settings, value: boolean) => setSettings({ ...settings, [key]: value });
 
   return (
     <>
@@ -51,6 +52,15 @@ const SettingsPage = () => {
               onChange={(e) => updateField("deliveryRatePerKm", Number(e.target.value))}
             />
           </label>
+          <div className="checkboxContainer">
+            <input
+              id="allowMultipleCoupons"
+              type="checkbox"
+              checked={settings.allowMultipleCoupons}
+              onChange={(e) => updateToggle("allowMultipleCoupons", e.target.checked)}
+            />
+            <label htmlFor="allowMultipleCoupons">{t("allowMultipleCoupons")}</label>
+          </div>
           <label>
             {t("membershipGraceDays")}
             <input
