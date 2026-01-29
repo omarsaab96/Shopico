@@ -47,6 +47,7 @@ const ProductsPage = () => {
   const [importError, setImportError] = useState("");
   const [importResult, setImportResult] = useState<{ created: number; updated: number; skipped: number; total: number } | null>(null);
   const [importDragActive, setImportDragActive] = useState(false);
+  const [importShowOnlyChanges, setImportShowOnlyChanges] = useState(true);
   const [importPreview, setImportPreview] = useState<{
     preview: {
       barcode: string;
@@ -55,6 +56,7 @@ const ProductsPage = () => {
       hasStock: boolean;
       action: string;
       reason?: string;
+      reasonDetail?: string;
       previousName?: string;
       previousPrice?: number;
       previousHasStock?: boolean;
@@ -144,6 +146,7 @@ const ProductsPage = () => {
     setImportPreviewLoading(false);
     setImportDragActive(false);
     setImportPreviewProgress(0);
+    setImportShowOnlyChanges(true);
     setShowImportModal(true);
   };
 
@@ -284,6 +287,59 @@ const ProductsPage = () => {
         <span className="import-new">{formatPriceValue(current)}</span>
       </div>
     );
+  };
+
+  const renderAvailabilityDiff = (current: boolean, previous?: boolean) => {
+    const currentLabel = current ? t("available") : t("unavailable");
+    if (previous === undefined || previous === current) {
+      return <span>{currentLabel}</span>;
+    }
+    const previousLabel = previous ? t("available") : t("unavailable");
+    return (
+      <div className="import-diff">
+        <span className="import-old">{previousLabel}</span>
+        <span className="import-arrow">-&gt;</span>
+        <span className="import-new">{currentLabel}</span>
+      </div>
+    );
+  };
+
+  const renderImportActionIcon = (action: string) => {
+    if (action === "create") {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 5a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V6a1 1 0 0 1 1-1z" />
+        </svg>
+      );
+    }
+    if (action === "update") {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 13a6 6 0 0 0 10.95 3.1 1 1 0 1 1 1.7 1.05A8 8 0 1 1 6 9.6V7a1 1 0 0 1 2 0v4a1 1 0 0 1-1 1H3a1 1 0 1 1 0-2h3.6A6 6 0 0 0 6 13zM18 11a6 6 0 0 0-10.95-3.1 1 1 0 1 1-1.7-1.05A8 8 0 1 1 18 14.4V17a1 1 0 1 1-2 0v-4a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2h-3.6A6 6 0 0 0 18 11z" />
+        </svg>
+      );
+    }
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 12a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H7a1 1 0 0 1-1-1z" />
+      </svg>
+    );
+  };
+
+  const getImportReasonLabel = (reason?: string, reasonDetail?: string) => {
+    if (!reason || reason === "undefined") return "-";
+    if (reason === "updated_fields") {
+      const fields = (reasonDetail || "")
+        .split(",")
+        .map((field) => field.trim())
+        .filter(Boolean)
+        .map((field) => t(`import.field.${field}`));
+      if (fields.length === 0) return t("import.reason.updated_fields") || "Updated fields";
+      return `${t("import.reason.updated_fields") || "Updated fields"}: ${fields.join(", ")}`;
+    }
+    const key = `import.reason.${reason}`;
+    const label = t(key);
+    return label === key ? "-" : label;
   };
 
   const uploadToImageKit = async (
@@ -587,7 +643,7 @@ const ProductsPage = () => {
               {t("clear")}
             </button>
           </div>
-          <div className="flex" style={{gap:10}}>
+          <div className="flex" style={{ gap: 10 }}>
             <button className="primary" onClick={openNewModal} disabled={!canManage}>
               {t("addProduct")}
             </button>
@@ -1114,7 +1170,7 @@ const ProductsPage = () => {
 
       {showImportModal && canImport && (
         <div className="modal-backdrop" onClick={closeImportModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal import-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">{t("importProducts")}</div>
               <button className="ghost-btn" type="button" onClick={closeImportModal}>
@@ -1124,65 +1180,83 @@ const ProductsPage = () => {
             <div className="form">
               <div className="muted">{t("importProductsHint")}</div>
               <div className="import-upload">
-                <div
-                  className={`import-dropzone${importDragActive ? " active" : ""}${importFile ? " has-file" : ""}`}
-                  onDragOver={handleImportDragOver}
-                  onDragEnter={handleImportDragOver}
-                  onDragLeave={handleImportDragLeave}
-                  onDrop={handleImportDrop}
-                >
-                  <input
-                    id="importExcelFile"
-                    type="file"
-                    accept=".xlsx,.xls"
-                    className="import-file-input"
-                    onChange={(e) => handleImportFile(e.target.files?.[0] || null)}
-                  />
-                  <label htmlFor="importExcelFile" className="import-dropzone-inner">
-                    <div className="import-icon">
-                      <img src="uploadIcon.png" alt="" />
-                    </div>
-                    {/* <div className="import-title">{t("selectFile") || "Select file"}</div> */}
-                    <div className="import-sub">Drag & drop your Excel file here, or click to browse.</div>
-                    <div className="import-meta muted">Allowed extensions: .xlsx or .xls</div>
-                  </label>
-                </div>
-                {importFile && (
+                {importFile ? (
                   <div className="import-file-card">
                     <div className="import-file-details">
-                      <div className="import-file-name">{importFile.name}</div>
-                      <div className="import-file-size">{formatFileSize(importFile.size)}</div>
+                      <div>
+                        <div className="import-file-name">{importFile.name}</div>
+                        <div className="import-file-size">{formatFileSize(importFile.size)}</div>
+                      </div>
+                      <div className="import-file-actions">
+                        {importPreviewLoading ? (
+                          <div className="import-loading">
+                            {/* <div className="import-spinner" /> */}
+                            {/* <div className="muted">{t("loadingPreview")}</div> */}
+                            <div className="import-progress">
+                              <div className="import-progress-bar" style={{ width: `${importPreviewProgress}%` }} />
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            className="ghost-btn"
+                            type="button"
+                            onClick={() => {
+                              setImportFile(null);
+                              setImportPreview(null);
+                              setImportResult(null);
+                              setImportError("");
+                              setImportPreviewProgress(0);
+                            }}
+                          >
+                            {t("remove") || "Remove"}
+                          </button>
+                        )}
+                      </div>
+
                     </div>
-                    <div className="import-file-actions">
-                      <button
-                        className="ghost-btn"
-                        type="button"
-                        onClick={() => {
-                          setImportFile(null);
-                          setImportPreview(null);
-                          setImportResult(null);
-                          setImportError("");
-                          setImportPreviewProgress(0);
-                        }}
-                      >
-                        {t("remove") || "Remove"}
-                      </button>
-                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={`import-dropzone${importDragActive ? " active" : ""}${importFile ? " has-file" : ""}`}
+                    onDragOver={handleImportDragOver}
+                    onDragEnter={handleImportDragOver}
+                    onDragLeave={handleImportDragLeave}
+                    onDrop={handleImportDrop}
+                  >
+                    <input
+                      id="importExcelFile"
+                      type="file"
+                      accept=".xlsx,.xls"
+                      className="import-file-input"
+                      onChange={(e) => handleImportFile(e.target.files?.[0] || null)}
+                    />
+                    <label htmlFor="importExcelFile" className="import-dropzone-inner">
+                      <div className="import-icon">
+                        <img src="uploadIcon.png" alt="" />
+                      </div>
+                      {/* <div className="import-title">{t("selectFile") || "Select file"}</div> */}
+                      <div className="import-sub">Drag & drop your Excel file here, or click to browse.</div>
+                      <div className="import-meta muted">Allowed extensions: .xlsx or .xls</div>
+                    </label>
                   </div>
                 )}
               </div>
               {importError && <div className="error">{importError}</div>}
-              {importPreviewLoading && (
-                <div className="import-loading">
-                  <div className="import-spinner" />
-                  <div className="muted">{t("loadingPreview")}</div>
-                  <div className="import-progress">
-                    <div className="import-progress-bar" style={{ width: `${importPreviewProgress}%` }} />
-                  </div>
-                </div>
-              )}
               {importPreview && !importPreviewLoading && (
                 <>
+                  <div className="import-preview-controls">
+                    <label className="checkboxContainer">
+                      <input
+                        id="importShowOnlyChanges"
+                        type="checkbox"
+                        checked={importShowOnlyChanges}
+                        onChange={(e) => setImportShowOnlyChanges(e.target.checked)}
+                      />
+                      <label htmlFor="importShowOnlyChanges">
+                        {t("showChangesOnly") || "Show only changes"}
+                      </label>
+                    </label>
+                  </div>
                   <div className="success">
                     {t("importPreviewSummary")
                       .replace("{created}", String(importPreview.created))
@@ -1193,27 +1267,29 @@ const ProductsPage = () => {
                   <table className="table" style={{ marginTop: 10 }}>
                     <thead>
                       <tr>
+                        <th></th>
                         <th>{t("name")}</th>
                         <th>{t("price")}</th>
                         <th>{t("availability")}</th>
-                        <th>{t("action")}</th>
-                        <th>{t("reason")}</th>
+                        <th>{t("change")}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {importPreview.preview.map((row, idx) => (
-                        <tr key={`${row.barcode}-${idx}`}>
-                          <td>{renderDiff(row.name, row.previousName)}</td>
-                          <td>{renderPriceDiff(row.price, row.previousPrice)}</td>
-                          <td>{row.hasStock ? t("available") : t("unavailable")}</td>
-                          <td>
-                            <span className={`import-change-badge ${row.action}`} title={t(`import.action.${row.action}`)}>
-                              {row.action === "create" ? "+" : row.action === "update" ? "~" : "-"}
-                            </span>
-                          </td>
-                          <td>{row.reason ? t(`import.reason.${row.reason}`) : "-"}</td>
-                        </tr>
-                      ))}
+                      {importPreview.preview
+                        .filter((row) => (importShowOnlyChanges ? row.action !== "skip" : true))
+                        .map((row, idx) => (
+                          <tr key={`${row.barcode}-${idx}`}>
+                            <td>
+                              <span className={`import-change-badge ${row.action}`} title={t(`import.action.${row.action}`)}>
+                                {renderImportActionIcon(row.action)}
+                              </span>
+                            </td>
+                            <td>{renderDiff(row.name, row.previousName)}</td>
+                            <td>{renderPriceDiff(row.price, row.previousPrice)}</td>
+                            <td>{renderAvailabilityDiff(row.hasStock, row.previousHasStock)}</td>
+                            <td>{getImportReasonLabel(row.reason, row.reasonDetail)}</td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </>
@@ -1237,7 +1313,7 @@ const ProductsPage = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div >
       )}
     </>
   );

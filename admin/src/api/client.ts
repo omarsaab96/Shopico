@@ -102,6 +102,7 @@ export const previewProductsImport = async (file: File) => {
       hasStock: boolean;
       action: string;
       reason?: string;
+      reasonDetail?: string;
       previousName?: string;
       previousPrice?: number;
       previousHasStock?: boolean;

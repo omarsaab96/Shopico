@@ -82,7 +82,7 @@
 
 button {
   font-family: inherit;
-  outline:none!important;
+  outline: none !important;
 }
 
 * {
@@ -502,59 +502,60 @@ nav::-webkit-scrollbar {
 .date-picker {
   width: 100%;
 }
+
 .react-datepicker__tab-loop {
   position: absolute;
 }
 
-.react-datepicker__close-icon::after{
+.react-datepicker__close-icon::after {
   background-color: var(--text-primary);
-  content:'';
-  padding:0;
-  height:20px;
-  width:20px;
+  content: '';
+  padding: 0;
+  height: 20px;
+  width: 20px;
   background-image: url(../public/close_white.png);
   background-position: center;
   background-repeat: no-repeat;
   background-size: 12px;
-  display:block;
+  display: block;
 }
 
-.checkboxContainer{
+.checkboxContainer {
   position: relative;
 }
 
-.checkboxContainer label{
+.checkboxContainer label {
   padding-left: 30px;
   position: relative;
 }
 
-.checkboxContainer label::before{
-  content:'';
-  display:block;
+.checkboxContainer label::before {
+  content: '';
+  display: block;
   position: absolute;
-  top:0px;
-  left:0;
-  width:18px;
-  height:18px;
-  border:1px solid black;
-  border-radius:8px;
+  top: 0px;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  border: 1px solid black;
+  border-radius: 8px;
   background-image: url(../check.png);
   background-position: center;
   background-repeat: no-repeat;
   background-size: 13px;
-  transition:all 0.3s ease-in-out;
+  transition: all 0.3s ease-in-out;
 }
 
-.align-center{
+.align-center {
   align-items: center;
 }
 
-.checkboxContainer input{
-  opacity:0;
+.checkboxContainer input {
+  opacity: 0;
   position: absolute;
 }
 
-.checkboxContainer input:checked ~label::before{
+.checkboxContainer input:checked~label::before {
   background-color: var(--text-primary);
 }
 
@@ -582,26 +583,26 @@ nav::-webkit-scrollbar {
   background: var(--gray-500);
 }
 
-.multiSelectSearch{
-  position:relative;
-  flex:1;
+.multiSelectSearch {
+  position: relative;
+  flex: 1;
 }
 
-.multiSelectSearch .filter-input{
-  width:100%;
+.multiSelectSearch .filter-input {
+  width: 100%;
 }
 
-.clearSearchBtn{
+.clearSearchBtn {
   position: absolute;
-  top:50%;
-  transform:TranslateY(-50%);
-  right:10px;
-  border:none;
-  padding:0;
+  top: 50%;
+  transform: TranslateY(-50%);
+  right: 10px;
+  border: none;
+  padding: 0;
   background-color: var(--text-primary);
-  padding:0;
-  height:20px;
-  width:20px;
+  padding: 0;
+  height: 20px;
+  width: 20px;
   background-image: url(../public/close_white.png);
   background-position: center;
   background-repeat: no-repeat;
@@ -956,6 +957,10 @@ nav::-webkit-scrollbar {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
 }
 
+.modal.import-modal {
+  width: min(980px, 100%);
+}
+
 .modal::-webkit-scrollbar {
   display: none;
 }
@@ -987,11 +992,11 @@ nav::-webkit-scrollbar {
 .import-dropzone {
   border: 1.5px dashed var(--gray-500);
   /* background: linear-gradient(135deg, rgba(255, 179, 71, 0.08), rgba(255, 255, 255, 0)); */
-  background-color:  var(--gray-100);
+  background-color: var(--gray-100);
   border-radius: 16px;
   padding: 16px;
   position: relative;
-  transition:all 0.3s ease-in-out;
+  transition: all 0.3s ease-in-out;
 }
 
 .import-dropzone.active {
@@ -1002,7 +1007,7 @@ nav::-webkit-scrollbar {
 
 .import-dropzone.has-file {
   border-style: solid;
-  border-color:var(--gray-300);
+  border-color: var(--gray-300);
 }
 
 .import-file-input {
@@ -1068,25 +1073,46 @@ nav::-webkit-scrollbar {
   background: var(--bg-card);
 }
 
+.import-file-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.import-file-actions {
+  /* border:1px solid red; */
+  padding-left:50px;
+  flex: 1;
+  display:flex;
+  justify-content:flex-end;
+  align-items: center;
+}
+
+.import-preview-controls {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .import-loading {
-  display: grid;
-  gap: 8px;
-  justify-items: center;
-  padding: 8px 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .import-spinner {
-  width: 26px;
-  height: 26px;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  border: 3px solid var(--gray-300);
+  border: 2px solid transparent;
   border-top-color: var(--orange-600);
   animation: spin 0.9s linear infinite;
 }
 
 .import-progress {
   width: 100%;
-  height: 8px;
+  height: 4px;
   border-radius: 999px;
   background: var(--gray-300);
   overflow: hidden;
@@ -1110,6 +1136,12 @@ nav::-webkit-scrollbar {
   background: var(--gray-100);
   border: 1px solid var(--gray-300);
   color: var(--text-primary);
+}
+
+.import-change-badge svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 
 .import-change-badge.create {
@@ -1158,8 +1190,10 @@ nav::-webkit-scrollbar {
 }
 
 .import-file-details {
-  display: grid;
+  display: flex;
+  align-items: center;
   gap: 4px;
+  width: 100%;
 }
 
 .import-file-name {
@@ -1203,7 +1237,7 @@ nav::-webkit-scrollbar {
   border-radius: 10px;
   border: 1px solid var(--gray-300);
   background: var(--bg-card);
-  max-height:200px;
+  max-height: 200px;
   overflow: auto;
 }
 
@@ -1212,14 +1246,15 @@ nav::-webkit-scrollbar {
   gap: 8px;
   align-items: center;
   font-size: 13px;
-  margin-bottom:5px;
-}
-.multi-select-item:last-child {
-  margin-bottom:0px;
+  margin-bottom: 5px;
 }
 
-.multi-select-item label{
-  margin-bottom:0;
+.multi-select-item:last-child {
+  margin-bottom: 0px;
+}
+
+.multi-select-item label {
+  margin-bottom: 0;
 }
 
 .tab-row {
@@ -1245,8 +1280,8 @@ nav::-webkit-scrollbar {
   color: white;
 }
 
-.fullWidthInput{
-  flex:1;
+.fullWidthInput {
+  flex: 1;
 }
 
 .radioRow {
@@ -1262,43 +1297,43 @@ nav::-webkit-scrollbar {
   align-items: center;
   font-weight: 600;
   color: var(--gray-600);
-  position:relative;
-  margin-bottom:10px;
+  position: relative;
+  margin-bottom: 10px;
 }
 
 .radioOption:last-child {
-  margin-bottom:0px;
+  margin-bottom: 0px;
 }
 
-.radioOption input{
+.radioOption input {
   opacity: 0;
   position: absolute;
 }
 
-.radioOption label{
+.radioOption label {
   padding-left: 30px;
   position: relative;
-  margin-bottom:0;
+  margin-bottom: 0;
 }
 
-.radioOption label::before{
-  content:'';
-  display:block;
+.radioOption label::before {
+  content: '';
+  display: block;
   position: absolute;
-  top:0px;
-  left:0;
-  width:18px;
-  height:18px;
-  border:1px solid black;
-  border-radius:20px;
+  top: 0px;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  border: 1px solid black;
+  border-radius: 20px;
   background-image: url(../check.png);
   background-position: center;
   background-repeat: no-repeat;
   background-size: 13px;
-  transition:all 0.3s ease-in-out;
+  transition: all 0.3s ease-in-out;
 }
 
-.radioOption input:checked ~label::before{
+.radioOption input:checked~label::before {
   background-color: var(--text-primary);
 }
 

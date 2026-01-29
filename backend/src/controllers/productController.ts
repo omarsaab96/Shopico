@@ -174,6 +174,7 @@ type ImportDecision = {
   hasStock: boolean;
   action: ImportAction;
   reason?: string;
+  reasonDetail?: string;
   previousName?: string;
   previousPrice?: number;
   previousHasStock?: boolean;
@@ -184,17 +185,73 @@ const readImportEntries = (buffer: Buffer) => {
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) return [] as ImportEntry[];
   const sheet = workbook.Sheets[sheetName];
-  const rows = xlsx.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
+  const rows = xlsx.utils.sheet_to_json<unknown[]>(sheet, { defval: null, header: 1, raw: true });
+  if (rows.length === 0) return [] as ImportEntry[];
 
-  return rows.map((row) => {
-    const barcode = normalizeBarcode(row["الرمز"]);
-    const name = typeof row["المادة"] === "string" ? row["المادة"].trim() : String(row["المادة"] || "").trim();
-    const price = parseNumber(row["سعر 1"]);
-    const stockQty = parseNumber(row["الرصيد الحالي"]);
+  const normalizeHeader = (value: unknown) =>
+    String(value || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+
+  const headerLabels = {
+    barcode: ["\u0627\u0644\u0631\u0645\u0632"],
+    name: ["\u0627\u0644\u0645\u0627\u062f\u0629"],
+    price: ["\u0633\u0639\u0631"],
+    stock: ["\u0627\u0644\u0631\u0635\u064a\u062f"],
+  };
+
+  let headerRowIndex = -1;
+  let headerRow: string[] = [];
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i];
+    if (!Array.isArray(row)) continue;
+    const normalized = row.map((cell) => normalizeHeader(cell));
+    const hasBarcode = normalized.some((cell) => headerLabels.barcode.some((label) => cell.includes(normalizeHeader(label))));
+    const hasName = normalized.some((cell) => headerLabels.name.some((label) => cell.includes(normalizeHeader(label))));
+    const hasPrice = normalized.some((cell) => headerLabels.price.some((label) => cell.includes(normalizeHeader(label))));
+    if (hasBarcode && hasName && hasPrice) {
+      headerRowIndex = i;
+      headerRow = normalized;
+      break;
+    }
+  }
+
+  if (headerRowIndex === -1) return [] as ImportEntry[];
+
+  const getIndex = (labels: string[]) =>
+    headerRow.findIndex((cell) => labels.some((label) => cell.includes(normalizeHeader(label))));
+
+  const barcodeIndex = getIndex(headerLabels.barcode);
+  const nameIndex = getIndex(headerLabels.name);
+  const priceIndex = getIndex(headerLabels.price);
+  const stockIndex = getIndex(headerLabels.stock);
+
+  const entries: ImportEntry[] = [];
+  for (let i = headerRowIndex + 1; i < rows.length; i += 1) {
+    const row = rows[i];
+    if (!Array.isArray(row)) continue;
+    const rawBarcode = barcodeIndex >= 0 ? row[barcodeIndex] : null;
+    const rawName = nameIndex >= 0 ? row[nameIndex] : null;
+    const rawPrice = priceIndex >= 0 ? row[priceIndex] : null;
+    const rawStock = stockIndex >= 0 ? row[stockIndex] : null;
+
+    const barcode = normalizeBarcode(rawBarcode);
+    const name = typeof rawName === "string" ? rawName.trim() : String(rawName || "").trim();
+    const price = parseNumber(rawPrice);
+    const stockQty = parseNumber(rawStock);
     const hasStock = Boolean(stockQty && stockQty > 0);
-    return { barcode, name, price, hasStock };
-  });
+
+    if (!barcode && !name && price === null && stockQty === null) {
+      continue;
+    }
+    entries.push({ barcode, name, price, hasStock });
+  }
+
+  return entries;
 };
+
 
 const decideImportActions = (
   entries: ImportEntry[],
@@ -224,7 +281,7 @@ const decideImportActions = (
       continue;
     }
     if (!exists) {
-      decisions.push({ ...entry, action: "create" });
+      decisions.push({ ...entry, action: "create", reason: "new_product" });
       created += 1;
       continue;
     }
@@ -252,9 +309,16 @@ const decideImportActions = (
       continue;
     }
 
+    const changedFields: string[] = [];
+    if (desired.name !== existing?.name) changedFields.push("name");
+    if (desired.price !== existing?.price) changedFields.push("price");
+    if (desired.isAvailable !== existing?.isAvailable) changedFields.push("availability");
+
     decisions.push({
       ...entry,
       action: "update",
+      reason: "updated_fields",
+      reasonDetail: changedFields.join(","),
       previousName: existing?.name,
       previousPrice: existing?.price,
       previousHasStock: existing?.isAvailable,
