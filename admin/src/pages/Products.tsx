@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DragEvent, FormEvent } from "react";
 import Card from "../components/Card";
 import type { Category, Product, ProductImage } from "../types/api";
@@ -40,6 +40,7 @@ const ProductsPage = () => {
   const [limit, setLimit] = useState(50);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [pageLoading, setPageLoading] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importSaving, setImportSaving] = useState(false);
@@ -64,6 +65,11 @@ const ProductsPage = () => {
     created: number; updated: number; skipped: number; total: number;
   } | null>(null);
   const [importPreviewProgress, setImportPreviewProgress] = useState(0);
+  const [importPreviewLoaded, setImportPreviewLoaded] = useState(0);
+  const [importPreviewTotal, setImportPreviewTotal] = useState(0);
+  const [importPreviewStage, setImportPreviewStage] = useState<"upload" | "processing" | null>(null);
+  const importPreviewAbortRef = useRef<AbortController | null>(null);
+  const importPreviewTimerRef = useRef<number | null>(null);
   const { t } = useI18n();
   const { can } = usePermissions();
   const canManage = can("products:manage");
@@ -78,6 +84,7 @@ const ProductsPage = () => {
 
   const loadProducts = async (params?: { q?: string; category?: string }, nextPage?: number, nextLimit?: number) => {
     try {
+      setPageLoading(true);
       const currentPage = nextPage ?? page;
       const currentLimit = nextLimit ?? limit;
       const data = await fetchProductsAdmin({ ...params, includeUnavailable: true, page: currentPage, limit: currentLimit });
@@ -88,6 +95,8 @@ const ProductsPage = () => {
       setLimit(data.limit);
     } catch (err) {
       console.error(err);
+    } finally {
+      setPageLoading(false);
     }
   };
 
@@ -146,12 +155,19 @@ const ProductsPage = () => {
     setImportPreviewLoading(false);
     setImportDragActive(false);
     setImportPreviewProgress(0);
+    setImportPreviewLoaded(0);
+    setImportPreviewTotal(0);
+    setImportPreviewStage(null);
     setImportShowOnlyChanges(true);
+    importPreviewAbortRef.current?.abort();
+    importPreviewAbortRef.current = null;
     setShowImportModal(true);
   };
 
   const closeImportModal = () => {
     if (importSaving) return;
+    importPreviewAbortRef.current?.abort();
+    importPreviewAbortRef.current = null;
     setShowImportModal(false);
   };
 
@@ -175,37 +191,94 @@ const ProductsPage = () => {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
+  const getPageList = () => {
+    if (totalPages <= 10) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const result: Array<number | "..."> = [];
+    if (page < 5) {
+      for (let i = 1; i <= 5; i += 1) result.push(i);
+      result.push("...");
+      result.push(totalPages - 1, totalPages);
+      return result;
+    }
+    if (page > totalPages - 4) {
+      result.push(1, 2);
+      result.push("...");
+      for (let i = totalPages - 4; i <= totalPages; i += 1) result.push(i);
+      return result;
+    }
+    result.push(1, 2);
+    result.push("...");
+    result.push(page - 1, page, page + 1);
+    result.push("...");
+    result.push(totalPages - 1, totalPages);
+    return result;
+  };
 
   const loadImportPreview = async (file: File) => {
+    importPreviewAbortRef.current?.abort();
+    const controller = new AbortController();
+    importPreviewAbortRef.current = controller;
+    let wasCanceled = false;
     setImportPreviewLoading(true);
     setImportError("");
+    setImportPreviewProgress(0);
+    setImportPreviewLoaded(0);
+    setImportPreviewTotal(0);
+    setImportPreviewStage("upload");
     try {
-      const preview = await previewProductsImport(file);
+      const preview = await previewProductsImport(file, controller.signal, ({ percent, loaded, total }) => {
+        setImportPreviewProgress(Math.min(70, Math.round(percent * 0.7)));
+        setImportPreviewLoaded(loaded);
+        setImportPreviewTotal(total);
+        if (percent >= 100) {
+          setImportPreviewStage("processing");
+        }
+      });
       setImportPreview(preview);
     } catch (err: any) {
-      const msg = err?.response?.data?.message || "Preview failed";
-      setImportError(msg);
-      setImportPreview(null);
+      if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") {
+        wasCanceled = true;
+      } else {
+        const msg = err?.response?.data?.message || "Preview failed";
+        setImportError(msg);
+        setImportPreview(null);
+      }
     } finally {
+      if (wasCanceled || controller.signal.aborted) {
+        importPreviewAbortRef.current = null;
+        return;
+      }
       setImportPreviewLoading(false);
+      setImportPreviewProgress(100);
+      setImportPreviewStage(null);
+      importPreviewAbortRef.current = null;
     }
   };
 
   useEffect(() => {
-    if (!importPreviewLoading) {
-      setImportPreviewProgress(0);
+    if (!importPreviewLoading || importPreviewStage !== "processing") {
+      if (importPreviewTimerRef.current) {
+        window.clearInterval(importPreviewTimerRef.current);
+        importPreviewTimerRef.current = null;
+      }
       return;
     }
-    setImportPreviewProgress(12);
-    const timer = setInterval(() => {
+    setImportPreviewProgress((prev) => Math.max(prev, 70));
+    importPreviewTimerRef.current = window.setInterval(() => {
       setImportPreviewProgress((prev) => {
-        if (prev >= 90) return prev;
-        const bump = 4 + Math.floor(Math.random() * 10);
-        return Math.min(90, prev + bump);
+        if (prev >= 95) return prev;
+        const bump = 2 + Math.floor(Math.random() * 4);
+        return Math.min(95, prev + bump);
       });
-    }, 280);
-    return () => clearInterval(timer);
-  }, [importPreviewLoading]);
+    }, 400);
+    return () => {
+      if (importPreviewTimerRef.current) {
+        window.clearInterval(importPreviewTimerRef.current);
+        importPreviewTimerRef.current = null;
+      }
+    };
+  }, [importPreviewLoading, importPreviewStage]);
+
 
   const isExcelFile = (file: File) => {
     const name = file.name.toLowerCase();
@@ -225,6 +298,11 @@ const ProductsPage = () => {
     setImportResult(null);
     setImportPreview(null);
     setImportPreviewProgress(0);
+    setImportPreviewLoaded(0);
+    setImportPreviewTotal(0);
+    setImportPreviewStage(null);
+    importPreviewAbortRef.current?.abort();
+    importPreviewAbortRef.current = null;
     if (!file) {
       setImportFile(null);
       return;
@@ -655,11 +733,43 @@ const ProductsPage = () => {
             </button>
           </div>
         </div>
-        <div className="pagination">
-          <div className="muted">
-            {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total}
+
+        <div className="pagination" style={{marginBottom:15}}>
+          <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
+            {pageLoading && <img src="loading.gif" width="20" />}
+
+            <button className="ghost-btn" disabled={page <= 1} onClick={() => loadProducts(getFilterParams(), page - 1, limit)}>
+              {t("prev")}
+            </button>
+
+            <div className="page-number-row">
+              {getPageList().map((p, idx) => (
+                typeof p === "string" ? (
+                  <span key={`ellipsis-${idx}`} className="page-ellipsis">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`page-btn${p === page ? " active" : ""}`}
+                    onClick={() => loadProducts(getFilterParams(), p, limit)}
+                    disabled={p === page || pageLoading}
+                  >
+                    {p}
+                  </button>
+                )
+              ))}
+            </div>
+
+
+            <button className="ghost-btn" disabled={!hasMore} onClick={() => loadProducts(getFilterParams(), page + 1, limit)}>
+              {t("next")}
+            </button>
           </div>
-          <div className="flex" style={{ gap: 8 }}>
+          <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
+            <div className="muted">
+              {/* {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total} */}
+              Showing
+            </div>
             <select
               className="filter-select"
               value={limit}
@@ -671,15 +781,14 @@ const ProductsPage = () => {
                 </option>
               ))}
             </select>
-            <button className="ghost-btn" disabled={page <= 1} onClick={() => loadProducts(getFilterParams(), page - 1, limit)}>
-              {t("prev")}
-            </button>
-            <button className="ghost-btn" disabled={!hasMore} onClick={() => loadProducts(getFilterParams(), page + 1, limit)}>
-              {t("next")}
-            </button>
+            <div className="muted">
+              {/* {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total} */}
+              per page
+            </div>
           </div>
         </div>
-        <table className="table">
+
+        <table className="table" style={{marginBottom:15}}>
           <thead>
             <tr>
               <th>{t("images")}</th>
@@ -868,11 +977,43 @@ const ProductsPage = () => {
             )}
           </tbody>
         </table>
+
         <div className="pagination">
-          <div className="muted">
-            {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total}
+          <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
+            {pageLoading && <img src="loading.gif" width="20" />}
+
+            <button className="ghost-btn" disabled={page <= 1} onClick={() => loadProducts(getFilterParams(), page - 1, limit)}>
+              {t("prev")}
+            </button>
+
+            <div className="page-number-row">
+              {getPageList().map((p, idx) => (
+                typeof p === "string" ? (
+                  <span key={`ellipsis-${idx}`} className="page-ellipsis">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`page-btn${p === page ? " active" : ""}`}
+                    onClick={() => loadProducts(getFilterParams(), p, limit)}
+                    disabled={p === page || pageLoading}
+                  >
+                    {p}
+                  </button>
+                )
+              ))}
+            </div>
+
+
+            <button className="ghost-btn" disabled={!hasMore} onClick={() => loadProducts(getFilterParams(), page + 1, limit)}>
+              {t("next")}
+            </button>
           </div>
-          <div className="flex" style={{ gap: 8 }}>
+          <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
+            <div className="muted">
+              {/* {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total} */}
+              Showing
+            </div>
             <select
               className="filter-select"
               value={limit}
@@ -884,12 +1025,10 @@ const ProductsPage = () => {
                 </option>
               ))}
             </select>
-            <button className="ghost-btn" disabled={page <= 1} onClick={() => loadProducts(getFilterParams(), page - 1, limit)}>
-              {t("prev")}
-            </button>
-            <button className="ghost-btn" disabled={!hasMore} onClick={() => loadProducts(getFilterParams(), page + 1, limit)}>
-              {t("next")}
-            </button>
+            <div className="muted">
+              {/* {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total} */}
+              per page
+            </div>
           </div>
         </div>
       </Card>
@@ -1191,17 +1330,38 @@ const ProductsPage = () => {
                         {importPreviewLoading ? (
                           <>
                             <div className="import-loading">
-                              {/* <div className="import-spinner" /> */}
-                              {/* <div className="muted">{t("loadingPreview")}</div> */}
-                              <div className="import-progress">
+                              <div className="import-progress" style={{ marginBottom: 5 }}>
                                 <div className="import-progress-bar" style={{ width: `${importPreviewProgress}%` }} />
                               </div>
+
+                              <div className="import-file-size" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <img src="loading.gif" className="noFilter" width="15" />
+                                {importPreviewStage === "processing"
+                                  ? t("loadingPreview")
+                                  : `${t("upload") || "Uploading"}...`}
+                              </div>
+
+                              {/* {importPreviewTotal > 0 && (
+                                <div className="muted import-progress-meta">
+                                  {formatFileSize(importPreviewLoaded)} / {formatFileSize(importPreviewTotal)}
+                                </div>
+                              )} */}
                             </div>
                             <button
                               className="ghost-btn"
                               type="button"
                               onClick={() => {
-                                //cancel upload
+                                importPreviewAbortRef.current?.abort();
+                                importPreviewAbortRef.current = null;
+                                setImportPreviewLoading(false);
+                                setImportPreviewProgress(0);
+                                setImportPreviewLoaded(0);
+                                setImportPreviewTotal(0);
+                                setImportPreviewStage(null);
+                                setImportFile(null);
+                                setImportPreview(null);
+                                setImportResult(null);
+                                setImportError("");
                               }}
                             >
                               {t("cancel") || "Cancel"}
@@ -1217,6 +1377,11 @@ const ProductsPage = () => {
                               setImportResult(null);
                               setImportError("");
                               setImportPreviewProgress(0);
+                              setImportPreviewLoaded(0);
+                              setImportPreviewTotal(0);
+                              setImportPreviewStage(null);
+                              importPreviewAbortRef.current?.abort();
+                              importPreviewAbortRef.current = null;
                             }}
                           >
                             {t("remove") || "Remove"}
@@ -1255,25 +1420,32 @@ const ProductsPage = () => {
               {importError && <div className="error">{importError}</div>}
               {importPreview && !importPreviewLoading && (
                 <>
-                  <div className="import-preview-controls">
-                    <label className="checkboxContainer">
-                      <input
-                        id="importShowOnlyChanges"
-                        type="checkbox"
-                        checked={importShowOnlyChanges}
-                        onChange={(e) => setImportShowOnlyChanges(e.target.checked)}
-                      />
-                      <label htmlFor="importShowOnlyChanges">
-                        {t("showChangesOnly") || "Show only changes"}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <div>
+                      <div className="modal-title">
+                        {t("importPreviewSummaryPrefix")}
+                      </div>
+                      <div className="success">
+                        {t("importPreviewSummary")
+                          .replace("{created}", String(importPreview.created))
+                          .replace("{updated}", String(importPreview.updated))
+                          .replace("{skipped}", String(importPreview.skipped))
+                          .replace("{total}", String(importPreview.total))}
+                      </div>
+                    </div>
+                    <div className="import-preview-controls">
+                      <label className="checkboxContainer" style={{ margin: 0 }}>
+                        <input
+                          id="importShowOnlyChanges"
+                          type="checkbox"
+                          checked={importShowOnlyChanges}
+                          onChange={(e) => setImportShowOnlyChanges(e.target.checked)}
+                        />
+                        <label htmlFor="importShowOnlyChanges" style={{ cursor: 'pointer', fontSize: '12px', margin: 0, fontWeight: '400' }}>
+                          {t("showChangesOnly") || "Show only changes"}
+                        </label>
                       </label>
-                    </label>
-                  </div>
-                  <div className="success">
-                    {t("importPreviewSummary")
-                      .replace("{created}", String(importPreview.created))
-                      .replace("{updated}", String(importPreview.updated))
-                      .replace("{skipped}", String(importPreview.skipped))
-                      .replace("{total}", String(importPreview.total))}
+                    </div>
                   </div>
                   <table className="table" style={{ marginTop: 10 }}>
                     <thead>

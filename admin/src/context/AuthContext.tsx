@@ -8,6 +8,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -30,6 +31,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     bootstrap();
   }, []);
 
+  const refreshProfile = async () => {
+    try {
+      const profile = await fetchProfile();
+      setUser(profile);
+    } catch {
+      setUser(undefined);
+    }
+  };
+
   const login = async (email: string, password: string) => {
     const res: AuthResponse = await apiLogin(email, password);
     localStorage.setItem("accessToken", res.accessToken);
@@ -41,7 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(undefined);
   };
 
-  return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login, logout, refreshProfile }}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

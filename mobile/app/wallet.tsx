@@ -1,37 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { TextInput, View, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity, Keyboard } from "react-native";
-import Button from "../components/Button";
+import { View, StyleSheet, FlatList } from "react-native";
 import Screen from "../components/Screen";
 import api from "../lib/api";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import ProgressBar from "../components/ProgressBar";
 import Feather from "@expo/vector-icons/Feather";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useAuth } from "../lib/auth";
-import { BottomSheetBackdrop, BottomSheetFooter, BottomSheetModal, BottomSheetModalProvider, BottomSheetTextInput, BottomSheetView } from "@gorhom/bottom-sheet";
 import Text from "../components/Text";
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
   const [wallet, setWallet] = useState<any>();
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [amount, setAmount] = useState("50000");
-  const paymentMethods = ["CASH_STORE", "SHAM_CASH"] as const;
-  const [method, setMethod] = useState<typeof paymentMethods[number]>("CASH_STORE");
-  const [topupSubmitting, setTopupSubmitting] = useState(false);
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const topupSheetRef = useRef<BottomSheetModal>(null);
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(user);
-  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
-  const renderBackdrop = useMemo(
-    () => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />,
-    []
-  );
+  const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   const load = () =>
     api.get("/wallet").then((res) => {
@@ -49,51 +36,6 @@ export default function WalletScreen() {
   useEffect(() => {
     setProfile(user);
   }, [user]);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener("keyboardDidShow", () => setKeyboardOpen(true));
-    const hideSub = Keyboard.addListener("keyboardDidHide", () => setKeyboardOpen(false));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-
-  const submit = async () => {
-    setTopupSubmitting(true);
-    try {
-      await api.post("/wallet/topups", { amount: Number(amount), method });
-      load();
-      topupSheetRef.current?.dismiss();
-    } finally {
-      setTopupSubmitting(false);
-    }
-  };
-
-  const customFooter = (props: any) => (
-    <BottomSheetFooter {...props}>
-      <View
-        style={{
-          paddingHorizontal: 16,
-          paddingTop: 12,
-          backgroundColor: palette.surface,
-          borderTopWidth: 1,
-          borderColor: palette.border,
-          gap: 8,
-          paddingBottom: keyboardOpen ? 10 : insets.bottom + 10,
-        }}
-      >
-        <TouchableOpacity
-          style={styles.primaryBtn}
-          onPress={() => { submit() }}
-          disabled={topupSubmitting}
-        >
-          <Text style={styles.primaryBtnText}>{topupSubmitting ? t("submitting") : t("submit")}</Text>
-          {topupSubmitting && <ActivityIndicator color={'#fff'} size={'small'} style={{}} />}
-        </TouchableOpacity>
-      </View>
-    </BottomSheetFooter>
-  );
 
   const balance = wallet?.balance || wallet?.wallet?.balance || 0;
   const membershipLevel = profile?.membershipLevel || "None";
@@ -157,9 +99,8 @@ export default function WalletScreen() {
   }, [balance, membershipLevel, thresholds]);
 
   return (
-    <BottomSheetModalProvider>
-      <Screen showBack backLabel={t("back") ?? "Back"}>
-        <Text style={styles.title}>{t("wallet")}</Text>
+    <Screen showBack backLabel={t("back") ?? "Back"}>
+      <Text style={styles.title}>{t("wallet")}</Text>
 
         <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg }]}>
           <View style={[styles.walletGlowA, { backgroundColor: membershipTone.accent }]} />
@@ -210,100 +151,41 @@ export default function WalletScreen() {
           </View>
         </View>
 
-        <View style={{ marginBottom: 20 }}>
-          <Button title={t("topUp")} onPress={() => topupSheetRef.current?.present()} />
-        </View>
+      <Text style={[styles.cardTitle, { marginBottom: 8 }]}>{t("walletLedger") ?? "Wallet ledger"}</Text>
 
-        <Text style={[styles.cardTitle, { marginBottom: 8 }]}>{t("walletLedger") ?? "Wallet ledger"}</Text>
-
-        <View style={{ flex: 1, marginBottom: insets.bottom + 10 }}>
-          <FlatList
-            data={transactions}
-            keyExtractor={(_, idx) => String(idx)}
-            ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
-            renderItem={({ item }: any) => (
-              <View style={styles.txRow}>
-                <View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: isRTL?0:5 }}>
-                    {item.type == "CREDIT" && <Feather name="arrow-down-circle" size={18} color={'#009933'} />}
-                    {item.type == "DEBIT" && <Feather name="arrow-up-circle" size={18} color={'#f00000'} />}
-                    <Text style={styles.txAmount}>{(item.amount || 0).toLocaleString()} SYP</Text>
-                  </View>
-
-                  {/* <Text style={styles.txMeta}>{item.type || item.source || "-"}</Text> */}
-
-                  <Text style={[styles.txMeta]}>
-                    {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ""}
-                  </Text>
+      <View style={{ flex: 1, marginBottom: insets.bottom + 10 }}>
+        <FlatList
+          data={transactions}
+          keyExtractor={(_, idx) => String(idx)}
+          ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+          renderItem={({ item }: any) => (
+            <View style={styles.txRow}>
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: isRTL?0:5 }}>
+                  {item.type == "CREDIT" && <Feather name="arrow-down-circle" size={18} color={'#009933'} />}
+                  {item.type == "DEBIT" && <Feather name="arrow-up-circle" size={18} color={'#f00000'} />}
+                  <Text style={styles.txAmount}>{(item.amount || 0).toLocaleString()} SYP</Text>
                 </View>
-                {item.balanceAfter !== undefined && (
-                  <Text style={styles.txMeta}>{item.balanceAfter.toLocaleString()} SYP</Text>
-                )}
-              </View>
-            )}
-            ListEmptyComponent={<Text style={styles.muted}>{t("noTransactions") ?? "No transactions yet"}</Text>}
-          />
-        </View>
-      </Screen>
 
-      <BottomSheetModal
-        ref={topupSheetRef}
-        snapPoints={["55%", "90%"]}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        footerComponent={customFooter}
-        backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
-        handleIndicatorStyle={{ backgroundColor: palette.muted }}
-        keyboardBehavior="extend"
-      >
-        <BottomSheetView style={{ flex: 1, padding: 16, paddingBottom: 140 }}>
-          <Text style={styles.sheetTitle}>{t("topUpRequest")}</Text>
-          <View style={{ flex: 1, gap: 12 }}>
-            <View style={styles.sheetCard}>
-              <Text style={styles.fieldLabel}>{t("amount")}</Text>
-              <BottomSheetTextInput
-                style={styles.input}
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="numeric"
-                placeholder={t("amount")}
-                placeholderTextColor={palette.muted}
-              />
+                {/* <Text style={styles.txMeta}>{item.type || item.source || "-"}</Text> */}
+
+                <Text style={[styles.txMeta]}>
+                  {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ""}
+                </Text>
+              </View>
+              {item.balanceAfter !== undefined && (
+                <Text style={styles.txMeta}>{item.balanceAfter.toLocaleString()} SYP</Text>
+              )}
             </View>
-            <View style={styles.sheetCard}>
-              <View style={styles.sheetCardHeader}>
-                <Text style={styles.fieldLabel}>{t("paymentMethod") ?? "Payment"}</Text>
-              </View>
-              <View style={{ gap: 8, backgroundColor: '#fff', padding: 10, borderRadius: 20 }}>
-                {paymentMethods.map((m) => (
-                  <TouchableOpacity
-                    key={m}
-                    style={[styles.pillRow, method === m && styles.pillRowActive]}
-                    onPress={() => setMethod(m)}
-                  >
-                    {method === m && (
-                      <FontAwesome
-                        name="check"
-                        size={18}
-                        color={palette.accent}
-                        style={[styles.selectedTick,  {right: 8 }]}
-                      />
-                    )}
-                    <Text style={[styles.pillText, method === m && styles.pillTextActive]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
-        </BottomSheetView>
-
-
-      </BottomSheetModal>
-    </BottomSheetModalProvider>
+          )}
+          ListEmptyComponent={<Text style={styles.muted}>{t("noTransactions") ?? "No transactions yet"}</Text>}
+        />
+      </View>
+    </Screen>
   );
 }
 
-const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
+const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
     title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: "left" },
     card: {
@@ -318,39 +200,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     balance: { color: palette.text, fontSize: 32, fontWeight: "800", textAlign:'left' },
     muted: { color: palette.muted, textAlign:'left' },
     cardTitle: { color: palette.text, fontSize: 18, fontWeight: "700", textAlign:'left' },
-    input: {
-      backgroundColor: '#fff',
-      color: palette.text,
-      borderRadius: 20,
-      padding: 12,
-      textAlign:isRTL?'right':'left'
-    },
-    fieldLabel: {  
-      fontSize: 14,
-      fontWeight: '500',
-      paddingTop:5,marginBottom:10,textAlign:'left'
-    },
-    sheetCard: {
-      backgroundColor: palette.surface,
-      borderRadius: 20,
-      padding: 8,
-    },
-    sheetCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    pillRow: {
-      borderWidth: 1,
-      borderColor: palette.border,
-      padding: 12,
-      borderRadius: 14,
-      backgroundColor: palette.surface,
-      position: "relative",
-    },
-    pillRowActive: {
-      borderColor: palette.accent,
-      backgroundColor: isDark ? palette.surface : "rgba(249,115,22,0.10)",
-    },
-    pillText: { color: palette.text, fontWeight: "700",textAlign:'left' },
-    pillTextActive: { color: palette.text },
-    selectedTick: { position: "absolute", top: 17 },
     rowCard: { backgroundColor: palette.card, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: palette.border },
     value: { color: palette.text, fontWeight: "700" },
     walletCard: {
@@ -406,18 +255,4 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     },
     txAmount: { color: palette.text, fontWeight: "800" },
     txMeta: { color: palette.muted, fontSize: 12 },
-    sheetTitle: { color: palette.text, fontSize: 18, fontWeight: "800", marginBottom: 12,textAlign:'left' },
-    primaryBtn: {
-      paddingVertical: 14,
-      borderRadius: 14,
-      alignItems: "center",
-      backgroundColor: palette.accent,
-      shadowColor: palette.accent,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: 5
-    },
-    primaryBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   });

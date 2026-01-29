@@ -8,6 +8,7 @@ import { usePermissions } from "../hooks/usePermissions";
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [saving, setSaving] = useState(false);
   const { t } = useI18n();
   const { can } = usePermissions();
   const canManage = can("settings:manage");
@@ -21,8 +22,14 @@ const SettingsPage = () => {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!canManage) return;
-    const res = await updateSettings(settings);
-    setSettings(res);
+    if (saving) return;
+    setSaving(true);
+    try {
+      const res = await updateSettings(settings);
+      setSettings(res);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateField = (key: keyof Settings, value: number) => setSettings({ ...settings, [key]: value });
@@ -141,7 +148,9 @@ const SettingsPage = () => {
           </label>
         </Card>
 
-        <button className="primary" disabled={!canManage}>{t("saveSettings")}</button>
+        <button className="primary" disabled={!canManage || saving}>
+          {saving ? (t("saving") || "Saving...") : t("saveSettings")}
+        </button>
       </form>
     </>
   );

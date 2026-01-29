@@ -1,8 +1,9 @@
 import { catchAsync } from "../utils/catchAsync";
 import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
-import { adminTopUpSchema, topUpRequestSchema, updateTopUpSchema } from "../validators/walletValidators";
+import { adminTopUpRequestSchema, adminTopUpSchema, topUpRequestSchema, updateTopUpSchema } from "../validators/walletValidators";
 import { adminTopUpWallet, getWalletDetails, listTopUps, requestTopUp, updateTopUpStatus } from "../services/walletService";
+import { User } from "../models/User";
 
 export const getWallet = catchAsync(async (req: AuthRequest, res) => {
   const data = await getWalletDetails(req.user!._id);
@@ -31,4 +32,14 @@ export const adminTopUp = catchAsync(async (req: AuthRequest, res) => {
   const payload = adminTopUpSchema.parse(req.body);
   const data = await adminTopUpWallet(req.user!._id, payload.userId, payload.amount, payload.note);
   sendSuccess(res, data, "Wallet topped up");
+});
+
+export const adminCreateTopUpRequest = catchAsync(async (req: AuthRequest, res) => {
+  const payload = adminTopUpRequestSchema.parse(req.body);
+  const user = payload.userId
+    ? await User.findById(payload.userId)
+    : await User.findOne({ email: payload.email });
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  const topUp = await requestTopUp(user._id, payload.amount, payload.method, payload.note);
+  sendSuccess(res, topUp, "Top-up request created", 201);
 });

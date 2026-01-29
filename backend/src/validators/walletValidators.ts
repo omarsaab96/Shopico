@@ -16,3 +16,13 @@ export const adminTopUpSchema = z.object({
   amount: z.number().positive(),
   note: z.string().optional(),
 });
+
+export const adminTopUpRequestSchema = z.object({
+  userId: z.string().optional(),
+  email: z.string().email().optional(),
+  amount: z.number().positive(),
+  method: z.enum(["CASH_STORE", "SHAM_CASH", "BANK_TRANSFER"]),
+  note: z.string().optional(),
+}).refine((data) => Boolean(data.userId || data.email), {
+  message: "User is required",
+});

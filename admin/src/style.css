@@ -761,6 +761,7 @@ nav::-webkit-scrollbar {
 
 .success {
   color: var(--green-600);
+  font-size: 12px;
 }
 
 .permissions-grid {
@@ -811,7 +812,56 @@ nav::-webkit-scrollbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0 0;
+}
+
+.page-number-row {
+  display: flex;
+  gap: 6px;
+}
+
+.page-btn {
+  background: var(--gray-100);
+  color: var(--text-primary);
+  border:none;
+  outline: none;
+  padding: 6px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease-in-out;
+}
+
+.page-btn:hover {
+  background: var(--gray-300);
+}
+
+.page-btn.active {
+  background: var(--gray-600);
+  color: #fff;
+  cursor: default;
+}
+
+.page-btn:disabled:not(.active) {
+  background: var(--gray-300);
+  color: var(--gray-600);
+  cursor: default;
+  opacity: 0.6;
+}
+
+.page-ellipsis {
+  color: var(--gray-600);
+  padding: 4px 4px;
+  font-size: 13px;
+}
+
+.page-loading-indicator {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(15, 23, 42, 0.2);
+  border-top-color: #0f172a;
+  animation: spin 0.9s linear infinite;
+  display: inline-block;
 }
 
 .user-block {
@@ -1096,9 +1146,9 @@ nav::-webkit-scrollbar {
 
 .import-loading {
   flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  /* display: flex; */
+  /* align-items: center; */
+  /* gap: 20px; */
 }
 
 .import-spinner {
@@ -1123,6 +1173,11 @@ nav::-webkit-scrollbar {
   height: 100%;
   background: linear-gradient(90deg, #ffb347, #ff7a1f);
   transition: width 0.2s ease-in-out;
+}
+
+.import-progress-meta {
+  margin-top: 6px;
+  font-size: 12px;
 }
 
 .import-change-badge {

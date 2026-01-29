@@ -91,7 +91,11 @@ export const importProductsFromExcel = async (file: File) => {
   return res.data.data;
 };
 
-export const previewProductsImport = async (file: File) => {
+export const previewProductsImport = async (
+  file: File,
+  signal?: AbortSignal,
+  onUploadProgress?: (progress: { percent: number; loaded: number; total: number }) => void
+) => {
   const form = new FormData();
   form.append("file", file);
   const res = await api.post<{ data: {
@@ -111,7 +115,20 @@ export const previewProductsImport = async (file: File) => {
   } }>(
     "/products/import/preview",
     form,
-    { headers: { "Content-Type": "multipart/form-data" } }
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      signal,
+      onUploadProgress: onUploadProgress
+        ? (event) => {
+          if (!event.total) return;
+          onUploadProgress({
+            percent: Math.min(100, Math.round((event.loaded / event.total) * 100)),
+            loaded: event.loaded,
+            total: event.total,
+          });
+        }
+        : undefined,
+    }
   );
   return res.data.data;
 };
@@ -142,6 +159,17 @@ export const fetchTopUps = async (params?: { status?: string; method?: string; q
 
 export const updateTopUp = async (id: string, status: string, adminNote?: string) => {
   const res = await api.put<{ data: WalletTopUp }>(`/wallet/topups/${id}`, { status, adminNote });
+  return res.data.data;
+};
+
+export const createTopUpRequestAdmin = async (payload: {
+  userId?: string;
+  email?: string;
+  amount: number;
+  method: "CASH_STORE" | "SHAM_CASH" | "BANK_TRANSFER";
+  note?: string;
+}) => {
+  const res = await api.post<{ data: WalletTopUp }>("/wallet/topups/admin/request", payload);
   return res.data.data;
 };
 

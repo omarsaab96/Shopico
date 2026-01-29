@@ -78,7 +78,7 @@ const App = () => {
           <Route
             path="wallet"
             element={
-              <RequirePermission anyOf={["wallet:view", "wallet:manage"]}>
+              <RequirePermission anyOf={["wallet:topups:view", "wallet:manage"]}>
                 <WalletPage />
               </RequirePermission>
             }

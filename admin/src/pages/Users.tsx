@@ -4,6 +4,7 @@ import api, { adminTopUpUser, createUser, updateUserPermissions } from "../api/c
 import type { ApiUser } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
+import { useAuth } from "../context/AuthContext";
 import { PERMISSION_GROUPS } from "../constants/permissions";
 
 interface UserDetails {
@@ -41,6 +42,7 @@ const UsersPage = () => {
   const [roleFilter, setRoleFilter] = useState("");
   const { t } = useI18n();
   const { can } = usePermissions();
+  const { user: currentUser, refreshProfile } = useAuth();
   const canManageUsers = can("users:manage");
   const canManageWallet = can("wallet:manage");
 
@@ -175,6 +177,9 @@ const UsersPage = () => {
       const updatedUser = await updateUserPermissions(selected.user._id, permissionsDraft);
       setSelected((prev) => (prev ? { ...prev, user: updatedUser } : prev));
       setPermissionsSuccess(t("permissionsUpdated"));
+      if (updatedUser._id === currentUser?._id) {
+        await refreshProfile();
+      }
     } catch (err: any) {
       const message = err?.response?.data?.message || "Failed to update permissions";
       setPermissionsError(message);
@@ -331,7 +336,7 @@ const UsersPage = () => {
               </div>
             </div>
 
-            <div style={{ marginBottom: 12 }}>
+            {/* <div style={{ marginBottom: 12 }}>
               <h4>{t("topUpWallet")}</h4>
               <div className="form">
                 <label>
@@ -364,7 +369,7 @@ const UsersPage = () => {
                   </button>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             <div style={{ marginBottom: 12 }}>
               <h4>{t("permissions")}</h4>
