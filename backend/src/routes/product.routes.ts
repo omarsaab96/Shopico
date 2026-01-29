@@ -1,12 +1,27 @@
 import { Router } from "express";
 import multer from "multer";
-import { bulkUpdatePrices, createProduct, deleteProduct, getProduct, importProductsFromExcel, listProducts, previewProductsImport, updateProduct } from "../controllers/productController";
+import { bulkUpdatePrices, createProduct, deleteProduct, getProduct, importProductsFromExcel, listAllProductsAdmin, listProducts, listProductsAdminPaginated, previewProductsImport, updateProduct } from "../controllers/productController";
+import { requireAnyPermissions } from "../middleware/auth";
 import { authenticate, authorize, requirePermissions } from "../middleware/auth";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.get("/", listProducts);
+router.get(
+  "/admin/all",
+  authenticate,
+  authorize("admin", "manager", "staff"),
+  requireAnyPermissions("products:view", "products:manage"),
+  listAllProductsAdmin
+);
+router.get(
+  "/admin",
+  authenticate,
+  authorize("admin", "manager", "staff"),
+  requireAnyPermissions("products:view", "products:manage"),
+  listProductsAdminPaginated
+);
 router.post("/bulk-price", authenticate, authorize("admin", "manager", "staff"), requirePermissions("products:manage"), bulkUpdatePrices);
 router.post(
   "/import",

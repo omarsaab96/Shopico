@@ -39,6 +39,43 @@ export const listProducts = catchAsync(async (req, res) => {
   sendSuccess(res, products);
 });
 
+export const listAllProductsAdmin = catchAsync(async (req, res) => {
+  const { q, category, includeUnavailable } = req.query as { q?: string; category?: string; includeUnavailable?: string };
+  const filter: Record<string, unknown> = {};
+  if (q) filter.name = { $regex: q, $options: "i" };
+  if (category) filter.categories = category;
+  if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
+
+  const products = await Product.find(filter).populate("categories").sort({ createdAt: -1 });
+  sendSuccess(res, products);
+});
+
+export const listProductsAdminPaginated = catchAsync(async (req, res) => {
+  const {
+    q,
+    category,
+    page: rawPage,
+    limit: rawLimit,
+    includeUnavailable,
+  } = req.query as { q?: string; category?: string; page?: string; limit?: string; includeUnavailable?: string };
+  const filter: Record<string, unknown> = {};
+  if (q) filter.name = { $regex: q, $options: "i" };
+  if (category) filter.categories = category;
+  if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
+
+  const page = Math.max(1, Number(rawPage) || 1);
+  const limit = Math.min(200, Math.max(1, Number(rawLimit) || 50));
+  const total = await Product.countDocuments(filter);
+  const items = await Product.find(filter)
+    .populate("categories")
+    .sort({ createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .lean();
+  const hasMore = (page - 1) * limit + items.length < total;
+  sendSuccess(res, { items, total, page, limit, hasMore });
+});
+
 export const getProduct = catchAsync(async (req, res) => {
   const product = await Product.findById(req.params.id).populate("categories");
   if (!product) return res.status(404).json({ success: false, message: "Product not found" });

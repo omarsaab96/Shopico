@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
 import type { Category, Product, ProductImage } from "../types/api";
-import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchProducts, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
+import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchProducts, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 
@@ -36,6 +36,10 @@ const ProductsPage = () => {
   const [priceAmount, setPriceAmount] = useState("");
   const [priceSaving, setPriceSaving] = useState(false);
   const [priceError, setPriceError] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importSaving, setImportSaving] = useState(false);
@@ -58,12 +62,23 @@ const ProductsPage = () => {
     includeUnavailable: true,
   });
 
-  const loadProducts = (params?: { q?: string; category?: string }) => {
-    fetchProducts(params).then(setProducts).catch(console.error);
+  const loadProducts = async (params?: { q?: string; category?: string }, nextPage?: number, nextLimit?: number) => {
+    try {
+      const currentPage = nextPage ?? page;
+      const currentLimit = nextLimit ?? limit;
+      const data = await fetchProductsAdmin({ ...params, includeUnavailable: true, page: currentPage, limit: currentLimit });
+      setProducts(data.items);
+      setTotal(data.total);
+      setHasMore(data.hasMore);
+      setPage(data.page);
+      setLimit(data.limit);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const load = () => {
-    loadProducts(getFilterParams());
+    loadProducts(getFilterParams(), 1, limit);
     fetchCategories().then(setCategories).catch(console.error);
   };
 
@@ -72,13 +87,13 @@ const ProductsPage = () => {
   }, []);
 
   const applyFilters = () => {
-    loadProducts(getFilterParams());
+    loadProducts(getFilterParams(), 1, limit);
   };
 
   const resetFilters = () => {
     setSearchTerm("");
     setFilterCategory("");
-    loadProducts();
+    loadProducts({ includeUnavailable: true } as any, 1, limit);
   };
 
   const openNewModal = () => {
@@ -141,6 +156,8 @@ const ProductsPage = () => {
       setImportSaving(false);
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(total / limit));
 
   const loadImportPreview = async (file: File) => {
     setImportPreviewLoading(true);
@@ -434,7 +451,7 @@ const ProductsPage = () => {
 
   return (
     <>
-      <Card title={t("nav.products")} subTitle={`(${products.length})`}>
+      <Card title={t("nav.products")} subTitle={`(${total})`}>
         <div className="page-header">
           <div className="filters">
             <input
@@ -467,6 +484,30 @@ const ProductsPage = () => {
             </button>
             <button className="ghost-btn" type="button" onClick={openImportModal} disabled={!canImport}>
               {t("importProducts")}
+            </button>
+          </div>
+        </div>
+        <div className="pagination">
+          <div className="muted">
+            {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total}
+          </div>
+          <div className="flex" style={{ gap: 8 }}>
+            <select
+              className="filter-select"
+              value={limit}
+              onChange={(e) => loadProducts(getFilterParams(), 1, Number(e.target.value))}
+            >
+              {[25, 50, 100, 200].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+            <button className="ghost-btn" disabled={page <= 1} onClick={() => loadProducts(getFilterParams(), page - 1, limit)}>
+              {t("prev")}
+            </button>
+            <button className="ghost-btn" disabled={!hasMore} onClick={() => loadProducts(getFilterParams(), page + 1, limit)}>
+              {t("next")}
             </button>
           </div>
         </div>
@@ -659,6 +700,30 @@ const ProductsPage = () => {
             )}
           </tbody>
         </table>
+        <div className="pagination">
+          <div className="muted">
+            {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total}
+          </div>
+          <div className="flex" style={{ gap: 8 }}>
+            <select
+              className="filter-select"
+              value={limit}
+              onChange={(e) => loadProducts(getFilterParams(), 1, Number(e.target.value))}
+            >
+              {[25, 50, 100, 200].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+            <button className="ghost-btn" disabled={page <= 1} onClick={() => loadProducts(getFilterParams(), page - 1, limit)}>
+              {t("prev")}
+            </button>
+            <button className="ghost-btn" disabled={!hasMore} onClick={() => loadProducts(getFilterParams(), page + 1, limit)}>
+              {t("next")}
+            </button>
+          </div>
+        </div>
       </Card>
 
       {showEditCategories && editingId && (

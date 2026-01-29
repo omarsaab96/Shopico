@@ -36,13 +36,36 @@ export const fetchCategories = async (params?: { q?: string }) => {
   return res.data.data;
 };
 
-export const fetchProducts = async (params?: { q?: string; category?: string; includeUnavailable?: boolean }) => {
-  const res = await api.get<{ data: Product[] }>("/products", {
+export const fetchProducts = async (params?: { q?: string; category?: string; includeUnavailable?: boolean; page?: number; limit?: number }) => {
+  const res = await api.get<{ data: Product[] | { items: Product[]; total: number; page: number; limit: number; hasMore: boolean } }>("/products", {
     params: {
       ...params,
       includeUnavailable: params?.includeUnavailable ? "true" : undefined,
     },
   });
+  return res.data.data;
+};
+
+export const fetchAllProducts = async (params?: { q?: string; category?: string; includeUnavailable?: boolean }) => {
+  const res = await api.get<{ data: Product[] }>("/products/admin/all", {
+    params: {
+      ...params,
+      includeUnavailable: params?.includeUnavailable ? "true" : undefined,
+    },
+  });
+  return res.data.data;
+};
+
+export const fetchProductsAdmin = async (params?: { q?: string; category?: string; includeUnavailable?: boolean; page?: number; limit?: number }) => {
+  const res = await api.get<{ data: { items: Product[]; total: number; page: number; limit: number; hasMore: boolean } }>(
+    "/products/admin",
+    {
+      params: {
+        ...params,
+        includeUnavailable: params?.includeUnavailable ? "true" : undefined,
+      },
+    }
+  );
   return res.data.data;
 };
 

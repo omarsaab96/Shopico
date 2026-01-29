@@ -806,6 +806,13 @@ nav::-webkit-scrollbar {
   margin-bottom: 6px;
 }
 
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 0;
+}
+
 .user-block {
   display: flex;
   gap: 10px;
