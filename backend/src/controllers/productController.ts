@@ -174,6 +174,9 @@ type ImportDecision = {
   hasStock: boolean;
   action: ImportAction;
   reason?: string;
+  previousName?: string;
+  previousPrice?: number;
+  previousHasStock?: boolean;
 };
 
 const readImportEntries = (buffer: Buffer) => {
@@ -237,12 +240,25 @@ const decideImportActions = (
       desired.isAvailable !== existing?.isAvailable;
 
     if (!hasChange) {
-      decisions.push({ ...entry, action: "skip", reason: "no_change" });
+      decisions.push({
+        ...entry,
+        action: "skip",
+        reason: "no_change",
+        previousName: existing?.name,
+        previousPrice: existing?.price,
+        previousHasStock: existing?.isAvailable,
+      });
       skipped += 1;
       continue;
     }
 
-    decisions.push({ ...entry, action: "update" });
+    decisions.push({
+      ...entry,
+      action: "update",
+      previousName: existing?.name,
+      previousPrice: existing?.price,
+      previousHasStock: existing?.isAvailable,
+    });
     updated += 1;
   }
 

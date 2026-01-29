@@ -95,7 +95,17 @@ export const previewProductsImport = async (file: File) => {
   const form = new FormData();
   form.append("file", file);
   const res = await api.post<{ data: {
-    preview: { barcode: string; name: string; price: number | null; hasStock: boolean; action: string; reason?: string }[];
+    preview: {
+      barcode: string;
+      name: string;
+      price: number | null;
+      hasStock: boolean;
+      action: string;
+      reason?: string;
+      previousName?: string;
+      previousPrice?: number;
+      previousHasStock?: boolean;
+    }[];
     created: number; updated: number; skipped: number; total: number;
   } }>(
     "/products/import/preview",

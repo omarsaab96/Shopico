@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import type { DragEvent, FormEvent } from "react";
 import Card from "../components/Card";
 import type { Category, Product, ProductImage } from "../types/api";
 import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchProducts, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
@@ -46,10 +46,22 @@ const ProductsPage = () => {
   const [importPreviewLoading, setImportPreviewLoading] = useState(false);
   const [importError, setImportError] = useState("");
   const [importResult, setImportResult] = useState<{ created: number; updated: number; skipped: number; total: number } | null>(null);
+  const [importDragActive, setImportDragActive] = useState(false);
   const [importPreview, setImportPreview] = useState<{
-    preview: { barcode: string; name: string; price: number | null; hasStock: boolean; action: string; reason?: string }[];
+    preview: {
+      barcode: string;
+      name: string;
+      price: number | null;
+      hasStock: boolean;
+      action: string;
+      reason?: string;
+      previousName?: string;
+      previousPrice?: number;
+      previousHasStock?: boolean;
+    }[];
     created: number; updated: number; skipped: number; total: number;
   } | null>(null);
+  const [importPreviewProgress, setImportPreviewProgress] = useState(0);
   const { t } = useI18n();
   const { can } = usePermissions();
   const canManage = can("products:manage");
@@ -130,6 +142,8 @@ const ProductsPage = () => {
     setImportPreview(null);
     setImportSaving(false);
     setImportPreviewLoading(false);
+    setImportDragActive(false);
+    setImportPreviewProgress(0);
     setShowImportModal(true);
   };
 
@@ -172,6 +186,104 @@ const ProductsPage = () => {
     } finally {
       setImportPreviewLoading(false);
     }
+  };
+
+  useEffect(() => {
+    if (!importPreviewLoading) {
+      setImportPreviewProgress(0);
+      return;
+    }
+    setImportPreviewProgress(12);
+    const timer = setInterval(() => {
+      setImportPreviewProgress((prev) => {
+        if (prev >= 90) return prev;
+        const bump = 4 + Math.floor(Math.random() * 10);
+        return Math.min(90, prev + bump);
+      });
+    }, 280);
+    return () => clearInterval(timer);
+  }, [importPreviewLoading]);
+
+  const isExcelFile = (file: File) => {
+    const name = file.name.toLowerCase();
+    return name.endsWith(".xlsx") || name.endsWith(".xls");
+  };
+
+  const formatFileSize = (size: number) => {
+    if (size < 1024) return `${size} B`;
+    const kb = size / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    const mb = kb / 1024;
+    return `${mb.toFixed(2)} MB`;
+  };
+
+  const handleImportFile = (file: File | null) => {
+    setImportError("");
+    setImportResult(null);
+    setImportPreview(null);
+    setImportPreviewProgress(0);
+    if (!file) {
+      setImportFile(null);
+      return;
+    }
+    if (!isExcelFile(file)) {
+      setImportFile(null);
+      setImportError(t("invalidFileType") || "Only Excel files (.xlsx, .xls) are supported.");
+      return;
+    }
+    setImportFile(file);
+    loadImportPreview(file);
+  };
+
+  const handleImportDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setImportDragActive(true);
+  };
+
+  const handleImportDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setImportDragActive(false);
+  };
+
+  const handleImportDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setImportDragActive(false);
+    const file = e.dataTransfer.files?.[0] || null;
+    handleImportFile(file);
+  };
+
+  const formatPriceValue = (value: number | null | undefined) => {
+    if (value === null || value === undefined || Number.isNaN(value)) return "-";
+    return Number(value).toLocaleString();
+  };
+
+  const renderDiff = (current: string, previous?: string) => {
+    if (!previous || previous === current) {
+      return <span>{current || "-"}</span>;
+    }
+    return (
+      <div className="import-diff">
+        <span className="import-old">{previous}</span>
+        <span className="import-arrow">-&gt;</span>
+        <span className="import-new">{current}</span>
+      </div>
+    );
+  };
+
+  const renderPriceDiff = (current: number | null, previous?: number) => {
+    if (previous === undefined || previous === null || previous === current) {
+      return <span>{formatPriceValue(current)}</span>;
+    }
+    return (
+      <div className="import-diff">
+        <span className="import-old">{formatPriceValue(previous)}</span>
+        <span className="import-arrow">-&gt;</span>
+        <span className="import-new">{formatPriceValue(current)}</span>
+      </div>
+    );
   };
 
   const uploadToImageKit = async (
@@ -1011,22 +1123,65 @@ const ProductsPage = () => {
             </div>
             <div className="form">
               <div className="muted">{t("importProductsHint")}</div>
-              <label>
-                {t("selectFile")}
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    setImportFile(file);
-                    setImportResult(null);
-                    if (file) loadImportPreview(file);
-                  }}
-                />
-              </label>
+              <div className="import-upload">
+                <div
+                  className={`import-dropzone${importDragActive ? " active" : ""}${importFile ? " has-file" : ""}`}
+                  onDragOver={handleImportDragOver}
+                  onDragEnter={handleImportDragOver}
+                  onDragLeave={handleImportDragLeave}
+                  onDrop={handleImportDrop}
+                >
+                  <input
+                    id="importExcelFile"
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="import-file-input"
+                    onChange={(e) => handleImportFile(e.target.files?.[0] || null)}
+                  />
+                  <label htmlFor="importExcelFile" className="import-dropzone-inner">
+                    <div className="import-icon">
+                      <img src="uploadIcon.png" alt="" />
+                    </div>
+                    {/* <div className="import-title">{t("selectFile") || "Select file"}</div> */}
+                    <div className="import-sub">Drag & drop your Excel file here, or click to browse.</div>
+                    <div className="import-meta muted">Allowed extensions: .xlsx or .xls</div>
+                  </label>
+                </div>
+                {importFile && (
+                  <div className="import-file-card">
+                    <div className="import-file-details">
+                      <div className="import-file-name">{importFile.name}</div>
+                      <div className="import-file-size">{formatFileSize(importFile.size)}</div>
+                    </div>
+                    <div className="import-file-actions">
+                      <button
+                        className="ghost-btn"
+                        type="button"
+                        onClick={() => {
+                          setImportFile(null);
+                          setImportPreview(null);
+                          setImportResult(null);
+                          setImportError("");
+                          setImportPreviewProgress(0);
+                        }}
+                      >
+                        {t("remove") || "Remove"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               {importError && <div className="error">{importError}</div>}
-              {importPreviewLoading && <div className="muted">{t("loadingPreview")}</div>}
-              {importPreview && (
+              {importPreviewLoading && (
+                <div className="import-loading">
+                  <div className="import-spinner" />
+                  <div className="muted">{t("loadingPreview")}</div>
+                  <div className="import-progress">
+                    <div className="import-progress-bar" style={{ width: `${importPreviewProgress}%` }} />
+                  </div>
+                </div>
+              )}
+              {importPreview && !importPreviewLoading && (
                 <>
                   <div className="success">
                     {t("importPreviewSummary")
@@ -1038,7 +1193,6 @@ const ProductsPage = () => {
                   <table className="table" style={{ marginTop: 10 }}>
                     <thead>
                       <tr>
-                        <th>{t("barcode")}</th>
                         <th>{t("name")}</th>
                         <th>{t("price")}</th>
                         <th>{t("availability")}</th>
@@ -1049,11 +1203,14 @@ const ProductsPage = () => {
                     <tbody>
                       {importPreview.preview.map((row, idx) => (
                         <tr key={`${row.barcode}-${idx}`}>
-                          <td>{row.barcode}</td>
-                          <td>{row.name}</td>
-                          <td>{row.price ?? "-"}</td>
+                          <td>{renderDiff(row.name, row.previousName)}</td>
+                          <td>{renderPriceDiff(row.price, row.previousPrice)}</td>
                           <td>{row.hasStock ? t("available") : t("unavailable")}</td>
-                          <td>{t(`import.action.${row.action}`)}</td>
+                          <td>
+                            <span className={`import-change-badge ${row.action}`} title={t(`import.action.${row.action}`)}>
+                              {row.action === "create" ? "+" : row.action === "update" ? "~" : "-"}
+                            </span>
+                          </td>
                           <td>{row.reason ? t(`import.reason.${row.reason}`) : "-"}</td>
                         </tr>
                       ))}
