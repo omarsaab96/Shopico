@@ -1189,13 +1189,24 @@ const ProductsPage = () => {
                       </div>
                       <div className="import-file-actions">
                         {importPreviewLoading ? (
-                          <div className="import-loading">
-                            {/* <div className="import-spinner" /> */}
-                            {/* <div className="muted">{t("loadingPreview")}</div> */}
-                            <div className="import-progress">
-                              <div className="import-progress-bar" style={{ width: `${importPreviewProgress}%` }} />
+                          <>
+                            <div className="import-loading">
+                              {/* <div className="import-spinner" /> */}
+                              {/* <div className="muted">{t("loadingPreview")}</div> */}
+                              <div className="import-progress">
+                                <div className="import-progress-bar" style={{ width: `${importPreviewProgress}%` }} />
+                              </div>
                             </div>
-                          </div>
+                            <button
+                              className="ghost-btn"
+                              type="button"
+                              onClick={() => {
+                                //cancel upload
+                              }}
+                            >
+                              {t("cancel") || "Cancel"}
+                            </button>
+                          </>
                         ) : (
                           <button
                             className="ghost-btn"
