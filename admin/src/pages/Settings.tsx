@@ -5,17 +5,20 @@ import type { Settings } from "../types/api";
 import { fetchSettings, updateSettings } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
+import { useBranch } from "../context/BranchContext";
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saving, setSaving] = useState(false);
   const { t } = useI18n();
   const { can } = usePermissions();
+  const { selectedBranchId } = useBranch();
   const canManage = can("settings:manage");
 
   useEffect(() => {
+    if (!selectedBranchId) return;
     fetchSettings().then(setSettings);
-  }, []);
+  }, [selectedBranchId]);
 
   if (!settings) return <div>{t("loadingSettings")}</div>;
 

@@ -12,9 +12,9 @@ export const getUserCart = async (userId: Types.ObjectId) => {
   return cart || (await Cart.create({ user: userId, items: [] }));
 };
 
-export const updateCart = async (userId: Types.ObjectId, items: UpdateCartItem[]) => {
+export const updateCart = async (userId: Types.ObjectId, branchId: string, items: UpdateCartItem[]) => {
   const productIds = items.map((i) => i.productId);
-  const products = await Product.find({ _id: { $in: productIds } });
+  const products = await Product.find({ _id: { $in: productIds }, branchId });
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
 
   const cartItems = items.map((item) => {

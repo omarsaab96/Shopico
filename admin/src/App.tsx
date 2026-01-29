@@ -12,6 +12,7 @@ import AnnouncementsPage from "./pages/Announcements";
 import CouponsPage from "./pages/Coupons";
 import SettingsPage from "./pages/Settings";
 import AuditLogsPage from "./pages/AuditLogs";
+import BranchesPage from "./pages/Branches";
 import { useAuth } from "./context/AuthContext";
 import RequirePermission from "./components/RequirePermission";
 
@@ -104,6 +105,14 @@ const App = () => {
             element={
               <RequirePermission anyOf={["settings:view", "settings:manage"]}>
                 <SettingsPage />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="branches"
+            element={
+              <RequirePermission anyOf={["branches:view", "branches:manage"]}>
+                <BranchesPage />
               </RequirePermission>
             }
           />

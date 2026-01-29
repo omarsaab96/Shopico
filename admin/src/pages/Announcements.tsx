@@ -7,6 +7,7 @@ import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { useBranch } from "../context/BranchContext";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
 
@@ -54,6 +55,7 @@ const AnnouncementsPage = () => {
   const [editError, setEditError] = useState("");
   const { t } = useI18n();
   const { can } = usePermissions();
+  const { selectedBranchId } = useBranch();
   const canManage = can("announcements:manage");
   const canUpload = can("uploads:auth") && canManage;
 
@@ -67,8 +69,9 @@ const AnnouncementsPage = () => {
     fetchAnnouncements(params).then(setAnnouncements).catch(console.error);
 
   useEffect(() => {
+    if (!selectedBranchId) return;
     load(getFilterParams());
-  }, []);
+  }, [selectedBranchId]);
 
   const applyFilters = () => {
     load(getFilterParams());

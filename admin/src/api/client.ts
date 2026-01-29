@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { ApiUser, Category, Product, Order, WalletTopUp, Settings, Announcement, Coupon } from "../types/api";
+import type { ApiUser, Branch, Category, Product, Order, WalletTopUp, Settings, Announcement, Coupon } from "../types/api";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || "http://localhost:4000/api",
@@ -11,6 +11,11 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  const branchId = localStorage.getItem("branchId");
+  if (branchId) {
+    config.headers = config.headers || {};
+    config.headers["x-branch-id"] = branchId;
   }
   return config;
 });
@@ -29,6 +34,11 @@ export const login = async (email: string, password: string) => {
 export const fetchProfile = async () => {
   const res = await api.get<{ data: { user: ApiUser } }>("/auth/me");
   return res.data.data.user;
+};
+
+export const fetchUsers = async (params?: { q?: string; role?: string }) => {
+  const res = await api.get<{ data: ApiUser[] }>("/users", { params });
+  return res.data.data;
 };
 
 export const fetchCategories = async (params?: { q?: string }) => {
@@ -187,6 +197,11 @@ export const updateUserPermissions = async (userId: string, permissions: string[
   return res.data.data;
 };
 
+export const updateUserBranches = async (userId: string, branchIds: string[]) => {
+  const res = await api.put<{ data: ApiUser }>(`/users/${userId}/branches`, { branchIds });
+  return res.data.data;
+};
+
 export const createUser = async (payload: {
   name: string;
   email: string;
@@ -194,6 +209,7 @@ export const createUser = async (payload: {
   role: string;
   phone?: string;
   permissions?: string[];
+  branchIds?: string[];
 }) => {
   const res = await api.post<{ data: ApiUser }>("/users", payload);
   return res.data.data;
@@ -208,6 +224,27 @@ export const updateSettings = async (payload: Partial<Settings>) => {
   const res = await api.put<{ data: Settings }>("/settings", payload);
   return res.data.data;
 };
+
+export const fetchBranches = async (params?: { q?: string }) => {
+  const res = await api.get<{ data: Branch[] }>("/branches", { params });
+  return res.data.data;
+};
+
+export const fetchMyBranches = async () => {
+  const res = await api.get<{ data: Branch[] }>("/branches/me");
+  return res.data.data;
+};
+
+export const saveBranch = async (payload: Partial<Branch>) => {
+  if (payload._id) {
+    const res = await api.put<{ data: Branch }>(`/branches/${payload._id}`, payload);
+    return res.data.data;
+  }
+  const res = await api.post<{ data: Branch }>("/branches", payload);
+  return res.data.data;
+};
+
+export const deleteBranch = async (id: string) => api.delete(`/branches/${id}`);
 
 export const getImageKitAuth = async () => {
   const res = await api.get<{ data: { token: string; expire: number; signature: string; publicKey: string } }>(

@@ -7,6 +7,7 @@ import api, { deleteCoupon, fetchCoupons, fetchProducts, saveCoupon } from "../a
 import type { ApiUser, Coupon, Product } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
+import { useBranch } from "../context/BranchContext";
 
 type CouponDraft = Omit<Coupon, "expiresAt" | "assignedUsers" | "assignedProducts" | "assignedMembershipLevels"> & {
   expiresAt?: Date | string;
@@ -72,6 +73,7 @@ const CouponsPage = () => {
   const [showEditAssigned, setShowEditAssigned] = useState(false);
   const { t } = useI18n();
   const { can } = usePermissions();
+  const { selectedBranchId } = useBranch();
   const canManage = can("coupons:manage");
 
   const getFilterParams = () => ({
@@ -94,10 +96,11 @@ const CouponsPage = () => {
   };
 
   useEffect(() => {
+    if (!selectedBranchId) return;
     loadCoupons(getFilterParams());
     loadUsers();
     loadProducts();
-  }, []);
+  }, [selectedBranchId]);
 
   const openNewModal = () => {
     if (!canManage) return;

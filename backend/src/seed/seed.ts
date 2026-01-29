@@ -6,6 +6,7 @@ import { Category } from "../models/Category";
 import { Product } from "../models/Product";
 import { Wallet } from "../models/Wallet";
 import { PERMISSIONS } from "../constants/permissions";
+import { Branch } from "../models/Branch";
 
 const run = async () => {
   await mongoose.connect(env.mongoUri);
@@ -15,6 +16,17 @@ const run = async () => {
   const adminPassword = "Pass@123";
 
   const existingAdmin = await User.findOne({ email: adminEmail });
+  let defaultBranch = await Branch.findOne().sort({ createdAt: 1 });
+  if (!defaultBranch) {
+    defaultBranch = await Branch.create({
+      name: "Main Branch",
+      address: "Main Branch",
+      lat: 0,
+      lng: 0,
+      deliveryRadiusKm: 5,
+      isActive: true,
+    });
+  }
   if (!existingAdmin) {
     const hashed = await bcrypt.hash(adminPassword, 10);
     const admin = await User.create({
@@ -23,6 +35,7 @@ const run = async () => {
       password: hashed,
       role: "admin",
       permissions: [...PERMISSIONS],
+      branchIds: [defaultBranch._id],
     });
     await Wallet.create({ user: admin._id, balance: 0 });
     console.log(`Created admin user ${adminEmail}`);
@@ -40,15 +53,15 @@ const run = async () => {
 
   const categories = await Category.insertMany(
     [
-      { name: "Fruits", description: "Fresh fruits" },
-      { name: "Vegetables", description: "Green and leafy" },
-      { name: "Dairy", description: "Milk and cheese" },
+      { name: "Fruits", description: "Fresh fruits", branchId: defaultBranch._id },
+      { name: "Vegetables", description: "Green and leafy", branchId: defaultBranch._id },
+      { name: "Dairy", description: "Milk and cheese", branchId: defaultBranch._id },
     ],
     { ordered: false }
   ).catch(() => []);
   console.log("Categories seeded", categories.length || "existing");
 
-  const fruitsCategory = await Category.findOne({ name: "Fruits" });
+  const fruitsCategory = await Category.findOne({ name: "Fruits", branchId: defaultBranch._id });
   if (fruitsCategory) {
     await Product.insertMany(
       [
@@ -59,6 +72,7 @@ const run = async () => {
           categories: [fruitsCategory._id],
           images: [],
           isAvailable: true,
+          branchId: defaultBranch._id,
         },
         {
           name: "Apples",
@@ -67,6 +81,7 @@ const run = async () => {
           categories: [fruitsCategory._id],
           images: [],
           isAvailable: true,
+          branchId: defaultBranch._id,
         },
       ],
       { ordered: false }

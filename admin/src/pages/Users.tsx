@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import Card from "../components/Card";
-import api, { adminTopUpUser, createUser, updateUserPermissions } from "../api/client";
+import api, { adminTopUpUser, createUser, fetchBranches, updateUserBranches, updateUserPermissions } from "../api/client";
 import type { ApiUser } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useAuth } from "../context/AuthContext";
 import { PERMISSION_GROUPS } from "../constants/permissions";
+import { useBranch } from "../context/BranchContext";
 
 interface UserDetails {
   user: ApiUser;
@@ -27,6 +28,11 @@ const UsersPage = () => {
   const [permissionsSaving, setPermissionsSaving] = useState(false);
   const [permissionsError, setPermissionsError] = useState("");
   const [permissionsSuccess, setPermissionsSuccess] = useState("");
+  const [branchDraft, setBranchDraft] = useState<string[]>([]);
+  const [branchSaving, setBranchSaving] = useState(false);
+  const [branchError, setBranchError] = useState("");
+  const [branchSuccess, setBranchSuccess] = useState("");
+  const [assignableBranches, setAssignableBranches] = useState<typeof branches>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createDraft, setCreateDraft] = useState({
     name: "",
@@ -35,6 +41,7 @@ const UsersPage = () => {
     role: "staff",
     phone: "",
     permissions: [] as string[],
+    branchIds: [] as string[],
   });
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -43,8 +50,10 @@ const UsersPage = () => {
   const { t } = useI18n();
   const { can } = usePermissions();
   const { user: currentUser, refreshProfile } = useAuth();
+  const { selectedBranchId, branches } = useBranch();
   const canManageUsers = can("users:manage");
   const canManageWallet = can("wallet:manage");
+  const canAssignBranches = can("branches:assign");
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -56,8 +65,19 @@ const UsersPage = () => {
   };
 
   useEffect(() => {
+    if (!selectedBranchId) return;
     loadUsers();
-  }, []);
+  }, [selectedBranchId]);
+
+  useEffect(() => {
+    if (!canAssignBranches) {
+      setAssignableBranches(branches);
+      return;
+    }
+    fetchBranches()
+      .then(setAssignableBranches)
+      .catch(() => setAssignableBranches(branches));
+  }, [canAssignBranches, branches.length]);
 
   useEffect(() => {
     setTopupAmount("");
@@ -68,6 +88,10 @@ const UsersPage = () => {
     setPermissionsError("");
     setPermissionsSuccess("");
     setPermissionsSaving(false);
+    setBranchDraft(selected?.user?.branchIds || []);
+    setBranchError("");
+    setBranchSuccess("");
+    setBranchSaving(false);
   }, [selected?.user?._id]);
 
   const fetchUserDetails = async (id: string) => {
@@ -88,7 +112,15 @@ const UsersPage = () => {
 
   const openCreateModal = () => {
     if (!canManageUsers) return;
-    setCreateDraft({ name: "", email: "", password: "", role: "staff", phone: "", permissions: [] });
+    setCreateDraft({
+      name: "",
+      email: "",
+      password: "",
+      role: "staff",
+      phone: "",
+      permissions: [],
+      branchIds: selectedBranchId ? [selectedBranchId] : [],
+    });
     setCreateError("");
     setCreateSaving(false);
     setShowCreateModal(true);
@@ -108,6 +140,15 @@ const UsersPage = () => {
     }));
   };
 
+  const toggleCreateBranch = (branchId: string) => {
+    setCreateDraft((prev) => ({
+      ...prev,
+      branchIds: prev.branchIds.includes(branchId)
+        ? prev.branchIds.filter((item) => item !== branchId)
+        : [...prev.branchIds, branchId],
+    }));
+  };
+
   const submitCreateUser = async () => {
     if (!canManageUsers) return;
     if (!createDraft.name.trim() || !createDraft.email.trim() || !createDraft.password.trim()) {
@@ -124,6 +165,7 @@ const UsersPage = () => {
         role: createDraft.role,
         phone: createDraft.phone.trim() || undefined,
         permissions: createDraft.permissions,
+        branchIds: createDraft.branchIds.length ? createDraft.branchIds : undefined,
       });
       setShowCreateModal(false);
       loadUsers();
@@ -185,6 +227,26 @@ const UsersPage = () => {
       setPermissionsError(message);
     } finally {
       setPermissionsSaving(false);
+    }
+  };
+
+  const saveBranches = async () => {
+    if (!selected || !canAssignBranches) return;
+    setBranchSaving(true);
+    setBranchError("");
+    setBranchSuccess("");
+    try {
+      const updatedUser = await updateUserBranches(selected.user._id, branchDraft);
+      setSelected((prev) => (prev ? { ...prev, user: updatedUser } : prev));
+      setBranchSuccess(t("branchesUpdated") || "Branches updated");
+      if (updatedUser._id === currentUser?._id) {
+        await refreshProfile();
+      }
+    } catch (err: any) {
+      const message = err?.response?.data?.message || "Failed to update branches";
+      setBranchError(message);
+    } finally {
+      setBranchSaving(false);
     }
   };
 
@@ -405,6 +467,45 @@ const UsersPage = () => {
               </div>
             </div>
 
+            <div style={{ marginBottom: 12 }}>
+              <h4>{t("branches")}</h4>
+              <div className="permissions-grid">
+                {assignableBranches.length === 0 ? (
+                  <div className="muted">{t("noBranches")}</div>
+                ) : (
+                  assignableBranches.map((branch) => (
+                    <label className="permission-item" key={branch._id}>
+                      <input
+                        type="checkbox"
+                        checked={branchDraft.includes(branch._id)}
+                        onChange={() =>
+                          setBranchDraft((prev) =>
+                            prev.includes(branch._id)
+                              ? prev.filter((item) => item !== branch._id)
+                              : [...prev, branch._id]
+                          )
+                        }
+                        disabled={!canAssignBranches}
+                      />
+                      <span>{branch.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              {branchError && <div className="error">{branchError}</div>}
+              {branchSuccess && <div className="success">{branchSuccess}</div>}
+              <div className="modal-actions">
+                <button
+                  className="ghost-btn"
+                  type="button"
+                  onClick={saveBranches}
+                  disabled={!canAssignBranches || branchSaving}
+                >
+                  {branchSaving ? t("saving") : (t("saveBranches") || "Save branches")}
+                </button>
+              </div>
+            </div>
+
             <div className="two-col">
               <div>
                 <h4>{t("walletLedger")}</h4>
@@ -515,6 +616,23 @@ const UsersPage = () => {
                   ))}
                 </div>
               ))}
+            </div>
+            <h4>{t("branches")}</h4>
+            <div className="permissions-grid">
+              {assignableBranches.length === 0 ? (
+                <div className="muted">{t("noBranches")}</div>
+              ) : (
+                assignableBranches.map((branch) => (
+                  <label className="permission-item" key={branch._id}>
+                    <input
+                      type="checkbox"
+                      checked={createDraft.branchIds.includes(branch._id)}
+                      onChange={() => toggleCreateBranch(branch._id)}
+                    />
+                    <span>{branch.name}</span>
+                  </label>
+                ))
+              )}
             </div>
             {createError && <div className="error">{createError}</div>}
             <div className="modal-actions">

@@ -18,6 +18,9 @@ export const PERMISSIONS = [
   "coupons:manage",
   "settings:view",
   "settings:manage",
+  "branches:view",
+  "branches:manage",
+  "branches:assign",
   "audit:view",
   "uploads:auth",
 ] as const;

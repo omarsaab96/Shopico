@@ -5,6 +5,7 @@ import { sendSuccess } from "../utils/response";
 import { AuditLog } from "../models/AuditLog";
 import { AuthRequest } from "../types/auth";
 import * as xlsx from "xlsx";
+import { getDefaultBranchId } from "../utils/branch";
 
 export const listProducts = catchAsync(async (req, res) => {
   const {
@@ -14,7 +15,9 @@ export const listProducts = catchAsync(async (req, res) => {
     limit: rawLimit,
     includeUnavailable,
   } = req.query as { q?: string; category?: string; page?: string; limit?: string; includeUnavailable?: string };
-  const filter: Record<string, unknown> = {};
+  const branchId = req.branchId || (await getDefaultBranchId());
+  if (!branchId) return res.status(400).json({ success: false, message: "Branch not configured" });
+  const filter: Record<string, unknown> = { branchId };
   if (q) filter.name = { $regex: q, $options: "i" };
   if (category) filter.categories = category;
   if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
@@ -41,7 +44,8 @@ export const listProducts = catchAsync(async (req, res) => {
 
 export const listAllProductsAdmin = catchAsync(async (req, res) => {
   const { q, category, includeUnavailable } = req.query as { q?: string; category?: string; includeUnavailable?: string };
-  const filter: Record<string, unknown> = {};
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const filter: Record<string, unknown> = { branchId: req.branchId };
   if (q) filter.name = { $regex: q, $options: "i" };
   if (category) filter.categories = category;
   if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
@@ -58,7 +62,8 @@ export const listProductsAdminPaginated = catchAsync(async (req, res) => {
     limit: rawLimit,
     includeUnavailable,
   } = req.query as { q?: string; category?: string; page?: string; limit?: string; includeUnavailable?: string };
-  const filter: Record<string, unknown> = {};
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const filter: Record<string, unknown> = { branchId: req.branchId };
   if (q) filter.name = { $regex: q, $options: "i" };
   if (category) filter.categories = category;
   if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
@@ -77,13 +82,16 @@ export const listProductsAdminPaginated = catchAsync(async (req, res) => {
 });
 
 export const getProduct = catchAsync(async (req, res) => {
-  const product = await Product.findById(req.params.id).populate("categories");
+  const branchId = req.branchId || (await getDefaultBranchId());
+  if (!branchId) return res.status(400).json({ success: false, message: "Branch not configured" });
+  const product = await Product.findOne({ _id: req.params.id, branchId }).populate("categories");
   if (!product) return res.status(404).json({ success: false, message: "Product not found" });
   sendSuccess(res, product);
 });
 
 export const createProduct = catchAsync(async (req, res) => {
   const payload = productSchema.parse(req.body);
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const product = await Product.create({
     name: payload.name,
     description: payload.description,
@@ -95,25 +103,29 @@ export const createProduct = catchAsync(async (req, res) => {
     images: payload.images,
     isAvailable: payload.isAvailable ?? true,
     isFeatured: payload.isFeatured ?? false,
+    branchId: req.branchId,
   });
   sendSuccess(res, product, "Product created", 201);
 });
 
 export const updateProduct = catchAsync(async (req, res) => {
   const payload = productUpdateSchema.partial().parse(req.body);
-  const product = await Product.findByIdAndUpdate(req.params.id, payload, { new: true });
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const product = await Product.findOneAndUpdate({ _id: req.params.id, branchId: req.branchId }, payload, { new: true });
   if (!product) return res.status(404).json({ success: false, message: "Product not found" });
   sendSuccess(res, product, "Product updated");
 });
 
 export const deleteProduct = catchAsync(async (req, res) => {
-  const deleted = await Product.findByIdAndDelete(req.params.id);
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const deleted = await Product.findOneAndDelete({ _id: req.params.id, branchId: req.branchId });
   if (!deleted) return res.status(404).json({ success: false, message: "Product not found" });
   sendSuccess(res, deleted, "Product deleted");
 });
 
 export const bulkUpdatePrices = catchAsync(async (req, res) => {
   const payload = bulkPriceSchema.parse(req.body);
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   if (payload.amountType === "PERCENT" && payload.mode === "DISCOUNT" && payload.amount > 100) {
     return res.status(400).json({ success: false, message: "Percentage discount cannot exceed 100" });
   }
@@ -137,7 +149,7 @@ export const bulkUpdatePrices = catchAsync(async (req, res) => {
 
   const price = payload.mode === "DISCOUNT" ? { $max: [0, rawPrice] } : rawPrice;
 
-  const result = await Product.updateMany({}, [{ $set: { price } }], { updatePipeline: true });
+  const result = await Product.updateMany({ branchId: req.branchId }, [{ $set: { price } }], { updatePipeline: true });
   const modifiedCount = (result as any).modifiedCount ?? (result as any).nModified ?? 0;
   sendSuccess(res, { modifiedCount }, "Prices updated");
 });
@@ -332,6 +344,7 @@ const decideImportActions = (
 export const previewProductsImport = catchAsync(async (req: AuthRequest, res) => {
   const file = (req as any).file as Express.Multer.File | undefined;
   if (!file) return res.status(400).json({ success: false, message: "File is required" });
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
 
   const entries = readImportEntries(file.buffer);
   if (entries.length === 0) {
@@ -339,7 +352,7 @@ export const previewProductsImport = catchAsync(async (req: AuthRequest, res) =>
   }
 
   const barcodes = entries.map((entry) => entry.barcode).filter(Boolean);
-  const existing = await Product.find({ barcode: { $in: barcodes } })
+  const existing = await Product.find({ barcode: { $in: barcodes }, branchId: req.branchId })
     .select("barcode name price isAvailable")
     .lean();
   const existingMap = new Map(existing.map((p) => [p.barcode, { name: p.name, price: p.price, isAvailable: p.isAvailable }]));
@@ -352,6 +365,7 @@ export const previewProductsImport = catchAsync(async (req: AuthRequest, res) =>
 export const importProductsFromExcel = catchAsync(async (req: AuthRequest, res) => {
   const file = (req as any).file as Express.Multer.File | undefined;
   if (!file) return res.status(400).json({ success: false, message: "File is required" });
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
 
   const entries = readImportEntries(file.buffer);
   if (entries.length === 0) {
@@ -359,7 +373,7 @@ export const importProductsFromExcel = catchAsync(async (req: AuthRequest, res) 
   }
 
   const barcodes = entries.map((entry) => entry.barcode).filter(Boolean);
-  const existing = await Product.find({ barcode: { $in: barcodes } })
+  const existing = await Product.find({ barcode: { $in: barcodes }, branchId: req.branchId })
     .select("barcode name price isAvailable")
     .lean();
   const existingMap = new Map(existing.map((p) => [p.barcode, { name: p.name, price: p.price, isAvailable: p.isAvailable }]));
@@ -378,7 +392,7 @@ export const importProductsFromExcel = catchAsync(async (req: AuthRequest, res) 
 
     ops.push({
       updateOne: {
-        filter: { barcode: decision.barcode },
+        filter: { barcode: decision.barcode, branchId: req.branchId },
         update: {
           $set: update,
           $setOnInsert: {
@@ -389,6 +403,7 @@ export const importProductsFromExcel = catchAsync(async (req: AuthRequest, res) 
             isFeatured: false,
             categories: [],
             images: [],
+            branchId: req.branchId,
           },
         },
         upsert: true,

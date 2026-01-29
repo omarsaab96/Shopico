@@ -8,6 +8,7 @@ export interface ITopUpRequest extends Document {
   status: TopUpStatus;
   note?: string;
   adminNote?: string;
+  branchId: Schema.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +21,7 @@ const TopUpRequestSchema = new Schema<ITopUpRequest>(
     status: { type: String, enum: ["PENDING", "APPROVED", "REJECTED"], default: "PENDING" },
     note: { type: String },
     adminNote: { type: String },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
   },
   { timestamps: true }
 );

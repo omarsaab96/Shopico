@@ -115,7 +115,8 @@ export const listCoupons = catchAsync(async (req, res) => {
     expiresFrom?: string;
     expiresTo?: string;
   };
-  const filter: Record<string, any> = {};
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const filter: Record<string, any> = { branchId: req.branchId };
 
   if (enabled === "true") filter.isActive = true;
   if (enabled === "false") filter.isActive = false;
@@ -181,6 +182,7 @@ export const createCoupon = catchAsync(async (req, res) => {
   if (payload.freeDelivery && payload.discountValue === undefined) payload.discountValue = 0;
   const error = ensureValidDiscount(payload);
   if (error) return res.status(400).json({ success: false, message: error });
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const assignments = resolveAssignments(payload);
   if ("error" in assignments) return res.status(400).json({ success: false, message: assignments.error });
   const code = normalizeCode(payload.code);
@@ -190,6 +192,7 @@ export const createCoupon = catchAsync(async (req, res) => {
     assignedUsers: assignments.users.length ? assignments.users.map((id) => new Types.ObjectId(id)) : [],
     assignedProducts: assignments.products.length ? assignments.products.map((id) => new Types.ObjectId(id)) : [],
     assignedMembershipLevels: assignments.levels.length ? assignments.levels : [],
+    branchId: req.branchId,
   });
   sendSuccess(res, coupon, "Coupon created", 201);
 });
@@ -199,6 +202,7 @@ export const updateCoupon = catchAsync(async (req, res) => {
   if (payload.freeDelivery && payload.discountValue === undefined) payload.discountValue = 0;
   const error = ensureValidDiscount(payload);
   if (error) return res.status(400).json({ success: false, message: error });
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const assignments = resolveAssignments(payload);
   if ("error" in assignments) return res.status(400).json({ success: false, message: assignments.error });
   if (payload.code) payload.code = normalizeCode(payload.code);
@@ -229,8 +233,8 @@ export const updateCoupon = catchAsync(async (req, res) => {
     unset.expiresAt = 1;
     delete update.expiresAt;
   }
-  const coupon = await Coupon.findByIdAndUpdate(
-    req.params.id,
+  const coupon = await Coupon.findOneAndUpdate(
+    { _id: req.params.id, branchId: req.branchId },
     Object.keys(unset).length ? { $set: update, $unset: unset } : update,
     { new: true }
   );
@@ -239,7 +243,8 @@ export const updateCoupon = catchAsync(async (req, res) => {
 });
 
 export const deleteCoupon = catchAsync(async (req, res) => {
-  const deleted = await Coupon.findByIdAndDelete(req.params.id);
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const deleted = await Coupon.findOneAndDelete({ _id: req.params.id, branchId: req.branchId });
   if (!deleted) return res.status(404).json({ success: false, message: "Coupon not found" });
   await CouponRedemption.deleteMany({ coupon: deleted._id });
   sendSuccess(res, deleted, "Coupon deleted");
@@ -251,8 +256,10 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
     subtotal?: number;
     deliveryFee?: number;
   };
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const now = new Date();
   const coupons = await Coupon.find({
+    branchId: req.branchId,
     isActive: true,
     restricted: { $ne: true },
     $or: [{ expiresAt: null }, { expiresAt: { $gte: now } }, { expiresAt: { $exists: false } }],
@@ -324,7 +331,8 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
 export const validateCoupon = catchAsync(async (req: AuthRequest, res) => {
   const payload = couponValidateSchema.parse(req.body);
   const code = normalizeCode(payload.code);
-  const coupon = await Coupon.findOne({ code, isActive: true });
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const coupon = await Coupon.findOne({ code, isActive: true, branchId: req.branchId });
   if (!coupon) return res.status(404).json({ success: false, message: "Coupon not found" });
 
   if (coupon.expiresAt && coupon.expiresAt.getTime() < Date.now()) {

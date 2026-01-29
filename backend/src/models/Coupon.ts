@@ -23,13 +23,14 @@ export interface ICoupon extends Document {
   maxUsesGlobal?: number;
   usedCount: number;
   isActive: boolean;
+  branchId: Schema.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const CouponSchema = new Schema<ICoupon>(
   {
-    code: { type: String, required: true, unique: true, index: true },
+    code: { type: String, required: true, index: true },
     title: { type: String },
     description: { type: String },
     discountType: { type: String, enum: ["PERCENT", "FIXED"], required: true },
@@ -47,8 +48,11 @@ const CouponSchema = new Schema<ICoupon>(
     maxUsesGlobal: { type: Number },
     usedCount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
   },
   { timestamps: true }
 );
+
+CouponSchema.index({ branchId: 1, code: 1 }, { unique: true });
 
 export const Coupon = mongoose.model<ICoupon>("Coupon", CouponSchema);

@@ -8,6 +8,7 @@ export interface IUser extends Document {
   password: string;
   role: UserRole;
   permissions: string[];
+  branchIds: Schema.Types.ObjectId[];
   membershipLevel: string;
   membershipGraceUntil?: Date | null;
   points: number;
@@ -23,6 +24,7 @@ const UserSchema = new Schema<IUser>(
     password: { type: String, required: true },
     role: { type: String, enum: ["customer", "admin", "manager", "staff"], default: "customer" },
     permissions: { type: [String], default: [] },
+    branchIds: { type: [Schema.Types.ObjectId], ref: "Branch", default: [] },
     membershipLevel: { type: String, default: "None" },
     membershipGraceUntil: { type: Date, default: null },
     points: { type: Number, default: 0 },

@@ -16,6 +16,7 @@ export interface IProduct extends Document {
   images: IProductImage[];
   isAvailable: boolean;
   isFeatured: boolean;
+  branchId: Schema.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,7 +33,7 @@ const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true },
     description: { type: String },
-    barcode: { type: String, unique: true, sparse: true, index: true },
+    barcode: { type: String, sparse: true, index: true },
     price: { type: Number, required: true },
     promoPrice: { type: Number },
     isPromoted: { type: Boolean, default: false },
@@ -40,8 +41,11 @@ const ProductSchema = new Schema<IProduct>(
     images: { type: [ProductImageSchema], default: [] },
     isAvailable: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
   },
   { timestamps: true }
 );
+
+ProductSchema.index({ branchId: 1, barcode: 1 }, { unique: true, sparse: true });
 
 export const Product = mongoose.model<IProduct>("Product", ProductSchema);

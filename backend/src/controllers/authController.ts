@@ -44,7 +44,9 @@ export const me = catchAsync(async (req: AuthRequest, res) => {
   try {
     const wallet = await Wallet.findOne({ user: req.user!._id });
     const balance = wallet?.balance ?? 0;
-    await updateMembershipOnBalanceChange(req.user!, balance);
+    const branchIds = (req.user as any)?.branchIds || [];
+    const branchId = branchIds.length ? branchIds[0].toString() : undefined;
+    await updateMembershipOnBalanceChange(req.user!, balance, branchId);
   } catch (e) {
     // best-effort; we still return the user even if this fails
   }

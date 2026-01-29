@@ -8,6 +8,7 @@ export interface IMembershipThresholds {
 }
 
 export interface ISettings extends Document {
+  branchId: Schema.Types.ObjectId;
   storeLat: number;
   storeLng: number;
   deliveryFreeKm: number;
@@ -34,6 +35,7 @@ const MembershipThresholdSchema = new Schema<IMembershipThresholds>(
 
 const SettingsSchema = new Schema<ISettings>(
   {
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
     storeLat: { type: Number, default: 0 },
     storeLng: { type: Number, default: 0 },
     deliveryFreeKm: { type: Number, default: 1 },
@@ -47,5 +49,7 @@ const SettingsSchema = new Schema<ISettings>(
   },
   { timestamps: true }
 );
+
+SettingsSchema.index({ branchId: 1 }, { unique: true });
 
 export const Settings = mongoose.model<ISettings>("Settings", SettingsSchema);

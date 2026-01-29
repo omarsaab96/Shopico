@@ -5,6 +5,7 @@ import type { Category } from "../types/api";
 import api, { fetchCategories, getImageKitAuth } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
+import { useBranch } from "../context/BranchContext";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
 
@@ -21,6 +22,7 @@ const CategoriesPage = () => {
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
   const { t } = useI18n();
   const { can } = usePermissions();
+  const { selectedBranchId } = useBranch();
   const canManage = can("categories:manage");
   const canUpload = can("uploads:auth") && canManage;
 
@@ -31,8 +33,9 @@ const CategoriesPage = () => {
   const load = (params?: { q?: string }) => fetchCategories(params).then(setCategories);
 
   useEffect(() => {
+    if (!selectedBranchId) return;
     load(getFilterParams());
-  }, []);
+  }, [selectedBranchId]);
 
   const uploadToImageKit = async (
     file: File,

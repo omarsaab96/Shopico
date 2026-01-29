@@ -13,6 +13,7 @@ export interface IAnnouncement extends Document {
   startsAt: Date;
   endsAt: Date;
   isEnabled: boolean;
+  branchId: Schema.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,6 +42,7 @@ const AnnouncementSchema = new Schema<IAnnouncement>(
     startsAt: { type: Date, default: defaultStartsAt },
     endsAt: { type: Date, default: defaultEndsAt },
     isEnabled: { type: Boolean, default: true },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
   },
   { timestamps: true }
 );

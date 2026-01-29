@@ -5,6 +5,7 @@ import { createTopUpRequestAdmin, fetchTopUps, updateTopUp } from "../api/client
 import type { WalletTopUp } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
+import { useBranch } from "../context/BranchContext";
 
 const WalletPage = () => {
   const [topups, setTopups] = useState<WalletTopUp[]>([]);
@@ -19,6 +20,7 @@ const WalletPage = () => {
   const [actionLoadingStatus, setActionLoadingStatus] = useState<"" | "APPROVED" | "REJECTED">("");
   const { t, tStatus } = useI18n();
   const { can } = usePermissions();
+  const { selectedBranchId } = useBranch();
   const canManageWallet = can("wallet:manage");
   const canCreateTopups = can("wallet:topups:create");
   const canViewTopups = can("wallet:topups:view") || canManageWallet;
@@ -34,8 +36,9 @@ const WalletPage = () => {
     fetchTopUps(getFilterParams()).then(setTopups);
   };
   useEffect(() => {
+    if (!selectedBranchId) return;
     load();
-  }, [canViewTopups]);
+  }, [canViewTopups, selectedBranchId]);
 
   const submitCreate = async () => {
     if (!canCreateTopups) return;

@@ -16,6 +16,10 @@ export const updateUserPermissionsSchema = z.object({
   permissions: permissionsSchema,
 });
 
+export const updateUserBranchesSchema = z.object({
+  branchIds: z.array(z.string().min(1)),
+});
+
 export const createUserSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
@@ -23,4 +27,5 @@ export const createUserSchema = z.object({
   role: z.enum(["customer", "manager", "staff"]),
   phone: z.string().optional(),
   permissions: permissionsSchema.optional(),
+  branchIds: z.array(z.string().min(1)).optional(),
 });

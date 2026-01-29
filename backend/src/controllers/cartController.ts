@@ -11,6 +11,7 @@ export const getCart = catchAsync(async (req: AuthRequest, res) => {
 
 export const saveCart = catchAsync(async (req: AuthRequest, res) => {
   const payload = updateCartSchema.parse(req.body);
-  const cart = await updateCart(req.user!._id, payload.items);
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const cart = await updateCart(req.user!._id, req.branchId, payload.items);
   sendSuccess(res, cart, "Cart updated");
 });

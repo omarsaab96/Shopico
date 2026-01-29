@@ -6,6 +6,7 @@ export interface ApiUser {
   email: string;
   role: UserRole;
   permissions?: string[];
+  branchIds?: string[];
   phone?: string;
   membershipLevel?: string;
   points?: number;
@@ -80,6 +81,20 @@ export interface Settings {
   pointsPerAmount: number;
   rewardThresholdPoints: number;
   rewardValue: number;
+}
+
+export interface Branch {
+  _id: string;
+  name: string;
+  address: string;
+  phone?: string;
+  lat: number;
+  lng: number;
+  openHours?: string;
+  deliveryRadiusKm: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AnnouncementImage {

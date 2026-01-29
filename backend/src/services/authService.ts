@@ -3,6 +3,7 @@ import { User } from "../models/User";
 import { Wallet } from "../models/Wallet";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "./tokenService";
 import { AuditLog } from "../models/AuditLog";
+import { getDefaultBranchId } from "../utils/branch";
 
 export const registerUser = async (name: string, email: string, password: string, phone?: string) => {
   const existing = await User.findOne({ email });
@@ -10,7 +11,15 @@ export const registerUser = async (name: string, email: string, password: string
     throw { status: 400, message: "Email already registered" };
   }
   const hashed = await bcrypt.hash(password, 10);
-  const user = await User.create({ name, email, password: hashed, phone, role: "customer" });
+  const defaultBranchId = await getDefaultBranchId();
+  const user = await User.create({
+    name,
+    email,
+    password: hashed,
+    phone,
+    role: "customer",
+    branchIds: defaultBranchId ? [defaultBranchId] : [],
+  });
   await Wallet.create({ user: user._id, balance: 0 });
   await AuditLog.create({ user: user._id, action: "USER_REGISTER" });
   const accessToken = signAccessToken(user);

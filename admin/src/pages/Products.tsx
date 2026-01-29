@@ -5,6 +5,7 @@ import type { Category, Product, ProductImage } from "../types/api";
 import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchProducts, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
+import { useBranch } from "../context/BranchContext";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
 
@@ -71,6 +72,7 @@ const ProductsPage = () => {
   const importPreviewAbortRef = useRef<AbortController | null>(null);
   const importPreviewTimerRef = useRef<number | null>(null);
   const { t } = useI18n();
+  const { selectedBranchId } = useBranch();
   const { can } = usePermissions();
   const canManage = can("products:manage");
   const canUpload = can("uploads:auth") && canManage;
@@ -106,8 +108,9 @@ const ProductsPage = () => {
   };
 
   useEffect(() => {
+    if (!selectedBranchId) return;
     load();
-  }, []);
+  }, [selectedBranchId]);
 
   const applyFilters = () => {
     loadProducts(getFilterParams(), 1, limit);

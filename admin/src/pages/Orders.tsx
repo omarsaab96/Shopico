@@ -5,6 +5,7 @@ import { fetchOrders, updateOrderStatus } from "../api/client";
 import type { Order } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
+import { useBranch } from "../context/BranchContext";
 
 const statuses = ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"];
 
@@ -15,6 +16,7 @@ const OrdersPage = () => {
   const [paymentFilter, setPaymentFilter] = useState("");
   const { t, tStatus } = useI18n();
   const { can } = usePermissions();
+  const { selectedBranchId } = useBranch();
   const canUpdateOrders = can("orders:update");
 
   const getFilterParams = () => ({
@@ -25,8 +27,9 @@ const OrdersPage = () => {
 
   const load = () => fetchOrders(getFilterParams()).then(setOrders);
   useEffect(() => {
+    if (!selectedBranchId) return;
     load();
-  }, []);
+  }, [selectedBranchId]);
 
   const update = async (order: Order, status: string, paymentStatus?: string) => {
     await updateOrderStatus(order._id, status, paymentStatus);

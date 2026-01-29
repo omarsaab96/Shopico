@@ -15,6 +15,7 @@ export interface IOrderStatusEntry {
 export interface IOrder extends Document {
   user: mongoose.Types.ObjectId;
   items: IOrderItem[];
+  branchId: Schema.Types.ObjectId;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: "PENDING" | "CONFIRMED";
@@ -55,6 +56,7 @@ const OrderSchema = new Schema<IOrder>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     items: { type: [OrderItemSchema], required: true },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
     status: { type: String, enum: ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"], default: "PENDING" },
     paymentMethod: { type: String, required: true },
     paymentStatus: { type: String, enum: ["PENDING", "CONFIRMED"], default: "PENDING" },

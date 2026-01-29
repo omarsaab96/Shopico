@@ -13,6 +13,7 @@ import auditRoutes from "./audit.routes";
 import addressRoutes from "./address.routes";
 import announcementRoutes from "./announcement.routes";
 import couponRoutes from "./coupon.routes";
+import branchRoutes from "./branch.routes";
 
 const router = Router();
 
@@ -31,5 +32,6 @@ router.use("/audit", auditRoutes);
 router.use("/addresses", addressRoutes);
 router.use("/announcements", announcementRoutes);
 router.use("/coupons", couponRoutes);
+router.use("/branches", branchRoutes);
 
 export default router;

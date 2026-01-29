@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
+import { useBranch } from "../context/BranchContext";
 
 const navItems = [
   { to: "/", key: "dashboard", label: "Dashboard", permissions: ["dashboard:view"] },
@@ -13,6 +14,7 @@ const navItems = [
   { to: "/wallet", key: "wallet", label: "Wallet Top-ups", permissions: ["wallet:topups:view", "wallet:manage"] },
   { to: "/announcements", key: "announcements", label: "Announcements", permissions: ["announcements:view", "announcements:manage"] },
   { to: "/coupons", key: "coupons", label: "Coupons", permissions: ["coupons:view", "coupons:manage"] },
+  { to: "/branches", key: "branches", label: "Branches", permissions: ["branches:view", "branches:manage"] },
   { to: "/settings", key: "settings", label: "Settings", permissions: ["settings:view", "settings:manage"] },
   { to: "/audit", key: "audit", label: "Audit Logs", permissions: ["audit:view"] },
 ];
@@ -22,6 +24,7 @@ const Layout = () => {
   const { canAny } = usePermissions();
   const navigate = useNavigate();
   const { t, toggleLanguage, lang } = useI18n();
+  const { branches, selectedBranchId, setSelectedBranchId, selectedBranch } = useBranch();
   const handleLogout = () => {
     logout();
     navigate("/login");
@@ -74,12 +77,28 @@ const Layout = () => {
           <div className="brand">
             {/* <div className="brand-dot" /> */}
             <div>
-              <div className="brand-title">{t("shopicoAdminPanel")}</div>
+              <div className="brand-title">
+                {t("shopicoAdminPanel")}
+                {selectedBranch ? ` • ${selectedBranch.name}` : ""}
+              </div>
               {/* <div className="brand-sub">Admin</div> */}
             </div>
           </div>
           {/* <div className="pill">Orange Pulse</div> */}
           <div className="flex">
+            {branches.length > 1 && selectedBranchId && (
+              <select
+                className="filter-select"
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+              >
+                {branches.map((branch) => (
+                  <option key={branch._id} value={branch._id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <button className="ghost-btn dark icon" type="button" onClick={toggleTheme}>
               <img src="themeIcon.png" alt="" />
             </button>

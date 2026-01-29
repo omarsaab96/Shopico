@@ -56,6 +56,15 @@ export const PERMISSION_GROUPS = [
       { key: "settings:manage", labelKey: "perm.settings.manage" },
     ],
   },
+  {
+    key: "branches",
+    labelKey: "perm.group.branches",
+    permissions: [
+      { key: "branches:view", labelKey: "perm.branches.view" },
+      { key: "branches:manage", labelKey: "perm.branches.manage" },
+      { key: "branches:assign", labelKey: "perm.branches.assign" },
+    ],
+  },
 ] as const;
 
 export const ALL_PERMISSIONS = PERMISSION_GROUPS.flatMap((group) =>

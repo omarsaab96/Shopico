@@ -3,8 +3,8 @@ import { Settings } from "../models/Settings";
 
 export type MembershipLevel = "None" | "Silver" | "Gold" | "Platinum" | "Diamond";
 
-export const determineMembershipLevel = async (walletBalance: number): Promise<MembershipLevel> => {
-  const settings = await Settings.findOne();
+export const determineMembershipLevel = async (walletBalance: number, branchId?: string): Promise<MembershipLevel> => {
+  const settings = branchId ? await Settings.findOne({ branchId }) : await Settings.findOne();
   const thresholds = settings?.membershipThresholds || {
     silver: 1000000,
     gold: 2000000,
@@ -18,8 +18,8 @@ export const determineMembershipLevel = async (walletBalance: number): Promise<M
   return "None";
 };
 
-export const updateMembershipOnBalanceChange = async (user: IUser, walletBalance: number) => {
-  const settings = await Settings.findOne();
+export const updateMembershipOnBalanceChange = async (user: IUser, walletBalance: number, branchId?: string) => {
+  const settings = branchId ? await Settings.findOne({ branchId }) : await Settings.findOne();
   const graceDays = settings?.membershipGraceDays ?? 14;
   const thresholds = settings?.membershipThresholds || {
     silver: 1000000,
@@ -28,7 +28,7 @@ export const updateMembershipOnBalanceChange = async (user: IUser, walletBalance
     diamond: 6000000,
   };
 
-  const targetLevel = await determineMembershipLevel(walletBalance);
+  const targetLevel = await determineMembershipLevel(walletBalance, branchId);
   const levelOrder: MembershipLevel[] = ["None", "Silver", "Gold", "Platinum", "Diamond"];
   const currentIndex = levelOrder.indexOf(user.membershipLevel as MembershipLevel);
   const targetIndex = levelOrder.indexOf(targetLevel);

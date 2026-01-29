@@ -21,12 +21,13 @@ interface CheckoutItemInput {
   quantity: number;
 }
 
-export const getOrdersForUser = async (userId: Types.ObjectId) => {
-  return Order.find({ user: userId }).sort({ createdAt: -1 }).populate("items.product");
+export const getOrdersForUser = async (userId: Types.ObjectId, branchId: string) => {
+  return Order.find({ user: userId, branchId }).sort({ createdAt: -1 }).populate("items.product");
 };
 
-export const getAllOrders = async (opts?: { status?: string; paymentStatus?: string; q?: string }) => {
+export const getAllOrders = async (opts?: { status?: string; paymentStatus?: string; q?: string; branchId?: string }) => {
   const filter: Record<string, unknown> = {};
+  if (opts?.branchId) filter.branchId = opts.branchId;
   if (opts?.status) filter.status = opts.status;
   if (opts?.paymentStatus) filter.paymentStatus = opts.paymentStatus;
 
@@ -49,17 +50,19 @@ export const getAllOrders = async (opts?: { status?: string; paymentStatus?: str
   return Order.find(filter).sort({ createdAt: -1 }).populate("user").populate("items.product");
 };
 
-export const getOrderById = async (id: string, userId?: Types.ObjectId) => {
-  const order = await Order.findById(id).populate("items.product");
+export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId?: string) => {
+  const filter: Record<string, unknown> = { _id: id };
+  if (branchId) filter.branchId = branchId;
+  const order = await Order.findOne(filter).populate("items.product");
   if (!order) return null;
   if (userId && order.user.toString() !== userId.toString()) return null;
   return order;
 };
 
-const buildOrderItems = async (itemsInput?: CheckoutItemInput[], userId?: Types.ObjectId) => {
+const buildOrderItems = async (itemsInput?: CheckoutItemInput[], userId?: Types.ObjectId, branchId?: string) => {
   if (itemsInput && itemsInput.length > 0) {
     const ids = itemsInput.map((i) => i.productId);
-    const products = await Product.find({ _id: { $in: ids } });
+    const products = await Product.find({ _id: { $in: ids }, ...(branchId ? { branchId } : {}) });
     const productMap = new Map(products.map((p) => [p._id.toString(), p]));
     return itemsInput.map((item) => {
       const product = productMap.get(item.productId);
@@ -71,15 +74,20 @@ const buildOrderItems = async (itemsInput?: CheckoutItemInput[], userId?: Types.
   if (!userId) throw { status: 400, message: "No items provided" };
   const cart = await Cart.findOne({ user: userId });
   if (!cart || cart.items.length === 0) throw { status: 400, message: "Cart is empty" };
-  return cart.items.map((item) => ({ product: item.product, quantity: item.quantity, price: item.priceSnapshot }));
+  const cartIds = cart.items.map((item) => item.product);
+  const products = await Product.find({ _id: { $in: cartIds }, ...(branchId ? { branchId } : {}) }).select("_id");
+  const allowedIds = new Set(products.map((p) => p._id.toString()));
+  const filtered = cart.items.filter((item) => allowedIds.has(item.product.toString()));
+  if (filtered.length === 0) throw { status: 400, message: "Cart items not available for this branch" };
+  return filtered.map((item) => ({ product: item.product, quantity: item.quantity, price: item.priceSnapshot }));
 };
 
-const getSettingsSnapshot = async () => {
-  const settings = (await Settings.findOne()) || (await Settings.create({}));
+const getSettingsSnapshot = async (branchId: string) => {
+  const settings = (await Settings.findOne({ branchId })) || (await Settings.create({ branchId }));
   return settings;
 };
 
-const handleWalletDebit = async (userId: Types.ObjectId, amount: number, reference: string) => {
+const handleWalletDebit = async (userId: Types.ObjectId, branchId: string, amount: number, reference: string) => {
   const wallet = await Wallet.findOne({ user: userId });
   if (!wallet) throw { status: 404, message: "Wallet not found" };
   if (wallet.balance < amount) throw { status: 400, message: "Insufficient wallet balance" };
@@ -94,7 +102,7 @@ const handleWalletDebit = async (userId: Types.ObjectId, amount: number, referen
     balanceAfter: wallet.balance,
   });
   const user = await User.findById(userId);
-  if (user) await updateMembershipOnBalanceChange(user, wallet.balance);
+  if (user) await updateMembershipOnBalanceChange(user, wallet.balance, branchId);
 };
 
 const tryConsumeRewardToken = async (userId: Types.ObjectId, rewardValue: number, apply: boolean) => {
@@ -110,6 +118,7 @@ const normalizeCouponCode = (code: string) => code.trim().toUpperCase();
 
 const applyCoupon = async (
   userId: Types.ObjectId,
+  branchId: string,
   subtotal: number,
   deliveryFee: number,
   items: { product: Types.ObjectId; quantity: number; price: number }[],
@@ -117,7 +126,7 @@ const applyCoupon = async (
 ) => {
   if (!code) return { coupon: null, discount: 0, freeDelivery: false };
   const normalized = normalizeCouponCode(code);
-  const coupon = await Coupon.findOne({ code: normalized, isActive: true });
+  const coupon = await Coupon.findOne({ code: normalized, isActive: true, branchId });
   if (!coupon) throw { status: 404, message: "Coupon not found" };
   if (coupon.expiresAt && coupon.expiresAt.getTime() < Date.now()) {
     throw { status: 400, message: "Coupon expired" };
@@ -172,6 +181,7 @@ const applyCoupon = async (
 
 const applyCoupons = async (
   userId: Types.ObjectId,
+  branchId: string,
   subtotal: number,
   deliveryFee: number,
   items: { product: Types.ObjectId; quantity: number; price: number }[],
@@ -182,7 +192,7 @@ const applyCoupons = async (
   let discountTotal = 0;
   const coupons = [];
   for (const code of codes) {
-    const result = await applyCoupon(userId, subtotal, deliveryFee, items, code);
+    const result = await applyCoupon(userId, branchId, subtotal, deliveryFee, items, code);
     if (!result.coupon) continue;
     let discount = result.discount;
     if (result.freeDelivery) {
@@ -198,8 +208,8 @@ const applyCoupons = async (
   return { coupons, discount: discountTotal };
 };
 
-const maybeGenerateReward = async (userId: Types.ObjectId, newPoints: number) => {
-  const settings = await getSettingsSnapshot();
+const maybeGenerateReward = async (userId: Types.ObjectId, newPoints: number, branchId: string) => {
+  const settings = await getSettingsSnapshot(branchId);
   const threshold = settings.rewardThresholdPoints;
   const user = await User.findById(userId);
   if (!user) return;
@@ -217,6 +227,7 @@ const maybeGenerateReward = async (userId: Types.ObjectId, newPoints: number) =>
 
 export const createOrder = async (
   userId: Types.ObjectId,
+  branchId: string,
   payload: {
     address?: string;
     lat?: number;
@@ -246,8 +257,8 @@ export const createOrder = async (
     throw { status: 400, message: "Address and location are required" };
   }
 
-  const items = await buildOrderItems(payload.items, userId);
-  const settings = await getSettingsSnapshot();
+  const items = await buildOrderItems(payload.items, userId, branchId);
+  const settings = await getSettingsSnapshot(branchId);
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const distanceKm = haversineDistanceKm(settings.storeLat, settings.storeLng, lat, lng);
   const deliveryFee =
@@ -262,17 +273,18 @@ export const createOrder = async (
   if (!settings.allowMultipleCoupons && normalizedCodes.length > 1) {
     throw { status: 400, message: "Multiple coupons are not allowed" };
   }
-  const couponResult = await applyCoupons(userId, subtotal, deliveryFee, items, normalizedCodes);
+  const couponResult = await applyCoupons(userId, branchId, subtotal, deliveryFee, items, normalizedCodes);
   const rewardResult = await tryConsumeRewardToken(userId, settings.rewardValue, payload.useReward ?? false);
   const discount = rewardResult.discount + couponResult.discount;
   const total = Math.max(0, subtotal + deliveryFee - discount);
 
   if (payload.paymentMethod === "WALLET") {
-    await handleWalletDebit(userId, total, "ORDER");
+    await handleWalletDebit(userId, branchId, total, "ORDER");
   }
 
   const order = await Order.create({
     user: userId,
+    branchId,
     items,
     status: "PENDING",
     paymentMethod: payload.paymentMethod,
@@ -309,9 +321,12 @@ export const createOrder = async (
 export const updateOrderStatus = async (
   orderId: string,
   status: OrderStatus,
-  paymentStatus?: "PENDING" | "CONFIRMED"
+  paymentStatus?: "PENDING" | "CONFIRMED",
+  branchId?: string
 ) => {
-  const order = await Order.findById(orderId);
+  const filter: Record<string, unknown> = { _id: orderId };
+  if (branchId) filter.branchId = branchId;
+  const order = await Order.findOne(filter);
   if (!order) throw { status: 404, message: "Order not found" };
   order.status = status;
   if (paymentStatus) order.paymentStatus = paymentStatus;
@@ -319,10 +334,10 @@ export const updateOrderStatus = async (
   await order.save();
 
   if (status === "DELIVERED") {
-    const settings = await getSettingsSnapshot();
+    const settings = await getSettingsSnapshot(order.branchId.toString());
     const earned = calculatePointsEarned(order.subtotal, settings.pointsPerAmount);
     await PointsTransaction.create({ user: order.user, points: earned, type: "EARN", reference: order._id.toString() });
-    await maybeGenerateReward(order.user as Types.ObjectId, earned);
+    await maybeGenerateReward(order.user as Types.ObjectId, earned, order.branchId.toString());
   }
 
   await AuditLog.create({ user: order.user, action: "ORDER_STATUS_UPDATE", metadata: { orderId: orderId, status } });
