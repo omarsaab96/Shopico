@@ -4,6 +4,7 @@ import StatusPill from "../components/StatusPill";
 import { fetchTopUps, updateTopUp } from "../api/client";
 import type { WalletTopUp } from "../types/api";
 import { useI18n } from "../context/I18nContext";
+import { usePermissions } from "../hooks/usePermissions";
 
 const WalletPage = () => {
   const [topups, setTopups] = useState<WalletTopUp[]>([]);
@@ -11,6 +12,8 @@ const WalletPage = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [methodFilter, setMethodFilter] = useState("");
   const { t, tStatus } = useI18n();
+  const { can } = usePermissions();
+  const canManageWallet = can("wallet:manage");
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -87,10 +90,18 @@ const WalletPage = () => {
                   <StatusPill value={topup.status} />
                 </td>
                 <td>
-                  <button className="ghost-btn mr-10" onClick={() => updateTopUp(topup._id, "APPROVED").then(load)}>
+                  <button
+                    className="ghost-btn mr-10"
+                    onClick={() => updateTopUp(topup._id, "APPROVED").then(load)}
+                    disabled={!canManageWallet}
+                  >
                     {t("approve")}
                   </button>
-                  <button className="ghost-btn danger" onClick={() => updateTopUp(topup._id, "REJECTED").then(load)}>
+                  <button
+                    className="ghost-btn danger"
+                    onClick={() => updateTopUp(topup._id, "REJECTED").then(load)}
+                    disabled={!canManageWallet}
+                  >
                     {t("reject")}
                   </button>
                 </td>

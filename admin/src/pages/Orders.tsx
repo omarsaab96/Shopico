@@ -4,6 +4,7 @@ import StatusPill from "../components/StatusPill";
 import { fetchOrders, updateOrderStatus } from "../api/client";
 import type { Order } from "../types/api";
 import { useI18n } from "../context/I18nContext";
+import { usePermissions } from "../hooks/usePermissions";
 
 const statuses = ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"];
 
@@ -13,6 +14,8 @@ const OrdersPage = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
   const { t, tStatus } = useI18n();
+  const { can } = usePermissions();
+  const canUpdateOrders = can("orders:update");
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -99,7 +102,11 @@ const OrdersPage = () => {
                 </td>
                 <td>{order.total.toLocaleString()}</td>
                 <td>
-                  <select value={order.status} onChange={(e) => update(order, e.target.value)}>
+                  <select
+                    value={order.status}
+                    onChange={(e) => update(order, e.target.value)}
+                    disabled={!canUpdateOrders}
+                  >
                     {statuses.map((s) => (
                       <option key={s} value={s}>
                         {tStatus(s)}
@@ -107,7 +114,11 @@ const OrdersPage = () => {
                     ))}
                   </select>
                   {(order.paymentMethod === "SHAM_CASH" || order.paymentMethod === "BANK_TRANSFER") && (
-                    <button className="ghost-btn" onClick={() => update(order, order.status, "CONFIRMED")}>
+                    <button
+                      className="ghost-btn"
+                      onClick={() => update(order, order.status, "CONFIRMED")}
+                      disabled={!canUpdateOrders}
+                    >
                       {t("confirmPayment")}
                     </button>
                   )}

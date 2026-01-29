@@ -4,10 +4,13 @@ import Card from "../components/Card";
 import type { Settings } from "../types/api";
 import { fetchSettings, updateSettings } from "../api/client";
 import { useI18n } from "../context/I18nContext";
+import { usePermissions } from "../hooks/usePermissions";
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
   const { t } = useI18n();
+  const { can } = usePermissions();
+  const canManage = can("settings:manage");
 
   useEffect(() => {
     fetchSettings().then(setSettings);
@@ -17,6 +20,7 @@ const SettingsPage = () => {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!canManage) return;
     const res = await updateSettings(settings);
     setSettings(res);
   };
@@ -30,11 +34,21 @@ const SettingsPage = () => {
         <Card title={t("settings.operational")} subTitle="">
           <label>
             {t("storeLat")}
-            <input type="number" value={settings.storeLat} onChange={(e) => updateField("storeLat", Number(e.target.value))} />
+            <input
+              type="number"
+              value={settings.storeLat}
+              onChange={(e) => updateField("storeLat", Number(e.target.value))}
+              disabled={!canManage}
+            />
           </label>
           <label>
             {t("storeLng")}
-            <input type="number" value={settings.storeLng} onChange={(e) => updateField("storeLng", Number(e.target.value))} />
+            <input
+              type="number"
+              value={settings.storeLng}
+              onChange={(e) => updateField("storeLng", Number(e.target.value))}
+              disabled={!canManage}
+            />
           </label>
           <label>
             {t("deliveryFreeKm")}
@@ -42,6 +56,7 @@ const SettingsPage = () => {
               type="number"
               value={settings.deliveryFreeKm}
               onChange={(e) => updateField("deliveryFreeKm", Number(e.target.value))}
+              disabled={!canManage}
             />
           </label>
           <label>
@@ -50,6 +65,7 @@ const SettingsPage = () => {
               type="number"
               value={settings.deliveryRatePerKm}
               onChange={(e) => updateField("deliveryRatePerKm", Number(e.target.value))}
+              disabled={!canManage}
             />
           </label>
           <div className="checkboxContainer">
@@ -58,6 +74,7 @@ const SettingsPage = () => {
               type="checkbox"
               checked={settings.allowMultipleCoupons}
               onChange={(e) => updateToggle("allowMultipleCoupons", e.target.checked)}
+              disabled={!canManage}
             />
             <label htmlFor="allowMultipleCoupons">{t("allowMultipleCoupons")}</label>
           </div>
@@ -67,6 +84,7 @@ const SettingsPage = () => {
               type="number"
               value={settings.membershipGraceDays}
               onChange={(e) => updateField("membershipGraceDays", Number(e.target.value))}
+              disabled={!canManage}
             />
           </label>
         </Card>
@@ -87,6 +105,7 @@ const SettingsPage = () => {
                         membershipThresholds: { ...settings.membershipThresholds, [level]: Number(e.target.value) },
                       })
                     }
+                    disabled={!canManage}
                   />
                 </label>
               ))}
@@ -99,6 +118,7 @@ const SettingsPage = () => {
               type="number"
               value={settings.pointsPerAmount}
               onChange={(e) => updateField("pointsPerAmount", Number(e.target.value))}
+              disabled={!canManage}
             />
           </label>
           <label>
@@ -107,6 +127,7 @@ const SettingsPage = () => {
               type="number"
               value={settings.rewardThresholdPoints}
               onChange={(e) => updateField("rewardThresholdPoints", Number(e.target.value))}
+              disabled={!canManage}
             />
           </label>
           <label>
@@ -115,11 +136,12 @@ const SettingsPage = () => {
               type="number"
               value={settings.rewardValue}
               onChange={(e) => updateField("rewardValue", Number(e.target.value))}
+              disabled={!canManage}
             />
           </label>
         </Card>
 
-        <button className="primary">{t("saveSettings")}</button>
+        <button className="primary" disabled={!canManage}>{t("saveSettings")}</button>
       </form>
     </>
   );

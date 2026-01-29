@@ -1,0 +1,24 @@
+export const PERMISSIONS = [
+  "dashboard:view",
+  "products:view",
+  "products:manage",
+  "products:import",
+  "categories:view",
+  "categories:manage",
+  "orders:view",
+  "orders:update",
+  "users:view",
+  "users:manage",
+  "wallet:view",
+  "wallet:manage",
+  "announcements:view",
+  "announcements:manage",
+  "coupons:view",
+  "coupons:manage",
+  "settings:view",
+  "settings:manage",
+  "audit:view",
+  "uploads:auth",
+] as const;
+
+export type Permission = (typeof PERMISSIONS)[number];

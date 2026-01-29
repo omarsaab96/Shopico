@@ -4,6 +4,7 @@ import Card from "../components/Card";
 import type { Category } from "../types/api";
 import api, { fetchCategories, getImageKitAuth } from "../api/client";
 import { useI18n } from "../context/I18nContext";
+import { usePermissions } from "../hooks/usePermissions";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
 
@@ -19,6 +20,9 @@ const CategoriesPage = () => {
   const [newUploading, setNewUploading] = useState(false);
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
   const { t } = useI18n();
+  const { can } = usePermissions();
+  const canManage = can("categories:manage");
+  const canUpload = can("uploads:auth") && canManage;
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -108,6 +112,7 @@ const CategoriesPage = () => {
   };
 
   const openNewModal = () => {
+    if (!canManage) return;
     setDraft({});
     setFormError("");
     setShowNewModal(true);
@@ -148,11 +153,11 @@ const CategoriesPage = () => {
             <button className="ghost-btn" type="button" onClick={applyFilters}>
               {t("filter")}
             </button>
-            <button className="ghost-btn" type="button" onClick={clearFilters}>
-              {t("clear")}
-            </button>
-          </div>
-          <button className="primary" onClick={openNewModal}>
+          <button className="ghost-btn" type="button" onClick={clearFilters}>
+            {t("clear")}
+          </button>
+        </div>
+          <button className="primary" onClick={openNewModal} disabled={!canManage}>
             {t("addCategory")}
           </button>
         </div>
@@ -213,7 +218,7 @@ const CategoriesPage = () => {
                                 );
                               }
                             }}
-                            disabled={editUploadingId === cat._id}
+                            disabled={editUploadingId === cat._id || !canUpload}
                           />
                         </div>
                       </div>
@@ -261,7 +266,7 @@ const CategoriesPage = () => {
                         </button>
                         {editError && <div className="error">{editError}</div>}
                       </div>
-                    ) : (
+                    ) : canManage ? (
                       <div className="flex">
                         <button className="ghost-btn mr-10" onClick={() => startEdit(cat)}>
                           {t("edit")}
@@ -273,6 +278,8 @@ const CategoriesPage = () => {
                           {t("delete")}
                         </button>
                       </div>
+                    ) : (
+                      <div className="muted">{t("noPermissionAction")}</div>
                     )}
                   </td>
                 </tr>
@@ -282,7 +289,7 @@ const CategoriesPage = () => {
         </table>
       </Card>
 
-      {showNewModal && (
+      {showNewModal && canManage && (
         <div className="modal-backdrop" onClick={closeNewModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -345,7 +352,7 @@ const CategoriesPage = () => {
                           (msg) => setFormError(msg)
                         );
                     }}
-                    disabled={newUploading}
+                    disabled={newUploading || !canUpload}
                   />
                 </div>
               </div>
@@ -354,7 +361,7 @@ const CategoriesPage = () => {
                 <button className="ghost-btn" type="button" onClick={closeNewModal}>
                   {t("cancel")}
                 </button>
-                <button className="primary" type="submit">
+                <button className="primary" type="submit" disabled={!canManage}>
                   {t("save")}
                 </button>
               </div>

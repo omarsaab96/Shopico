@@ -758,6 +758,54 @@ nav::-webkit-scrollbar {
   color: var(--red-500);
 }
 
+.success {
+  color: var(--green-600);
+}
+
+.permissions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.permissions-group {
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.permissions-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.permission-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.permission-item input {
+  accent-color: var(--orange-500);
+}
+
+.empty-state {
+  background: var(--bg-card);
+  border: 1px solid var(--gray-300);
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+}
+
+.empty-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
 .user-block {
   display: flex;
   gap: 10px;

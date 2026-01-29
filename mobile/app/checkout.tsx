@@ -92,6 +92,7 @@ export default function Checkout() {
       : 0;
   const effectiveDeliveryFee = couponFreeDelivery ? 0 : deliveryFee;
   const total = Math.max(0, subtotal + effectiveDeliveryFee - couponDiscount);
+  const toOld = (value: number) => value * 100;
 
   const fetchAvailableCoupons = useCallback(() => {
     if (!user) return;
@@ -285,10 +286,32 @@ export default function Checkout() {
           {t("distance")}: {distanceKm} km
         </Text>
         <Text style={styles.muted}>
-          {t("deliveryFee")}: {effectiveDeliveryFee==0 ? 'Free' : `${effectiveDeliveryFee?.toLocaleString()} SYP` } 
+          {t("subtotal")}: {subtotal.toLocaleString()} SYP
+        </Text>
+        <Text style={styles.mutedSmall}>
+          {t("oldPrice")}: {toOld(subtotal).toLocaleString()} SYP
         </Text>
         <Text style={styles.muted}>
+          {t("deliveryFee")}: {effectiveDeliveryFee == 0 ? (t("freeDelivery") ?? "Free") : `${effectiveDeliveryFee.toLocaleString()} SYP`}
+        </Text>
+        <Text style={styles.mutedSmall}>
+          {t("oldPrice")}: {toOld(effectiveDeliveryFee).toLocaleString()} SYP
+        </Text>
+        {couponDiscount > 0 && (
+          <>
+            <Text style={styles.muted}>
+              {t("discount")}: -{couponDiscount.toLocaleString()} SYP
+            </Text>
+            <Text style={styles.mutedSmall}>
+              {t("oldPrice")}: -{toOld(couponDiscount).toLocaleString()} SYP
+            </Text>
+          </>
+        )}
+        <Text style={styles.muted}>
           {t("total")}: {total.toLocaleString()} SYP
+        </Text>
+        <Text style={styles.mutedSmall}>
+          {t("oldPrice")}: {toOld(total).toLocaleString()} SYP
         </Text>
       </View>
       <Button title={t("placeOrder")} onPress={placeOrder} disabled={!selected} />

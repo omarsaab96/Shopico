@@ -6,14 +6,20 @@ import {
   listAnnouncements,
   updateAnnouncement,
 } from "../controllers/announcementController";
-import { authenticate, authorize } from "../middleware/auth";
+import { authenticate, authorize, requireAnyPermissions, requirePermissions } from "../middleware/auth";
 
 const router = Router();
 
 router.get("/active", listActiveAnnouncements);
-router.get("/", authenticate, authorize("admin", "staff"), listAnnouncements);
-router.post("/", authenticate, authorize("admin", "staff"), createAnnouncement);
-router.put("/:id", authenticate, authorize("admin", "staff"), updateAnnouncement);
-router.delete("/:id", authenticate, authorize("admin", "staff"), deleteAnnouncement);
+router.get(
+  "/",
+  authenticate,
+  authorize("admin", "manager", "staff"),
+  requireAnyPermissions("announcements:view", "announcements:manage"),
+  listAnnouncements
+);
+router.post("/", authenticate, authorize("admin", "manager", "staff"), requirePermissions("announcements:manage"), createAnnouncement);
+router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("announcements:manage"), updateAnnouncement);
+router.delete("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("announcements:manage"), deleteAnnouncement);
 
 export default router;

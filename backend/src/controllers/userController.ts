@@ -1,10 +1,13 @@
 import { catchAsync } from "../utils/catchAsync";
+import bcrypt from "bcryptjs";
 import { User } from "../models/User";
 import { Wallet } from "../models/Wallet";
 import { PointsTransaction } from "../models/PointsTransaction";
 import { WalletTransaction } from "../models/WalletTransaction";
 import { Address } from "../models/Address";
 import { sendSuccess } from "../utils/response";
+import { createUserSchema, updateUserPermissionsSchema } from "../validators/userValidators";
+import { AuditLog } from "../models/AuditLog";
 
 export const listUsers = catchAsync(async (req, res) => {
   const { q, role } = req.query as { q?: string; role?: string };
@@ -32,4 +35,35 @@ export const getUserDetails = catchAsync(async (req, res) => {
     .sort({ createdAt: -1 })
     .toArray();
   sendSuccess(res, { user, wallet, walletTx, pointTx, addresses });
+});
+
+export const createUser = catchAsync(async (req, res) => {
+  const payload = createUserSchema.parse(req.body);
+  const existing = await User.findOne({ email: payload.email.toLowerCase() });
+  if (existing) return res.status(400).json({ success: false, message: "Email already registered" });
+
+  const hashed = await bcrypt.hash(payload.password, 10);
+  const user = await User.create({
+    name: payload.name,
+    email: payload.email.toLowerCase(),
+    phone: payload.phone,
+    password: hashed,
+    role: payload.role,
+    permissions: payload.permissions || [],
+  });
+  await Wallet.create({ user: user._id, balance: 0 });
+  await AuditLog.create({ user: req.user?._id, action: "ADMIN_CREATE_USER", metadata: { userId: user._id } });
+  const safeUser = await User.findById(user._id).select("-password");
+  sendSuccess(res, safeUser, "User created", 201);
+});
+
+export const updateUserPermissions = catchAsync(async (req, res) => {
+  const payload = updateUserPermissionsSchema.parse(req.body);
+  const user = await User.findByIdAndUpdate(
+    req.params.id,
+    { permissions: payload.permissions },
+    { new: true }
+  ).select("-password");
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  sendSuccess(res, user);
 });

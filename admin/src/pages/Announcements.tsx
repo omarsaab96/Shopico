@@ -4,6 +4,7 @@ import Card from "../components/Card";
 import type { Announcement, AnnouncementImage } from "../types/api";
 import { deleteAnnouncement, fetchAnnouncements, getImageKitAuth, saveAnnouncement } from "../api/client";
 import { useI18n } from "../context/I18nContext";
+import { usePermissions } from "../hooks/usePermissions";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -52,6 +53,9 @@ const AnnouncementsPage = () => {
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
   const { t } = useI18n();
+  const { can } = usePermissions();
+  const canManage = can("announcements:manage");
+  const canUpload = can("uploads:auth") && canManage;
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -78,6 +82,7 @@ const AnnouncementsPage = () => {
   };
 
   const openNewModal = () => {
+    if (!canManage) return;
     const defaults = getDefaultDates();
     setDraft({ ...defaults, isEnabled: true });
     setFormError("");
@@ -120,6 +125,7 @@ const AnnouncementsPage = () => {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!canManage) return;
     try {
       const payload = {
         ...draft,
@@ -139,6 +145,7 @@ const AnnouncementsPage = () => {
   };
 
   const startEdit = (announcement: Announcement) => {
+    if (!canManage) return;
     setEditingId(announcement._id);
     setEditDraft({
       ...announcement,
@@ -150,6 +157,7 @@ const AnnouncementsPage = () => {
 
   const saveEdit = async () => {
     if (!editingId) return;
+    if (!canManage) return;
     try {
       const payload = {
         ...editDraft,
@@ -213,11 +221,11 @@ const AnnouncementsPage = () => {
             <button className="ghost-btn" type="button" onClick={applyFilters}>
               {t("filter")}
             </button>
-            <button className="ghost-btn" type="button" onClick={resetFilters}>
-              {t("clear")}
-            </button>
-          </div>
-          <button className="primary" onClick={openNewModal}>
+          <button className="ghost-btn" type="button" onClick={resetFilters}>
+            {t("clear")}
+          </button>
+        </div>
+          <button className="primary" onClick={openNewModal} disabled={!canManage}>
             {t("addAnnouncement") || "Add announcement"}
           </button>
         </div>
@@ -285,7 +293,7 @@ const AnnouncementsPage = () => {
                                 );
                               }
                             }}
-                            disabled={editUploadingId === announcement._id}
+                            disabled={editUploadingId === announcement._id || !canUpload}
                           />
                         </div>
                       </div>
@@ -402,7 +410,7 @@ const AnnouncementsPage = () => {
                         </button>
                         {editError && <div className="error">{editError}</div>}
                       </div>
-                    ) : (
+                    ) : canManage ? (
                       <div className="flex">
                         <button className="ghost-btn" onClick={() => startEdit(announcement)}>
                           {t("edit")}
@@ -411,6 +419,8 @@ const AnnouncementsPage = () => {
                           {t("delete")}
                         </button>
                       </div>
+                    ) : (
+                      <div className="muted">{t("noPermissionAction")}</div>
                     )}
                   </td>
                 </tr>
@@ -420,7 +430,7 @@ const AnnouncementsPage = () => {
         </table>
       </Card>
 
-      {showNewModal && (
+      {showNewModal && canManage && (
         <div className="modal-backdrop" onClick={closeNewModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -530,7 +540,7 @@ const AnnouncementsPage = () => {
                           (msg) => setFormError(msg)
                         );
                     }}
-                    disabled={uploadingNew}
+                    disabled={uploadingNew || !canUpload}
                   />
                 </div>
               </div>
@@ -539,7 +549,7 @@ const AnnouncementsPage = () => {
                 <button className="ghost-btn" type="button" onClick={closeNewModal}>
                   {t("cancel")}
                 </button>
-                <button className="primary" type="submit">
+                <button className="primary" type="submit" disabled={!canManage}>
                   {t("save")}
                 </button>
               </div>

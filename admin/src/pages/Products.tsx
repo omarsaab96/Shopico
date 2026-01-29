@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
 import type { Category, Product, ProductImage } from "../types/api";
-import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchProducts, getImageKitAuth, saveProduct } from "../api/client";
+import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchProducts, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
 import { useI18n } from "../context/I18nContext";
+import { usePermissions } from "../hooks/usePermissions";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
 
@@ -35,7 +36,21 @@ const ProductsPage = () => {
   const [priceAmount, setPriceAmount] = useState("");
   const [priceSaving, setPriceSaving] = useState(false);
   const [priceError, setPriceError] = useState("");
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importSaving, setImportSaving] = useState(false);
+  const [importPreviewLoading, setImportPreviewLoading] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importResult, setImportResult] = useState<{ created: number; updated: number; skipped: number; total: number } | null>(null);
+  const [importPreview, setImportPreview] = useState<{
+    preview: { barcode: string; name: string; price: number | null; hasStock: boolean; action: string; reason?: string }[];
+    created: number; updated: number; skipped: number; total: number;
+  } | null>(null);
   const { t } = useI18n();
+  const { can } = usePermissions();
+  const canManage = can("products:manage");
+  const canUpload = can("uploads:auth") && canManage;
+  const canImport = can("products:import");
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -67,6 +82,7 @@ const ProductsPage = () => {
   };
 
   const openNewModal = () => {
+    if (!canManage) return;
     setDraft({ images: [], categories: [], isAvailable: true });
     setFormError("");
     setCategorySearch("");
@@ -78,6 +94,7 @@ const ProductsPage = () => {
   };
 
   const openPriceModal = () => {
+    if (!canManage) return;
     setPriceMode("INCREASE");
     setPriceAmountType("FIXED");
     setPriceAmount("");
@@ -88,6 +105,56 @@ const ProductsPage = () => {
   const closePriceModal = () => {
     if (priceSaving) return;
     setShowPriceModal(false);
+  };
+
+  const openImportModal = () => {
+    if (!canImport) return;
+    setImportFile(null);
+    setImportError("");
+    setImportResult(null);
+    setImportPreview(null);
+    setImportSaving(false);
+    setImportPreviewLoading(false);
+    setShowImportModal(true);
+  };
+
+  const closeImportModal = () => {
+    if (importSaving) return;
+    setShowImportModal(false);
+  };
+
+  const submitImport = async () => {
+    if (!importFile) {
+      setImportError(t("selectFile"));
+      return;
+    }
+    setImportSaving(true);
+    setImportError("");
+    try {
+      const result = await importProductsFromExcel(importFile);
+      setImportResult(result);
+      load();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Import failed";
+      setImportError(msg);
+    } finally {
+      setImportSaving(false);
+    }
+  };
+
+  const loadImportPreview = async (file: File) => {
+    setImportPreviewLoading(true);
+    setImportError("");
+    try {
+      const preview = await previewProductsImport(file);
+      setImportPreview(preview);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Preview failed";
+      setImportError(msg);
+      setImportPreview(null);
+    } finally {
+      setImportPreviewLoading(false);
+    }
   };
 
   const uploadToImageKit = async (
@@ -124,6 +191,7 @@ const ProductsPage = () => {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!canManage) return;
     try {
       const saved = await saveProduct(draft);
       setDraft({ images: [] });
@@ -142,6 +210,7 @@ const ProductsPage = () => {
   };
 
   const startEdit = (p: Product) => {
+    if (!canManage) return;
     setEditingId(p._id);
     setEditDraft({
       _id: p._id,
@@ -172,6 +241,7 @@ const ProductsPage = () => {
 
   const saveEdit = async () => {
     if (!editingId) return;
+    if (!canManage) return;
     try {
       const payload = { ...editDraft, _id: editingId };
       const saved = await saveProduct(payload);
@@ -193,6 +263,7 @@ const ProductsPage = () => {
   };
 
   const openPromote = (product: Product) => {
+    if (!canManage) return;
     setPromoteProduct(product);
     setPromotePrice(String(product.promoPrice ?? product.price));
     setPromoteActive(Boolean(product.isPromoted));
@@ -219,6 +290,7 @@ const ProductsPage = () => {
 
   const savePromote = async () => {
     if (!promoteProduct) return;
+    if (!canManage) return;
     if (promoteActive && !hasPromoteValue) {
       setPromoteError(t("invalidAmount") || "Enter a valid amount");
       return;
@@ -244,6 +316,7 @@ const ProductsPage = () => {
 
   const submitPriceUpdate = async (e: FormEvent) => {
     e.preventDefault();
+    if (!canManage) return;
     const amountValue = Number(priceAmount);
     if (!amountValue || amountValue <= 0 || Number.isNaN(amountValue)) {
       setPriceError(t("invalidAmount") || "Enter a valid amount");
@@ -386,11 +459,14 @@ const ProductsPage = () => {
             </button>
           </div>
           <div className="flex" style={{gap:10}}>
-            <button className="primary" onClick={openNewModal}>
+            <button className="primary" onClick={openNewModal} disabled={!canManage}>
               {t("addProduct")}
             </button>
-            <button className="ghost-btn" type="button" onClick={openPriceModal}>
+            <button className="ghost-btn" type="button" onClick={openPriceModal} disabled={!canManage}>
               {t("changePrices") || "Change prices"}
+            </button>
+            <button className="ghost-btn" type="button" onClick={openImportModal} disabled={!canImport}>
+              {t("importProducts")}
             </button>
           </div>
         </div>
@@ -466,7 +542,7 @@ const ProductsPage = () => {
                                 );
                               }
                             }}
-                            disabled={editUploadingId === product._id}
+                            disabled={editUploadingId === product._id || !canUpload}
                           />
                         </div>
 
@@ -562,7 +638,7 @@ const ProductsPage = () => {
                         </button>
                         {editError && <div className="error">{editError}</div>}
                       </div>
-                    ) : (
+                    ) : canManage ? (
                       <div className="flex">
                         <button className="ghost-btn" onClick={() => startEdit(product)}>
                           {t("edit")}
@@ -574,6 +650,8 @@ const ProductsPage = () => {
                           {t("delete")}
                         </button>
                       </div>
+                    ) : (
+                      <div className="muted">{t("noPermissionAction")}</div>
                     )}
                   </td>
                 </tr>
@@ -615,7 +693,7 @@ const ProductsPage = () => {
         </div>
       )}
 
-      {showPromoteModal && promoteProduct && (
+      {showPromoteModal && promoteProduct && canManage && (
         <div className="modal-backdrop" onClick={closePromote}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -673,7 +751,7 @@ const ProductsPage = () => {
         </div>
       )}
 
-      {showNewModal && (
+      {showNewModal && canManage && (
         <div className="modal-backdrop" onClick={closeNewModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -769,7 +847,7 @@ const ProductsPage = () => {
                           (msg) => setFormError(msg)
                         );
                     }}
-                    disabled={uploadingNew}
+                    disabled={uploadingNew || !canUpload}
                   />
                 </div>
               </div>
@@ -779,7 +857,7 @@ const ProductsPage = () => {
                 <button className="ghost-btn" type="button" onClick={closeNewModal}>
                   {t("cancel")}
                 </button>
-                <button className="primary" type="submit">
+                <button className="primary" type="submit" disabled={!canManage}>
                   {t("save")}
                 </button>
               </div>
@@ -788,7 +866,7 @@ const ProductsPage = () => {
         </div>
       )}
 
-      {showPriceModal && (
+      {showPriceModal && canManage && (
         <div className="modal-backdrop" onClick={closePriceModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -853,6 +931,89 @@ const ProductsPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && canImport && (
+        <div className="modal-backdrop" onClick={closeImportModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{t("importProducts")}</div>
+              <button className="ghost-btn" type="button" onClick={closeImportModal}>
+                {t("close")}
+              </button>
+            </div>
+            <div className="form">
+              <div className="muted">{t("importProductsHint")}</div>
+              <label>
+                {t("selectFile")}
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setImportFile(file);
+                    setImportResult(null);
+                    if (file) loadImportPreview(file);
+                  }}
+                />
+              </label>
+              {importError && <div className="error">{importError}</div>}
+              {importPreviewLoading && <div className="muted">{t("loadingPreview")}</div>}
+              {importPreview && (
+                <>
+                  <div className="success">
+                    {t("importPreviewSummary")
+                      .replace("{created}", String(importPreview.created))
+                      .replace("{updated}", String(importPreview.updated))
+                      .replace("{skipped}", String(importPreview.skipped))
+                      .replace("{total}", String(importPreview.total))}
+                  </div>
+                  <table className="table" style={{ marginTop: 10 }}>
+                    <thead>
+                      <tr>
+                        <th>{t("barcode")}</th>
+                        <th>{t("name")}</th>
+                        <th>{t("price")}</th>
+                        <th>{t("availability")}</th>
+                        <th>{t("action")}</th>
+                        <th>{t("reason")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreview.preview.map((row, idx) => (
+                        <tr key={`${row.barcode}-${idx}`}>
+                          <td>{row.barcode}</td>
+                          <td>{row.name}</td>
+                          <td>{row.price ?? "-"}</td>
+                          <td>{row.hasStock ? t("available") : t("unavailable")}</td>
+                          <td>{t(`import.action.${row.action}`)}</td>
+                          <td>{row.reason ? t(`import.reason.${row.reason}`) : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+              {importResult && (
+                <div className="success" style={{ marginTop: 10 }}>
+                  {t("importSummary")
+                    .replace("{created}", String(importResult.created))
+                    .replace("{updated}", String(importResult.updated))
+                    .replace("{skipped}", String(importResult.skipped))
+                    .replace("{total}", String(importResult.total))}
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button className="ghost-btn" type="button" onClick={closeImportModal} disabled={importSaving}>
+                {t("cancel")}
+              </button>
+              <button className="primary" type="button" onClick={submitImport} disabled={importSaving || !importPreview}>
+                {importSaving ? t("saving") : t("import")}
+              </button>
+            </div>
           </div>
         </div>
       )}

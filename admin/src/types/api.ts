@@ -1,10 +1,11 @@
-export type UserRole = "customer" | "admin" | "staff";
+export type UserRole = "customer" | "admin" | "manager" | "staff";
 
 export interface ApiUser {
   _id: string;
   name: string;
   email: string;
   role: UserRole;
+  permissions?: string[];
   phone?: string;
   membershipLevel?: string;
   points?: number;

@@ -2,22 +2,24 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
+import { usePermissions } from "../hooks/usePermissions";
 
 const navItems = [
-  { to: "/", key: "dashboard", label: "Dashboard" },
-  { to: "/products", key: "products", label: "Products" },
-  { to: "/categories", key: "categories", label: "Categories" },
-  { to: "/orders", key: "orders", label: "Orders" },
-  { to: "/users", key: "users", label: "Users" },
-  { to: "/wallet", key: "wallet", label: "Wallet Top-ups" },
-  { to: "/announcements", key: "announcements", label: "Announcements" },
-  { to: "/coupons", key: "coupons", label: "Coupons" },
-  { to: "/settings", key: "settings", label: "Settings" },
-  { to: "/audit", key: "audit", label: "Audit Logs" },
+  { to: "/", key: "dashboard", label: "Dashboard", permissions: ["dashboard:view"] },
+  { to: "/products", key: "products", label: "Products", permissions: ["products:view", "products:manage"] },
+  { to: "/categories", key: "categories", label: "Categories", permissions: ["categories:view", "categories:manage"] },
+  { to: "/orders", key: "orders", label: "Orders", permissions: ["orders:view", "orders:update"] },
+  { to: "/users", key: "users", label: "Users", permissions: ["users:view", "users:manage"] },
+  { to: "/wallet", key: "wallet", label: "Wallet Top-ups", permissions: ["wallet:view", "wallet:manage"] },
+  { to: "/announcements", key: "announcements", label: "Announcements", permissions: ["announcements:view", "announcements:manage"] },
+  { to: "/coupons", key: "coupons", label: "Coupons", permissions: ["coupons:view", "coupons:manage"] },
+  { to: "/settings", key: "settings", label: "Settings", permissions: ["settings:view", "settings:manage"] },
+  { to: "/audit", key: "audit", label: "Audit Logs", permissions: ["audit:view"] },
 ];
 
 const Layout = () => {
   const { user, logout } = useAuth();
+  const { canAny } = usePermissions();
   const navigate = useNavigate();
   const { t, toggleLanguage, lang } = useI18n();
   const handleLogout = () => {
@@ -43,11 +45,13 @@ const Layout = () => {
           <img src="shopico_logo.png" alt="" />
         </div>
         <nav>
-          {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? "nav-item active" : "nav-item")}>
-              {t(`nav.${item.key}`) || item.label}
-            </NavLink>
-          ))}
+          {navItems
+            .filter((item) => canAny(...item.permissions))
+            .map((item) => (
+              <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? "nav-item active" : "nav-item")}>
+                {t(`nav.${item.key}`) || item.label}
+              </NavLink>
+            ))}
         </nav>
         <div className="sidebar-footer">
           <div className="user-block">

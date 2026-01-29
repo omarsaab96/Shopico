@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import Card from "../components/Card";
-import api, { adminTopUpUser } from "../api/client";
+import api, { adminTopUpUser, createUser, updateUserPermissions } from "../api/client";
 import type { ApiUser } from "../types/api";
 import { useI18n } from "../context/I18nContext";
+import { usePermissions } from "../hooks/usePermissions";
+import { PERMISSION_GROUPS } from "../constants/permissions";
 
 interface UserDetails {
   user: ApiUser;
@@ -20,9 +22,27 @@ const UsersPage = () => {
   const [topupNote, setTopupNote] = useState("");
   const [topupLoading, setTopupLoading] = useState(false);
   const [topupError, setTopupError] = useState("");
+  const [permissionsDraft, setPermissionsDraft] = useState<string[]>([]);
+  const [permissionsSaving, setPermissionsSaving] = useState(false);
+  const [permissionsError, setPermissionsError] = useState("");
+  const [permissionsSuccess, setPermissionsSuccess] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createDraft, setCreateDraft] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "staff",
+    phone: "",
+    permissions: [] as string[],
+  });
+  const [createSaving, setCreateSaving] = useState(false);
+  const [createError, setCreateError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const { t } = useI18n();
+  const { can } = usePermissions();
+  const canManageUsers = can("users:manage");
+  const canManageWallet = can("wallet:manage");
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -42,6 +62,10 @@ const UsersPage = () => {
     setTopupNote("");
     setTopupError("");
     setTopupLoading(false);
+    setPermissionsDraft(selected?.user?.permissions || []);
+    setPermissionsError("");
+    setPermissionsSuccess("");
+    setPermissionsSaving(false);
   }, [selected?.user?._id]);
 
   const fetchUserDetails = async (id: string) => {
@@ -60,8 +84,61 @@ const UsersPage = () => {
     setSelected(null);
   };
 
+  const openCreateModal = () => {
+    if (!canManageUsers) return;
+    setCreateDraft({ name: "", email: "", password: "", role: "staff", phone: "", permissions: [] });
+    setCreateError("");
+    setCreateSaving(false);
+    setShowCreateModal(true);
+  };
+
+  const closeCreateModal = () => {
+    if (createSaving) return;
+    setShowCreateModal(false);
+  };
+
+  const toggleCreatePermission = (permission: string) => {
+    setCreateDraft((prev) => ({
+      ...prev,
+      permissions: prev.permissions.includes(permission)
+        ? prev.permissions.filter((item) => item !== permission)
+        : [...prev.permissions, permission],
+    }));
+  };
+
+  const submitCreateUser = async () => {
+    if (!canManageUsers) return;
+    if (!createDraft.name.trim() || !createDraft.email.trim() || !createDraft.password.trim()) {
+      setCreateError(t("invalidForm"));
+      return;
+    }
+    setCreateSaving(true);
+    setCreateError("");
+    try {
+      await createUser({
+        name: createDraft.name.trim(),
+        email: createDraft.email.trim(),
+        password: createDraft.password,
+        role: createDraft.role,
+        phone: createDraft.phone.trim() || undefined,
+        permissions: createDraft.permissions,
+      });
+      setShowCreateModal(false);
+      loadUsers();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || "Failed to create user";
+      setCreateError(message);
+    } finally {
+      setCreateSaving(false);
+    }
+  };
+
   const handleTopUp = async () => {
     if (!selected) return;
+    if (!canManageWallet) {
+      setTopupError(t("noPermissionAction"));
+      return;
+    }
     const amountValue = Number(topupAmount);
     if (!amountValue || amountValue <= 0) {
       setTopupError(t("invalidAmount"));
@@ -80,6 +157,29 @@ const UsersPage = () => {
       setTopupError(message);
     } finally {
       setTopupLoading(false);
+    }
+  };
+
+  const togglePermission = (permission: string) => {
+    setPermissionsDraft((prev) =>
+      prev.includes(permission) ? prev.filter((item) => item !== permission) : [...prev, permission]
+    );
+  };
+
+  const savePermissions = async () => {
+    if (!selected || !canManageUsers) return;
+    setPermissionsSaving(true);
+    setPermissionsError("");
+    setPermissionsSuccess("");
+    try {
+      const updatedUser = await updateUserPermissions(selected.user._id, permissionsDraft);
+      setSelected((prev) => (prev ? { ...prev, user: updatedUser } : prev));
+      setPermissionsSuccess(t("permissionsUpdated"));
+    } catch (err: any) {
+      const message = err?.response?.data?.message || "Failed to update permissions";
+      setPermissionsError(message);
+    } finally {
+      setPermissionsSaving(false);
     }
   };
 
@@ -115,8 +215,8 @@ const UsersPage = () => {
             <select className="filter-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
               <option value="">{t("role")}</option>
               <option value="customer">{t("role.customer")}</option>
-              <option value="admin">{t("role.admin")}</option>
               <option value="staff">{t("role.staff")}</option>
+              <option value="manager">{t("role.manager")}</option>
             </select>
             <button className="ghost-btn" type="button" onClick={loadUsers}>
               {t("filter")}
@@ -133,6 +233,9 @@ const UsersPage = () => {
               {t("clear")}
             </button>
           </div>
+          <button className="primary" type="button" onClick={openCreateModal} disabled={!canManageUsers}>
+            {t("addUser")}
+          </button>
         </div>
         <table className="table">
           <thead>
@@ -251,10 +354,49 @@ const UsersPage = () => {
                 </label>
                 {topupError && <div className="error">{topupError}</div>}
                 <div className="modal-actions">
-                  <button className="ghost-btn" type="button" onClick={handleTopUp} disabled={topupLoading}>
+                  <button
+                    className="ghost-btn"
+                    type="button"
+                    onClick={handleTopUp}
+                    disabled={topupLoading || !canManageWallet}
+                  >
                     {topupLoading ? t("saving") : t("topUp")}
                   </button>
                 </div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <h4>{t("permissions")}</h4>
+              <div className="permissions-grid">
+                {PERMISSION_GROUPS.map((group) => (
+                  <div className="permissions-group" key={group.key}>
+                    <div className="permissions-title">{t(group.labelKey)}</div>
+                    {group.permissions.map((permission) => (
+                      <label className="permission-item" key={permission.key}>
+                        <input
+                          type="checkbox"
+                          checked={permissionsDraft.includes(permission.key)}
+                          onChange={() => togglePermission(permission.key)}
+                          disabled={!canManageUsers}
+                        />
+                        <span>{t(permission.labelKey)}</span>
+                      </label>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              {permissionsError && <div className="error">{permissionsError}</div>}
+              {permissionsSuccess && <div className="success">{permissionsSuccess}</div>}
+              <div className="modal-actions">
+                <button
+                  className="ghost-btn"
+                  type="button"
+                  onClick={savePermissions}
+                  disabled={!canManageUsers || permissionsSaving}
+                >
+                  {permissionsSaving ? t("saving") : t("savePermissions")}
+                </button>
               </div>
             </div>
 
@@ -299,6 +441,84 @@ const UsersPage = () => {
                   ))}
                 </ul>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showCreateModal && canManageUsers && (
+        <div className="modal-backdrop" onClick={closeCreateModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{t("newUser")}</div>
+              <button className="ghost-btn" type="button" onClick={closeCreateModal}>
+                {t("close")}
+              </button>
+            </div>
+
+            <div className="form">
+              <label>
+                {t("name")}
+                <input value={createDraft.name} onChange={(e) => setCreateDraft({ ...createDraft, name: e.target.value })} />
+              </label>
+              <label>
+                {t("email")}
+                <input
+                  type="email"
+                  value={createDraft.email}
+                  onChange={(e) => setCreateDraft({ ...createDraft, email: e.target.value })}
+                />
+              </label>
+              <label>
+                {t("passwordLabel")}
+                <input
+                  type="password"
+                  value={createDraft.password}
+                  onChange={(e) => setCreateDraft({ ...createDraft, password: e.target.value })}
+                />
+              </label>
+              <label>
+                {t("phone")}
+                <input
+                  value={createDraft.phone}
+                  onChange={(e) => setCreateDraft({ ...createDraft, phone: e.target.value })}
+                />
+              </label>
+              <label>
+                {t("role")}
+                <select value={createDraft.role} onChange={(e) => setCreateDraft({ ...createDraft, role: e.target.value })}>
+                  <option value="customer">{t("role.customer")}</option>
+                  <option value="staff">{t("role.staff")}</option>
+                  <option value="manager">{t("role.manager")}</option>
+                </select>
+              </label>
+            </div>
+
+            <h4>{t("permissions")}</h4>
+            <div className="permissions-grid">
+              {PERMISSION_GROUPS.map((group) => (
+                <div className="permissions-group" key={group.key}>
+                  <div className="permissions-title">{t(group.labelKey)}</div>
+                  {group.permissions.map((permission) => (
+                    <label className="permission-item" key={permission.key}>
+                      <input
+                        type="checkbox"
+                        checked={createDraft.permissions.includes(permission.key)}
+                        onChange={() => toggleCreatePermission(permission.key)}
+                      />
+                      <span>{t(permission.labelKey)}</span>
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
+            {createError && <div className="error">{createError}</div>}
+            <div className="modal-actions">
+              <button className="ghost-btn" type="button" onClick={closeCreateModal} disabled={createSaving}>
+                {t("cancel")}
+              </button>
+              <button className="primary" type="button" onClick={submitCreateUser} disabled={createSaving}>
+                {createSaving ? t("saving") : t("createUser")}
+              </button>
             </div>
           </div>
         </div>

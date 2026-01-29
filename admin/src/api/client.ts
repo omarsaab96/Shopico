@@ -57,6 +57,31 @@ export const saveProduct = async (payload: Partial<Product>) => {
 
 export const deleteProduct = async (id: string) => api.delete(`/products/${id}`);
 
+export const importProductsFromExcel = async (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await api.post<{ data: { created: number; updated: number; skipped: number; total: number } }>(
+    "/products/import",
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+  return res.data.data;
+};
+
+export const previewProductsImport = async (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await api.post<{ data: {
+    preview: { barcode: string; name: string; price: number | null; hasStock: boolean; action: string; reason?: string }[];
+    created: number; updated: number; skipped: number; total: number;
+  } }>(
+    "/products/import/preview",
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+  return res.data.data;
+};
+
 export const bulkUpdateProductPrices = async (payload: {
   mode: "INCREASE" | "DISCOUNT";
   amountType: "FIXED" | "PERCENT";
@@ -92,6 +117,23 @@ export const adminTopUpUser = async (userId: string, amount: number, note?: stri
     amount,
     note,
   });
+  return res.data.data;
+};
+
+export const updateUserPermissions = async (userId: string, permissions: string[]) => {
+  const res = await api.put<{ data: ApiUser }>(`/users/${userId}/permissions`, { permissions });
+  return res.data.data;
+};
+
+export const createUser = async (payload: {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  phone?: string;
+  permissions?: string[];
+}) => {
+  const res = await api.post<{ data: ApiUser }>("/users", payload);
   return res.data.data;
 };
 

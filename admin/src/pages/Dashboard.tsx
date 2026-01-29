@@ -3,18 +3,30 @@ import Card from "../components/Card";
 import { fetchOrders, fetchProducts } from "../api/client";
 import type { Order, Product } from "../types/api";
 import StatusPill from "../components/StatusPill";
+import { usePermissions } from "../hooks/usePermissions";
+import { useI18n } from "../context/I18nContext";
 
 const DashboardPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const { can } = usePermissions();
+  const { t } = useI18n();
+  const canViewOrders = can("orders:view");
+  const canViewProducts = can("products:view");
 
   useEffect(() => {
-    fetchOrders().then(setOrders).catch(console.error);
-    fetchProducts().then(setProducts).catch(console.error);
-  }, []);
+    if (canViewOrders) {
+      fetchOrders().then(setOrders).catch(console.error);
+    }
+    if (canViewProducts) {
+      fetchProducts().then(setProducts).catch(console.error);
+    }
+  }, [canViewOrders, canViewProducts]);
 
-  const revenue = orders.reduce((sum, o) => sum + o.total, 0);
-  const pending = orders.filter((o) => o.status !== "DELIVERED" && o.status !== "CANCELLED").length;
+  const revenue = canViewOrders ? orders.reduce((sum, o) => sum + o.total, 0) : 0;
+  const pending = canViewOrders
+    ? orders.filter((o) => o.status !== "DELIVERED" && o.status !== "CANCELLED").length
+    : 0;
 
   return (
     <div className="grid">
@@ -22,15 +34,15 @@ const DashboardPage = () => {
         <div className="stats-grid">
           <div className="stat">
             <div className="stat-label">Revenue (SYP)</div>
-            <div className="stat-value">{revenue.toLocaleString()}</div>
+            <div className="stat-value">{canViewOrders ? revenue.toLocaleString() : t("noPermissionAction")}</div>
           </div>
           <div className="stat">
             <div className="stat-label">Open Orders</div>
-            <div className="stat-value">{pending}</div>
+            <div className="stat-value">{canViewOrders ? pending : t("noPermissionAction")}</div>
           </div>
           <div className="stat">
             <div className="stat-label">Products</div>
-            <div className="stat-value">{products.length}</div>
+            <div className="stat-value">{canViewProducts ? products.length : t("noPermissionAction")}</div>
           </div>
         </div>
       </Card>
@@ -45,7 +57,11 @@ const DashboardPage = () => {
             </tr>
           </thead>
           <tbody>
-            {orders.length == 0 ? (
+            {!canViewOrders ? (
+              <tr>
+                <td colSpan={6} className="muted">{t("noPermissionAction")}</td>
+              </tr>
+            ) : orders.length == 0 ? (
               <tr>
                 <td colSpan={6} className="muted">No orders</td>
               </tr>

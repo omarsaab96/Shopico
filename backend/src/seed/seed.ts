@@ -5,6 +5,7 @@ import { User } from "../models/User";
 import { Category } from "../models/Category";
 import { Product } from "../models/Product";
 import { Wallet } from "../models/Wallet";
+import { PERMISSIONS } from "../constants/permissions";
 
 const run = async () => {
   await mongoose.connect(env.mongoUri);
@@ -16,10 +17,24 @@ const run = async () => {
   const existingAdmin = await User.findOne({ email: adminEmail });
   if (!existingAdmin) {
     const hashed = await bcrypt.hash(adminPassword, 10);
-    const admin = await User.create({ name: "Admin", email: adminEmail, password: hashed, role: "admin" });
+    const admin = await User.create({
+      name: "Admin",
+      email: adminEmail,
+      password: hashed,
+      role: "admin",
+      permissions: [...PERMISSIONS],
+    });
     await Wallet.create({ user: admin._id, balance: 0 });
     console.log(`Created admin user ${adminEmail}`);
   } else {
+    const hasAllPermissions =
+      Array.isArray(existingAdmin.permissions) &&
+      PERMISSIONS.every((permission) => existingAdmin.permissions.includes(permission));
+    if (!hasAllPermissions) {
+      existingAdmin.permissions = [...PERMISSIONS];
+      await existingAdmin.save();
+      console.log(`Updated admin permissions for ${adminEmail}`);
+    }
     console.log(`Admin ${adminEmail} already exists`);
   }
 

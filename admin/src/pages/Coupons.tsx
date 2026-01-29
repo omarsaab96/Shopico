@@ -6,6 +6,7 @@ import Card from "../components/Card";
 import api, { deleteCoupon, fetchCoupons, fetchProducts, saveCoupon } from "../api/client";
 import type { ApiUser, Coupon, Product } from "../types/api";
 import { useI18n } from "../context/I18nContext";
+import { usePermissions } from "../hooks/usePermissions";
 
 type CouponDraft = Omit<Coupon, "expiresAt" | "assignedUsers" | "assignedProducts" | "assignedMembershipLevels"> & {
   expiresAt?: Date | string;
@@ -70,6 +71,8 @@ const CouponsPage = () => {
   const [showEditLevels, setShowEditLevels] = useState(false);
   const [showEditAssigned, setShowEditAssigned] = useState(false);
   const { t } = useI18n();
+  const { can } = usePermissions();
+  const canManage = can("coupons:manage");
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -97,6 +100,7 @@ const CouponsPage = () => {
   }, []);
 
   const openNewModal = () => {
+    if (!canManage) return;
     setDraft({
       usageType: "SINGLE",
       maxUsesPerUser: undefined,
@@ -127,6 +131,7 @@ const CouponsPage = () => {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!canManage) return;
     try {
       const { assignmentType, ...rest } = draft;
       const restricted = assignmentType === "RESTRICTED";
@@ -155,6 +160,7 @@ const CouponsPage = () => {
   };
 
   const startEdit = (coupon: Coupon) => {
+    if (!canManage) return;
     const legacyScope = coupon.maxUsesScope || "PER_USER";
     const resolvedPerUser = coupon.maxUsesPerUser ?? (legacyScope === "PER_USER" ? coupon.maxUses : undefined);
     const resolvedGlobal = coupon.maxUsesGlobal ?? (legacyScope === "GLOBAL" ? coupon.maxUses : undefined);
@@ -187,6 +193,7 @@ const CouponsPage = () => {
 
   const saveEdit = async () => {
     if (!editingId) return;
+    if (!canManage) return;
     try {
       const { assignmentType, ...rest } = editDraft;
       const restricted = assignmentType === "RESTRICTED";
@@ -522,11 +529,11 @@ const CouponsPage = () => {
             <button className="ghost-btn" type="button" onClick={applyFilters}>
               {t("filter")}
             </button>
-            <button className="ghost-btn" type="button" onClick={resetFilters}>
-              {t("clear")}
-            </button>
-          </div>
-          <button className="primary" onClick={openNewModal}>
+          <button className="ghost-btn" type="button" onClick={resetFilters}>
+            {t("clear")}
+          </button>
+        </div>
+          <button className="primary" onClick={openNewModal} disabled={!canManage}>
             {t("addCoupon") || "Add coupon"}
           </button>
         </div>
@@ -813,7 +820,7 @@ const CouponsPage = () => {
                         </button>
                         {editError && <div className="error">{editError}</div>}
                       </div>
-                    ) : (
+                    ) : canManage ? (
                       <div className="flex">
                         <button className="ghost-btn" onClick={() => startEdit(coupon)}>
                           {t("edit")}
@@ -822,6 +829,8 @@ const CouponsPage = () => {
                           {t("delete")}
                         </button>
                       </div>
+                    ) : (
+                      <div className="muted">{t("noPermissionAction")}</div>
                     )}
                   </td>
                 </tr>
@@ -831,7 +840,7 @@ const CouponsPage = () => {
         </table>
       </Card>
 
-      {showEditAssigned && editingId && (
+      {showEditAssigned && editingId && canManage && (
         <div className="modal-backdrop" onClick={() => {
           setShowEditAssigned(false);
           setEditUserSearch("");
@@ -860,7 +869,7 @@ const CouponsPage = () => {
         </div>
       )}
 
-      {showEditProducts && editingId && (
+      {showEditProducts && editingId && canManage && (
         <div className="modal-backdrop" onClick={() => {
           setShowEditProducts(false);
           setEditProductSearch("");
@@ -889,7 +898,7 @@ const CouponsPage = () => {
         </div>
       )}
 
-      {showEditLevels && editingId && (
+      {showEditLevels && editingId && canManage && (
         <div className="modal-backdrop" onClick={() => setShowEditLevels(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -912,7 +921,7 @@ const CouponsPage = () => {
         </div>
       )}
 
-      {showNewModal && (
+      {showNewModal && canManage && (
         <div className="modal-backdrop" onClick={closeNewModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -1122,7 +1131,7 @@ const CouponsPage = () => {
                 <button className="ghost-btn" type="button" onClick={closeNewModal}>
                   {t("cancel")}
                 </button>
-                <button className="primary" type="submit">
+                <button className="primary" type="submit" disabled={!canManage}>
                   {t("save")}
                 </button>
               </div>

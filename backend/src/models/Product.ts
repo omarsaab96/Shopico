@@ -8,6 +8,7 @@ export interface IProductImage {
 export interface IProduct extends Document {
   name: string;
   description?: string;
+  barcode?: string;
   price: number;
   promoPrice?: number;
   isPromoted: boolean;
@@ -31,6 +32,7 @@ const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true },
     description: { type: String },
+    barcode: { type: String, unique: true, sparse: true, index: true },
     price: { type: Number, required: true },
     promoPrice: { type: Number },
     isPromoted: { type: Boolean, default: false },

@@ -1,4 +1,4 @@
-export type UserRole = "customer" | "admin" | "staff";
+export type UserRole = "customer" | "admin" | "manager" | "staff";
 
 export type PaymentMethod =
   | "CASH_ON_DELIVERY"

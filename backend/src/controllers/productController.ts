@@ -2,6 +2,9 @@ import { catchAsync } from "../utils/catchAsync";
 import { Product } from "../models/Product";
 import { bulkPriceSchema, productSchema, productUpdateSchema } from "../validators/productValidators";
 import { sendSuccess } from "../utils/response";
+import { AuditLog } from "../models/AuditLog";
+import { AuthRequest } from "../types/auth";
+import * as xlsx from "xlsx";
 
 export const listProducts = catchAsync(async (req, res) => {
   const {
@@ -47,6 +50,7 @@ export const createProduct = catchAsync(async (req, res) => {
   const product = await Product.create({
     name: payload.name,
     description: payload.description,
+    barcode: payload.barcode,
     price: payload.price,
     promoPrice: payload.promoPrice,
     isPromoted: payload.isPromoted ?? false,
@@ -99,4 +103,191 @@ export const bulkUpdatePrices = catchAsync(async (req, res) => {
   const result = await Product.updateMany({}, [{ $set: { price } }], { updatePipeline: true });
   const modifiedCount = (result as any).modifiedCount ?? (result as any).nModified ?? 0;
   sendSuccess(res, { modifiedCount }, "Prices updated");
+});
+
+const normalizeBarcode = (value: unknown) => {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number" && Number.isFinite(value)) return String(Math.trunc(value));
+  const raw = String(value).trim();
+  if (!raw) return "";
+  return raw.replace(/\s+/g, "");
+};
+
+const parseNumber = (value: unknown) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const cleaned = value.replace(/,/g, "").trim();
+  if (!cleaned) return null;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+type ImportAction = "create" | "update" | "skip";
+type ImportEntry = {
+  barcode: string;
+  name: string;
+  price: number | null;
+  hasStock: boolean;
+};
+type ImportDecision = {
+  barcode: string;
+  name: string;
+  price: number | null;
+  hasStock: boolean;
+  action: ImportAction;
+  reason?: string;
+};
+
+const readImportEntries = (buffer: Buffer) => {
+  const workbook = xlsx.read(buffer, { type: "buffer" });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) return [] as ImportEntry[];
+  const sheet = workbook.Sheets[sheetName];
+  const rows = xlsx.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
+
+  return rows.map((row) => {
+    const barcode = normalizeBarcode(row["الرمز"]);
+    const name = typeof row["المادة"] === "string" ? row["المادة"].trim() : String(row["المادة"] || "").trim();
+    const price = parseNumber(row["سعر 1"]);
+    const stockQty = parseNumber(row["الرصيد الحالي"]);
+    const hasStock = Boolean(stockQty && stockQty > 0);
+    return { barcode, name, price, hasStock };
+  });
+};
+
+const decideImportActions = (
+  entries: ImportEntry[],
+  existingMap: Map<string, { name?: string; price?: number; isAvailable?: boolean }>
+) => {
+  const decisions: ImportDecision[] = [];
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const entry of entries) {
+    if (!entry.barcode || entry.price === null) {
+      decisions.push({ ...entry, action: "skip", reason: "missing_barcode_or_price" });
+      skipped += 1;
+      continue;
+    }
+    if (!entry.name) {
+      decisions.push({ ...entry, action: "skip", reason: "missing_name" });
+      skipped += 1;
+      continue;
+    }
+    const existing = existingMap.get(entry.barcode);
+    const exists = Boolean(existing);
+    if (!exists && !entry.hasStock) {
+      decisions.push({ ...entry, action: "skip", reason: "no_stock_new" });
+      skipped += 1;
+      continue;
+    }
+    if (!exists) {
+      decisions.push({ ...entry, action: "create" });
+      created += 1;
+      continue;
+    }
+
+    const desired = {
+      name: entry.name,
+      price: entry.price ?? undefined,
+      isAvailable: entry.hasStock,
+    };
+    const hasChange =
+      desired.name !== existing?.name ||
+      desired.price !== existing?.price ||
+      desired.isAvailable !== existing?.isAvailable;
+
+    if (!hasChange) {
+      decisions.push({ ...entry, action: "skip", reason: "no_change" });
+      skipped += 1;
+      continue;
+    }
+
+    decisions.push({ ...entry, action: "update" });
+    updated += 1;
+  }
+
+  return { decisions, created, updated, skipped };
+};
+
+export const previewProductsImport = catchAsync(async (req: AuthRequest, res) => {
+  const file = (req as any).file as Express.Multer.File | undefined;
+  if (!file) return res.status(400).json({ success: false, message: "File is required" });
+
+  const entries = readImportEntries(file.buffer);
+  if (entries.length === 0) {
+    return res.status(400).json({ success: false, message: "No rows found" });
+  }
+
+  const barcodes = entries.map((entry) => entry.barcode).filter(Boolean);
+  const existing = await Product.find({ barcode: { $in: barcodes } })
+    .select("barcode name price isAvailable")
+    .lean();
+  const existingMap = new Map(existing.map((p) => [p.barcode, { name: p.name, price: p.price, isAvailable: p.isAvailable }]));
+
+  const { decisions, created, updated, skipped } = decideImportActions(entries, existingMap);
+  const preview = decisions.slice(0, 50);
+  sendSuccess(res, { preview, created, updated, skipped, total: entries.length });
+});
+
+export const importProductsFromExcel = catchAsync(async (req: AuthRequest, res) => {
+  const file = (req as any).file as Express.Multer.File | undefined;
+  if (!file) return res.status(400).json({ success: false, message: "File is required" });
+
+  const entries = readImportEntries(file.buffer);
+  if (entries.length === 0) {
+    return res.status(400).json({ success: false, message: "No rows found" });
+  }
+
+  const barcodes = entries.map((entry) => entry.barcode).filter(Boolean);
+  const existing = await Product.find({ barcode: { $in: barcodes } })
+    .select("barcode name price isAvailable")
+    .lean();
+  const existingMap = new Map(existing.map((p) => [p.barcode, { name: p.name, price: p.price, isAvailable: p.isAvailable }]));
+
+  const { decisions, created, updated, skipped } = decideImportActions(entries, existingMap);
+  const ops = [];
+
+  for (const decision of decisions) {
+    if (decision.action === "skip") continue;
+
+    const update: Record<string, unknown> = {
+      name: decision.name,
+      price: decision.price,
+      isAvailable: decision.hasStock,
+    };
+
+    ops.push({
+      updateOne: {
+        filter: { barcode: decision.barcode },
+        update: {
+          $set: update,
+          $setOnInsert: {
+            barcode: decision.barcode,
+            description: undefined,
+            promoPrice: undefined,
+            isPromoted: false,
+            isFeatured: false,
+            categories: [],
+            images: [],
+          },
+        },
+        upsert: true,
+      },
+    });
+  }
+
+  if (ops.length === 0) {
+    return res.status(200).json({ success: true, message: "No changes", data: { created, updated, skipped } });
+  }
+
+  await Product.bulkWrite(ops, { ordered: false });
+  await AuditLog.create({
+    user: req.user?._id,
+    action: "PRODUCTS_IMPORT",
+    metadata: { created, updated, skipped, total: entries.length },
+  });
+  sendSuccess(res, { created, updated, skipped, total: entries.length }, "Products imported");
 });
