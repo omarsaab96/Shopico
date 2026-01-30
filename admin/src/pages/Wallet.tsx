@@ -118,12 +118,14 @@ const WalletPage = () => {
             >
               {t("clear")}
             </button>
-            {canCreateTopups && (
-              <button className="primary" type="button" onClick={() => setShowCreateModal(true)}>
-                {t("topUpRequest") || "Top-up request"}
-              </button>
-            )}
+
           </div>
+
+          {canCreateTopups && (
+            <button className="primary" type="button" onClick={() => setShowCreateModal(true)}>
+              {t("topUpRequest") || "Top-up request"}
+            </button>
+          )}
         </div>
         <table className="table">
           <thead>

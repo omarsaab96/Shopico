@@ -332,9 +332,9 @@ const BranchesPage = () => {
               <th>{t("name")}</th>
               <th>{t("address")}</th>
               <th>{t("phone")}</th>
-              <th>{t("latitude")}</th>
-              <th>{t("longitude")}</th>
-              <th>{t("openHours")}</th>
+              {/* <th>{t("latitude")}</th>
+              <th>{t("longitude")}</th> */}
+              {/* <th>{t("openHours")}</th> */}
               <th>{t("deliveryRadiusKm")}</th>
               <th>{t("active")}</th>
               <th></th>
@@ -351,9 +351,9 @@ const BranchesPage = () => {
                   <td>{branch.name}</td>
                   <td>{branch.address}</td>
                   <td>{branch.phone || "-"}</td>
-                  <td>{branch.lat}</td>
-                  <td>{branch.lng}</td>
-                  <td>{branch.openHours || "-"}</td>
+                  {/* <td>{branch.lat}</td>
+                  <td>{branch.lng}</td> */}
+                  {/* <td>{branch.openHours || "-"}</td> */}
                   <td>{branch.deliveryRadiusKm}</td>
                   <td>{branch.isActive ? (t("yes") || "Yes") : (t("no") || "No")}</td>
                   <td>
@@ -406,14 +406,14 @@ const BranchesPage = () => {
                 {t("phone")}
                 <input value={draft.phone || ""} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
               </label>
-              <label>
+              {/* <label>
                 {t("openHours")}
                 <input
                   value={draft.openHours || ""}
                   onChange={(e) => setDraft({ ...draft, openHours: e.target.value })}
                   placeholder="09:00 - 18:00"
                 />
-              </label>
+              </label> */}
               <label>
                 {t("deliveryRadiusKm")}
                 <input
@@ -476,14 +476,14 @@ const BranchesPage = () => {
                 {t("phone")}
                 <input value={editDraft.phone || ""} onChange={(e) => setEditDraft({ ...editDraft, phone: e.target.value })} />
               </label>
-              <label>
+              {/* <label>
                 {t("openHours")}
                 <input
                   value={editDraft.openHours || ""}
                   onChange={(e) => setEditDraft({ ...editDraft, openHours: e.target.value })}
                   placeholder="09:00 - 18:00"
                 />
-              </label>
+              </label> */}
               <label>
                 {t("deliveryRadiusKm")}
                 <input

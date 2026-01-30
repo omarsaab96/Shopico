@@ -7,7 +7,7 @@ import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
 
-const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
+const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
 
 const ProductsPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -725,19 +725,19 @@ const ProductsPage = () => {
             </button>
           </div>
           <div className="flex" style={{ gap: 10 }}>
-            <button className="primary" onClick={openNewModal} disabled={!canManage}>
-              {t("addProduct")}
-            </button>
             <button className="ghost-btn" type="button" onClick={openPriceModal} disabled={!canManage}>
               {t("changePrices") || "Change prices"}
             </button>
             <button className="ghost-btn" type="button" onClick={openImportModal} disabled={!canImport}>
               {t("importProducts")}
             </button>
+            <button className="primary" onClick={openNewModal} disabled={!canManage}>
+              {t("addProduct")}
+            </button>
           </div>
         </div>
 
-        <div className="pagination" style={{marginBottom:15}}>
+        <div className="pagination" style={{ marginBottom: 15 }}>
           <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
             {pageLoading && <img src="loading.gif" width="20" />}
 
@@ -791,7 +791,7 @@ const ProductsPage = () => {
           </div>
         </div>
 
-        <table className="table" style={{marginBottom:15}}>
+        <table className="table" style={{ marginBottom: 15 }}>
           <thead>
             <tr>
               <th>{t("images")}</th>

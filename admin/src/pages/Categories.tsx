@@ -7,7 +7,7 @@ import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
 
-const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
+const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
 
 const CategoriesPage = () => {
   const [categories, setCategories] = useState<Category[]>([]);

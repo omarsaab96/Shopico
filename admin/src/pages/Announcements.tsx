@@ -9,7 +9,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useBranch } from "../context/BranchContext";
 
-const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL || "https://upload.imagekit.io/api/v1/files/upload";
+const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
 
 type AnnouncementDraft = Omit<Announcement, "startsAt" | "endsAt"> & {
   startsAt?: Date | string;
