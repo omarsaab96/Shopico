@@ -16,6 +16,7 @@ const CategoriesPage = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<Category>>({});
+  const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
   const [newUploading, setNewUploading] = useState(false);
@@ -30,7 +31,15 @@ const CategoriesPage = () => {
     q: searchTerm.trim() || undefined,
   });
 
-  const load = (params?: { q?: string }) => fetchCategories(params).then(setCategories);
+  const load = async (params?: { q?: string }) => {
+    setLoading(true);
+    try {
+      const data = await fetchCategories(params);
+      setCategories(data);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!selectedBranchId) return;
@@ -160,9 +169,11 @@ const CategoriesPage = () => {
             {t("clear")}
           </button>
         </div>
-          <button className="primary" onClick={openNewModal} disabled={!canManage}>
-            {t("addCategory")}
-          </button>
+          {canManage && (
+            <button className="primary" onClick={openNewModal}>
+              {t("addCategory")}
+            </button>
+          )}
         </div>
 
         <table className="table">
@@ -175,7 +186,18 @@ const CategoriesPage = () => {
             </tr>
           </thead>
           <tbody>
-            {categories.length == 0 ? (
+            {loading ? (
+              Array.from({ length: 6 }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`} className="productRow">
+                  <td className="prodImgCell">
+                    <div className="skeleton-block" style={{ width: 40, height: 40 }} />
+                  </td>
+                  <td><span className="skeleton-line w-140" /></td>
+                  <td><span className="skeleton-line w-180" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                </tr>
+              ))
+            ) : categories.length == 0 ? (
               <tr>
                 <td colSpan={6} className="muted">{t("noCategories")}</td>
               </tr>
@@ -364,9 +386,11 @@ const CategoriesPage = () => {
                 <button className="ghost-btn" type="button" onClick={closeNewModal}>
                   {t("cancel")}
                 </button>
-                <button className="primary" type="submit" disabled={!canManage}>
-                  {t("save")}
-                </button>
+                {canManage && (
+                  <button className="primary" type="submit">
+                    {t("save")}
+                  </button>
+                )}
               </div>
             </form>
           </div>

@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import { useMemo } from "react";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
@@ -7,14 +7,18 @@ import { View } from "react-native";
 import { useCart } from "../../lib/cart";
 import Feather from "@expo/vector-icons/Feather";
 import Text from "../../components/Text";
+import { useAuth } from "../../lib/auth";
 
 export default function TabsLayout() {
   const { palette } = useTheme();
   const { t, isRTL, lang } = useI18n();
   const insets = useSafeAreaInsets();
   const { items } = useCart();
+  const { user, loading } = useAuth();
   // const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
   const itemCount = items.length;
+  if (loading) return null;
+  if (!user) return <Redirect href="/auth/login" />;
   const tabIcons: Record<string, keyof typeof Feather.glyphMap> = {
     store: "home",
     cart: "shopping-cart",

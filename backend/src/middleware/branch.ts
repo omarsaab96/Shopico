@@ -13,10 +13,16 @@ const toId = (value: any) => {
 export const resolveBranchId = (req: AuthRequest) => {
   const user = req.user;
   const branchIds = (user as any)?.branchIds as Types.ObjectId[] | undefined;
-  if (!branchIds || branchIds.length === 0) return null;
-  if (branchIds.length === 1) return branchIds[0].toString();
   const selected = req.headers["x-branch-id"] || (req.query as any)?.branchId;
   const selectedId = toId(selected)?.toString();
+  const role = (user as any)?.role;
+  if (role === "customer") {
+    if (selectedId) return selectedId;
+    if (branchIds && branchIds.length === 1) return branchIds[0].toString();
+    return null;
+  }
+  if (!branchIds || branchIds.length === 0) return null;
+  if (branchIds.length === 1) return branchIds[0].toString();
   if (!selectedId) return null;
   const allowed = branchIds.some((id) => id.toString() === selectedId);
   return allowed ? selectedId : null;

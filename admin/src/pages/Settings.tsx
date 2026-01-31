@@ -10,6 +10,7 @@ import { useBranch } from "../context/BranchContext";
 const SettingsPage = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { t } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
@@ -17,10 +18,38 @@ const SettingsPage = () => {
 
   useEffect(() => {
     if (!selectedBranchId) return;
-    fetchSettings().then(setSettings);
+    setLoading(true);
+    fetchSettings()
+      .then(setSettings)
+      .finally(() => setLoading(false));
   }, [selectedBranchId]);
 
-  if (!settings) return <div>{t("loadingSettings")}</div>;
+  if (loading || !settings) {
+    return (
+      <>
+        <Card title={t("settings.operational")} subTitle="">
+          <div className="form">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <label key={`skeleton-${idx}`}>
+                <span className="skeleton-line w-140" />
+                <span className="skeleton-line w-180" />
+              </label>
+            ))}
+          </div>
+        </Card>
+        <Card title={t("settings.membership")} subTitle="">
+          <div className="form">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <label key={`skeleton-m-${idx}`}>
+                <span className="skeleton-line w-140" />
+                <span className="skeleton-line w-180" />
+              </label>
+            ))}
+          </div>
+        </Card>
+      </>
+    );
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -151,9 +180,11 @@ const SettingsPage = () => {
           </label>
         </Card>
 
-        <button className="primary" disabled={!canManage || saving}>
-          {saving ? (t("saving") || "Saving...") : t("saveSettings")}
-        </button>
+        {canManage && (
+          <button className="primary" disabled={saving}>
+            {saving ? (t("saving") || "Saving...") : t("saveSettings")}
+          </button>
+        )}
       </form>
     </>
   );

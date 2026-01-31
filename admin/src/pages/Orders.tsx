@@ -14,6 +14,7 @@ const OrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
+  const [loading, setLoading] = useState(false);
   const { t, tStatus } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
@@ -25,7 +26,15 @@ const OrdersPage = () => {
     paymentStatus: paymentFilter || undefined,
   });
 
-  const load = () => fetchOrders(getFilterParams()).then(setOrders);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchOrders(getFilterParams());
+      setOrders(data);
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
     if (!selectedBranchId) return;
     load();
@@ -88,7 +97,18 @@ const OrdersPage = () => {
           </tr>
         </thead>
         <tbody>
-          {orders.length == 0 ? (
+          {loading ? (
+            Array.from({ length: 6 }).map((_, idx) => (
+              <tr key={`skeleton-${idx}`} className="productRow">
+                <td><span className="skeleton-line w-80" /></td>
+                <td><span className="skeleton-line w-140" /></td>
+                <td><span className="skeleton-line w-100" /></td>
+                <td><span className="skeleton-line w-120" /></td>
+                <td><span className="skeleton-line w-80" /></td>
+                <td><span className="skeleton-line w-120" /></td>
+              </tr>
+            ))
+          ) : orders.length == 0 ? (
             <tr>
               <td colSpan={6} className="muted">{t("noOrders")}</td>
             </tr>
@@ -105,25 +125,29 @@ const OrdersPage = () => {
                 </td>
                 <td>{order.total.toLocaleString()}</td>
                 <td>
-                  <select
-                    value={order.status}
-                    onChange={(e) => update(order, e.target.value)}
-                    disabled={!canUpdateOrders}
-                  >
-                    {statuses.map((s) => (
-                      <option key={s} value={s}>
-                        {tStatus(s)}
-                      </option>
-                    ))}
-                  </select>
-                  {(order.paymentMethod === "SHAM_CASH" || order.paymentMethod === "BANK_TRANSFER") && (
-                    <button
-                      className="ghost-btn"
-                      onClick={() => update(order, order.status, "CONFIRMED")}
-                      disabled={!canUpdateOrders}
-                    >
-                      {t("confirmPayment")}
-                    </button>
+                  {canUpdateOrders ? (
+                    <>
+                      <select
+                        value={order.status}
+                        onChange={(e) => update(order, e.target.value)}
+                      >
+                        {statuses.map((s) => (
+                          <option key={s} value={s}>
+                            {tStatus(s)}
+                          </option>
+                        ))}
+                      </select>
+                      {(order.paymentMethod === "SHAM_CASH" || order.paymentMethod === "BANK_TRANSFER") && (
+                        <button
+                          className="ghost-btn"
+                          onClick={() => update(order, order.status, "CONFIRMED")}
+                        >
+                          {t("confirmPayment")}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <div className="muted">{t("noPermissionAction")}</div>
                   )}
                 </td>
               </tr>

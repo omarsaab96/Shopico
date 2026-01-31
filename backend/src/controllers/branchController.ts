@@ -2,6 +2,7 @@ import { Branch } from "../models/Branch";
 import { branchSchema } from "../validators/branchValidators";
 import { catchAsync } from "../utils/catchAsync";
 import { sendSuccess } from "../utils/response";
+import { haversineDistanceKm } from "../utils/pricing";
 
 export const getBranches = catchAsync(async (req, res) => {
   const { q } = req.query as { q?: string };
@@ -40,4 +41,34 @@ export const deleteBranch = catchAsync(async (req, res) => {
   const deleted = await Branch.findByIdAndDelete(req.params.id);
   if (!deleted) return res.status(404).json({ success: false, message: "Branch not found" });
   sendSuccess(res, deleted, "Branch deleted");
+});
+
+export const getNearestBranch = catchAsync(async (req, res) => {
+  const { lat: rawLat, lng: rawLng } = req.query as { lat?: string; lng?: string };
+  const lat = Number(rawLat);
+  const lng = Number(rawLng);
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    return res.status(400).json({ success: false, message: "Valid lat and lng are required" });
+  }
+  const branches = await Branch.find({ isActive: true }).select("name address lat lng phone deliveryRadiusKm isActive");
+  if (branches.length === 0) {
+    return res.status(404).json({ success: false, message: "No active branches" });
+  }
+  let nearest = branches[0];
+  let minDistance = haversineDistanceKm(lat, lng, nearest.lat, nearest.lng);
+  for (const branch of branches.slice(1)) {
+    const distance = haversineDistanceKm(lat, lng, branch.lat, branch.lng);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearest = branch;
+    }
+  }
+  return sendSuccess(res, { branch: nearest, distanceKm: minDistance });
+});
+
+export const getPublicBranches = catchAsync(async (_req, res) => {
+  const branches = await Branch.find({ isActive: true })
+    .select("name address lat lng phone deliveryRadiusKm isActive")
+    .sort({ createdAt: 1 });
+  return sendSuccess(res, branches);
 });

@@ -18,6 +18,7 @@ const WalletPage = () => {
   const [createError, setCreateError] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState("");
   const [actionLoadingStatus, setActionLoadingStatus] = useState<"" | "APPROVED" | "REJECTED">("");
+  const [loading, setLoading] = useState(false);
   const { t, tStatus } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
@@ -31,9 +32,15 @@ const WalletPage = () => {
     method: methodFilter || undefined,
   });
 
-  const load = () => {
+  const load = async () => {
     if (!canViewTopups) return;
-    fetchTopUps(getFilterParams()).then(setTopups);
+    setLoading(true);
+    try {
+      const data = await fetchTopUps(getFilterParams());
+      setTopups(data);
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => {
     if (!selectedBranchId) return;
@@ -113,7 +120,7 @@ const WalletPage = () => {
                 setSearchTerm("");
                 setStatusFilter("");
                 setMethodFilter("");
-                fetchTopUps().then(setTopups);
+                load();
               }}
             >
               {t("clear")}
@@ -138,7 +145,17 @@ const WalletPage = () => {
             </tr>
           </thead>
           <tbody>
-            {topups.length == 0 ? (
+            {loading ? (
+              Array.from({ length: 6 }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`} className="productRow">
+                  <td><span className="skeleton-line w-180" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                </tr>
+              ))
+            ) : topups.length == 0 ? (
               <tr>
                 <td colSpan={6} className="muted">{t("noTopups")}</td>
               </tr>

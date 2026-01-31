@@ -61,6 +61,22 @@
   color: var(--text-primary);
 }
 
+[data-theme="dark"] .form label,
+[data-theme="dark"] .form .subLabel,
+[data-theme="dark"] .muted {
+  color: var(--gray-600);
+}
+
+[data-theme="dark"] .checkboxContainer label::before {
+  border-color: #e2e8f0;
+  background-color: #0b1220;
+}
+
+[data-theme="dark"] .checkboxContainer input:checked~label::before {
+  background-color: var(--amber-500);
+  border-color: var(--amber-500);
+}
+
 [data-theme="dark"] input,
 [data-theme="dark"] select,
 [data-theme="dark"] td {
@@ -78,6 +94,16 @@
 
 [data-theme="dark"] .modal {
   background: #0b1220;
+}
+
+[data-theme="dark"] .table th {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .skeleton-line,
+[data-theme="dark"] .skeleton-block {
+  background: linear-gradient(90deg, #1f2937 25%, #334155 50%, #1f2937 75%);
+  background-size: 200% 100%;
 }
 
 button {
@@ -490,6 +516,7 @@ nav::-webkit-scrollbar {
 .w-100 { width: 100px; }
 .w-120 { width: 120px; }
 .w-140 { width: 140px; }
+.w-180 { width: 180px; }
 
 @keyframes skeletonPulse {
   0% { background-position: 200% 0; }
@@ -699,7 +726,6 @@ nav::-webkit-scrollbar {
   height: 18px;
   border: 1px solid black;
   border-radius: 8px;
-  background-image: url(../check.png);
   background-position: center;
   background-repeat: no-repeat;
   background-size: 13px;
@@ -717,6 +743,7 @@ nav::-webkit-scrollbar {
 
 .checkboxContainer input:checked~label::before {
   background-color: var(--text-primary);
+  background-image: url(../check.png);
 }
 
 .filter-select,

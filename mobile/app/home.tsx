@@ -15,6 +15,7 @@ import {
   ScrollView,
   useWindowDimensions,
   Linking,
+  Alert,
 } from "react-native";
 import {
   BottomSheetBackdrop,
@@ -24,7 +25,8 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import Screen from "../components/Screen";
-import api from "../lib/api";
+import api, { getBranchId, getBranchLock, setBranchId, setBranchLock } from "../lib/api";
+import * as Location from "expo-location";
 import { useCart } from "../lib/cart";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
@@ -50,7 +52,8 @@ type Product = {
 };
 type SortOption = "relevance" | "priceAsc" | "priceDesc";
 type PriceFilter = "all" | "lt50k" | "lt100k" | "gte100k";
-type SavedAddress = { _id: string; address: string; label?: string; updatedAt?: string; createdAt?: string };
+type SavedAddress = { _id: string; address: string; label?: string; lat: number; lng: number; updatedAt?: string; createdAt?: string };
+type Branch = { _id: string; name: string; address: string; lat: number; lng: number };
 type Announcement = {
   _id: string;
   title?: string;
@@ -80,6 +83,14 @@ export default function Home() {
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
   const [latestAddress, setLatestAddress] = useState<string | null>(null);
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<SavedAddress | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const [branchLoading, setBranchLoading] = useState(false);
+  const [locationFallback, setLocationFallback] = useState(false);
+  const [branchLocked, setBranchLocked] = useState(false);
+  const [showBranchPrompt, setShowBranchPrompt] = useState(false);
+  const [branchOptions, setBranchOptions] = useState<Branch[]>([]);
+  const [branchPromptLoading, setBranchPromptLoading] = useState(false);
   const [settings, setSettings] = useState<any>();
   const [wallet, setWallet] = useState<any>();
   const [membershipLoading, setMembershipLoading] = useState(false);
@@ -94,6 +105,7 @@ export default function Home() {
   const membershipLoadingRef = useRef(false);
   const sheetRef = useRef<BottomSheetModal>(null);
   const addressSheetRef = useRef<BottomSheetModal>(null);
+  const branchSheetRef = useRef<BottomSheetModal>(null);
   const membershipSheetRef = useRef<BottomSheetModal>(null);
 
   const snapPoints = useMemo(() => ["80%"], []);
@@ -104,7 +116,7 @@ export default function Home() {
   );
 
   const { palette, isDark } = useTheme();
-  const { items, addItem, setQuantity } = useCart();
+  const { items, addItem, setQuantity, clear } = useCart();
   const { t, isRTL } = useI18n();
 
   const styles = useMemo(() => createStyles(palette, isRTL, isDark, insets), [palette, isRTL, isDark, insets]);
@@ -164,6 +176,26 @@ export default function Home() {
       api.get("/auth/me").then((res) => setProfile(res.data.data.user)).catch(() => { });
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    getBranchLock().then(setBranchLocked).catch(() => setBranchLocked(false));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!branchLocked || selectedBranch) return;
+    (async () => {
+      const currentId = await getBranchId();
+      if (!currentId) return;
+      const res = await api.get("/branches/public");
+      const list: Branch[] = res.data.data || [];
+      const match = list.find((b) => b._id === currentId);
+      if (match) {
+        setSelectedBranch(match);
+      }
+    })().catch(() => {});
+  }, [user, branchLocked, selectedBranch]);
 
   const membershipLevel = profile?.membershipLevel || "None";
   const graceUntil = profile?.membershipGraceUntil ? new Date(profile.membershipGraceUntil) : null;
@@ -279,6 +311,13 @@ export default function Home() {
     if (!user) {
       setLatestAddress(null);
       setAddresses([]);
+      setSelectedAddress(null);
+      setSelectedBranch(null);
+      setBranchId(null);
+      setBranchLock(false);
+      setLocationFallback(false);
+      setBranchLocked(false);
+      setShowBranchPrompt(false);
       setRefreshing(false);
       return;
     }
@@ -290,14 +329,103 @@ export default function Home() {
           (a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime()
         );
         setAddresses(sorted);
-        setLatestAddress(sorted[0]?.address || null);
+        const latest = sorted[0] || null;
+        setLatestAddress(latest?.address || null);
+        setSelectedAddress(latest);
+        if (sorted.length === 0) {
+          setLocationFallback(true);
+        } else {
+          setLocationFallback(false);
+        }
       })
       .catch(() => {
         setLatestAddress(null);
         setAddresses([]);
+        setSelectedAddress(null);
+        setSelectedBranch(null);
+        setBranchId(null);
+        setBranchLock(false);
+        setLocationFallback(false);
+        setBranchLocked(false);
+        setShowBranchPrompt(false);
         setRefreshing(false);
       });
   }, [user]);
+
+  const fetchNearestBranch = useCallback(async (address: SavedAddress | null) => {
+    if (branchLocked) return;
+    if (!address) {
+      setSelectedBranch(null);
+      await setBranchId(null);
+      return;
+    }
+    setLocationFallback(false);
+    setBranchLoading(true);
+    try {
+      const res = await api.get("/branches/nearest", {
+        params: { lat: address.lat, lng: address.lng },
+      });
+      const payload = res.data?.data;
+      const branch = payload?.branch as Branch | undefined;
+      setSelectedBranch(branch || null);
+      if (branch?._id) {
+        await setBranchId(branch._id);
+        await setBranchLock(true);
+        setBranchLocked(true);
+      } else {
+        await setBranchId(null);
+      }
+    } catch {
+      setSelectedBranch(null);
+      await setBranchId(null);
+    } finally {
+      setBranchLoading(false);
+    }
+  }, []);
+
+  const fetchNearestByLocation = useCallback(async () => {
+    setBranchLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setLocationFallback(false);
+        setBranchLoading(false);
+        setShowBranchPrompt(true);
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({});
+      const res = await api.get("/branches/nearest", {
+        params: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+      });
+      const payload = res.data?.data;
+      const branch = payload?.branch as Branch | undefined;
+      setSelectedBranch(branch || null);
+      if (branch?._id) {
+        await setBranchId(branch._id);
+        await setBranchLock(true);
+        setBranchLocked(true);
+      } else {
+        await setBranchId(null);
+      }
+    } catch {
+      setSelectedBranch(null);
+      await setBranchId(null);
+      setLocationFallback(false);
+      setShowBranchPrompt(true);
+    } finally {
+      setBranchLoading(false);
+    }
+  }, []);
+
+  const loadBranchOptions = useCallback(async () => {
+    setBranchPromptLoading(true);
+    try {
+      const res = await api.get("/branches/public");
+      setBranchOptions(res.data.data || []);
+    } finally {
+      setBranchPromptLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     api.get("/categories").then((res) => setCategories(res.data.data || []));
@@ -316,17 +444,36 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user && selectedBranch) {
       fetchMembershipMeta();
-    } else {
+    } else if (!user) {
       setWallet(undefined);
       setSettings(undefined);
     }
-  }, [user, fetchMembershipMeta]);
+  }, [user, selectedBranch?._id, fetchMembershipMeta]);
 
   useEffect(() => {
+    if (!user) return;
+    fetchNearestBranch(selectedAddress);
+  }, [user, selectedAddress, fetchNearestBranch]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!selectedAddress && locationFallback && !branchLocked) {
+      fetchNearestByLocation();
+    }
+  }, [user, selectedAddress, locationFallback, fetchNearestByLocation, branchLocked]);
+
+  useEffect(() => {
+    if (showBranchPrompt) {
+      loadBranchOptions();
+    }
+  }, [showBranchPrompt, loadBranchOptions]);
+
+  useEffect(() => {
+    if (user && locationFallback && !selectedBranch) return;
     fetchProducts(1, false);
-  }, [debouncedSearch, fetchProducts]);
+  }, [debouncedSearch, fetchProducts, selectedBranch?._id, user, locationFallback]);
 
   useFocusEffect(
     useCallback(() => {
@@ -379,6 +526,11 @@ export default function Home() {
     if (!user) return;
     loadLatestAddress();
     addressSheetRef.current?.present();
+  };
+  const openBranchSheet = () => {
+    if (!user) return;
+    loadBranchOptions();
+    branchSheetRef.current?.present();
   };
   const openMembershipSheet = () => {
     if (!user) return;
@@ -658,23 +810,46 @@ export default function Home() {
                       </Text>
 
                       {user ? (
-                        <TouchableOpacity onPress={openAddressSheet} activeOpacity={0.9} style={[styles.addressRow, { width: '100%' }]}>
-                          <Feather name="map-pin" size={14} color={palette.muted} />
-                          <Text style={styles.addressLabel} numberOfLines={1}>
-                            {t("deliveryTo") ?? "Delivery to"}
-                          </Text>
+                        <>
+                          <TouchableOpacity onPress={openAddressSheet} activeOpacity={0.9} style={[styles.addressRow, { width: "100%" }]}>
+                            <Feather name="map-pin" size={14} color={palette.muted} />
+                            <Text style={styles.addressLabel} numberOfLines={1}>
+                              {t("deliveryTo") ?? "Delivery to"}
+                            </Text>
 
-                          {latestAddress ? (
-                            <>
+                            {latestAddress ? (
+                              <>
+                                <Text style={[styles.addressValue, { flex: 1 }]} numberOfLines={1}>
+                                  {latestAddress.substring(0, 52)}
+                                  <Entypo name="chevron-down" size={12} color="black" />
+                                </Text>
+                              </>
+                            ) : (
+                              <Skeleton width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
+                            )}
+                          </TouchableOpacity>
+
+                          <TouchableOpacity onPress={openBranchSheet} activeOpacity={0.9} style={[styles.branchRow, { width: "100%" }]}>
+                            <Ionicons name="storefront-outline" size={14} color={palette.muted} />
+                            <Text style={styles.addressLabel} numberOfLines={1}>
+                              {t("fromBranch") ?? "From branch"}
+                            </Text>
+                            {branchLoading ? (
+                              <Skeleton width={140} height={14} colorScheme={isDark ? "dark" : "light"} />
+                            ) : selectedBranch ? (
                               <Text style={[styles.addressValue, { flex: 1 }]} numberOfLines={1}>
-                                {latestAddress.substring(0, 52)}
+                                {selectedBranch.name}
                                 <Entypo name="chevron-down" size={12} color="black" />
                               </Text>
-                            </>
-                          ) : (
-                            <Skeleton width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
-                          )}
-                        </TouchableOpacity>
+                            ) : (
+                              <Text style={styles.addressValue} numberOfLines={1}>
+                                {locationFallback
+                                  ? (t("usingLocation") ?? "Using current location")
+                                  : (t("selectAddress") ?? "Add address to load branch")}
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        </>
                       ) : (
                         <TouchableOpacity
                           onPress={() => {
@@ -903,6 +1078,7 @@ export default function Home() {
                     style={[styles.addressItem, latestAddress === addr.address && styles.addressItemActive]}
                     onPress={() => {
                       setLatestAddress(addr.address);
+                      setSelectedAddress(addr);
                       addressSheetRef.current?.dismiss();
                     }}
                     activeOpacity={0.9}
@@ -917,6 +1093,115 @@ export default function Home() {
               )}
 
               <TouchableOpacity style={styles.closeBtn} onPress={() => addressSheetRef.current?.dismiss()} activeOpacity={0.9}>
+                <Text style={styles.closeBtnText}>{t("close") ?? "Close"}</Text>
+              </TouchableOpacity>
+            </BottomSheetView>
+          </BottomSheetModal>
+
+          {/* Branch prompt */}
+          <Modal visible={showBranchPrompt} transparent animationType="fade">
+            <View style={styles.branchPromptBackdrop}>
+              <View style={styles.branchPromptCard}>
+                <Text style={styles.branchPromptTitle}>{t("selectBranch") ?? "Select branch"}</Text>
+                <Text style={styles.branchPromptCopy}>
+                  {t("selectBranchCopy") ?? "No saved address or location access. Please choose a branch to browse products."}
+                </Text>
+                {branchPromptLoading ? (
+                  <View style={{ paddingVertical: 12 }}>
+                    <ActivityIndicator color={palette.accent} />
+                  </View>
+                ) : (
+                  <ScrollView style={{ maxHeight: 260 }}>
+                    {branchOptions.map((branch) => (
+                      <TouchableOpacity
+                        key={branch._id}
+                        style={styles.branchOption}
+                        onPress={async () => {
+                          setSelectedBranch(branch);
+                          await setBranchId(branch._id);
+                          await setBranchLock(true);
+                          setBranchLocked(true);
+                          setShowBranchPrompt(false);
+                        }}
+                        activeOpacity={0.9}
+                      >
+                        <Text style={styles.branchOptionTitle}>{branch.name}</Text>
+                        <Text style={styles.branchOptionSub}>{branch.address}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            </View>
+          </Modal>
+
+          {/* Branches */}
+          <BottomSheetModal
+            ref={branchSheetRef}
+            snapPoints={["55%"]}
+            enablePanDownToClose
+            backdropComponent={renderBackdrop}
+            backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+          >
+            <BottomSheetView style={styles.sheetContainer}>
+              <Text style={styles.sheetTitle}>{t("fromBranch") ?? "From branch"}</Text>
+              {items.length > 0 && (
+                <Text style={styles.sheetText}>
+                  {t("branchChangeNote") ?? "Changing branch will clear your cart."}
+                </Text>
+              )}
+              {branchPromptLoading ? (
+                <View style={{ paddingVertical: 12 }}>
+                  <ActivityIndicator color={palette.accent} />
+                </View>
+              ) : (
+                branchOptions.map((branch) => {
+                  const active = selectedBranch?._id === branch._id;
+                  return (
+                    <TouchableOpacity
+                      key={branch._id}
+                      style={[styles.addressItem, active && styles.addressItemActive]}
+                      onPress={async () => {
+                        if (active) {
+                          branchSheetRef.current?.dismiss();
+                          return;
+                        }
+                        const proceed = async () => {
+                          if (items.length > 0) {
+                            clear();
+                          }
+                          setSelectedBranch(branch);
+                          await setBranchId(branch._id);
+                          await setBranchLock(true);
+                          setBranchLocked(true);
+                          branchSheetRef.current?.dismiss();
+                        };
+                        if (items.length > 0) {
+                          Alert.alert(
+                            t("confirmBranchChange") ?? "Change branch?",
+                            t("branchChangeConfirm") ?? "Changing branch will clear your cart. Continue?",
+                            [
+                              { text: t("cancel") ?? "Cancel", style: "cancel" },
+                              { text: t("confirm") ?? "Confirm", style: "destructive", onPress: proceed },
+                            ]
+                          );
+                          return;
+                        }
+                        proceed();
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                        <Text style={styles.addressTitle}>{branch.name}</Text>
+                        {active ? <Feather name="check" size={18} color={palette.accent} /> : null}
+                      </View>
+                      <Text style={styles.sheetText}>{branch.address}</Text>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+
+              <TouchableOpacity style={styles.closeBtn} onPress={() => branchSheetRef.current?.dismiss()} activeOpacity={0.9}>
                 <Text style={styles.closeBtnText}>{t("close") ?? "Close"}</Text>
               </TouchableOpacity>
             </BottomSheetView>
@@ -1074,6 +1359,40 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       alignItems: "center",
       gap: 5,
     },
+    branchRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      marginTop: 2,
+    },
+    branchPromptBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+    },
+    branchPromptCard: {
+      width: "100%",
+      maxWidth: 420,
+      borderRadius: 18,
+      padding: 16,
+      backgroundColor: palette.card,
+      borderWidth: 1,
+      borderColor: hairline,
+    },
+    branchPromptTitle: { fontSize: 18, fontWeight: "800", color: palette.text, marginBottom: 6 },
+    branchPromptCopy: { fontSize: 13, color: palette.muted, marginBottom: 12 },
+    branchOption: {
+      padding: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: hairline,
+      backgroundColor: palette.surface,
+      marginBottom: 10,
+    },
+    branchOptionTitle: { fontSize: 14, fontWeight: "700", color: palette.text },
+    branchOptionSub: { fontSize: 12, color: palette.muted, marginTop: 2 },
     addressLabel: { color: palette.muted, fontSize: 13, },
     addressValue: { color: palette.muted, fontSize: 13, fontWeight: "700", textAlign: 'left' },
 

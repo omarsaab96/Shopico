@@ -71,6 +71,7 @@ const CouponsPage = () => {
   const [showEditProducts, setShowEditProducts] = useState(false);
   const [showEditLevels, setShowEditLevels] = useState(false);
   const [showEditAssigned, setShowEditAssigned] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { t } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
@@ -84,8 +85,16 @@ const CouponsPage = () => {
     expiresTo: expiresTo ? toIso(expiresTo) : undefined,
   });
 
-  const loadCoupons = (params?: { q?: string }) => {
-    fetchCoupons(params).then(setCoupons).catch(console.error);
+  const loadCoupons = async (params?: { q?: string }) => {
+    setLoading(true);
+    try {
+      const data = await fetchCoupons(params);
+      setCoupons(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadUsers = () => {
@@ -536,9 +545,11 @@ const CouponsPage = () => {
             {t("clear")}
           </button>
         </div>
-          <button className="primary" onClick={openNewModal} disabled={!canManage}>
-            {t("addCoupon") || "Add coupon"}
-          </button>
+          {canManage && (
+            <button className="primary" onClick={openNewModal}>
+              {t("addCoupon") || "Add coupon"}
+            </button>
+          )}
         </div>
         <table className="table">
           <thead>
@@ -558,7 +569,24 @@ const CouponsPage = () => {
             </tr>
           </thead>
           <tbody>
-            {coupons.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 6 }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`} className="productRow">
+                  <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-180" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                </tr>
+              ))
+            ) : coupons.length === 0 ? (
               <tr>
                 <td colSpan={12} className="muted">No coupons</td>
               </tr>
@@ -1134,9 +1162,11 @@ const CouponsPage = () => {
                 <button className="ghost-btn" type="button" onClick={closeNewModal}>
                   {t("cancel")}
                 </button>
-                <button className="primary" type="submit" disabled={!canManage}>
-                  {t("save")}
-                </button>
+                {canManage && (
+                  <button className="primary" type="submit">
+                    {t("save")}
+                  </button>
+                )}
               </div>
             </form>
           </div>

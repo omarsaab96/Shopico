@@ -53,6 +53,7 @@ const AnnouncementsPage = () => {
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
+  const [loading, setLoading] = useState(false);
   const { t } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
@@ -65,8 +66,17 @@ const AnnouncementsPage = () => {
     to: toIso(filterTo),
   });
 
-  const load = (params?: { q?: string; from?: string; to?: string }) =>
-    fetchAnnouncements(params).then(setAnnouncements).catch(console.error);
+  const load = async (params?: { q?: string; from?: string; to?: string }) => {
+    setLoading(true);
+    try {
+      const data = await fetchAnnouncements(params);
+      setAnnouncements(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!selectedBranchId) return;
@@ -228,9 +238,11 @@ const AnnouncementsPage = () => {
             {t("clear")}
           </button>
         </div>
-          <button className="primary" onClick={openNewModal} disabled={!canManage}>
-            {t("addAnnouncement") || "Add announcement"}
-          </button>
+          {canManage && (
+            <button className="primary" onClick={openNewModal}>
+              {t("addAnnouncement") || "Add announcement"}
+            </button>
+          )}
         </div>
         <table className="table">
           <thead>
@@ -246,7 +258,22 @@ const AnnouncementsPage = () => {
             </tr>
           </thead>
           <tbody>
-            {announcements.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 6 }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`} className="productRow">
+                  <td className="prodImgCell">
+                    <div className="skeleton-block" style={{ width: 48, height: 48 }} />
+                  </td>
+                  <td><span className="skeleton-line w-180" /></td>
+                  <td><span className="skeleton-line w-140" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-60" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                </tr>
+              ))
+            ) : announcements.length === 0 ? (
               <tr>
                 <td colSpan={8} className="muted">No announcements</td>
               </tr>
@@ -552,9 +579,11 @@ const AnnouncementsPage = () => {
                 <button className="ghost-btn" type="button" onClick={closeNewModal}>
                   {t("cancel")}
                 </button>
-                <button className="primary" type="submit" disabled={!canManage}>
-                  {t("save")}
-                </button>
+                {canManage && (
+                  <button className="primary" type="submit">
+                    {t("save")}
+                  </button>
+                )}
               </div>
             </form>
           </div>

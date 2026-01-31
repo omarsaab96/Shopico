@@ -725,22 +725,26 @@ const ProductsPage = () => {
             </button>
           </div>
           <div className="flex" style={{ gap: 10 }}>
-            <button className="ghost-btn" type="button" onClick={openPriceModal} disabled={!canManage}>
-              {t("changePrices") || "Change prices"}
-            </button>
-            <button className="ghost-btn" type="button" onClick={openImportModal} disabled={!canImport}>
-              {t("importProducts")}
-            </button>
-            <button className="primary" onClick={openNewModal} disabled={!canManage}>
-              {t("addProduct")}
-            </button>
+            {canManage && (
+              <button className="ghost-btn" type="button" onClick={openPriceModal}>
+                {t("changePrices") || "Change prices"}
+              </button>
+            )}
+            {canImport && (
+              <button className="ghost-btn" type="button" onClick={openImportModal}>
+                {t("importProducts")}
+              </button>
+            )}
+            {canManage && (
+              <button className="primary" onClick={openNewModal}>
+                {t("addProduct")}
+              </button>
+            )}
           </div>
         </div>
 
         <div className="pagination" style={{ marginBottom: 15 }}>
           <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
-            {pageLoading && <img src="loading.gif" width="20" />}
-
             <button className="ghost-btn" disabled={page <= 1} onClick={() => loadProducts(getFilterParams(), page - 1, limit)}>
               {t("prev")}
             </button>
@@ -763,10 +767,10 @@ const ProductsPage = () => {
               ))}
             </div>
 
-
             <button className="ghost-btn" disabled={!hasMore} onClick={() => loadProducts(getFilterParams(), page + 1, limit)}>
               {t("next")}
             </button>
+            {pageLoading && <img src="loading.gif" width="20" />}
           </div>
           <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
             <div className="muted">
@@ -806,7 +810,22 @@ const ProductsPage = () => {
           </thead>
 
           <tbody>
-            {products.length == 0 ? (
+            {pageLoading ? (
+              Array.from({ length: 6 }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`} className="productRow">
+                  <td className="prodImgCell">
+                    <div className="skeleton-block" style={{ width: 48, height: 48 }} />
+                  </td>
+                  <td><span className="skeleton-line w-140" /></td>
+                  <td><span className="skeleton-line w-180" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-60" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                </tr>
+              ))
+            ) : products.length == 0 ? (
               <tr>
                 <td colSpan={8} className="muted">No products</td>
               </tr>
@@ -983,8 +1002,6 @@ const ProductsPage = () => {
 
         <div className="pagination">
           <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
-            {pageLoading && <img src="loading.gif" width="20" />}
-
             <button className="ghost-btn" disabled={page <= 1} onClick={() => loadProducts(getFilterParams(), page - 1, limit)}>
               {t("prev")}
             </button>
@@ -1007,10 +1024,10 @@ const ProductsPage = () => {
               ))}
             </div>
 
-
             <button className="ghost-btn" disabled={!hasMore} onClick={() => loadProducts(getFilterParams(), page + 1, limit)}>
               {t("next")}
             </button>
+            {pageLoading && <img src="loading.gif" width="20" />}
           </div>
           <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
             <div className="muted">
@@ -1232,9 +1249,11 @@ const ProductsPage = () => {
                 <button className="ghost-btn" type="button" onClick={closeNewModal}>
                   {t("cancel")}
                 </button>
-                <button className="primary" type="submit" disabled={!canManage}>
-                  {t("save")}
-                </button>
+                {canManage && (
+                  <button className="primary" type="submit">
+                    {t("save")}
+                  </button>
+                )}
               </div>
             </form>
           </div>

@@ -20,6 +20,7 @@ const UsersPage = () => {
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [selected, setSelected] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState("");
+  const [listLoading, setListLoading] = useState(false);
   const [topupAmount, setTopupAmount] = useState("");
   const [topupNote, setTopupNote] = useState("");
   const [topupLoading, setTopupLoading] = useState(false);
@@ -60,8 +61,14 @@ const UsersPage = () => {
     role: roleFilter || undefined,
   });
 
-  const loadUsers = () => {
-    api.get<{ data: ApiUser[] }>("/users", { params: getFilterParams() }).then((res) => setUsers(res.data.data));
+  const loadUsers = async () => {
+    setListLoading(true);
+    try {
+      const res = await api.get<{ data: ApiUser[] }>("/users", { params: getFilterParams() });
+      setUsers(res.data.data);
+    } finally {
+      setListLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -294,15 +301,17 @@ const UsersPage = () => {
               onClick={() => {
                 setSearchTerm("");
                 setRoleFilter("");
-                api.get<{ data: ApiUser[] }>("/users").then((res) => setUsers(res.data.data));
+                loadUsers();
               }}
             >
               {t("clear")}
             </button>
           </div>
-          <button className="primary" type="button" onClick={openCreateModal} disabled={!canManageUsers}>
-            {t("addUser")}
-          </button>
+          {canManageUsers && (
+            <button className="primary" type="button" onClick={openCreateModal}>
+              {t("addUser")}
+            </button>
+          )}
         </div>
         <table className="table">
           <thead>
@@ -315,7 +324,17 @@ const UsersPage = () => {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {listLoading ? (
+              Array.from({ length: 6 }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`} className="productRow">
+                  <td><span className="skeleton-line w-140" /></td>
+                  <td><span className="skeleton-line w-180" /></td>
+                  <td><span className="skeleton-line w-100" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                </tr>
+              ))
+            ) : users.map((u) => (
               <tr key={u._id}>
                 <td>{u.name}</td>
                 <td>{u.email}</td>
@@ -455,16 +474,18 @@ const UsersPage = () => {
               </div>
               {permissionsError && <div className="error">{permissionsError}</div>}
               {permissionsSuccess && <div className="success">{permissionsSuccess}</div>}
-              <div className="modal-actions">
-                <button
-                  className="ghost-btn"
-                  type="button"
-                  onClick={savePermissions}
-                  disabled={!canManageUsers || permissionsSaving}
-                >
-                  {permissionsSaving ? t("saving") : t("savePermissions")}
-                </button>
-              </div>
+              {canManageUsers && (
+                <div className="modal-actions">
+                  <button
+                    className="ghost-btn"
+                    type="button"
+                    onClick={savePermissions}
+                    disabled={permissionsSaving}
+                  >
+                    {permissionsSaving ? t("saving") : t("savePermissions")}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div style={{ marginBottom: 12 }}>
@@ -494,16 +515,18 @@ const UsersPage = () => {
               </div>
               {branchError && <div className="error">{branchError}</div>}
               {branchSuccess && <div className="success">{branchSuccess}</div>}
-              <div className="modal-actions">
-                <button
-                  className="ghost-btn"
-                  type="button"
-                  onClick={saveBranches}
-                  disabled={!canAssignBranches || branchSaving}
-                >
-                  {branchSaving ? t("saving") : (t("saveBranches") || "Save branches")}
-                </button>
-              </div>
+              {canAssignBranches && (
+                <div className="modal-actions">
+                  <button
+                    className="ghost-btn"
+                    type="button"
+                    onClick={saveBranches}
+                    disabled={branchSaving}
+                  >
+                    {branchSaving ? t("saving") : (t("saveBranches") || "Save branches")}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="two-col">

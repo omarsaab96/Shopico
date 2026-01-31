@@ -29,6 +29,12 @@ const loadGoogleMaps = (() => {
 })();
 
 const formatNumber = (value?: number) => (value === undefined || Number.isNaN(value) ? "" : String(value));
+const normalizeBoolean = (value: unknown, fallback = false) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  if (typeof value === "string") return value === "true" || value === "1";
+  return fallback;
+};
 
 const BranchLocationPicker = ({
   isOpen,
@@ -36,12 +42,14 @@ const BranchLocationPicker = ({
   onChange,
   mapsReady,
   mapsError,
+  compact = false,
 }: {
   isOpen: boolean;
   value: { lat?: number; lng?: number; address?: string };
   onChange: (next: { lat?: number; lng?: number; address?: string }) => void;
   mapsReady: boolean;
   mapsError: string;
+  compact?: boolean;
 }) => {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -147,38 +155,51 @@ const BranchLocationPicker = ({
 
   return (
     <div className="form">
-      <label>
-        Search location
+      {!compact && (
+        <label style={{ margin: 0 }}>
+          Location
+        </label>
+      )}
+      <div className="flex align-center" style={{ gap: 10, alignItems: "center" }}>
         <input
           ref={searchRef}
           placeholder="Search on map"
           defaultValue=""
           disabled={!mapsReady}
+          style={{ flex: 1 }}
         />
-      </label>
-      <div className="flex align-center" style={{ gap: 10 }}>
-        <div style={{ flex: 1 }}>
-          <label>
-            Lat
-            <input value={formatNumber(value.lat)} readOnly />
-          </label>
-        </div>
-        <div style={{ flex: 1 }}>
-          <label>
-            Lng
-            <input value={formatNumber(value.lng)} readOnly />
-          </label>
-        </div>
-        <button className="ghost-btn" type="button" onClick={useCurrentLocation}>
+        <button className="ghost-btn" type="button" style={{ margin: 0 }} onClick={useCurrentLocation}>
           Use current location
         </button>
       </div>
+
+      {!compact && (
+        <div className="flex align-center" style={{ gap: 10, marginTop: 8 }}>
+          <div style={{ flex: 1 }}>
+            <label>
+              Lat
+              <input value={formatNumber(value.lat)} readOnly />
+            </label>
+          </div>
+          <div style={{ flex: 1 }}>
+            <label>
+              Lng
+              <input value={formatNumber(value.lng)} readOnly />
+            </label>
+          </div>
+        </div>
+      )}
+      {/* {compact && (
+        <div className="muted" style={{ marginTop: 6 }}>
+          {value.lat && value.lng ? `${formatNumber(value.lat)}, ${formatNumber(value.lng)}` : "No coordinates set"}
+        </div>
+      )} */}
       {mapsError && <div className="error">{mapsError}</div>}
       {locationError && <div className="error">{locationError}</div>}
       <div
         ref={mapRef}
         style={{
-          height: 260,
+          height: compact ? 200 : 260,
           borderRadius: 12,
           border: "1px solid var(--border)",
           overflow: "hidden",
@@ -196,6 +217,7 @@ const BranchesPage = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<Branch>>({});
+  const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
   const { t } = useI18n();
@@ -211,9 +233,15 @@ const BranchesPage = () => {
     q: searchTerm.trim() || undefined,
   });
 
-  const load = (params?: { q?: string }) => {
+  const load = async (params?: { q?: string }) => {
     if (!canView) return;
-    fetchBranches(params).then(setBranches);
+    setLoading(true);
+    try {
+      const data = await fetchBranches(params);
+      setBranches(data.map((b) => ({ ...b, isActive: normalizeBoolean(b.isActive, true) })));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -243,7 +271,7 @@ const BranchesPage = () => {
   const startEdit = (branch: Branch) => {
     if (!canManage) return;
     setEditingId(branch._id);
-    setEditDraft(branch);
+    setEditDraft({ ...branch, isActive: normalizeBoolean(branch.isActive, true) });
     setEditError("");
   };
 
@@ -256,8 +284,13 @@ const BranchesPage = () => {
         setEditError("Select a location on the map.");
         return;
       }
-      const saved = await saveBranch({ ...editDraft, _id: editingId });
-      setBranches((prev) => prev.map((b) => (b._id === saved._id ? saved : b)));
+      const saved = await saveBranch({
+        ...editDraft,
+        _id: editingId,
+        isActive: normalizeBoolean(editDraft.isActive, true),
+      });
+      const normalized = { ...saved, isActive: normalizeBoolean(saved.isActive, true) };
+      setBranches((prev) => prev.map((b) => (b._id === saved._id ? normalized : b)));
       setEditingId(null);
       setEditDraft({});
       load(getFilterParams());
@@ -321,9 +354,11 @@ const BranchesPage = () => {
               {t("clear")}
             </button>
           </div>
-          <button className="primary" onClick={openNewModal} disabled={!canManage}>
-            {t("addBranch")}
-          </button>
+          {canManage && (
+            <button className="primary" onClick={openNewModal}>
+              {t("addBranch")}
+            </button>
+          )}
         </div>
 
         <table className="table">
@@ -341,23 +376,108 @@ const BranchesPage = () => {
             </tr>
           </thead>
           <tbody>
-            {branches.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 6 }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`} className="productRow">
+                  <td><span className="skeleton-line w-140" /></td>
+                  <td><span className="skeleton-line w-180" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-60" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                </tr>
+              ))
+            ) : branches.length === 0 ? (
               <tr>
                 <td colSpan={9} className="muted">{t("noBranches")}</td>
               </tr>
             ) : (
               branches.map((branch) => (
-                <tr key={branch._id}>
-                  <td>{branch.name}</td>
-                  <td>{branch.address}</td>
-                  <td>{branch.phone || "-"}</td>
-                  {/* <td>{branch.lat}</td>
-                  <td>{branch.lng}</td> */}
-                  {/* <td>{branch.openHours || "-"}</td> */}
-                  <td>{branch.deliveryRadiusKm}</td>
-                  <td>{branch.isActive ? (t("yes") || "Yes") : (t("no") || "No")}</td>
+                <tr key={branch._id} className="productRow">
                   <td>
-                    {canManage ? (
+                    {editingId === branch._id ? (
+                      <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
+                    ) : (
+                      branch.name
+                    )}
+                  </td>
+                  <td>
+                    {editingId === branch._id ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {/* <input
+                          value={editDraft.address || ""}
+                          onChange={(e) => setEditDraft({ ...editDraft, address: e.target.value })}
+                        /> */}
+                        {/* <div className="muted">
+                          {editDraft.lat !== undefined && editDraft.lng !== undefined
+                            ? `${formatNumber(editDraft.lat)}, ${formatNumber(editDraft.lng)}`
+                            : "No coordinates set"}
+                        </div> */}
+                        <BranchLocationPicker
+                          isOpen
+                          compact
+                          value={{ lat: editDraft.lat, lng: editDraft.lng, address: editDraft.address }}
+                          onChange={(next) =>
+                            setEditDraft((prev) => ({ ...prev, lat: next.lat, lng: next.lng, address: next.address }))
+                          }
+                          mapsReady={mapsReady}
+                          mapsError={mapsError}
+                        />
+                      </div>
+                    ) : (
+                      branch.address
+                    )}
+                  </td>
+                  <td>
+                    {editingId === branch._id ? (
+                      <input value={editDraft.phone || ""} onChange={(e) => setEditDraft({ ...editDraft, phone: e.target.value })} />
+                    ) : (
+                      branch.phone || "-"
+                    )}
+                  </td>
+                  <td>
+                    {editingId === branch._id ? (
+                      <input
+                        type="number"
+                        value={editDraft.deliveryRadiusKm ?? ""}
+                        onChange={(e) =>
+                          setEditDraft({ ...editDraft, deliveryRadiusKm: e.target.value ? Number(e.target.value) : undefined })
+                        }
+                      />
+                    ) : (
+                      branch.deliveryRadiusKm
+                    )}
+                  </td>
+                  <td>
+                    {editingId === branch._id ? (
+                      <div className="checkboxContainer">
+                        <input
+                          id={`branchActiveEdit${branch._id}`}
+                          type="checkbox"
+                          checked={Boolean(editDraft.isActive)}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, isActive: e.target.checked }))}
+                        />
+                        <label htmlFor={`branchActiveEdit${branch._id}`}></label>
+                      </div>
+                    ) : (
+                      branch.isActive ? (t("yes") || "Yes") : (t("no") || "No")
+                    )}
+                  </td>
+                  <td>
+                    {editingId === branch._id ? (
+                      <div className="flex">
+                        <button className="ghost-btn" onClick={saveEdit}>
+                          {t("save")}
+                        </button>
+                        <button className="ghost-btn" onClick={cancelEdit}>
+                          {t("cancel")}
+                        </button>
+                        <button className="ghost-btn danger" onClick={() => deleteBranch(branch._id).then(() => load(getFilterParams()))}>
+                          {t("delete")}
+                        </button>
+                        {editError && <div className="error">{editError}</div>}
+                      </div>
+                    ) : canManage ? (
                       <div className="flex">
                         <button className="ghost-btn mr-10" onClick={() => startEdit(branch)}>
                           {t("edit")}
@@ -387,25 +507,40 @@ const BranchesPage = () => {
               </button>
             </div>
             <form className="form" onSubmit={submit}>
-              <label>
-                {t("name")}
-                <input value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
-              </label>
-              <label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <label style={{ flex:1 }}>
+                  {t("name")}
+                  <input value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
+                </label>
+                <label style={{ flex:1 }}>
+                  {t("phone")}
+                  <input value={draft.phone || ""} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
+                </label>
+                <label style={{ flex:1 }}>
+                  {t("deliveryRadiusKm")}
+                  <input
+                    type="number"
+                    value={draft.deliveryRadiusKm ?? ""}
+                    onChange={(e) =>
+                      setDraft({ ...draft, deliveryRadiusKm: e.target.value ? Number(e.target.value) : undefined })
+                    }
+                  />
+                </label>
+              </div>
+              <label style={{ display: 'none' }}>
                 {t("address")}
                 <input value={draft.address || ""} onChange={(e) => setDraft({ ...draft, address: e.target.value })} required />
               </label>
               <BranchLocationPicker
                 isOpen={showNewModal}
                 value={{ lat: draft.lat, lng: draft.lng, address: draft.address }}
-                onChange={(next) => setDraft({ ...draft, lat: next.lat, lng: next.lng, address: next.address })}
+                onChange={(next) =>
+                  setDraft((prev) => ({ ...prev, lat: next.lat, lng: next.lng, address: next.address }))
+                }
                 mapsReady={mapsReady}
                 mapsError={mapsError}
               />
-              <label>
-                {t("phone")}
-                <input value={draft.phone || ""} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
-              </label>
+
               {/* <label>
                 {t("openHours")}
                 <input
@@ -414,16 +549,7 @@ const BranchesPage = () => {
                   placeholder="09:00 - 18:00"
                 />
               </label> */}
-              <label>
-                {t("deliveryRadiusKm")}
-                <input
-                  type="number"
-                  value={draft.deliveryRadiusKm ?? ""}
-                  onChange={(e) =>
-                    setDraft({ ...draft, deliveryRadiusKm: e.target.value ? Number(e.target.value) : undefined })
-                  }
-                />
-              </label>
+
               <div className="checkboxContainer">
                 <input
                   id="branchActiveNew"
@@ -438,84 +564,18 @@ const BranchesPage = () => {
                 <button className="ghost-btn" type="button" onClick={closeNewModal}>
                   {t("cancel")}
                 </button>
-                <button className="primary" type="submit" disabled={!canManage}>
-                  {t("save")}
-                </button>
+                {canManage && (
+                  <button className="primary" type="submit">
+                    {t("save")}
+                  </button>
+                )}
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {editingId && canManage && (
-        <div className="modal-backdrop" onClick={cancelEdit}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">{t("edit")}</div>
-              <button className="ghost-btn" type="button" onClick={cancelEdit}>
-                {t("close")}
-              </button>
-            </div>
-            <form className="form" onSubmit={(e) => { e.preventDefault(); saveEdit(); }}>
-              <label>
-                {t("name")}
-                <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} required />
-              </label>
-              <label>
-                {t("address")}
-                <input value={editDraft.address || ""} onChange={(e) => setEditDraft({ ...editDraft, address: e.target.value })} required />
-              </label>
-              <BranchLocationPicker
-                isOpen={Boolean(editingId)}
-                value={{ lat: editDraft.lat, lng: editDraft.lng, address: editDraft.address }}
-                onChange={(next) => setEditDraft({ ...editDraft, lat: next.lat, lng: next.lng, address: next.address })}
-                mapsReady={mapsReady}
-                mapsError={mapsError}
-              />
-              <label>
-                {t("phone")}
-                <input value={editDraft.phone || ""} onChange={(e) => setEditDraft({ ...editDraft, phone: e.target.value })} />
-              </label>
-              {/* <label>
-                {t("openHours")}
-                <input
-                  value={editDraft.openHours || ""}
-                  onChange={(e) => setEditDraft({ ...editDraft, openHours: e.target.value })}
-                  placeholder="09:00 - 18:00"
-                />
-              </label> */}
-              <label>
-                {t("deliveryRadiusKm")}
-                <input
-                  type="number"
-                  value={editDraft.deliveryRadiusKm ?? ""}
-                  onChange={(e) =>
-                    setEditDraft({ ...editDraft, deliveryRadiusKm: e.target.value ? Number(e.target.value) : undefined })
-                  }
-                />
-              </label>
-              <div className="checkboxContainer">
-                <input
-                  id="branchActiveEdit"
-                  type="checkbox"
-                  checked={Boolean(editDraft.isActive)}
-                  onChange={(e) => setEditDraft({ ...editDraft, isActive: e.target.checked })}
-                />
-                <label htmlFor="branchActiveEdit">{t("active")}</label>
-              </div>
-              {editError && <div className="error">{editError}</div>}
-              <div className="modal-actions">
-                <button className="ghost-btn" type="button" onClick={cancelEdit}>
-                  {t("cancel")}
-                </button>
-                <button className="primary" type="submit" disabled={!canManage}>
-                  {t("save")}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {editingId && canManage && null}
     </>
   );
 };
