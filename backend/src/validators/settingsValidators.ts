@@ -1,8 +1,6 @@
 import { z } from "zod";
 
 export const updateSettingsSchema = z.object({
-  storeLat: z.number(),
-  storeLng: z.number(),
   deliveryFreeKm: z.number().nonnegative(),
   deliveryRatePerKm: z.number().nonnegative(),
   allowMultipleCoupons: z.boolean(),

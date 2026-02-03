@@ -5,7 +5,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   phone?: string;
-  password: string;
+  password?: string | null;
   role: UserRole;
   permissions: string[];
   branchIds: Schema.Types.ObjectId[];
@@ -21,8 +21,8 @@ const UserSchema = new Schema<IUser>(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true, index: true },
     phone: { type: String },
-    password: { type: String, required: true },
-    role: { type: String, enum: ["customer", "admin", "manager", "staff"], default: "customer" },
+    password: { type: String, required: false, default: null },
+    role: { type: String, enum: ["customer", "admin", "manager", "staff", "driver"], default: "customer" },
     permissions: { type: [String], default: [] },
     branchIds: { type: [Schema.Types.ObjectId], ref: "Branch", default: [] },
     membershipLevel: { type: String, default: "None" },

@@ -24,6 +24,7 @@ import {
   BottomSheetModalProvider,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
+
 import Screen from "../components/Screen";
 import api, { getBranchId, getBranchLock, setBranchId, setBranchLock } from "../lib/api";
 import * as Location from "expo-location";
@@ -39,6 +40,7 @@ import Entypo from '@expo/vector-icons/Entypo';
 import Text from "../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from '@expo/vector-icons/Ionicons';
+import LottieView from "lottie-react-native";
 
 type Category = { _id: string; name: string; imageUrl?: string };
 type Product = {
@@ -66,12 +68,14 @@ type Announcement = {
 };
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
+  const lottieRef = useRef<LottieView>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -88,9 +92,12 @@ export default function Home() {
   const [branchLoading, setBranchLoading] = useState(false);
   const [locationFallback, setLocationFallback] = useState(false);
   const [branchLocked, setBranchLocked] = useState(false);
+  const [branchLockReady, setBranchLockReady] = useState(false);
   const [showBranchPrompt, setShowBranchPrompt] = useState(false);
   const [branchOptions, setBranchOptions] = useState<Branch[]>([]);
   const [branchPromptLoading, setBranchPromptLoading] = useState(false);
+  const [addressSheetOpen, setAddressSheetOpen] = useState(false);
+  const [lottieKey, setLottieKey] = useState(0);
   const [settings, setSettings] = useState<any>();
   const [wallet, setWallet] = useState<any>();
   const [membershipLoading, setMembershipLoading] = useState(false);
@@ -103,6 +110,7 @@ export default function Home() {
   const [promoIndex, setPromoIndex] = useState(0);
 
   const membershipLoadingRef = useRef(false);
+  const addressLoadingRef = useRef(false);
   const sheetRef = useRef<BottomSheetModal>(null);
   const addressSheetRef = useRef<BottomSheetModal>(null);
   const branchSheetRef = useRef<BottomSheetModal>(null);
@@ -120,6 +128,9 @@ export default function Home() {
   const { t, isRTL } = useI18n();
 
   const styles = useMemo(() => createStyles(palette, isRTL, isDark, insets), [palette, isRTL, isDark, insets]);
+  const updateSelectedBranch = useCallback((branch?: Branch | null) => {
+    setSelectedBranch((prev) => (prev?._id === branch?._id ? prev : branch ?? null));
+  }, []);
 
   const filterCount = useMemo(
     () => (priceFilter !== "all" ? 1 : 0) + (sortOption !== "relevance" ? 1 : 0),
@@ -129,6 +140,22 @@ export default function Home() {
   const fallbackLogo = isDark ? require("../assets/shopico_logo.png") : require("../assets/shopico_logo-black.png");
   const promoWidth = Math.min(360, windowWidth - 32);
   const hasAnnouncements = announcements.length > 0;
+
+  const handleAddressSheetChange = useCallback((index: number) => {
+    const open = index >= 0;
+    setAddressSheetOpen(open);
+
+    // only when open AND there are no addresses (your empty state)
+    if (index === 0 && addresses.length === 0) {
+      // wait for BottomSheet to finish layout
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          lottieRef.current?.reset();
+          lottieRef.current?.play();
+        });
+      });
+    }
+  }, [addresses.length]);
 
   const customFooter = (props: any) => (
     <BottomSheetFooter {...props}>
@@ -179,7 +206,15 @@ export default function Home() {
 
   useEffect(() => {
     if (!user) return;
-    getBranchLock().then(setBranchLocked).catch(() => setBranchLocked(false));
+    getBranchLock()
+      .then((locked) => {
+        setBranchLocked(locked);
+        setBranchLockReady(true);
+      })
+      .catch(() => {
+        setBranchLocked(false);
+        setBranchLockReady(true);
+      });
   }, [user]);
 
   useEffect(() => {
@@ -192,9 +227,9 @@ export default function Home() {
       const list: Branch[] = res.data.data || [];
       const match = list.find((b) => b._id === currentId);
       if (match) {
-        setSelectedBranch(match);
+        updateSelectedBranch(match);
       }
-    })().catch(() => {});
+    })().catch(() => { });
   }, [user, branchLocked, selectedBranch]);
 
   const membershipLevel = profile?.membershipLevel || "None";
@@ -275,6 +310,7 @@ export default function Home() {
       } else if (nextPage === 1 && debouncedSearch.length === 0) {
         // Only show pull-to-refresh spinner for explicit refresh, not search.
         setRefreshing(true);
+        setLoadingProducts(true);
       } else {
         setLoadingProducts(true);
       }
@@ -299,6 +335,7 @@ export default function Home() {
             setLoadingMore(false);
           } else if (nextPage === 1 && debouncedSearch.length === 0) {
             setRefreshing(false);
+            setLoadingProducts(false);
           } else {
             setLoadingProducts(false);
           }
@@ -312,7 +349,7 @@ export default function Home() {
       setLatestAddress(null);
       setAddresses([]);
       setSelectedAddress(null);
-      setSelectedBranch(null);
+      updateSelectedBranch(null);
       setBranchId(null);
       setBranchLock(false);
       setLocationFallback(false);
@@ -321,6 +358,8 @@ export default function Home() {
       setRefreshing(false);
       return;
     }
+    if (addressLoadingRef.current) return;
+    addressLoadingRef.current = true;
     api
       .get("/addresses")
       .then((res) => {
@@ -330,33 +369,30 @@ export default function Home() {
         );
         setAddresses(sorted);
         const latest = sorted[0] || null;
-        setLatestAddress(latest?.address || null);
+        setLatestAddress(latest?.label || latest?.address || null);
         setSelectedAddress(latest);
-        if (sorted.length === 0) {
-          setLocationFallback(true);
-        } else {
-          setLocationFallback(false);
-        }
+        setLocationFallback(false);
       })
       .catch(() => {
         setLatestAddress(null);
         setAddresses([]);
         setSelectedAddress(null);
-        setSelectedBranch(null);
+        updateSelectedBranch(null);
         setBranchId(null);
         setBranchLock(false);
         setLocationFallback(false);
         setBranchLocked(false);
         setShowBranchPrompt(false);
         setRefreshing(false);
+      })
+      .finally(() => {
+        addressLoadingRef.current = false;
       });
-  }, [user]);
+  }, [user, updateSelectedBranch]);
 
   const fetchNearestBranch = useCallback(async (address: SavedAddress | null) => {
     if (branchLocked) return;
     if (!address) {
-      setSelectedBranch(null);
-      await setBranchId(null);
       return;
     }
     setLocationFallback(false);
@@ -367,7 +403,7 @@ export default function Home() {
       });
       const payload = res.data?.data;
       const branch = payload?.branch as Branch | undefined;
-      setSelectedBranch(branch || null);
+      updateSelectedBranch(branch || null);
       if (branch?._id) {
         await setBranchId(branch._id);
         await setBranchLock(true);
@@ -376,12 +412,12 @@ export default function Home() {
         await setBranchId(null);
       }
     } catch {
-      setSelectedBranch(null);
+      updateSelectedBranch(null);
       await setBranchId(null);
     } finally {
       setBranchLoading(false);
     }
-  }, []);
+  }, [updateSelectedBranch]);
 
   const fetchNearestByLocation = useCallback(async () => {
     setBranchLoading(true);
@@ -399,7 +435,7 @@ export default function Home() {
       });
       const payload = res.data?.data;
       const branch = payload?.branch as Branch | undefined;
-      setSelectedBranch(branch || null);
+      updateSelectedBranch(branch || null);
       if (branch?._id) {
         await setBranchId(branch._id);
         await setBranchLock(true);
@@ -408,14 +444,14 @@ export default function Home() {
         await setBranchId(null);
       }
     } catch {
-      setSelectedBranch(null);
+      updateSelectedBranch(null);
       await setBranchId(null);
       setLocationFallback(false);
       setShowBranchPrompt(true);
     } finally {
       setBranchLoading(false);
     }
-  }, []);
+  }, [updateSelectedBranch]);
 
   const loadBranchOptions = useCallback(async () => {
     setBranchPromptLoading(true);
@@ -427,9 +463,19 @@ export default function Home() {
     }
   }, []);
 
+  const lastCategoriesBranchRef = useRef<string | null>(null);
   useEffect(() => {
-    api.get("/categories").then((res) => setCategories(res.data.data || []));
-  }, []);
+    if (authLoading || !user || !selectedBranch) return;
+    const branchKey = selectedBranch?._id || "default";
+    if (lastCategoriesBranchRef.current === branchKey) return;
+    lastCategoriesBranchRef.current = branchKey;
+    setCategoriesLoading(true);
+    api
+      .get("/categories")
+      .then((res) => setCategories(res.data.data || []))
+      .catch(() => setCategories([]))
+      .finally(() => setCategoriesLoading(false));
+  }, [selectedBranch?._id, user]);
 
   useEffect(() => {
     api
@@ -443,17 +489,22 @@ export default function Home() {
       .catch(() => setAnnouncements([]));
   }, []);
 
+  const lastMembershipBranchRef = useRef<string | null>(null);
   useEffect(() => {
-    if (user && selectedBranch) {
+    if (!authLoading && user && selectedBranch) {
+      if (lastMembershipBranchRef.current === selectedBranch._id) return;
+      lastMembershipBranchRef.current = selectedBranch._id;
       fetchMembershipMeta();
     } else if (!user) {
+      lastMembershipBranchRef.current = null;
       setWallet(undefined);
       setSettings(undefined);
     }
-  }, [user, selectedBranch?._id, fetchMembershipMeta]);
+  }, [authLoading, user, selectedBranch?._id, fetchMembershipMeta]);
 
   useEffect(() => {
     if (!user) return;
+    if (!selectedAddress) return;
     fetchNearestBranch(selectedAddress);
   }, [user, selectedAddress, fetchNearestBranch]);
 
@@ -470,6 +521,17 @@ export default function Home() {
     }
   }, [showBranchPrompt, loadBranchOptions]);
 
+
+  // useEffect(() => {
+  //   if (!addressSheetOpen) return;
+  //   if (addresses.length > 0) return;
+  //   setLottieKey((prev) => prev + 1);
+  //   setTimeout(() => {
+  //     lottieRef.current?.reset();
+  //     lottieRef.current?.play();
+  //   }, 0);
+  // }, [addressSheetOpen, addresses.length]);
+
   useEffect(() => {
     if (user && locationFallback && !selectedBranch) return;
     fetchProducts(1, false);
@@ -477,6 +539,7 @@ export default function Home() {
 
   useFocusEffect(
     useCallback(() => {
+      if (user && !branchLockReady) return;
       loadLatestAddress();
     }, [loadLatestAddress])
   );
@@ -521,6 +584,11 @@ export default function Home() {
     return result;
   }, [products, priceFilter, sortOption]);
 
+  const skeletonProducts = useMemo(
+    () => Array.from({ length: 6 }, (_, i) => ({ _id: `skeleton-${i}`, __skeleton: true })),
+    []
+  );
+
   const openSheet = () => sheetRef.current?.present();
   const openAddressSheet = () => {
     if (!user) return;
@@ -529,7 +597,10 @@ export default function Home() {
   };
   const openBranchSheet = () => {
     if (!user) return;
-    loadBranchOptions();
+    if (branchOptions.length == 0 && !branchPromptLoading) {
+      loadBranchOptions();
+    }
+
     branchSheetRef.current?.present();
   };
   const openMembershipSheet = () => {
@@ -563,6 +634,20 @@ export default function Home() {
   const renderWalletCard = () => {
     if (!user) return null;
     if (hasQuery) return null;
+
+    if (membershipLoading || !wallet || !settings) {
+      return (
+        <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg }]}>
+          <View style={styles.walletRow}>
+            <View style={styles.walletTextCol}>
+              <Skeleton width={120} height={16} colorScheme={isDark ? "dark" : "light"} />
+              <Skeleton width={180} height={26} colorScheme={isDark ? "dark" : "light"} />
+              <Skeleton width={140} height={12} colorScheme={isDark ? "dark" : "light"} />
+            </View>
+          </View>
+        </View>
+      );
+    }
 
 
     return (
@@ -667,6 +752,7 @@ export default function Home() {
 
   const renderCategoriesGrid = () => {
     if (hasQuery) return null;
+    if (!categoriesLoading && categories.length == 0) return null;
 
     return (
       <View style={{ gap: 10 }}>
@@ -680,37 +766,46 @@ export default function Home() {
         </View>
 
         <FlatList
-          data={categories.slice(0, 6)}
+          data={categoriesLoading ? Array.from({ length: 5 }, (_, i) => ({ _id: `skeleton-${i}` })) : categories.slice(0, 6)}
           key={isRTL ? "rtl-cats" : "ltr-cats"}
           scrollEnabled={false}
-          numColumns={3}
+          numColumns={5}
           columnWrapperStyle={styles.catRow}
           contentContainerStyle={{ gap: 12 }}
           keyExtractor={(c) => c._id}
-          renderItem={({ item }) => (
-            <Link href={{ pathname: `/categories/${item._id}`, params: { name: item.name } }} asChild>
-              <TouchableOpacity style={styles.catCard} activeOpacity={0.9}>
+          renderItem={({ item }) =>
+            categoriesLoading ? (
+              <View style={styles.catCard} pointerEvents="none">
                 <View style={styles.catImgBox}>
-                  {/* soft “frosted” look: blurred bg + icon-like image */}
-                  {item.imageUrl ? (
-                    <>
-                      <Image source={{ uri: item.imageUrl }} style={styles.catBg} blurRadius={18} />
-                      <View style={styles.catOverlay} />
-                      <Image source={{ uri: item.imageUrl }} style={styles.catIcon} />
-                    </>
-                  ) : (
-                    <>
-                      <View style={styles.catOverlay} />
-                      <Image source={fallbackLogo} style={[styles.catIcon, { tintColor: '#dedede' }]} />
-                    </>
-                  )}
+                  <Skeleton width={46} height={46} colorScheme={isDark ? "dark" : "light"} />
                 </View>
-                <Text style={styles.catName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-              </TouchableOpacity>
-            </Link>
-          )}
+                <Skeleton width={60} height={10} colorScheme={isDark ? "dark" : "light"} />
+              </View>
+            ) : (
+              <Link href={{ pathname: `/categories/${item._id}`, params: { name: item.name } }} asChild>
+                <TouchableOpacity style={styles.catCard} activeOpacity={0.9}>
+                  <View style={styles.catImgBox}>
+                    {/* soft ?frosted? look: blurred bg + icon-like image */}
+                    {item.imageUrl ? (
+                      <>
+                        {/* <Image source={{ uri: item.imageUrl }} style={styles.catBg} blurRadius={18} /> */}
+                        {/* <View style={styles.catOverlay} /> */}
+                        <Image source={{ uri: item.imageUrl }} style={styles.catIcon} />
+                      </>
+                    ) : (
+                      <>
+                        <View style={styles.catOverlay} />
+                        <Image source={fallbackLogo} style={[styles.catIcon, { tintColor: '#dedede' }]} />
+                      </>
+                    )}
+                  </View>
+                  <Text style={styles.catName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                </TouchableOpacity>
+              </Link>
+            )
+          }
         />
       </View>
     );
@@ -786,17 +881,24 @@ export default function Home() {
           </View>
         </View>
       </Modal>
-      {/* <StatusBar style={isDark ? "light" : "dark"} /> */}
+      
       <View style={styles.safe}>
         <View style={styles.container}>
+          {/* <LottieView
+            autoPlay
+            loop
+            style={{ width: 220, height: 220 }}
+            source={{ uri: "https://assets10.lottiefiles.com/packages/lf20_usmfx6bp.json" }}
+          /> */}
+
           <FlatList
-            data={filteredAndSorted}
+            data={(refreshing || (loadingProducts && filteredAndSorted.length === 0)) ? skeletonProducts : filteredAndSorted}
             numColumns={2}
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"
             keyboardShouldPersistTaps="handled"
-            keyExtractor={(p) => p._id}
+            keyExtractor={(p, idx) => `${p._id}-${idx}`}
             contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 16 }}
             columnWrapperStyle={styles.productRow}
             ListHeaderComponent={
@@ -825,7 +927,10 @@ export default function Home() {
                                 </Text>
                               </>
                             ) : (
-                              <Skeleton width={150} height={14} colorScheme={isDark ? "dark" : "light"} />
+                              <Text style={[styles.addressValue, { flex: 1 }]} numberOfLines={1}>
+                                {t("selectAddress") ?? "Select address"}
+                                <Entypo name="chevron-down" size={12} color="black" />
+                              </Text>
                             )}
                           </TouchableOpacity>
 
@@ -872,10 +977,34 @@ export default function Home() {
               </View>
             }
             refreshing={refreshing}
-            onRefresh={() => fetchProducts(1, false)}
+            onRefresh={() => {
+              fetchProducts(1, false);
+              fetchMembershipMeta();
+              setCategoriesLoading(true);
+              api
+                .get("/categories")
+                .then((res) => setCategories(res.data.data || []))
+                .catch(() => setCategories([]))
+                .finally(() => setCategoriesLoading(false));
+            }}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.4}
             renderItem={({ item, index }) => {
+              if ((item as any).__skeleton) {
+                return (
+                  <View style={{ width: "48%" }}>
+                    <View style={styles.productCard}>
+                      <View style={styles.prodImgBox}>
+                        <Skeleton width={300} height={120} colorScheme={isDark ? "dark" : "light"} />
+                      </View>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 10, gap: 6 }}>
+                        <Skeleton width={120} height={12} colorScheme={isDark ? "dark" : "light"} />
+                        <Skeleton width={80} height={12} colorScheme={isDark ? "dark" : "light"} />
+                      </View>
+                    </View>
+                  </View>
+                );
+              }
               const isLeft = index % 2 === 0;
 
               return (
@@ -1062,39 +1191,53 @@ export default function Home() {
           {/* Addresses */}
           <BottomSheetModal
             ref={addressSheetRef}
-            snapPoints={["50%"]}
+            onChange={handleAddressSheetChange}
             enablePanDownToClose
             backdropComponent={renderBackdrop}
             backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
           >
-            <BottomSheetView style={styles.sheetContainer}>
-              <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
+            <BottomSheetView style={[styles.sheetContainer, { paddingBottom: 0 }]}>
               {addresses.length === 0 ? (
-                <Text style={styles.sheetText}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
+                <View style={{ alignItems: "center", paddingTop: 20 }}>
+                  <LottieView
+                    key={`address-lottie-${lottieKey}`}
+                    ref={lottieRef}
+                    autoPlay
+                    loop
+                    renderMode="SOFTWARE"
+                    style={{ width: 100, height: 100 }}
+                    source={require("../assets/address.json")}
+                  />
+                  <Text style={[styles.sheetText, { fontWeight: '400', marginVertical: 20 }]}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
+                  <View style={styles.sheetFooterWrap}>
+                    <TouchableOpacity style={styles.sheetBtn} onPress={() => router.push("/addresses")} activeOpacity={0.9}>
+                      <Text style={styles.sheetBtnText}>{t("Add") ?? "Add"}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               ) : (
-                addresses.map((addr) => (
-                  <TouchableOpacity
-                    key={addr._id}
-                    style={[styles.addressItem, latestAddress === addr.address && styles.addressItemActive]}
-                    onPress={() => {
-                      setLatestAddress(addr.address);
-                      setSelectedAddress(addr);
-                      addressSheetRef.current?.dismiss();
-                    }}
-                    activeOpacity={0.9}
-                  >
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                      <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
-                      {latestAddress === addr.address ? <Feather name="check" size={18} color={palette.accent} /> : null}
-                    </View>
-                    <Text style={styles.sheetText}>{addr.address}</Text>
-                  </TouchableOpacity>
-                ))
+                <>
+                  <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
+                  {addresses.map((addr) => (
+                    <TouchableOpacity
+                      key={addr._id}
+                      style={[styles.addressItem, (latestAddress === addr.label || latestAddress === addr.address) && styles.addressItemActive]}
+                      onPress={() => {
+                        setLatestAddress(addr.label || addr.address);
+                        setSelectedAddress(addr);
+                        addressSheetRef.current?.dismiss();
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                        <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
+                        {latestAddress === addr.label || addr.address ? <Feather name="check" size={18} color={palette.accent} /> : null}
+                      </View>
+                      <Text style={styles.sheetText}>{addr.address}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </>
               )}
-
-              <TouchableOpacity style={styles.closeBtn} onPress={() => addressSheetRef.current?.dismiss()} activeOpacity={0.9}>
-                <Text style={styles.closeBtnText}>{t("close") ?? "Close"}</Text>
-              </TouchableOpacity>
             </BottomSheetView>
           </BottomSheetModal>
 
@@ -1117,7 +1260,7 @@ export default function Home() {
                         key={branch._id}
                         style={styles.branchOption}
                         onPress={async () => {
-                          setSelectedBranch(branch);
+                          updateSelectedBranch(branch);
                           await setBranchId(branch._id);
                           await setBranchLock(true);
                           setBranchLocked(true);
@@ -1138,12 +1281,11 @@ export default function Home() {
           {/* Branches */}
           <BottomSheetModal
             ref={branchSheetRef}
-            snapPoints={["55%"]}
             enablePanDownToClose
             backdropComponent={renderBackdrop}
             backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
           >
-            <BottomSheetView style={styles.sheetContainer}>
+            <BottomSheetView style={[styles.sheetContainer, { paddingBottom: 0 }]}>
               <Text style={styles.sheetTitle}>{t("fromBranch") ?? "From branch"}</Text>
               {items.length > 0 && (
                 <Text style={styles.sheetText}>
@@ -1154,6 +1296,10 @@ export default function Home() {
                 <View style={{ paddingVertical: 12 }}>
                   <ActivityIndicator color={palette.accent} />
                 </View>
+              ) : branchOptions.length === 0 ? (
+                <Text style={styles.sheetText}>
+                  {t("noBranches") ?? "No branches available."}
+                </Text>
               ) : (
                 branchOptions.map((branch) => {
                   const active = selectedBranch?._id === branch._id;
@@ -1170,7 +1316,7 @@ export default function Home() {
                           if (items.length > 0) {
                             clear();
                           }
-                          setSelectedBranch(branch);
+                          updateSelectedBranch(branch);
                           await setBranchId(branch._id);
                           await setBranchLock(true);
                           setBranchLocked(true);
@@ -1195,15 +1341,15 @@ export default function Home() {
                         <Text style={styles.addressTitle}>{branch.name}</Text>
                         {active ? <Feather name="check" size={18} color={palette.accent} /> : null}
                       </View>
-                      <Text style={styles.sheetText}>{branch.address}</Text>
+                      {/* <Text style={styles.sheetText}>{branch.address}</Text> */}
                     </TouchableOpacity>
                   );
                 })
               )}
 
-              <TouchableOpacity style={styles.closeBtn} onPress={() => branchSheetRef.current?.dismiss()} activeOpacity={0.9}>
+              {/* <TouchableOpacity style={styles.closeBtn} onPress={() => branchSheetRef.current?.dismiss()} activeOpacity={0.9}>
                 <Text style={styles.closeBtnText}>{t("close") ?? "Close"}</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </BottomSheetView>
           </BottomSheetModal>
 
@@ -1535,21 +1681,21 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     catRow: { gap: 12 },
     catCard: {
       flex: 1,
-      backgroundColor: palette.card,
-      borderRadius: 18,
-      padding: 10,
-      borderWidth: 1,
-      borderColor: hairline,
+      // backgroundColor: palette.card,
+      // borderRadius: 18,
+      // padding: 10,
+      // borderWidth: 1,
+      // borderColor: hairline,
       alignItems: "center",
-      gap: 8,
-      ...cardShadow,
+      gap: 5,
+      // ...cardShadow,
     },
     catImgBox: {
       width: "100%",
       height: 72,
       borderRadius: 16,
       overflow: "hidden",
-      backgroundColor: palette.surface,
+      // backgroundColor: palette.surface,
       alignItems: "center",
       justifyContent: "center",
       // borderWidth: 1,

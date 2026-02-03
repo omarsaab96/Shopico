@@ -22,3 +22,16 @@ export const updateOrderStatusSchema = z.object({
   status: z.enum(["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"]),
   paymentStatus: z.enum(["PENDING", "CONFIRMED"]).optional(),
 });
+
+export const assignDriverSchema = z.object({
+  driverId: z.string().min(1),
+});
+
+export const driverLocationSchema = z.object({
+  lat: z.number(),
+  lng: z.number(),
+});
+
+export const driverStatusSchema = z.object({
+  status: z.enum(["SHIPPING", "DELIVERED"]),
+});

@@ -1,11 +1,12 @@
-import { Link } from "expo-router";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { Link, useFocusEffect } from "expo-router";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import {
   FlatList,
   TouchableOpacity,
   View,
   StyleSheet,
   RefreshControl,
+  AppState,
 } from "react-native";
 import Screen from "../../components/Screen";
 import Text from "../../components/Text";
@@ -20,6 +21,8 @@ export default function Orders() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const appStateRef = useRef(AppState.currentState);
 
   const { user } = useAuth();
   const { palette } = useTheme();
@@ -49,9 +52,65 @@ export default function Orders() {
     }
   }, [user]);
 
+  const loadSilently = useCallback(async () => {
+    if (!user) return;
+
+    // setRefreshing(true);
+    try {
+      const res = await api.get("/orders");
+      const list = res.data.data || [];
+
+      // newest first
+      const sorted = [...list].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
+      );
+
+      setOrders(sorted);
+    } catch {
+      setOrders([]);
+    } finally {
+      // setRefreshing(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  const startPolling = useCallback(() => {
+    if (pollRef.current) return;
+    pollRef.current = setInterval(() => {
+      loadSilently();
+    }, 20000);
+  }, [loadSilently]);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      appStateRef.current = nextState;
+      if (nextState !== "active") {
+        stopPolling();
+      } else if (user) {
+        startPolling();
+      }
+    });
+    return () => sub.remove();
+  }, [user, startPolling, stopPolling]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user) startPolling();
+      return () => stopPolling();
+    }, [user, startPolling, stopPolling])
+  );
 
   return (
     <Screen>

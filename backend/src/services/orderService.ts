@@ -11,6 +11,7 @@ import { Settings } from "../models/Settings";
 import { Coupon } from "../models/Coupon";
 import { CouponRedemption } from "../models/CouponRedemption";
 import { haversineDistanceKm, calculatePointsEarned } from "../utils/pricing";
+import { Branch } from "../models/Branch";
 import { OrderStatus, PaymentMethod } from "../types";
 import { AuditLog } from "../models/AuditLog";
 import { updateMembershipOnBalanceChange } from "../utils/membership";
@@ -259,8 +260,10 @@ export const createOrder = async (
 
   const items = await buildOrderItems(payload.items, userId, branchId);
   const settings = await getSettingsSnapshot(branchId);
+  const branch = await Branch.findById(branchId).select("lat lng");
+  if (!branch) throw { status: 404, message: "Branch not found" };
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const distanceKm = haversineDistanceKm(settings.storeLat, settings.storeLng, lat, lng);
+  const distanceKm = haversineDistanceKm(branch.lat, branch.lng, lat, lng);
   const deliveryFee =
     distanceKm <= settings.deliveryFreeKm
       ? 0
@@ -290,6 +293,8 @@ export const createOrder = async (
     paymentMethod: payload.paymentMethod,
     paymentStatus: payload.paymentMethod === "WALLET" ? "CONFIRMED" : "PENDING",
     address,
+    lat,
+    lng,
     notes: payload.notes,
     subtotal,
     deliveryFee,
@@ -341,5 +346,61 @@ export const updateOrderStatus = async (
   }
 
   await AuditLog.create({ user: order.user, action: "ORDER_STATUS_UPDATE", metadata: { orderId: orderId, status } });
+  return order;
+};
+
+export const assignDriverToOrder = async (orderId: string, driverId: string, branchId?: string) => {
+  const filter: Record<string, unknown> = { _id: orderId };
+  if (branchId) filter.branchId = branchId;
+  const order = await Order.findOne(filter);
+  if (!order) throw { status: 404, message: "Order not found" };
+
+  const driver = await User.findById(driverId);
+  if (!driver) throw { status: 404, message: "Driver not found" };
+
+  order.driverId = driver._id;
+  order.driverLocation = null;
+  await order.save();
+  return order;
+};
+
+export const updateOrderDriverLocation = async (
+  orderId: string,
+  userId: Types.ObjectId,
+  lat: number,
+  lng: number,
+  allowOverride = false
+) => {
+  const order = await Order.findById(orderId);
+  if (!order) throw { status: 404, message: "Order not found" };
+
+  if (!allowOverride) {
+    if (!order.driverId) throw { status: 403, message: "Driver not assigned" };
+    if (order.driverId.toString() !== userId.toString()) {
+      throw { status: 403, message: "Forbidden" };
+    }
+    if (order.status !== "SHIPPING") {
+      throw { status: 400, message: "Order is not shipping" };
+    }
+  }
+
+  order.driverLocation = { lat, lng, updatedAt: new Date() };
+  await order.save();
+  return order;
+};
+
+export const getOrdersForDriver = async (driverId: Types.ObjectId) => {
+  return Order.find({ driverId }).sort({ createdAt: -1 }).populate("items.product");
+};
+
+export const updateOrderStatusAsDriver = async (orderId: string, userId: Types.ObjectId, status: OrderStatus) => {
+  const order = await Order.findById(orderId);
+  if (!order) throw { status: 404, message: "Order not found" };
+  if (!order.driverId) throw { status: 403, message: "Driver not assigned" };
+  if (order.driverId.toString() !== userId.toString()) throw { status: 403, message: "Forbidden" };
+
+  order.status = status;
+  order.statusHistory.push({ status, at: new Date() });
+  await order.save();
   return order;
 };

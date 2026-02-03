@@ -9,7 +9,7 @@ import {
 import { Link } from "expo-router";
 import Screen from "../../components/Screen";
 import Text from "../../components/Text";
-import api from "../../lib/api";
+import api, { getBranchId } from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import { StatusBar } from "expo-status-bar";
@@ -23,6 +23,7 @@ type Category = {
 
 export default function CategoriesScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [branchId, setBranchId] = useState<string | null>(null);
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
 
@@ -33,11 +34,30 @@ export default function CategoriesScreen() {
     [palette, isRTL, isDark]
   );
 
-  useEffect(() => {
+  const loadCategories = () => {
     api.get("/categories").then((res) => {
       setCategories(res.data.data || []);
     });
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    getBranchId()
+      .then((id) => {
+        if (!mounted) return;
+        setBranchId(id);
+      })
+      .catch(() => {});
+    loadCategories();
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (branchId === null) return;
+    loadCategories();
+  }, [branchId]);
 
   return (
     <Screen showBack backLabel={t("back") ?? "Back"}>

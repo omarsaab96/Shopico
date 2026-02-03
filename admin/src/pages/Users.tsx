@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Card from "../components/Card";
-import api, { adminTopUpUser, createUser, fetchBranches, updateUserBranches, updateUserPermissions } from "../api/client";
+import api, { adminTopUpUser, createUser, deleteUser, fetchBranches, updateUser, updateUserBranches, updateUserPermissions } from "../api/client";
 import type { ApiUser } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
@@ -33,12 +33,15 @@ const UsersPage = () => {
   const [branchSaving, setBranchSaving] = useState(false);
   const [branchError, setBranchError] = useState("");
   const [branchSuccess, setBranchSuccess] = useState("");
+  const [editDraft, setEditDraft] = useState({ name: "", email: "", phone: "", role: "staff" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [deleteSaving, setDeleteSaving] = useState(false);
   const [assignableBranches, setAssignableBranches] = useState<typeof branches>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createDraft, setCreateDraft] = useState({
     name: "",
     email: "",
-    password: "",
     role: "staff",
     phone: "",
     permissions: [] as string[],
@@ -99,6 +102,15 @@ const UsersPage = () => {
     setBranchError("");
     setBranchSuccess("");
     setBranchSaving(false);
+    setEditDraft({
+      name: selected?.user?.name || "",
+      email: selected?.user?.email || "",
+      phone: selected?.user?.phone || "",
+      role: selected?.user?.role || "staff",
+    });
+    setEditError("");
+    setEditSaving(false);
+    setDeleteSaving(false);
   }, [selected?.user?._id]);
 
   const fetchUserDetails = async (id: string) => {
@@ -122,7 +134,6 @@ const UsersPage = () => {
     setCreateDraft({
       name: "",
       email: "",
-      password: "",
       role: "staff",
       phone: "",
       permissions: [],
@@ -158,7 +169,7 @@ const UsersPage = () => {
 
   const submitCreateUser = async () => {
     if (!canManageUsers) return;
-    if (!createDraft.name.trim() || !createDraft.email.trim() || !createDraft.password.trim()) {
+    if (!createDraft.name.trim() || !createDraft.email.trim()) {
       setCreateError(t("invalidForm"));
       return;
     }
@@ -168,7 +179,6 @@ const UsersPage = () => {
       await createUser({
         name: createDraft.name.trim(),
         email: createDraft.email.trim(),
-        password: createDraft.password,
         role: createDraft.role,
         phone: createDraft.phone.trim() || undefined,
         permissions: createDraft.permissions,
@@ -257,6 +267,48 @@ const UsersPage = () => {
     }
   };
 
+  const saveUserDetails = async () => {
+    if (!selected || !canManageUsers) return;
+    if (!editDraft.name.trim() || !editDraft.email.trim()) {
+      setEditError(t("invalidForm"));
+      return;
+    }
+    setEditSaving(true);
+    setEditError("");
+    try {
+      const updated = await updateUser(selected.user._id, {
+        name: editDraft.name.trim(),
+        email: editDraft.email.trim(),
+        phone: editDraft.phone.trim() || undefined,
+        role: editDraft.role,
+      });
+      setSelected((prev) => (prev ? { ...prev, user: updated } : prev));
+      loadUsers();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || "Failed to update user";
+      setEditError(message);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const removeUser = async () => {
+    if (!selected || !canManageUsers) return;
+    const ok = window.confirm(t("confirmDeleteUser") ?? "Delete this user?");
+    if (!ok) return;
+    setDeleteSaving(true);
+    try {
+      await deleteUser(selected.user._id);
+      setSelected(null);
+      loadUsers();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || "Failed to delete user";
+      setEditError(message);
+    } finally {
+      setDeleteSaving(false);
+    }
+  };
+
   const formatDateTime = (dateTime: string): string => {
     if (!dateTime) return "";
 
@@ -291,6 +343,7 @@ const UsersPage = () => {
               <option value="customer">{t("role.customer")}</option>
               <option value="staff">{t("role.staff")}</option>
               <option value="manager">{t("role.manager")}</option>
+              <option value="driver">{t("role.driver") ?? "Driver"}</option>
             </select>
             <button className="ghost-btn" type="button" onClick={loadUsers}>
               {t("filter")}
@@ -369,11 +422,29 @@ const UsersPage = () => {
               </tr>
               <tr>
                 <td>Name</td>
-                <td>{selected.user.name}</td>
+                <td>
+                  {canManageUsers ? (
+                    <input
+                      value={editDraft.name}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, name: e.target.value }))}
+                    />
+                  ) : (
+                    selected.user.name
+                  )}
+                </td>
               </tr>
               <tr>
                 <td>Email</td>
-                <td>{selected.user.email}</td>
+                <td>
+                  {canManageUsers ? (
+                    <input
+                      value={editDraft.email}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, email: e.target.value }))}
+                    />
+                  ) : (
+                    selected.user.email
+                  )}
+                </td>
               </tr>
               <tr>
                 <td>Membership Level</td>
@@ -381,11 +452,36 @@ const UsersPage = () => {
               </tr>
               <tr>
                 <td>Phone</td>
-                <td>{selected.user.phone ? selected.user.phone : <div className="muted">{t("noPhone")}</div>}</td>
+                <td>
+                  {canManageUsers ? (
+                    <input
+                      value={editDraft.phone}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, phone: e.target.value }))}
+                    />
+                  ) : selected.user.phone ? (
+                    selected.user.phone
+                  ) : (
+                    <div className="muted">{t("noPhone")}</div>
+                  )}
+                </td>
               </tr>
               <tr>
                 <td>Role</td>
-                <td>{selected.user.role}</td>
+                <td>
+                  {canManageUsers ? (
+                    <select
+                      value={editDraft.role}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, role: e.target.value }))}
+                    >
+                      <option value="customer">{t("role.customer")}</option>
+                      <option value="staff">{t("role.staff")}</option>
+                      <option value="manager">{t("role.manager")}</option>
+                      <option value="driver">{t("role.driver") ?? "Driver"}</option>
+                    </select>
+                  ) : (
+                    selected.user.role
+                  )}
+                </td>
               </tr>
               <tr>
                 <td>{t("addresses")}</td>
@@ -405,6 +501,18 @@ const UsersPage = () => {
                 </td>
               </tr>
             </table>
+
+            {editError && <div className="error">{editError}</div>}
+            {canManageUsers && (
+              <div className="modal-actions">
+                <button className="ghost-btn" type="button" onClick={saveUserDetails} disabled={editSaving}>
+                  {editSaving ? t("saving") : t("saveUser") ?? "Save user"}
+                </button>
+                <button className="ghost-btn danger" type="button" onClick={removeUser} disabled={deleteSaving}>
+                  {deleteSaving ? t("saving") : t("deleteUser") ?? "Delete user"}
+                </button>
+              </div>
+            )}
 
             <div className="detail-grid">
               <div>
@@ -598,12 +706,9 @@ const UsersPage = () => {
                 />
               </label>
               <label>
-                {t("passwordLabel")}
-                <input
-                  type="password"
-                  value={createDraft.password}
-                  onChange={(e) => setCreateDraft({ ...createDraft, password: e.target.value })}
-                />
+                <div className="muted" style={{ fontSize: 12 }}>
+                  {t("passwordSetupHint") ?? "The user will set a password on first login."}
+                </div>
               </label>
               <label>
                 {t("phone")}
@@ -618,6 +723,7 @@ const UsersPage = () => {
                   <option value="customer">{t("role.customer")}</option>
                   <option value="staff">{t("role.staff")}</option>
                   <option value="manager">{t("role.manager")}</option>
+                  <option value="driver">{t("role.driver") ?? "Driver"}</option>
                 </select>
               </label>
             </div>

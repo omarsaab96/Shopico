@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { catchAsync } from "../utils/catchAsync";
-import { loginSchema, registerSchema } from "../validators/authValidators";
-import { loginUser, refreshTokens, registerUser } from "../services/authService";
+import { loginSchema, passwordStatusSchema, registerSchema, setPasswordSchema } from "../validators/authValidators";
+import { getPasswordStatus, loginUser, refreshTokens, registerUser, setPasswordForUser } from "../services/authService";
 import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
 import { Wallet } from "../models/Wallet";
@@ -28,6 +28,19 @@ export const login = catchAsync(async (req: AuthRequest, res) => {
   const result = await loginUser(parsed.email, parsed.password);
   setRefreshCookie(res, result.refreshToken);
   sendSuccess(res, { user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken }, "Logged in");
+});
+
+export const passwordStatus = catchAsync(async (req: AuthRequest, res) => {
+  const parsed = passwordStatusSchema.parse(req.body);
+  const status = await getPasswordStatus(parsed.email);
+  sendSuccess(res, status);
+});
+
+export const setPassword = catchAsync(async (req: AuthRequest, res) => {
+  const parsed = setPasswordSchema.parse(req.body);
+  const result = await setPasswordForUser(parsed.email, parsed.password);
+  setRefreshCookie(res, result.refreshToken);
+  sendSuccess(res, { user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken }, "Password set");
 });
 
 export const refresh = catchAsync(async (req: AuthRequest, res) => {

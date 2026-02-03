@@ -13,7 +13,7 @@ import { useCart } from "../lib/cart";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
-import api from "../lib/api";
+import api, { getBranchId } from "../lib/api";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
@@ -37,10 +37,12 @@ export default function CartScreen() {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<any | null>(null);
   const [settings, setSettings] = useState<any | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<any | null>(null);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [addressesLoading, setAddressesLoading] = useState(false);
   const [walletLoading, setWalletLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
+  const [branchLoading, setBranchLoading] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [inputCouponCode, setInputCouponCode] = useState("");
   const [selectedCoupons, setSelectedCoupons] = useState<Array<{ code: string; discount: number; freeDelivery: boolean; discountType?: string; discountValue?: number }>>([]);
@@ -116,6 +118,23 @@ export default function CartScreen() {
       .finally(() => setSettingsLoading(false));
   };
 
+  const loadBranch = async () => {
+    setBranchLoading(true);
+    try {
+      const branchId = await getBranchId();
+      if (!branchId) {
+        setSelectedBranch(null);
+        return;
+      }
+      const res = await api.get("/branches/public");
+      const list = res.data.data || [];
+      const match = list.find((b: any) => b._id === branchId);
+      setSelectedBranch(match || null);
+    } finally {
+      setBranchLoading(false);
+    }
+  };
+
   const loadWallet = () => {
     if (!user) {
       setWalletBalance(0);
@@ -160,6 +179,7 @@ export default function CartScreen() {
 
   useEffect(() => {
     loadSettings();
+    loadBranch();
   }, []);
 
   useEffect(() => {
@@ -186,6 +206,7 @@ export default function CartScreen() {
   useEffect(() => {
     loadAddresses();
     loadWallet();
+    loadBranch();
   }, [user]);
 
   useEffect(() => {
@@ -363,7 +384,9 @@ export default function CartScreen() {
     return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 100) / 100;
   };
   const distanceKm =
-    settings && selectedAddress ? haversine(settings.storeLat, settings.storeLng, selectedAddress.lat, selectedAddress.lng) : 0;
+    settings && selectedAddress && selectedBranch
+      ? haversine(selectedBranch.lat, selectedBranch.lng, selectedAddress.lat, selectedAddress.lng)
+      : 0;
   const deliveryFee =
     settings && selectedAddress && distanceKm > settings.deliveryFreeKm
       ? Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm
@@ -373,7 +396,7 @@ export default function CartScreen() {
   const effectiveDeliveryFee = hasFreeDeliveryCoupon ? 0 : deliveryFee;
   const orderTotal = Math.max(0, subtotal + effectiveDeliveryFee - couponDiscountTotal);
   const walletInsufficient = paymentMethod === "WALLET" && walletBalance < orderTotal;
-  const checkoutLoading = addressesLoading || walletLoading || settingsLoading;
+  const checkoutLoading = addressesLoading || walletLoading || settingsLoading || branchLoading;
   const allowMultipleCoupons = settings?.allowMultipleCoupons ?? false;
 
   const fetchAvailableCoupons = useCallback(() => {
@@ -618,12 +641,12 @@ export default function CartScreen() {
               {t("subtotal")}: {subtotal.toLocaleString()} SYP
             </Text>
 
-            <Text style={styles.sheetText}>
+            {couponDiscountTotal > 0&&<Text style={styles.sheetText}>
               {t("discount") ?? "Discount"}:{" "}
               {couponDiscountTotal > 0
                 ? `-${couponDiscountTotal.toLocaleString()} ${t("syp")}`
                 : `0 ${t("syp")}`}
-            </Text>
+            </Text>}
 
             {/* {walletInsufficient && (
                 <Text style={[styles.sheetText, { color: "red" }]}>
@@ -642,8 +665,9 @@ export default function CartScreen() {
             disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading}
           >
             <Text style={styles.primaryBtnText}>
-              {submitting ? t("placingOrder") : t("placeOrder")}
-              {!submitting && ` • ${orderTotal.toLocaleString()} ${t('syp')}`}
+              {submitting ? t("placingOrder") : t("placeOrder")}• 
+              {!submitting && <Text style={[styles.primaryBtnText,{textDecorationLine: "line-through"}]}>{`${(orderTotal*100).toLocaleString()} ${t('syp')}`}</Text>}
+              {!submitting && `• ${orderTotal.toLocaleString()} ${t('syp')}`}
             </Text>
             {submitting && <ActivityIndicator color={'#fff'} size={'small'} style={{}} />}
           </TouchableOpacity>
@@ -899,8 +923,8 @@ export default function CartScreen() {
                       </View>
 
                       {!showAddresses ? (
-                        <TouchableOpacity style={styles.addressBtn} onPress={() => { setShowAddresses(true) }}>
-                          <Text weight="bold" style={styles.addressBtnText}>{selectedAddress ? t("change") ?? "Change address" : t("addAddress") ?? "Add address"}</Text>
+                        <TouchableOpacity style={styles.addressBtn} onPress={() => { if(addresses.length==0){router.push("/addresses")}else{setShowAddresses(true)} }}>
+                          <Text weight="bold" style={styles.addressBtnText}>{selectedAddress ? t("change") ?? "Change address" : t("Add") ?? "Add"}</Text>
                         </TouchableOpacity>
                       ) : (
                         <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -913,6 +937,23 @@ export default function CartScreen() {
                         </View>
                       )}
                     </View>
+
+                    {!showAddresses && !selectedAddress &&
+                      <View style={styles.addressBox}>
+                        <View style={{
+                          backgroundColor: "#fff",
+                          padding: 10,
+                          borderRadius: 20,
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <View>
+                            <Text style={styles.addressText}>No saved addresses</Text>
+                          </View>
+                        </View>
+                      </View>
+                    }
 
                     {!showAddresses && selectedAddress &&
                       <View style={styles.addressBox}>
@@ -936,7 +977,7 @@ export default function CartScreen() {
                       </View>
                     }
 
-                    {!addressesLoading && showAddresses && addresses.length > 0 && (
+                    {!addressesLoading && showAddresses &&(
                       <View style={styles.addressBox}>
                         <View style={{
                           backgroundColor: "#fff",
@@ -1119,7 +1160,7 @@ export default function CartScreen() {
                                 <ActivityIndicator size="small" color={palette.accent} />
                               </View>
                             ) : (
-                              <Text style={styles.sheetText}>{t("noResults") ?? "No coupons selected"}</Text>
+                              <Text style={styles.sheetText}>{t("noResultsCoupons") ?? "No coupons selected"}</Text>
                             )}
                           </View>
                         </View>

@@ -15,15 +15,15 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { items } = useCart();
   const { user, loading } = useAuth();
+  const canDeliver = user?.role === "driver";
   // const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
   const itemCount = items.length;
-  if (loading) return null;
-  if (!user) return <Redirect href="/auth/login" />;
   const tabIcons: Record<string, keyof typeof Feather.glyphMap> = {
     store: "home",
     cart: "shopping-cart",
     orders: "list",
     profile: "user",
+    driver: "truck",
   };
   const screenOptions = useMemo(
     () => ({
@@ -45,12 +45,17 @@ export default function TabsLayout() {
     }),
     [palette, insets.bottom, t, isRTL]
   );
+  if (loading) return null;
+  if (!user) return <Redirect href="/auth/login" />;
   const screens = [
     { name: "store", label: t("store"), icon: tabIcons.store },
     { name: "cart", label: t("cart"), icon: tabIcons.cart, badge: itemCount > 0 ? itemCount : undefined },
     { name: "orders", label: t("orders"), icon: tabIcons.orders },
     { name: "profile", label: t("profile"), icon: tabIcons.profile },
   ];
+  if (canDeliver) {
+    screens.push({ name: "driver", label: t("driver") ?? "Driver", icon: tabIcons.driver });
+  }
   const orderedScreens = isRTL ? [...screens].reverse() : screens;
   return (
     <Tabs key={lang} screenOptions={screenOptions}>
@@ -67,6 +72,14 @@ export default function TabsLayout() {
           }}
         />
       ))}
+      {!canDeliver && (
+        <Tabs.Screen
+          name="driver"
+          options={{
+            href: null,
+          }}
+        />
+      )}
     </Tabs>
   );
 }

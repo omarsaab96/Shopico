@@ -6,7 +6,7 @@ import Screen from "../components/Screen";
 import Text from "../components/Text";
 import { useCart } from "../lib/cart";
 import { useAuth } from "../lib/auth";
-import api from "../lib/api";
+import api, { getBranchId } from "../lib/api";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 
@@ -29,6 +29,7 @@ export default function Checkout() {
   const [selected, setSelected] = useState<SavedAddress | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"CASH_ON_DELIVERY" | "SHAM_CASH" | "BANK_TRANSFER" | "WALLET">("WALLET");
   const [settings, setSettings] = useState<any>();
+  const [selectedBranch, setSelectedBranch] = useState<any | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponFreeDelivery, setCouponFreeDelivery] = useState(false);
@@ -42,6 +43,17 @@ export default function Checkout() {
 
   useEffect(() => {
     api.get("/settings").then((res) => setSettings(res.data.data));
+    (async () => {
+      const branchId = await getBranchId();
+      if (!branchId) {
+        setSelectedBranch(null);
+        return;
+      }
+      const res = await api.get("/branches/public");
+      const list = res.data.data || [];
+      const match = list.find((b: any) => b._id === branchId);
+      setSelectedBranch(match || null);
+    })().catch(() => setSelectedBranch(null));
   }, []);
 
   const loadAddresses = useCallback(() => {
@@ -85,7 +97,7 @@ export default function Checkout() {
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const lat = selected?.lat ?? 0;
   const lng = selected?.lng ?? 0;
-  const distanceKm = settings && selected ? haversine(settings.storeLat, settings.storeLng, lat, lng) : 0;
+  const distanceKm = settings && selected && selectedBranch ? haversine(selectedBranch.lat, selectedBranch.lng, lat, lng) : 0;
   const deliveryFee =
     settings && selected && distanceKm > settings.deliveryFreeKm
       ? Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm

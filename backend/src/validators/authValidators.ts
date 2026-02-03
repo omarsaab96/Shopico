@@ -11,3 +11,12 @@ export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
 });
+
+export const passwordStatusSchema = z.object({
+  email: z.string().email(),
+});
+
+export const setPasswordSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});

@@ -31,6 +31,16 @@ export const login = async (email: string, password: string) => {
   return res.data.data;
 };
 
+export const checkPasswordStatus = async (email: string) => {
+  const res = await api.post<{ data: { exists: boolean; hasPassword: boolean } }>("/auth/password-status", { email });
+  return res.data.data;
+};
+
+export const setInitialPassword = async (email: string, password: string) => {
+  const res = await api.post<{ data: AuthResponse }>("/auth/set-password", { email, password });
+  return res.data.data;
+};
+
 export const fetchProfile = async () => {
   const res = await api.get<{ data: { user: ApiUser } }>("/auth/me");
   return res.data.data.user;
@@ -162,6 +172,16 @@ export const updateOrderStatus = async (id: string, status: string, paymentStatu
   return res.data.data;
 };
 
+export const assignOrderDriver = async (id: string, driverId: string) => {
+  const res = await api.put<{ data: Order }>(`/orders/${id}/assign-driver`, { driverId });
+  return res.data.data;
+};
+
+export const fetchDrivers = async () => {
+  const users = await fetchUsers();
+  return users.filter((user) => user.role === "driver");
+};
+
 export const fetchTopUps = async (params?: { status?: string; method?: string; q?: string }) => {
   const res = await api.get<{ data: WalletTopUp[] }>("/wallet/topups/admin", { params });
   return res.data.data;
@@ -197,15 +217,25 @@ export const updateUserPermissions = async (userId: string, permissions: string[
   return res.data.data;
 };
 
+export const updateUser = async (userId: string, payload: Partial<ApiUser>) => {
+  const res = await api.put<{ data: ApiUser }>(`/users/${userId}`, payload);
+  return res.data.data;
+};
+
 export const updateUserBranches = async (userId: string, branchIds: string[]) => {
   const res = await api.put<{ data: ApiUser }>(`/users/${userId}/branches`, { branchIds });
+  return res.data.data;
+};
+
+export const deleteUser = async (userId: string) => {
+  const res = await api.delete<{ data: { _id: string } }>(`/users/${userId}`);
   return res.data.data;
 };
 
 export const createUser = async (payload: {
   name: string;
   email: string;
-  password: string;
+  password?: string;
   role: string;
   phone?: string;
   permissions?: string[];

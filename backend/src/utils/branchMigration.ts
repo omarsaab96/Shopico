@@ -36,3 +36,15 @@ export const ensureDefaultBranchSetup = async () => {
     ),
   ]);
 };
+
+export const ensureCategoryIndexes = async () => {
+  try {
+    const indexes = await Category.collection.indexes();
+    const legacy = indexes.find((idx) => idx.name === "name_1");
+    if (legacy) {
+      await Category.collection.dropIndex("name_1");
+    }
+  } catch {
+    // ignore
+  }
+};

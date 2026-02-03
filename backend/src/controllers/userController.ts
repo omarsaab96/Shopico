@@ -6,7 +6,7 @@ import { PointsTransaction } from "../models/PointsTransaction";
 import { WalletTransaction } from "../models/WalletTransaction";
 import { Address } from "../models/Address";
 import { sendSuccess } from "../utils/response";
-import { createUserSchema, updateUserBranchesSchema, updateUserPermissionsSchema } from "../validators/userValidators";
+import { createUserSchema, updateUserBranchesSchema, updateUserPermissionsSchema, updateUserSchema } from "../validators/userValidators";
 import { AuditLog } from "../models/AuditLog";
 
 export const listUsers = catchAsync(async (req, res) => {
@@ -47,7 +47,7 @@ export const createUser = catchAsync(async (req, res) => {
     return res.status(400).json({ success: false, message: "Branch access required" });
   }
 
-  const hashed = await bcrypt.hash(payload.password, 10);
+  const hashed = payload.password ? await bcrypt.hash(payload.password, 10) : null;
   const branchIds = payload.branchIds && payload.branchIds.length > 0
     ? payload.branchIds
     : req.branchId ? [req.branchId] : [];
@@ -98,4 +98,33 @@ export const updateUserBranches = catchAsync(async (req, res) => {
   ).select("-password");
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
   sendSuccess(res, user);
+});
+
+export const updateUser = catchAsync(async (req, res) => {
+  const payload = updateUserSchema.parse(req.body);
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+
+  if (payload.email) {
+    const exists = await User.findOne({ email: payload.email.toLowerCase(), _id: { $ne: req.params.id } });
+    if (exists) return res.status(400).json({ success: false, message: "Email already registered" });
+    payload.email = payload.email.toLowerCase();
+  }
+
+  const user = await User.findOneAndUpdate(
+    { _id: req.params.id, branchIds: req.branchId },
+    payload,
+    { new: true }
+  ).select("-password");
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  sendSuccess(res, user);
+});
+
+export const deleteUser = catchAsync(async (req, res) => {
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  if (req.user?._id?.toString() === req.params.id) {
+    return res.status(400).json({ success: false, message: "Cannot delete your own account" });
+  }
+  const user = await User.findOneAndDelete({ _id: req.params.id, branchIds: req.branchId });
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  sendSuccess(res, { _id: user._id }, "User deleted");
 });

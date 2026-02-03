@@ -64,7 +64,7 @@ export function Skeleton({
           width,
           height,
           borderRadius: radius,
-        //   backgroundColor: animatedBaseColor,
+          backgroundColor: animatedBaseColor,
           overflow: "hidden",
         },
         style,

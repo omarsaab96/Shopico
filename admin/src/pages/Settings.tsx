@@ -72,24 +72,6 @@ const SettingsPage = () => {
       <form className="form" onSubmit={submit}>
         <Card title={t("settings.operational")} subTitle="">
           <label>
-            {t("storeLat")}
-            <input
-              type="number"
-              value={settings.storeLat}
-              onChange={(e) => updateField("storeLat", Number(e.target.value))}
-              disabled={!canManage}
-            />
-          </label>
-          <label>
-            {t("storeLng")}
-            <input
-              type="number"
-              value={settings.storeLng}
-              onChange={(e) => updateField("storeLng", Number(e.target.value))}
-              disabled={!canManage}
-            />
-          </label>
-          <label>
             {t("deliveryFreeKm")}
             <input
               type="number"

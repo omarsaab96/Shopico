@@ -23,9 +23,16 @@ export const updateUserBranchesSchema = z.object({
 export const createUserSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
-  password: z.string().min(6),
-  role: z.enum(["customer", "manager", "staff"]),
+  password: z.string().min(6).optional(),
+  role: z.enum(["customer", "manager", "staff", "driver"]),
   phone: z.string().optional(),
   permissions: permissionsSchema.optional(),
   branchIds: z.array(z.string().min(1)).optional(),
+});
+
+export const updateUserSchema = z.object({
+  name: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  role: z.enum(["customer", "manager", "staff", "driver"]).optional(),
+  phone: z.string().optional(),
 });

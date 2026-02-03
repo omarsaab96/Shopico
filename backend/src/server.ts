@@ -1,13 +1,14 @@
 import mongoose from "mongoose";
 import app from "./app";
 import { env } from "./config/env";
-import { ensureDefaultBranchSetup } from "./utils/branchMigration";
+import { ensureCategoryIndexes, ensureDefaultBranchSetup } from "./utils/branchMigration";
 
 const start = async () => {
   try {
     await mongoose.connect(env.mongoUri);
     console.log("Mongo connected");
     await ensureDefaultBranchSetup();
+    await ensureCategoryIndexes();
     app.listen(env.port, () => {
       console.log(`Server running on port ${env.port}`);
     });

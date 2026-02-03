@@ -12,14 +12,24 @@ export interface IOrderStatusEntry {
   at: Date;
 }
 
+export interface IOrderDriverLocation {
+  lat?: number;
+  lng?: number;
+  updatedAt: Date;
+}
+
 export interface IOrder extends Document {
   user: mongoose.Types.ObjectId;
   items: IOrderItem[];
   branchId: Schema.Types.ObjectId;
+  driverId?: mongoose.Types.ObjectId;
+  driverLocation?: IOrderDriverLocation | null;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: "PENDING" | "CONFIRMED";
   address: string;
+  lat?: number;
+  lng?: number;
   notes?: string;
   subtotal: number;
   deliveryFee: number;
@@ -52,15 +62,28 @@ const StatusEntrySchema = new Schema<IOrderStatusEntry>(
   { _id: false }
 );
 
+const DriverLocationSchema = new Schema<IOrderDriverLocation>(
+  {
+    lat: { type: Number },
+    lng: { type: Number },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const OrderSchema = new Schema<IOrder>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     items: { type: [OrderItemSchema], required: true },
     branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
+    driverId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    driverLocation: { type: DriverLocationSchema, default: null },
     status: { type: String, enum: ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"], default: "PENDING" },
     paymentMethod: { type: String, required: true },
     paymentStatus: { type: String, enum: ["PENDING", "CONFIRMED"], default: "PENDING" },
     address: { type: String, required: true },
+    lat: { type: Number },
+    lng: { type: Number },
     notes: { type: String },
     subtotal: { type: Number, required: true },
     deliveryFee: { type: Number, required: true },

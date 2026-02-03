@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Card from "../components/Card";
 import StatusPill from "../components/StatusPill";
-import { fetchOrders, updateOrderStatus } from "../api/client";
-import type { Order } from "../types/api";
+import { assignOrderDriver, fetchDrivers, fetchOrders, updateOrderStatus } from "../api/client";
+import type { ApiUser, Order } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
@@ -15,6 +15,9 @@ const OrdersPage = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const [drivers, setDrivers] = useState<ApiUser[]>([]);
+  const [assigning, setAssigning] = useState<Record<string, boolean>>({});
+  const mutatingRef = useRef(false);
   const { t, tStatus } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
@@ -26,23 +29,68 @@ const OrdersPage = () => {
     paymentStatus: paymentFilter || undefined,
   });
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      const data = await fetchOrders(getFilterParams());
+      const [data, driverList] = await Promise.all([fetchOrders(getFilterParams()), fetchDrivers()]);
       setOrders(data);
+      setDrivers(driverList);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
   useEffect(() => {
     if (!selectedBranchId) return;
     load();
   }, [selectedBranchId]);
+  useEffect(() => {
+    if (!selectedBranchId) return;
+    const interval = setInterval(() => {
+      if (!mutatingRef.current && !loading) load(true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [selectedBranchId, searchTerm, statusFilter, paymentFilter, loading]);
 
   const update = async (order: Order, status: string, paymentStatus?: string) => {
-    await updateOrderStatus(order._id, status, paymentStatus);
-    load();
+    mutatingRef.current = true;
+    const previousStatus = order.status;
+    const previousPayment = order.paymentStatus;
+    setOrders((prev) =>
+      prev.map((item) =>
+        item._id === order._id
+          ? { ...item, status, paymentStatus: paymentStatus ?? item.paymentStatus }
+          : item
+      )
+    );
+    try {
+      const updated = await updateOrderStatus(order._id, status, paymentStatus);
+      setOrders((prev) => prev.map((item) => (item._id === order._id ? updated : item)));
+    } catch (error: any) {
+      setOrders((prev) =>
+        prev.map((item) =>
+          item._id === order._id
+            ? { ...item, status: previousStatus, paymentStatus: previousPayment }
+            : item
+        )
+      );
+      const message = error?.response?.data?.message || error?.message || "Failed to update order status";
+      console.error("Order status update failed:", message);
+      window.alert(message);
+    } finally {
+      mutatingRef.current = false;
+    }
+  };
+
+  const assignDriver = async (order: Order, driverId: string) => {
+    setAssigning((prev) => ({ ...prev, [order._id]: true }));
+    mutatingRef.current = true;
+    try {
+      await assignOrderDriver(order._id, driverId);
+      await load(true);
+    } finally {
+      setAssigning((prev) => ({ ...prev, [order._id]: false }));
+      mutatingRef.current = false;
+    }
   };
 
   return (
@@ -93,6 +141,7 @@ const OrdersPage = () => {
             <th>{t("status")}</th>
             <th>{t("payment")}</th>
             <th>{t("total")}</th>
+            <th>{t("driver") ?? "Driver"}</th>
             <th></th>
           </tr>
         </thead>
@@ -106,11 +155,12 @@ const OrdersPage = () => {
                 <td><span className="skeleton-line w-120" /></td>
                 <td><span className="skeleton-line w-80" /></td>
                 <td><span className="skeleton-line w-120" /></td>
+                <td><span className="skeleton-line w-120" /></td>
               </tr>
             ))
           ) : orders.length == 0 ? (
             <tr>
-              <td colSpan={6} className="muted">{t("noOrders")}</td>
+              <td colSpan={7} className="muted">{t("noOrders")}</td>
             </tr>
           ) : (
             orders.map((order) => (
@@ -124,6 +174,24 @@ const OrdersPage = () => {
                   <StatusPill value={order.paymentStatus} /> {order.paymentMethod}
                 </td>
                 <td>{order.total.toLocaleString()}</td>
+                <td>
+                  {drivers.length === 0 ? (
+                    <span className="muted">—</span>
+                  ) : (
+                    <select
+                      value={order.driverId || ""}
+                      onChange={(e) => assignDriver(order, e.target.value)}
+                      disabled={!canUpdateOrders || assigning[order._id]}
+                    >
+                      <option value="">{t("selectDriver") ?? "Select driver"}</option>
+                      {drivers.map((driver) => (
+                        <option key={driver._id} value={driver._id}>
+                          {driver.name} ({driver.email})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </td>
                 <td>
                   {canUpdateOrders ? (
                     <>

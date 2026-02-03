@@ -1,30 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { View, StyleSheet, Switch, TouchableOpacity } from "react-native";
 import Screen from "../components/Screen";
-import api from "../lib/api";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import Text from "../components/Text";
 
 export default function SettingsScreen() {
-  const [settings, setSettings] = useState<any>();
   const [notifications, setNotifications] = useState(true);
   const { palette, mode, setMode } = useTheme();
   const { lang, setLang, t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
-  useEffect(() => {
-    api.get("/settings").then((res) => setSettings(res.data.data));
-  }, []);
-
   return (
     <Screen showBack backLabel={t("back") ?? "Back"}>
       <Text style={styles.title}>{t("settings")}</Text>
       <View style={styles.card}>
-        <Text style={styles.muted}>{t("storeLocation")}</Text>
-        <Text style={styles.value}>
-          {settings?.storeLat}, {settings?.storeLng}
-        </Text>
         <View style={styles.row}>
           <Text style={styles.muted}>{t("pushNotifications")}</Text>
           <Switch value={notifications} onValueChange={setNotifications} />

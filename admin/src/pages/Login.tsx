@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../context/I18nContext";
 import { useEffect, useState as useStateReact } from "react";
+import { checkPasswordStatus, setInitialPassword } from "../api/client";
 
 const LoginPage = () => {
   const { login } = useAuth();
@@ -14,8 +15,10 @@ const LoginPage = () => {
   );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<"email" | "password" | "setPassword">("email");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -24,6 +27,49 @@ const LoginPage = () => {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (step === "email") {
+      setLoading(true);
+      setError("");
+      try {
+        const status = await checkPasswordStatus(email.trim());
+        if (!status.exists) {
+          setError(t("accountNotFound") ?? "Account not found");
+          return;
+        }
+        setStep(status.hasPassword ? "password" : "setPassword");
+      } catch (err) {
+        console.error(err);
+        setError(t("invalidForm"));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (step === "setPassword") {
+      if (!password.trim() || !confirmPassword.trim()) {
+        setError(t("invalidForm"));
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError(t("passwordsMismatch") ?? "Passwords do not match");
+        return;
+      }
+      setLoading(true);
+      setError("");
+      try {
+        const result = await setInitialPassword(email.trim(), password);
+        localStorage.setItem("accessToken", result.accessToken);
+        navigate("/");
+      } catch (err) {
+        console.error(err);
+        setError(t("invalidForm"));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
@@ -68,19 +114,52 @@ const LoginPage = () => {
             {t("emailLabel")}
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="admin@shopico.local" />
           </label>
-          <label>
-            {t("passwordLabel")}
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              placeholder="********"
-            />
-          </label>
+          {step !== "email" && (
+            <label>
+              {t("passwordLabel")}
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                placeholder="********"
+              />
+            </label>
+          )}
+          {step === "setPassword" && (
+            <label>
+              {t("confirmPassword") ?? "Confirm password"}
+              <input
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                type="password"
+                placeholder="********"
+              />
+            </label>
+          )}
           {error && <div className="error">{error}</div>}
           <button className="primary" disabled={loading}>
-            {loading ? t("signingIn") : t("loginButton")}
+            {loading
+              ? t("signingIn")
+              : step === "email"
+                ? (t("continue") ?? "Continue")
+                : step === "setPassword"
+                  ? (t("setPassword") ?? "Set password")
+                  : t("loginButton")}
           </button>
+          {step !== "email" && (
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={() => {
+                setStep("email");
+                setPassword("");
+                setConfirmPassword("");
+                setError("");
+              }}
+            >
+              {t("back") ?? "Back"}
+            </button>
+          )}
         </form>
       </div>
     </div>

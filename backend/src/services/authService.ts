@@ -6,7 +6,8 @@ import { AuditLog } from "../models/AuditLog";
 import { getDefaultBranchId } from "../utils/branch";
 
 export const registerUser = async (name: string, email: string, password: string, phone?: string) => {
-  const existing = await User.findOne({ email });
+  const normalizedEmail = email.toLowerCase();
+  const existing = await User.findOne({ email: normalizedEmail });
   if (existing) {
     throw { status: 400, message: "Email already registered" };
   }
@@ -14,7 +15,7 @@ export const registerUser = async (name: string, email: string, password: string
   const defaultBranchId = await getDefaultBranchId();
   const user = await User.create({
     name,
-    email,
+    email: normalizedEmail,
     password: hashed,
     phone,
     role: "customer",
@@ -28,9 +29,12 @@ export const registerUser = async (name: string, email: string, password: string
 };
 
 export const loginUser = async (email: string, password: string) => {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) {
     throw { status: 401, message: "Invalid credentials" };
+  }
+  if (!user.password) {
+    throw { status: 409, message: "PASSWORD_NOT_SET" };
   }
   const match = await bcrypt.compare(password, user.password);
   if (!match) {
@@ -39,6 +43,29 @@ export const loginUser = async (email: string, password: string) => {
   const accessToken = signAccessToken(user);
   const refreshToken = signRefreshToken(user);
   await AuditLog.create({ user: user._id, action: "USER_LOGIN" });
+  return { user, accessToken, refreshToken };
+};
+
+export const getPasswordStatus = async (email: string) => {
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user) return { exists: false, hasPassword: false };
+  return { exists: true, hasPassword: Boolean(user.password) };
+};
+
+export const setPasswordForUser = async (email: string, password: string) => {
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user) {
+    throw { status: 404, message: "User not found" };
+  }
+  if (user.password) {
+    throw { status: 400, message: "Password already set" };
+  }
+  const hashed = await bcrypt.hash(password, 10);
+  user.password = hashed;
+  await user.save();
+  await AuditLog.create({ user: user._id, action: "USER_SET_PASSWORD" });
+  const accessToken = signAccessToken(user);
+  const refreshToken = signRefreshToken(user);
   return { user, accessToken, refreshToken };
 };
 

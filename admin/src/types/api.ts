@@ -1,4 +1,4 @@
-export type UserRole = "customer" | "admin" | "manager" | "staff";
+export type UserRole = "customer" | "admin" | "manager" | "staff" | "driver";
 
 export interface ApiUser {
   _id: string;
@@ -46,6 +46,8 @@ export interface Order {
   _id: string;
   user: ApiUser | string;
   items: OrderItem[];
+  driverId?: string | null;
+  driverLocation?: { lat: number; lng: number; updatedAt?: string } | null;
   status: string;
   paymentMethod: string;
   paymentStatus: string;
@@ -71,8 +73,6 @@ export interface WalletTopUp {
 
 export interface Settings {
   _id: string;
-  storeLat: number;
-  storeLng: number;
   deliveryFreeKm: number;
   deliveryRatePerKm: number;
   allowMultipleCoupons: boolean;
