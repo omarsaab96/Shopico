@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Text, TextInput } from "react-native";
@@ -105,6 +106,24 @@ export default function Layout() {
 
 const I18nInner = () => {
   const { lang } = useI18n();
+  if (Platform.OS === "web") {
+    return (
+      <FontGate>
+        <AuthProvider>
+          <CartProvider>
+            <Stack
+              key={lang}
+              initialRouteName="(tabs)"
+              screenOptions={{
+                headerShown: false,
+                gestureEnabled: true,
+              }}
+            />
+          </CartProvider>
+        </AuthProvider>
+      </FontGate>
+    );
+  }
   return (
     <FontGate>
       <AuthProvider>
