@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
 export type CouponDiscountType = "PERCENT" | "FIXED";
 export type CouponUsageType = "SINGLE" | "MULTIPLE";
@@ -13,8 +13,8 @@ export interface ICoupon extends Document {
   freeDelivery: boolean;
   restricted: boolean;
   expiresAt?: Date;
-  assignedUsers?: mongoose.Types.ObjectId[];
-  assignedProducts?: mongoose.Types.ObjectId[];
+  assignedUsers?: Array<Types.ObjectId | string>;
+  assignedProducts?: Array<Types.ObjectId | string>;
   assignedMembershipLevels?: string[];
   usageType: CouponUsageType;
   maxUses?: number;
@@ -23,7 +23,7 @@ export interface ICoupon extends Document {
   maxUsesGlobal?: number;
   usedCount: number;
   isActive: boolean;
-  branchId: Schema.Types.ObjectId;
+  branchId: Types.ObjectId | string;
   createdAt: Date;
   updatedAt: Date;
 }

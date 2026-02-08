@@ -1,10 +1,10 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface ICategory extends Document {
   name: string;
   description?: string;
   imageUrl?: string;
-  branchId: Schema.Types.ObjectId;
+  branchId: Types.ObjectId | string;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface IProductImage {
   url: string;
@@ -12,11 +12,11 @@ export interface IProduct extends Document {
   price: number;
   promoPrice?: number;
   isPromoted: boolean;
-  categories: mongoose.Types.ObjectId[];
+  categories: Types.ObjectId[] | string[];
   images: IProductImage[];
   isAvailable: boolean;
   isFeatured: boolean;
-  branchId: Schema.Types.ObjectId;
+  branchId: Types.ObjectId | string;
   createdAt: Date;
   updatedAt: Date;
 }

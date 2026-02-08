@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface IMembershipThresholds {
   silver: number;
@@ -8,7 +8,7 @@ export interface IMembershipThresholds {
 }
 
 export interface ISettings extends Document {
-  branchId: Schema.Types.ObjectId;
+  branchId: Types.ObjectId | string;
   deliveryFreeKm: number;
   deliveryRatePerKm: number;
   allowMultipleCoupons: boolean;

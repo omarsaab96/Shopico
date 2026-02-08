@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 import { UserRole } from "../types";
 
 export interface IUser extends Document {
@@ -8,7 +8,7 @@ export interface IUser extends Document {
   password?: string | null;
   role: UserRole;
   permissions: string[];
-  branchIds: Schema.Types.ObjectId[];
+  branchIds: Array<Types.ObjectId | string>;
   membershipLevel: string;
   membershipGraceUntil?: Date | null;
   points: number;

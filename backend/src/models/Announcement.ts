@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface IAnnouncementImage {
   url: string;
@@ -13,7 +13,7 @@ export interface IAnnouncement extends Document {
   startsAt: Date;
   endsAt: Date;
   isEnabled: boolean;
-  branchId: Schema.Types.ObjectId;
+  branchId: Types.ObjectId | string;
   createdAt: Date;
   updatedAt: Date;
 }

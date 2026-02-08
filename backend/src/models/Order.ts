@@ -1,8 +1,8 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 import { OrderStatus, PaymentMethod } from "../types";
 
 export interface IOrderItem {
-  product: mongoose.Types.ObjectId;
+  product: Types.ObjectId | string;
   quantity: number;
   price: number;
 }
@@ -19,10 +19,10 @@ export interface IOrderDriverLocation {
 }
 
 export interface IOrder extends Document {
-  user: mongoose.Types.ObjectId;
+  user: Types.ObjectId | string;
   items: IOrderItem[];
-  branchId: Schema.Types.ObjectId;
-  driverId?: mongoose.Types.ObjectId;
+  branchId: Types.ObjectId | string;
+  driverId?: Types.ObjectId | string;
   driverLocation?: IOrderDriverLocation | null;
   status: OrderStatus;
   paymentMethod: PaymentMethod;

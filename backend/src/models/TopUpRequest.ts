@@ -1,14 +1,14 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 import { TopUpMethod, TopUpStatus } from "../types";
 
 export interface ITopUpRequest extends Document {
-  user: mongoose.Types.ObjectId;
+  user: Types.ObjectId | string;
   method: TopUpMethod;
   amount: number;
   status: TopUpStatus;
   note?: string;
   adminNote?: string;
-  branchId: Schema.Types.ObjectId;
+  branchId: Types.ObjectId | string;
   createdAt: Date;
   updatedAt: Date;
 }

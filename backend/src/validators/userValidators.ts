@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { PERMISSIONS, Permission } from "../constants/permissions";
 
-const permissionEnum = z.enum(PERMISSIONS as [Permission, ...Permission[]]);
+const permissionEnum = z.enum([...PERMISSIONS] as [Permission, ...Permission[]]);
 const permissionsSchema = z.preprocess(
   (value) => {
     if (!Array.isArray(value)) return value;

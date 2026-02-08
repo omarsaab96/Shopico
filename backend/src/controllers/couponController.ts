@@ -46,7 +46,7 @@ const getProductMetaMap = async (items: { productId: string; quantity: number }[
 };
 
 const getEligibleSubtotal = (
-  coupon: { assignedProducts?: Types.ObjectId[] },
+  coupon: { assignedProducts?: Array<Types.ObjectId | string> },
   items: { productId: string; quantity: number }[],
   priceMap: Map<string, ProductMeta>,
   fallbackSubtotal: number

@@ -355,7 +355,11 @@ export const previewProductsImport = catchAsync(async (req: AuthRequest, res) =>
   const existing = await Product.find({ barcode: { $in: barcodes }, branchId: req.branchId })
     .select("barcode name price isAvailable")
     .lean();
-  const existingMap = new Map(existing.map((p) => [p.barcode, { name: p.name, price: p.price, isAvailable: p.isAvailable }]));
+  const existingMap = new Map(
+    existing
+      .filter((p) => p.barcode)
+      .map((p) => [p.barcode as string, { name: p.name, price: p.price, isAvailable: p.isAvailable }])
+  );
 
   const { decisions, created, updated, skipped } = decideImportActions(entries, existingMap);
   const preview = decisions.slice(0, 50);
@@ -376,7 +380,11 @@ export const importProductsFromExcel = catchAsync(async (req: AuthRequest, res) 
   const existing = await Product.find({ barcode: { $in: barcodes }, branchId: req.branchId })
     .select("barcode name price isAvailable")
     .lean();
-  const existingMap = new Map(existing.map((p) => [p.barcode, { name: p.name, price: p.price, isAvailable: p.isAvailable }]));
+  const existingMap = new Map(
+    existing
+      .filter((p) => p.barcode)
+      .map((p) => [p.barcode as string, { name: p.name, price: p.price, isAvailable: p.isAvailable }])
+  );
 
   const { decisions, created, updated, skipped } = decideImportActions(entries, existingMap);
   const ops = [];
