@@ -3,13 +3,13 @@ import type { FormEvent } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Card from "../components/Card";
-import api, { deleteCoupon, fetchCoupons, fetchProducts, saveCoupon } from "../api/client";
+import api, { deleteCoupon, fetchAllProducts, fetchCoupons, saveCoupon } from "../api/client";
 import type { ApiUser, Coupon, Product } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
 
-type CouponDraft = Omit<Coupon, "expiresAt" | "assignedUsers" | "assignedProducts" | "assignedMembershipLevels"> & {
+type CouponDraft = Partial<Omit<Coupon, "expiresAt" | "assignedUsers" | "assignedProducts" | "assignedMembershipLevels">> & {
   expiresAt?: Date | string;
   assignedUsers?: string[];
   assignedProducts?: string[];
@@ -101,7 +101,7 @@ const CouponsPage = () => {
     api.get<{ data: ApiUser[] }>("/users").then((res) => setUsers(res.data.data)).catch(() => setUsers([]));
   };
   const loadProducts = () => {
-    fetchProducts({ includeUnavailable: true }).then(setProducts).catch(() => setProducts([]));
+    fetchAllProducts({ includeUnavailable: true }).then(setProducts).catch(() => setProducts([]));
   };
 
   useEffect(() => {
@@ -126,7 +126,7 @@ const CouponsPage = () => {
       assignedProducts: [],
       assignedMembershipLevels: [],
       assignmentType: "RESTRICTED",
-    } as CouponDraft);
+    });
     setFormError("");
     setUserSearch("");
     setProductSearch("");
@@ -519,7 +519,7 @@ const CouponsPage = () => {
             <DatePicker
               className="filter-input date-picker"
               selected={expiresFrom}
-              onChange={(date) => setExpiresFrom(date)}
+              onChange={(date: Date | null) => setExpiresFrom(date)}
               placeholderText={t("from") || "From"}
               showTimeInput
               timeFormat="HH:mm"
@@ -530,7 +530,7 @@ const CouponsPage = () => {
             <DatePicker
               className="filter-input date-picker"
               selected={expiresTo}
-              onChange={(date) => setExpiresTo(date)}
+              onChange={(date: Date | null) => setExpiresTo(date)}
               placeholderText={t("till") || "Till"}
               showTimeInput
               timeFormat="HH:mm"
@@ -718,12 +718,12 @@ const CouponsPage = () => {
                   <td>{coupon.usedCount ?? 0}</td>
                   <td>
                     {editingId === coupon._id ? (
-                      <DatePicker
-                        className="filter-input date-picker"
-                        selected={toDate(editDraft.expiresAt)}
-                        onChange={(date) => setEditDraft({ ...editDraft, expiresAt: date || undefined })}
-                        showTimeInput
-                        timeFormat="HH:mm"
+                        <DatePicker
+                          className="filter-input date-picker"
+                          selected={toDate(editDraft.expiresAt)}
+                          onChange={(date: Date | null) => setEditDraft({ ...editDraft, expiresAt: date || undefined })}
+                          showTimeInput
+                          timeFormat="HH:mm"
                         timeIntervals={15}
                         dateFormat="yyyy-MM-dd HH:mm"
                         isClearable
@@ -1125,7 +1125,7 @@ const CouponsPage = () => {
                 <DatePicker
                   className="filter-input date-picker"
                   selected={toDate(draft.expiresAt)}
-                  onChange={(date) => setDraft({ ...draft, expiresAt: date || undefined })}
+                  onChange={(date: Date | null) => setDraft({ ...draft, expiresAt: date || undefined })}
                   showTimeInput
                   timeFormat="HH:mm"
                   timeIntervals={15}

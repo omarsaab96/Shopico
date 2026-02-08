@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DragEvent, FormEvent } from "react";
 import Card from "../components/Card";
 import type { Category, Product, ProductImage } from "../types/api";
-import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchProducts, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
+import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
@@ -1363,11 +1363,11 @@ const ProductsPage = () => {
                                   : `${t("upload") || "Uploading"}...`}
                               </div>
 
-                              {/* {importPreviewTotal > 0 && (
+                              {importPreviewTotal > 0 && (
                                 <div className="muted import-progress-meta">
                                   {formatFileSize(importPreviewLoaded)} / {formatFileSize(importPreviewTotal)}
                                 </div>
-                              )} */}
+                              )}
                             </div>
                             <button
                               className="ghost-btn"

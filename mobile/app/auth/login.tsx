@@ -22,24 +22,36 @@ export default function Login() {
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isDark, isRTL), [palette, isRTL]);
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
   const checkEmail = async () => {
-    if (!email.trim()) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
       setError(t("invalidForm"));
+      return;
+    }
+    if (!isValidEmail(normalizedEmail)) {
+      setError(t("invalidEmail") ?? "Enter a valid email");
       return;
     }
     setLoggingIn(true);
     setError("");
     try {
-      const res = await api.post("/auth/password-status", { email: email.trim() });
+      const res = await api.post("/auth/password-status", { email: normalizedEmail });
       const { exists, hasPassword } = res.data.data || {};
       if (!exists) {
         setError(t("accountNotFound") ?? "Account not found");
         return;
       }
       setStep(hasPassword ? "password" : "setPassword");
-    } catch {
-      setError(t("invalidForm"));
+    } catch (err: any) {
+      if (!err?.response) {
+        setError(t("networkError") ?? "Unable to reach the server");
+        return;
+      }
+      const message = err.response?.data?.message;
+      setError(message || t("invalidForm"));
     } finally {
       setLoggingIn(false);
     }
@@ -48,11 +60,15 @@ export default function Login() {
   const submit = async () => {
     setLoggingIn(true);
     try {
-      await login(email.trim(), password);
+      await login(normalizeEmail(email), password);
       router.replace("/(tabs)/store");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError(t("invalidCredentials"));
+      if (!err?.response) {
+        setError(t("networkError") ?? "Unable to reach the server");
+      } else {
+        setError(t("invalidCredentials"));
+      }
     } finally {
       setLoggingIn(false);
     }
@@ -70,12 +86,17 @@ export default function Login() {
     setLoggingIn(true);
     setError("");
     try {
-      await api.post("/auth/set-password", { email: email.trim(), password });
-      await login(email.trim(), password);
+      const normalizedEmail = normalizeEmail(email);
+      await api.post("/auth/set-password", { email: normalizedEmail, password });
+      await login(normalizedEmail, password);
       router.replace("/(tabs)/store");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError(t("invalidForm"));
+      if (!err?.response) {
+        setError(t("networkError") ?? "Unable to reach the server");
+      } else {
+        setError(t("invalidForm"));
+      }
     } finally {
       setLoggingIn(false);
     }
@@ -97,6 +118,8 @@ export default function Login() {
                 placeholder={t("email")}
                 placeholderTextColor={palette.muted}
                 autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
               />
             )}
 
@@ -109,6 +132,8 @@ export default function Login() {
                   placeholder={t("email")}
                   placeholderTextColor={palette.muted}
                   autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
                 />
                 <View style={{ position: "relative" }}>
                   <TextInput

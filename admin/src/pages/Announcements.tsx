@@ -11,7 +11,7 @@ import { useBranch } from "../context/BranchContext";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
 
-type AnnouncementDraft = Omit<Announcement, "startsAt" | "endsAt"> & {
+type AnnouncementDraft = Partial<Omit<Announcement, "startsAt" | "endsAt">> & {
   startsAt?: Date | string;
   endsAt?: Date | string;
 };
@@ -212,7 +212,7 @@ const AnnouncementsPage = () => {
             <DatePicker
               className="filter-input date-picker"
               selected={filterFrom}
-              onChange={(date) => setFilterFrom(date)}
+              onChange={(date: Date | null) => setFilterFrom(date)}
               placeholderText={t("from") || "From"}
               showTimeInput
               timeFormat="HH:mm"
@@ -223,7 +223,7 @@ const AnnouncementsPage = () => {
             <DatePicker
               className="filter-input date-picker"
               selected={filterTo}
-              onChange={(date) => setFilterTo(date)}
+              onChange={(date: Date | null) => setFilterTo(date)}
               placeholderText={t("till") || "Till"}
               showTimeInput
               timeFormat="HH:mm"
@@ -379,7 +379,7 @@ const AnnouncementsPage = () => {
                       <DatePicker
                         className="filter-input date-picker"
                         selected={toDate(editDraft.startsAt)}
-                        onChange={(date) => setEditDraft({ ...editDraft, startsAt: date || undefined })}
+                        onChange={(date: Date | null) => setEditDraft({ ...editDraft, startsAt: date || undefined })}
                         showTimeInput
                         timeFormat="HH:mm"
                         timeIntervals={15}
@@ -397,7 +397,7 @@ const AnnouncementsPage = () => {
                       <DatePicker
                         className="filter-input date-picker"
                         selected={toDate(editDraft.endsAt)}
-                        onChange={(date) => setEditDraft({ ...editDraft, endsAt: date || undefined })}
+                        onChange={(date: Date | null) => setEditDraft({ ...editDraft, endsAt: date || undefined })}
                         showTimeInput
                         timeFormat="HH:mm"
                         timeIntervals={15}
@@ -435,7 +435,7 @@ const AnnouncementsPage = () => {
                         <button className="ghost-btn" onClick={cancelEdit}>
                           {t("cancel")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deleteAnnouncement(announcement._id).then(load)}>
+                        <button className="ghost-btn danger" onClick={() => deleteAnnouncement(announcement._id).then(() => load(getFilterParams()))}>
                           {t("delete")}
                         </button>
                         {editError && <div className="error">{editError}</div>}
@@ -445,7 +445,7 @@ const AnnouncementsPage = () => {
                         <button className="ghost-btn" onClick={() => startEdit(announcement)}>
                           {t("edit")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deleteAnnouncement(announcement._id).then(load)}>
+                        <button className="ghost-btn danger" onClick={() => deleteAnnouncement(announcement._id).then(() => load(getFilterParams()))}>
                           {t("delete")}
                         </button>
                       </div>
@@ -491,7 +491,7 @@ const AnnouncementsPage = () => {
                   <DatePicker
                     className="filter-input date-picker"
                     selected={toDate(draft.startsAt)}
-                    onChange={(date) => setDraft({ ...draft, startsAt: date || undefined })}
+                    onChange={(date: Date | null) => setDraft({ ...draft, startsAt: date || undefined })}
                     showTimeInput
                     timeFormat="HH:mm"
                     timeIntervals={15}
@@ -505,7 +505,7 @@ const AnnouncementsPage = () => {
                   <DatePicker
                     className="filter-input date-picker"
                     selected={toDate(draft.endsAt)}
-                    onChange={(date) => setDraft({ ...draft, endsAt: date || undefined })}
+                    onChange={(date: Date | null) => setDraft({ ...draft, endsAt: date || undefined })}
                     showTimeInput
                     timeFormat="HH:mm"
                     timeIntervals={15}

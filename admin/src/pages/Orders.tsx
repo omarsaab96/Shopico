@@ -116,7 +116,7 @@ const OrdersPage = () => {
             <option value="PENDING">{tStatus("PENDING")}</option>
             <option value="CONFIRMED">{tStatus("CONFIRMED")}</option>
           </select>
-          <button className="ghost-btn" type="button" onClick={load}>
+          <button className="ghost-btn" type="button" onClick={() => load()}>
             {t("filter")}
           </button>
           <button

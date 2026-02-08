@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Card from "../components/Card";
-import api, { adminTopUpUser, createUser, deleteUser, fetchBranches, updateUser, updateUserBranches, updateUserPermissions } from "../api/client";
+import api, { createUser, deleteUser, fetchBranches, updateUser, updateUserBranches, updateUserPermissions } from "../api/client";
 import type { ApiUser } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
@@ -21,10 +21,6 @@ const UsersPage = () => {
   const [selected, setSelected] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState("");
   const [listLoading, setListLoading] = useState(false);
-  const [topupAmount, setTopupAmount] = useState("");
-  const [topupNote, setTopupNote] = useState("");
-  const [topupLoading, setTopupLoading] = useState(false);
-  const [topupError, setTopupError] = useState("");
   const [permissionsDraft, setPermissionsDraft] = useState<string[]>([]);
   const [permissionsSaving, setPermissionsSaving] = useState(false);
   const [permissionsError, setPermissionsError] = useState("");
@@ -33,7 +29,12 @@ const UsersPage = () => {
   const [branchSaving, setBranchSaving] = useState(false);
   const [branchError, setBranchError] = useState("");
   const [branchSuccess, setBranchSuccess] = useState("");
-  const [editDraft, setEditDraft] = useState({ name: "", email: "", phone: "", role: "staff" });
+  const [editDraft, setEditDraft] = useState<{ name: string; email: string; phone: string; role: ApiUser["role"] }>({
+    name: "",
+    email: "",
+    phone: "",
+    role: "staff",
+  });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const [deleteSaving, setDeleteSaving] = useState(false);
@@ -56,7 +57,6 @@ const UsersPage = () => {
   const { user: currentUser, refreshProfile } = useAuth();
   const { selectedBranchId, branches } = useBranch();
   const canManageUsers = can("users:manage");
-  const canManageWallet = can("wallet:manage");
   const canAssignBranches = can("branches:assign");
 
   const getFilterParams = () => ({
@@ -90,10 +90,6 @@ const UsersPage = () => {
   }, [canAssignBranches, branches.length]);
 
   useEffect(() => {
-    setTopupAmount("");
-    setTopupNote("");
-    setTopupError("");
-    setTopupLoading(false);
     setPermissionsDraft(selected?.user?.permissions || []);
     setPermissionsError("");
     setPermissionsSuccess("");
@@ -194,32 +190,6 @@ const UsersPage = () => {
     }
   };
 
-  const handleTopUp = async () => {
-    if (!selected) return;
-    if (!canManageWallet) {
-      setTopupError(t("noPermissionAction"));
-      return;
-    }
-    const amountValue = Number(topupAmount);
-    if (!amountValue || amountValue <= 0) {
-      setTopupError(t("invalidAmount"));
-      return;
-    }
-    setTopupLoading(true);
-    setTopupError("");
-    try {
-      await adminTopUpUser(selected.user._id, amountValue, topupNote.trim() || undefined);
-      const data = await fetchUserDetails(selected.user._id);
-      setSelected(data);
-      setTopupAmount("");
-      setTopupNote("");
-    } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || "Failed to top up wallet";
-      setTopupError(message);
-    } finally {
-      setTopupLoading(false);
-    }
-  };
 
   const togglePermission = (permission: string) => {
     setPermissionsDraft((prev) =>
@@ -471,7 +441,7 @@ const UsersPage = () => {
                   {canManageUsers ? (
                     <select
                       value={editDraft.role}
-                      onChange={(e) => setEditDraft((prev) => ({ ...prev, role: e.target.value }))}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, role: e.target.value as ApiUser["role"] }))}
                     >
                       <option value="customer">{t("role.customer")}</option>
                       <option value="staff">{t("role.staff")}</option>
