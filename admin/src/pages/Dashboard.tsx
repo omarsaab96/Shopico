@@ -21,7 +21,7 @@ const DashboardPage = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
-  const { can } = usePermissions();
+  const { can, canAny } = usePermissions();
   const { t } = useI18n();
   const { selectedBranchId } = useBranch();
   const canViewOrders = can("orders:view");

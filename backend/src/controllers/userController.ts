@@ -9,10 +9,15 @@ import { sendSuccess } from "../utils/response";
 import { createUserSchema, updateUserBranchesSchema, updateUserPermissionsSchema, updateUserSchema } from "../validators/userValidators";
 import { AuditLog } from "../models/AuditLog";
 
+const getScopedUserFilter = (req: any, baseFilter: Record<string, unknown> = {}) => {
+  if (req.user?.role === "admin") return baseFilter;
+  return { ...baseFilter, role: { $ne: "admin" } };
+};
+
 export const listUsers = catchAsync(async (req, res) => {
   const { q, role } = req.query as { q?: string; role?: string };
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
-  const filter: Record<string, unknown> = { branchIds: req.branchId };
+  const filter: Record<string, unknown> = getScopedUserFilter(req, { branchIds: req.branchId });
   if (role) filter.role = role;
   if (q) {
     filter.$or = [
@@ -26,7 +31,7 @@ export const listUsers = catchAsync(async (req, res) => {
 
 export const getUserDetails = catchAsync(async (req, res) => {
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
-  const user = await User.findOne({ _id: req.params.id, branchIds: req.branchId }).select("-password");
+  const user = await User.findOne(getScopedUserFilter(req, { _id: req.params.id, branchIds: req.branchId })).select("-password");
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
   const wallet = await Wallet.findOne({ user: user._id });
   const walletTx = await WalletTransaction.find({ user: user._id }).sort({ createdAt: -1 }).limit(20);
@@ -75,7 +80,7 @@ export const updateUserPermissions = catchAsync(async (req, res) => {
   const payload = updateUserPermissionsSchema.parse(req.body);
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const user = await User.findOneAndUpdate(
-    { _id: req.params.id, branchIds: req.branchId },
+    getScopedUserFilter(req, { _id: req.params.id, branchIds: req.branchId }),
     { permissions: payload.permissions },
     { new: true }
   ).select("-password");
@@ -91,8 +96,8 @@ export const updateUserBranches = catchAsync(async (req, res) => {
   if (!canAssign) {
     return res.status(403).json({ success: false, message: "Cannot assign branches outside your scope" });
   }
-  const user = await User.findByIdAndUpdate(
-    req.params.id,
+  const user = await User.findOneAndUpdate(
+    getScopedUserFilter(req, { _id: req.params.id }),
     { branchIds: payload.branchIds },
     { new: true }
   ).select("-password");
@@ -111,7 +116,7 @@ export const updateUser = catchAsync(async (req, res) => {
   }
 
   const user = await User.findOneAndUpdate(
-    { _id: req.params.id, branchIds: req.branchId },
+    getScopedUserFilter(req, { _id: req.params.id, branchIds: req.branchId }),
     payload,
     { new: true }
   ).select("-password");
@@ -124,7 +129,7 @@ export const deleteUser = catchAsync(async (req, res) => {
   if (req.user?._id?.toString() === req.params.id) {
     return res.status(400).json({ success: false, message: "Cannot delete your own account" });
   }
-  const user = await User.findOneAndDelete({ _id: req.params.id, branchIds: req.branchId });
+  const user = await User.findOneAndDelete(getScopedUserFilter(req, { _id: req.params.id, branchIds: req.branchId }));
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
   sendSuccess(res, { _id: user._id }, "User deleted");
 });

@@ -16,7 +16,6 @@ export const PERMISSION_GROUPS = [
       { key: "products:import", labelKey: "perm.products.import" },
       { key: "categories:view", labelKey: "perm.categories.view" },
       { key: "categories:manage", labelKey: "perm.categories.manage" },
-      { key: "uploads:auth", labelKey: "perm.uploads.auth" },
     ],
   },
   {
@@ -45,7 +44,14 @@ export const PERMISSION_GROUPS = [
     labelKey: "perm.group.users",
     permissions: [
       { key: "users:view", labelKey: "perm.users.view" },
-      { key: "users:manage", labelKey: "perm.users.manage" },
+      { key: "users:about:view", labelKey: "perm.users.about.view" },
+      { key: "users:about:manage", labelKey: "perm.users.about.manage" },
+      { key: "users:ledger:view", labelKey: "perm.users.ledger.view" },
+      // { key: "users:ledger:manage", labelKey: "perm.users.ledger.manage" },
+      { key: "users:branches:view", labelKey: "perm.users.branches.view" },
+      { key: "users:branches:manage", labelKey: "perm.users.branches.manage" },
+      { key: "users:permissions:view", labelKey: "perm.users.permissions.view" },
+      { key: "users:permissions:manage", labelKey: "perm.users.permissions.manage" },
     ],
   },
   {
@@ -62,7 +68,6 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { key: "branches:view", labelKey: "perm.branches.view" },
       { key: "branches:manage", labelKey: "perm.branches.manage" },
-      { key: "branches:assign", labelKey: "perm.branches.assign" },
     ],
   },
 ] as const;

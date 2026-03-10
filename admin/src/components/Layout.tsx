@@ -10,7 +10,12 @@ const navItems = [
   { to: "/products", key: "products", label: "Products", permissions: ["products:view", "products:manage"] },
   { to: "/categories", key: "categories", label: "Categories", permissions: ["categories:view", "categories:manage"] },
   { to: "/orders", key: "orders", label: "Orders", permissions: ["orders:view", "orders:update"] },
-  { to: "/users", key: "users", label: "Users", permissions: ["users:view", "users:manage"] },
+  {
+    to: "/users",
+    key: "users",
+    label: "Users",
+    permissions: ["users:view"],
+  },
   { to: "/wallet", key: "wallet", label: "Wallet Top-ups", permissions: ["wallet:topups:view", "wallet:manage"] },
   { to: "/announcements", key: "announcements", label: "Announcements", permissions: ["announcements:view", "announcements:manage"] },
   { to: "/coupons", key: "coupons", label: "Coupons", permissions: ["coupons:view", "coupons:manage"] },

@@ -58,7 +58,7 @@ const AnnouncementsPage = () => {
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
   const canManage = can("announcements:manage");
-  const canUpload = can("uploads:auth") && canManage;
+  const canUpload = canManage;
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,

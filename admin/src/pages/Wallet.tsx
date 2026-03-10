@@ -164,9 +164,13 @@ const WalletPage = () => {
                 const rowLoading = actionLoadingId === topup._id;
                 const approveLoading = rowLoading && actionLoadingStatus === "APPROVED";
                 const rejectLoading = rowLoading && actionLoadingStatus === "REJECTED";
+                const customerLabel =
+                  typeof topup.user === "string"
+                    ? topup.user
+                    : topup.user?.email || t("unknownUser") || "Unknown user";
                 return (
                   <tr key={topup._id}>
-                    <td>{typeof topup.user === "string" ? topup.user : topup.user.email}</td>
+                    <td>{customerLabel}</td>
                     <td>{topup.amount.toLocaleString()}</td>
                     <td>{topup.method}</td>
                     <td>

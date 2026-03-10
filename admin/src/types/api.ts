@@ -62,7 +62,7 @@ export interface Order {
 
 export interface WalletTopUp {
   _id: string;
-  user: ApiUser | string;
+  user: ApiUser | string | null;
   amount: number;
   method: string;
   status: string;

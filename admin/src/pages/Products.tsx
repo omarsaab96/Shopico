@@ -75,7 +75,7 @@ const ProductsPage = () => {
   const { selectedBranchId } = useBranch();
   const { can } = usePermissions();
   const canManage = can("products:manage");
-  const canUpload = can("uploads:auth") && canManage;
+  const canUpload = canManage;
   const canImport = can("products:import");
 
   const getFilterParams = () => ({
@@ -991,7 +991,7 @@ const ProductsPage = () => {
                         </button>
                       </div>
                     ) : (
-                      <div className="muted">{t("noPermissionAction")}</div>
+                      <div className="muted"></div>
                     )}
                   </td>
                 </tr>

@@ -215,7 +215,7 @@ const OrdersPage = () => {
                       )}
                     </>
                   ) : (
-                    <div className="muted">{t("noPermissionAction")}</div>
+                    <div className="muted"></div>
                   )}
                 </td>
               </tr>

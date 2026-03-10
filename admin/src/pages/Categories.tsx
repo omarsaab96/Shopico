@@ -25,7 +25,7 @@ const CategoriesPage = () => {
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
   const canManage = can("categories:manage");
-  const canUpload = can("uploads:auth") && canManage;
+  const canUpload = canManage;
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -304,7 +304,7 @@ const CategoriesPage = () => {
                         </button>
                       </div>
                     ) : (
-                      <div className="muted">{t("noPermissionAction")}</div>
+                      <div className="muted"></div>
                     )}
                   </td>
                 </tr>

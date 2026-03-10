@@ -16,9 +16,16 @@ interface UserDetails {
   addresses: { _id: string; label: string; address: string; phone?: string }[];
 }
 
+const USER_ABOUT_VIEW_PERMISSIONS = ["users:about:view", "users:about:manage"] as const;
+const USER_LEDGER_VIEW_PERMISSIONS = ["users:ledger:view", "users:ledger:manage"] as const;
+const USER_BRANCHES_VIEW_PERMISSIONS = ["users:branches:view", "users:branches:manage"] as const;
+const USER_PERMISSIONS_VIEW_PERMISSIONS = ["users:permissions:view", "users:permissions:manage"] as const;
+
 const UsersPage = () => {
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [selected, setSelected] = useState<UserDetails | null>(null);
+  const [activeDetailTab, setActiveDetailTab] = useState<"about" | "ledger" | "branches" | "permissions">("about");
+  const [activeCreateTab, setActiveCreateTab] = useState<"about" | "branches" | "permissions">("about");
   const [loading, setLoading] = useState("");
   const [listLoading, setListLoading] = useState(false);
   const [permissionsDraft, setPermissionsDraft] = useState<string[]>([]);
@@ -53,11 +60,35 @@ const UsersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const { t } = useI18n();
-  const { can } = usePermissions();
+  const { can, canAny } = usePermissions();
   const { user: currentUser, refreshProfile } = useAuth();
   const { selectedBranchId, branches } = useBranch();
-  const canManageUsers = can("users:manage");
-  const canAssignBranches = can("branches:assign");
+  const canViewUsersPage = can("users:view");
+  const canViewUserAbout = canAny(...USER_ABOUT_VIEW_PERMISSIONS);
+  const canManageUserAbout = can("users:about:manage");
+  const canViewUserLedger = canAny(...USER_LEDGER_VIEW_PERMISSIONS);
+  const canViewUserBranches = canAny(...USER_BRANCHES_VIEW_PERMISSIONS);
+  const canManageUserBranches = can("users:branches:manage");
+  const canViewUserPermissions = canAny(...USER_PERMISSIONS_VIEW_PERMISSIONS);
+  const canManageUserPermissions = can("users:permissions:manage");
+  const canOpenUserDetails = canViewUserAbout || canViewUserLedger || canViewUserBranches || canViewUserPermissions;
+  const canEditAuditPermission = editDraft.role === "admin";
+  const canCreateAuditPermission = createDraft.role === "admin";
+  const selectedSupportsPermissions = selected?.user?.role !== "customer";
+  const createRoleSupportsPermissions = createDraft.role !== "customer";
+
+  const getDefaultDetailTab = (): "about" | "ledger" | "branches" | "permissions" => {
+    if (canViewUserAbout) return "about";
+    if (canViewUserLedger) return "ledger";
+    if (canViewUserBranches) return "branches";
+    return "permissions";
+  };
+
+  const getDefaultCreateTab = (): "about" | "branches" | "permissions" => {
+    if (canManageUserAbout) return "about";
+    if (canViewUserBranches) return "branches";
+    return "permissions";
+  };
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -76,18 +107,19 @@ const UsersPage = () => {
 
   useEffect(() => {
     if (!selectedBranchId) return;
+    if (!canViewUsersPage) return;
     loadUsers();
-  }, [selectedBranchId]);
+  }, [selectedBranchId, canViewUsersPage]);
 
   useEffect(() => {
-    if (!canAssignBranches) {
+    if (!canManageUserBranches) {
       setAssignableBranches(branches);
       return;
     }
     fetchBranches()
       .then(setAssignableBranches)
       .catch(() => setAssignableBranches(branches));
-  }, [canAssignBranches, branches.length]);
+  }, [canManageUserBranches, branches.length]);
 
   useEffect(() => {
     setPermissionsDraft(selected?.user?.permissions || []);
@@ -107,7 +139,44 @@ const UsersPage = () => {
     setEditError("");
     setEditSaving(false);
     setDeleteSaving(false);
+    setActiveDetailTab(getDefaultDetailTab());
   }, [selected?.user?._id]);
+
+  useEffect(() => {
+    if (editDraft.role === "admin") return;
+    setPermissionsDraft((prev) => prev.filter((permission) => permission !== "audit:view"));
+  }, [editDraft.role]);
+
+  useEffect(() => {
+    if (createDraft.role === "customer") {
+      setCreateDraft((prev) => ({
+        ...prev,
+        permissions: [],
+      }));
+      return;
+    }
+    if (createDraft.role === "admin") return;
+    setCreateDraft((prev) => ({
+      ...prev,
+      permissions: prev.permissions.filter((permission) => permission !== "audit:view"),
+    }));
+  }, [createDraft.role]);
+
+  useEffect(() => {
+    if (activeDetailTab !== "permissions") return;
+    if (selectedSupportsPermissions) return;
+    setActiveDetailTab(getDefaultDetailTab());
+  }, [activeDetailTab, selectedSupportsPermissions]);
+
+  useEffect(() => {
+    if (activeCreateTab === "permissions" && !createRoleSupportsPermissions) {
+      setActiveCreateTab(canViewUserBranches ? "branches" : "about");
+      return;
+    }
+    if (activeCreateTab === "branches" && !canViewUserBranches) {
+      setActiveCreateTab("about");
+    }
+  }, [activeCreateTab, createRoleSupportsPermissions, canViewUserBranches]);
 
   const fetchUserDetails = async (id: string) => {
     const res = await api.get<{ data: UserDetails }>(`/users/${id}`);
@@ -126,7 +195,7 @@ const UsersPage = () => {
   };
 
   const openCreateModal = () => {
-    if (!canManageUsers) return;
+    if (!canManageUserAbout) return;
     setCreateDraft({
       name: "",
       email: "",
@@ -137,6 +206,7 @@ const UsersPage = () => {
     });
     setCreateError("");
     setCreateSaving(false);
+    setActiveCreateTab(getDefaultCreateTab());
     setShowCreateModal(true);
   };
 
@@ -146,6 +216,7 @@ const UsersPage = () => {
   };
 
   const toggleCreatePermission = (permission: string) => {
+    if (permission === "audit:view" && !canCreateAuditPermission) return;
     setCreateDraft((prev) => ({
       ...prev,
       permissions: prev.permissions.includes(permission)
@@ -164,7 +235,7 @@ const UsersPage = () => {
   };
 
   const submitCreateUser = async () => {
-    if (!canManageUsers) return;
+    if (!canManageUserAbout) return;
     if (!createDraft.name.trim() || !createDraft.email.trim()) {
       setCreateError(t("invalidForm"));
       return;
@@ -192,13 +263,14 @@ const UsersPage = () => {
 
 
   const togglePermission = (permission: string) => {
+    if (permission === "audit:view" && !canEditAuditPermission) return;
     setPermissionsDraft((prev) =>
       prev.includes(permission) ? prev.filter((item) => item !== permission) : [...prev, permission]
     );
   };
 
   const savePermissions = async () => {
-    if (!selected || !canManageUsers) return;
+    if (!selected || !canManageUserPermissions) return;
     setPermissionsSaving(true);
     setPermissionsError("");
     setPermissionsSuccess("");
@@ -218,7 +290,7 @@ const UsersPage = () => {
   };
 
   const saveBranches = async () => {
-    if (!selected || !canAssignBranches) return;
+    if (!selected || !canManageUserBranches) return;
     setBranchSaving(true);
     setBranchError("");
     setBranchSuccess("");
@@ -238,7 +310,7 @@ const UsersPage = () => {
   };
 
   const saveUserDetails = async () => {
-    if (!selected || !canManageUsers) return;
+    if (!selected || !canManageUserAbout) return;
     if (!editDraft.name.trim() || !editDraft.email.trim()) {
       setEditError(t("invalidForm"));
       return;
@@ -263,7 +335,7 @@ const UsersPage = () => {
   };
 
   const removeUser = async () => {
-    if (!selected || !canManageUsers) return;
+    if (!selected || !canManageUserAbout) return;
     const ok = window.confirm(t("confirmDeleteUser") ?? "Delete this user?");
     if (!ok) return;
     setDeleteSaving(true);
@@ -330,7 +402,7 @@ const UsersPage = () => {
               {t("clear")}
             </button>
           </div>
-          {canManageUsers && (
+          {canManageUserAbout && (
             <button className="primary" type="button" onClick={openCreateModal}>
               {t("addUser")}
             </button>
@@ -364,11 +436,13 @@ const UsersPage = () => {
                 <td>{t(`role.${u.role}`) || u.role}</td>
                 <td>{u.membershipLevel}</td>
                 <td>
-                  <button className="ghost-btn" onClick={() => loadDetails(u._id)} disabled={loading == u._id}>
-                    {loading == u._id ?
-                      <div className="spinner small"></div>
-                      : t("view")}
-                  </button>
+                  {canOpenUserDetails ? (
+                    <button className="ghost-btn" onClick={() => loadDetails(u._id)} disabled={loading == u._id}>
+                      {loading == u._id ?
+                        <div className="spinner small"></div>
+                        : t("view")}
+                    </button>
+                  ) : null}
                 </td>
               </tr>
             ))}
@@ -377,123 +451,223 @@ const UsersPage = () => {
       </Card>
       {selected && (
         <div className="modal-backdrop" onClick={closeDetails}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{t("titles.userDetail")}</div>
+              <div className="modal-title">
+                {t("titles.userDetail")} <span className="muted" style={{ fontWeight: 'normal', fontSize: '12px' }}>{selected.user._id}</span>
+              </div>
               <button className="ghost-btn" type="button" onClick={closeDetails}>
                 {t("close")}
               </button>
             </div>
 
-            <table className="detailsTable">
-              <tr>
-                <td>ID</td>
-                <td>{selected.user._id}</td>
-              </tr>
-              <tr>
-                <td>Name</td>
-                <td>
-                  {canManageUsers ? (
-                    <input
-                      value={editDraft.name}
-                      onChange={(e) => setEditDraft((prev) => ({ ...prev, name: e.target.value }))}
-                    />
-                  ) : (
-                    selected.user.name
+            <div className="tab-row" style={{ marginBottom: 16 }}>
+              {canViewUserAbout && (
+                <button
+                  className={`tab-btn ${activeDetailTab === "about" ? "active" : ""}`}
+                  type="button"
+                  onClick={() => setActiveDetailTab("about")}
+                >
+                  About
+                </button>
+              )}
+              {canViewUserLedger && (
+                <button
+                  className={`tab-btn ${activeDetailTab === "ledger" ? "active" : ""}`}
+                  type="button"
+                  onClick={() => setActiveDetailTab("ledger")}
+                >
+                  Ledger
+                </button>
+              )}
+              {canViewUserBranches && (
+                <button
+                  className={`tab-btn ${activeDetailTab === "branches" ? "active" : ""}`}
+                  type="button"
+                  onClick={() => setActiveDetailTab("branches")}
+                >
+                  {t("branches")}
+                </button>
+              )}
+              {canViewUserPermissions && selectedSupportsPermissions && (
+                <button
+                  className={`tab-btn ${activeDetailTab === "permissions" ? "active" : ""}`}
+                  type="button"
+                  onClick={() => setActiveDetailTab("permissions")}
+                >
+                  {t("permissions")}
+                </button>
+              )}
+            </div>
+
+            <div className="user-details-tab-panel">
+              {canViewUserAbout && activeDetailTab === "about" && (
+                <>
+                  <div className="detailsTable form">
+                  <div className="detailsRow">
+                    <div className="detailsLabel">Name</div>
+                    <div className="detailsValue">
+                      {canManageUserAbout ? (
+                        <input
+                          value={editDraft.name}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, name: e.target.value }))}
+                        />
+                      ) : (
+                        selected.user.name
+                      )}
+                    </div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">Email</div>
+                    <div className="detailsValue">
+                      {canManageUserAbout ? (
+                        <input
+                          value={editDraft.email}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, email: e.target.value }))}
+                        />
+                      ) : (
+                        selected.user.email
+                      )}
+                    </div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">Phone</div>
+                    <div className="detailsValue">
+                      {canManageUserAbout ? (
+                        <input
+                          value={editDraft.phone}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, phone: e.target.value }))}
+                        />
+                      ) : selected.user.phone ? (
+                        selected.user.phone
+                      ) : (
+                        <div className="muted">{t("noPhone")}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">Role</div>
+                    <div className="detailsValue">
+                      {canManageUserAbout ? (
+                        <select
+                          value={editDraft.role}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, role: e.target.value as ApiUser["role"] }))}
+                        >
+                          <option value="customer">{t("role.customer")}</option>
+                          <option value="staff">{t("role.staff")}</option>
+                          <option value="manager">{t("role.manager")}</option>
+                          <option value="driver">{t("role.driver") ?? "Driver"}</option>
+                        </select>
+                      ) : (
+                        selected.user.role
+                      )}
+                    </div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">Membership Level</div>
+                    <div className="detailsValue">{selected.user.membershipLevel}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("walletBalance")}</div>
+                    <div className="detailsValue">{selected.wallet?.balance?.toLocaleString() || 0} SYP</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("points")}</div>
+                    <div className="detailsValue">{selected.user.points || 0}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("addresses")} ({selected.addresses?.length})</div>
+                    <div className="detailsValue">
+                      {selected.addresses?.length ? (
+                        <ul className="addressList">
+                          {selected.addresses.map((addr) => (
+                            <li key={addr._id}>
+                              {addr.label}: {addr.address}
+                              {addr.phone ? ` (${addr.phone})` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="muted">{t("noAddresses")}</div>
+                      )}
+                    </div>
+                  </div>
+                  {canManageUserAbout && (
+                    <div className="modal-actions">
+                      <button className="ghost-btn" type="button" onClick={saveUserDetails} disabled={editSaving}>
+                        {editSaving ? t("saving") : t("saveUser") ?? "Save user"}
+                      </button>
+                      <button className="ghost-btn danger" type="button" onClick={removeUser} disabled={deleteSaving}>
+                        {deleteSaving ? t("saving") : t("deleteUser") ?? "Delete user"}
+                      </button>
+                    </div>
                   )}
-                </td>
-              </tr>
-              <tr>
-                <td>Email</td>
-                <td>
-                  {canManageUsers ? (
-                    <input
-                      value={editDraft.email}
-                      onChange={(e) => setEditDraft((prev) => ({ ...prev, email: e.target.value }))}
-                    />
-                  ) : (
-                    selected.user.email
-                  )}
-                </td>
-              </tr>
-              <tr>
-                <td>Membership Level</td>
-                <td>{selected.user.membershipLevel}</td>
-              </tr>
-              <tr>
-                <td>Phone</td>
-                <td>
-                  {canManageUsers ? (
-                    <input
-                      value={editDraft.phone}
-                      onChange={(e) => setEditDraft((prev) => ({ ...prev, phone: e.target.value }))}
-                    />
-                  ) : selected.user.phone ? (
-                    selected.user.phone
-                  ) : (
-                    <div className="muted">{t("noPhone")}</div>
-                  )}
-                </td>
-              </tr>
-              <tr>
-                <td>Role</td>
-                <td>
-                  {canManageUsers ? (
-                    <select
-                      value={editDraft.role}
-                      onChange={(e) => setEditDraft((prev) => ({ ...prev, role: e.target.value as ApiUser["role"] }))}
-                    >
-                      <option value="customer">{t("role.customer")}</option>
-                      <option value="staff">{t("role.staff")}</option>
-                      <option value="manager">{t("role.manager")}</option>
-                      <option value="driver">{t("role.driver") ?? "Driver"}</option>
-                    </select>
-                  ) : (
-                    selected.user.role
-                  )}
-                </td>
-              </tr>
-              <tr>
-                <td>{t("addresses")}</td>
-                <td>
-                  {selected.addresses?.length ? (
+                  </div>
+
+                  {editError && <div className="error">{editError}</div>}
+                </>
+              )}
+
+              {canViewUserLedger && activeDetailTab === "ledger" && (
+                <div className="two-col">
+                  <div className="ledger-group">
+                  <h4>{t("walletLedger")}</h4>
+                  {selected.walletTx.length > 0 ? (
                     <ul className="list">
-                      {selected.addresses.map((addr) => (
-                        <li key={addr._id}>
-                          {addr.label}: {addr.address}
-                          {addr.phone ? ` (${addr.phone})` : ""}
+                      {selected.walletTx?.map((tx, idx) => (
+                        <li key={idx} className="listCenterItems">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+
+                            {tx.type === "CREDIT" ? (
+                              <svg fill="#009933" xmlns="http://www.w3.org/2000/svg"
+                                width="14" height="14" viewBox="0 0 52 52" enable-background="new 0 0 52 52">
+                                <path d="M9.6,31c-0.8,0.8-0.8,1.9,0,2.7l15,14.7c0.8,0.8,2,0.8,2.8,0l15.1-14.7c0.8-0.8,0.8-1.9,0-2.7l-2.8-2.7
+	c-0.8-0.8-2-0.8-2.8,0l-4.7,4.6C31.4,33.7,30,33.2,30,32V5c0-1-0.9-2-2-2h-4c-1.1,0-2,1.1-2,2v27c0,1.2-1.4,1.7-2.2,0.9l-4.7-4.6
+	c-0.8-0.8-2-0.8-2.8,0L9.6,31z"/>
+                              </svg>
+                            ) : (
+                              <svg fill="#ff0000" xmlns="http://www.w3.org/2000/svg"
+                                width="14" height="14" viewBox="0 0 52 52" enable-background="new 0 0 52 52">
+                                <path d="M41.4,21c0.8-0.8,0.8-1.9,0-2.7l-15-14.7c-0.8-0.8-2-0.8-2.8,0L8.6,18.3c-0.8,0.8-0.8,1.9,0,2.7l2.8,2.7
+	c0.8,0.8,2,0.8,2.8,0l4.7-4.6c0.8-0.8,2.2-0.2,2.2,0.9v27c0,1,0.9,2,2,2h4c1.1,0,2-1.1,2-2V20c0-1.2,1.4-1.7,2.2-0.9l4.7,4.6
+	c0.8,0.8,2,0.8,2.8,0L41.4,21z"/>
+                              </svg>
+                            )}
+                            <span>{formatDateTime(tx.createdAt)}</span>
+                          </div>
+                          {tx.amount} - {tx.source}
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <div className="muted">{t("noAddresses")}</div>
+                    <div className="muted">{t("noTransactions")}</div>
                   )}
-                </td>
-              </tr>
-            </table>
+                  </div>
 
-            {editError && <div className="error">{editError}</div>}
-            {canManageUsers && (
-              <div className="modal-actions">
-                <button className="ghost-btn" type="button" onClick={saveUserDetails} disabled={editSaving}>
-                  {editSaving ? t("saving") : t("saveUser") ?? "Save user"}
-                </button>
-                <button className="ghost-btn danger" type="button" onClick={removeUser} disabled={deleteSaving}>
-                  {deleteSaving ? t("saving") : t("deleteUser") ?? "Delete user"}
-                </button>
-              </div>
-            )}
-
-            <div className="detail-grid">
-              <div>
-                <div className="muted">{t("walletBalance")}</div>
-                <div className="stat-value">{selected.wallet?.balance?.toLocaleString() || 0} SYP</div>
-              </div>
-              <div>
-                <div className="muted">{t("points")}</div>
-                <div className="stat-value">{selected.user.points || 0}</div>
-              </div>
-            </div>
+                  <div className="ledger-group">
+                  <h4>{t("pointsLedger")}</h4>
+                  {selected.pointTx.length > 0 ? (
+                    <ul className="list">
+                      {selected.pointTx?.map((tx, idx) => (
+                        <li key={idx} className="listCenterItems">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {tx.type === "EARN" ? (
+                              <svg fill="#009933" width="14" height="14" viewBox="-3 0 19 19" xmlns="http://www.w3.org/2000/svg"><path d="M12.711 9.182a1.03 1.03 0 0 1-1.03 1.03H7.53v4.152a1.03 1.03 0 0 1-2.058 0v-4.152H1.318a1.03 1.03 0 1 1 0-2.059h4.153V4.001a1.03 1.03 0 0 1 2.058 0v4.152h4.153a1.03 1.03 0 0 1 1.029 1.03z" /></svg>
+                            ) : (
+                              <svg fill="#ff0000" width="14" height="14" viewBox="0 0 24 24" version="1.2" baseProfile="tiny" xmlns="http://www.w3.org/2000/svg"><path d="M18 11h-12c-1.104 0-2 .896-2 2s.896 2 2 2h12c1.104 0 2-.896 2-2s-.896-2-2-2z" /></svg>
+                            )}
+                            <span>{formatDateTime(tx.createdAt)}</span>
+                          </div>
+                          {tx.points} pts
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="muted">{t("noPoints")}</div>
+                  )}
+                  </div>
+                </div>
+              )}
 
             {/* <div style={{ marginBottom: 12 }}>
               <h4>{t("topUpWallet")}</h4>
@@ -530,131 +704,91 @@ const UsersPage = () => {
               </div>
             </div> */}
 
-            <div style={{ marginBottom: 12 }}>
-              <h4>{t("permissions")}</h4>
-              <div className="permissions-grid">
-                {PERMISSION_GROUPS.map((group) => (
-                  <div className="permissions-group" key={group.key}>
-                    <div className="permissions-title">{t(group.labelKey)}</div>
-                    {group.permissions.map((permission) => (
-                      <label className="permission-item" key={permission.key}>
+              {canViewUserBranches && activeDetailTab === "branches" && (
+                <div style={{ marginBottom: 12 }}>
+                  <div className="permissions-grid">
+                  {assignableBranches.length === 0 ? (
+                    <div className="muted">{t("noBranches")}</div>
+                  ) : (
+                    assignableBranches.map((branch) => (
+                      <label className="permission-item" key={branch._id}>
                         <input
                           type="checkbox"
-                          checked={permissionsDraft.includes(permission.key)}
-                          onChange={() => togglePermission(permission.key)}
-                          disabled={!canManageUsers}
+                          checked={branchDraft.includes(branch._id)}
+                          onChange={() =>
+                            setBranchDraft((prev) =>
+                              prev.includes(branch._id)
+                                ? prev.filter((item) => item !== branch._id)
+                                : [...prev, branch._id]
+                            )
+                          }
+                          disabled={!canManageUserBranches}
                         />
-                        <span>{t(permission.labelKey)}</span>
+                        <span>{branch.name}</span>
                       </label>
+                    ))
+                  )}
+                  </div>
+                  {branchError && <div className="error">{branchError}</div>}
+                  {branchSuccess && <div className="success">{branchSuccess}</div>}
+                  {canManageUserBranches && (
+                    <div className="modal-actions">
+                      <button
+                        className="ghost-btn"
+                        type="button"
+                        onClick={saveBranches}
+                        disabled={branchSaving}
+                      >
+                        {branchSaving ? t("saving") : (t("saveBranches") || "Save branches")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {canViewUserPermissions && selectedSupportsPermissions && activeDetailTab === "permissions" && (
+                <div style={{ marginBottom: 12 }}>
+                  <div className="permissions-grid">
+                    {PERMISSION_GROUPS.map((group) => (
+                      <div className="permissions-group" key={group.key}>
+                        <div className="permissions-title">{t(group.labelKey)}</div>
+                        {group.permissions.map((permission) => (
+                          <label className="permission-item" key={permission.key}>
+                            <input
+                              type="checkbox"
+                              checked={permissionsDraft.includes(permission.key)}
+                              onChange={() => togglePermission(permission.key)}
+                              disabled={!canManageUserPermissions || (permission.key === "audit:view" && !canEditAuditPermission)}
+                            />
+                            <span>{t(permission.labelKey)}</span>
+                          </label>
+                        ))}
+                      </div>
                     ))}
                   </div>
-                ))}
-              </div>
-              {permissionsError && <div className="error">{permissionsError}</div>}
-              {permissionsSuccess && <div className="success">{permissionsSuccess}</div>}
-              {canManageUsers && (
-                <div className="modal-actions">
-                  <button
-                    className="ghost-btn"
-                    type="button"
-                    onClick={savePermissions}
-                    disabled={permissionsSaving}
-                  >
-                    {permissionsSaving ? t("saving") : t("savePermissions")}
-                  </button>
+                  {permissionsError && <div className="error">{permissionsError}</div>}
+                  {permissionsSuccess && <div className="success">{permissionsSuccess}</div>}
+                  {canManageUserPermissions && (
+                    <div className="modal-actions">
+                      <button
+                        className="ghost-btn"
+                        type="button"
+                        onClick={savePermissions}
+                        disabled={permissionsSaving}
+                      >
+                        {permissionsSaving ? t("saving") : t("savePermissions")}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <h4>{t("branches")}</h4>
-              <div className="permissions-grid">
-                {assignableBranches.length === 0 ? (
-                  <div className="muted">{t("noBranches")}</div>
-                ) : (
-                  assignableBranches.map((branch) => (
-                    <label className="permission-item" key={branch._id}>
-                      <input
-                        type="checkbox"
-                        checked={branchDraft.includes(branch._id)}
-                        onChange={() =>
-                          setBranchDraft((prev) =>
-                            prev.includes(branch._id)
-                              ? prev.filter((item) => item !== branch._id)
-                              : [...prev, branch._id]
-                          )
-                        }
-                        disabled={!canAssignBranches}
-                      />
-                      <span>{branch.name}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-              {branchError && <div className="error">{branchError}</div>}
-              {branchSuccess && <div className="success">{branchSuccess}</div>}
-              {canAssignBranches && (
-                <div className="modal-actions">
-                  <button
-                    className="ghost-btn"
-                    type="button"
-                    onClick={saveBranches}
-                    disabled={branchSaving}
-                  >
-                    {branchSaving ? t("saving") : (t("saveBranches") || "Save branches")}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="two-col">
-              <div>
-                <h4>{t("walletLedger")}</h4>
-                <ul className="list">
-                  {selected.walletTx?.map((tx, idx) => (
-                    <li key={idx} className="listCenterItems">
-                      {tx.type === "CREDIT" ? (
-                        <svg fill="#009933" xmlns="http://www.w3.org/2000/svg"
-                          width="14" height="14" viewBox="0 0 52 52" enable-background="new 0 0 52 52">
-                          <path d="M9.6,31c-0.8,0.8-0.8,1.9,0,2.7l15,14.7c0.8,0.8,2,0.8,2.8,0l15.1-14.7c0.8-0.8,0.8-1.9,0-2.7l-2.8-2.7
-	c-0.8-0.8-2-0.8-2.8,0l-4.7,4.6C31.4,33.7,30,33.2,30,32V5c0-1-0.9-2-2-2h-4c-1.1,0-2,1.1-2,2v27c0,1.2-1.4,1.7-2.2,0.9l-4.7-4.6
-	c-0.8-0.8-2-0.8-2.8,0L9.6,31z"/>
-                        </svg>
-                      ) : (
-                        <svg fill="#ff0000" xmlns="http://www.w3.org/2000/svg"
-                          width="14" height="14" viewBox="0 0 52 52" enable-background="new 0 0 52 52">
-                          <path d="M41.4,21c0.8-0.8,0.8-1.9,0-2.7l-15-14.7c-0.8-0.8-2-0.8-2.8,0L8.6,18.3c-0.8,0.8-0.8,1.9,0,2.7l2.8,2.7
-	c0.8,0.8,2,0.8,2.8,0l4.7-4.6c0.8-0.8,2.2-0.2,2.2,0.9v27c0,1,0.9,2,2,2h4c1.1,0,2-1.1,2-2V20c0-1.2,1.4-1.7,2.2-0.9l4.7,4.6
-	c0.8,0.8,2,0.8,2.8,0L41.4,21z"/>
-                        </svg>
-                      )}
-                      <span>{formatDateTime(tx.createdAt)}</span> {tx.amount} - {tx.source}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4>{t("pointsLedger")}</h4>
-                <ul className="list">
-                  {selected.pointTx?.map((tx, idx) => (
-                    <li key={idx} className="listCenterItems">
-                      {tx.type === "EARN" ? (
-                        <svg fill="#009933" width="14" height="14" viewBox="-3 0 19 19" xmlns="http://www.w3.org/2000/svg"><path d="M12.711 9.182a1.03 1.03 0 0 1-1.03 1.03H7.53v4.152a1.03 1.03 0 0 1-2.058 0v-4.152H1.318a1.03 1.03 0 1 1 0-2.059h4.153V4.001a1.03 1.03 0 0 1 2.058 0v4.152h4.153a1.03 1.03 0 0 1 1.029 1.03z" /></svg>
-                      ) : (
-                        <svg fill="#ff0000" width="14" height="14" viewBox="0 0 24 24" version="1.2" baseProfile="tiny" xmlns="http://www.w3.org/2000/svg"><path d="M18 11h-12c-1.104 0-2 .896-2 2s.896 2 2 2h12c1.104 0 2-.896 2-2s-.896-2-2-2z" /></svg>
-                      )}
-                      <span>{formatDateTime(tx.createdAt)}</span> {tx.points} pts
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
           </div>
         </div>
       )}
-      {showCreateModal && canManageUsers && (
+      {showCreateModal && canManageUserAbout && (
         <div className="modal-backdrop" onClick={closeCreateModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">{t("newUser")}</div>
               <button className="ghost-btn" type="button" onClick={closeCreateModal}>
@@ -662,75 +796,119 @@ const UsersPage = () => {
               </button>
             </div>
 
-            <div className="form">
-              <label>
-                {t("name")}
-                <input value={createDraft.name} onChange={(e) => setCreateDraft({ ...createDraft, name: e.target.value })} />
-              </label>
-              <label>
-                {t("email")}
-                <input
-                  type="email"
-                  value={createDraft.email}
-                  onChange={(e) => setCreateDraft({ ...createDraft, email: e.target.value })}
-                />
-              </label>
-              <label>
-                <div className="muted" style={{ fontSize: 12 }}>
-                  {t("passwordSetupHint") ?? "The user will set a password on first login."}
-                </div>
-              </label>
-              <label>
-                {t("phone")}
-                <input
-                  value={createDraft.phone}
-                  onChange={(e) => setCreateDraft({ ...createDraft, phone: e.target.value })}
-                />
-              </label>
-              <label>
-                {t("role")}
-                <select value={createDraft.role} onChange={(e) => setCreateDraft({ ...createDraft, role: e.target.value })}>
-                  <option value="customer">{t("role.customer")}</option>
-                  <option value="staff">{t("role.staff")}</option>
-                  <option value="manager">{t("role.manager")}</option>
-                  <option value="driver">{t("role.driver") ?? "Driver"}</option>
-                </select>
-              </label>
+            <div className="tab-row" style={{ marginBottom: 16 }}>
+              <button
+                className={`tab-btn ${activeCreateTab === "about" ? "active" : ""}`}
+                type="button"
+                onClick={() => setActiveCreateTab("about")}
+              >
+                About
+              </button>
+              {canViewUserBranches && (
+                <button
+                  className={`tab-btn ${activeCreateTab === "branches" ? "active" : ""}`}
+                  type="button"
+                  onClick={() => setActiveCreateTab("branches")}
+                >
+                  {t("branches")}
+                </button>
+              )}
+              {canViewUserPermissions && createRoleSupportsPermissions && (
+                <button
+                  className={`tab-btn ${activeCreateTab === "permissions" ? "active" : ""}`}
+                  type="button"
+                  onClick={() => setActiveCreateTab("permissions")}
+                >
+                  {t("permissions")}
+                </button>
+              )}
             </div>
 
-            <h4>{t("permissions")}</h4>
-            <div className="permissions-grid">
-              {PERMISSION_GROUPS.map((group) => (
-                <div className="permissions-group" key={group.key}>
-                  <div className="permissions-title">{t(group.labelKey)}</div>
-                  {group.permissions.map((permission) => (
-                    <label className="permission-item" key={permission.key}>
-                      <input
-                        type="checkbox"
-                        checked={createDraft.permissions.includes(permission.key)}
-                        onChange={() => toggleCreatePermission(permission.key)}
-                      />
-                      <span>{t(permission.labelKey)}</span>
-                    </label>
-                  ))}
-                </div>
-              ))}
-            </div>
-            <h4>{t("branches")}</h4>
-            <div className="permissions-grid">
-              {assignableBranches.length === 0 ? (
-                <div className="muted">{t("noBranches")}</div>
-              ) : (
-                assignableBranches.map((branch) => (
-                  <label className="permission-item" key={branch._id}>
-                    <input
-                      type="checkbox"
-                      checked={createDraft.branchIds.includes(branch._id)}
-                      onChange={() => toggleCreateBranch(branch._id)}
-                    />
-                    <span>{branch.name}</span>
+            <div className="user-details-tab-panel">
+              {activeCreateTab === "about" && (
+                <div className="form">
+                  <label>
+                    {t("name")}
+                    <input value={createDraft.name} onChange={(e) => setCreateDraft({ ...createDraft, name: e.target.value })} />
                   </label>
-                ))
+                  <label>
+                    {t("email")}
+                    <input
+                      type="email"
+                      value={createDraft.email}
+                      onChange={(e) => setCreateDraft({ ...createDraft, email: e.target.value })}
+                    />
+                  </label>
+                  
+                  <label>
+                    {t("phone")}
+                    <input
+                      value={createDraft.phone}
+                      onChange={(e) => setCreateDraft({ ...createDraft, phone: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    {t("role")}
+                    <select value={createDraft.role} onChange={(e) => setCreateDraft({ ...createDraft, role: e.target.value })}>
+                      <option value="customer">{t("role.customer")}</option>
+                      <option value="staff">{t("role.staff")}</option>
+                      <option value="manager">{t("role.manager")}</option>
+                      <option value="driver">{t("role.driver") ?? "Driver"}</option>
+                    </select>
+                  </label>
+                  <label>
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      {t("passwordSetupHint") ?? "The user will set a password on first login."}
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {canViewUserBranches && activeCreateTab === "branches" && (
+                <>
+                  <h4>{t("branches")}</h4>
+                  <div className="permissions-grid">
+                    {assignableBranches.length === 0 ? (
+                      <div className="muted">{t("noBranches")}</div>
+                    ) : (
+                      assignableBranches.map((branch) => (
+                        <label className="permission-item" key={branch._id}>
+                          <input
+                            type="checkbox"
+                            checked={createDraft.branchIds.includes(branch._id)}
+                            onChange={() => toggleCreateBranch(branch._id)}
+                            disabled={!canManageUserBranches}
+                          />
+                          <span>{branch.name}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+
+              {canViewUserPermissions && createRoleSupportsPermissions && activeCreateTab === "permissions" && (
+                <>
+                  <h4>{t("permissions")}</h4>
+                  <div className="permissions-grid">
+                    {PERMISSION_GROUPS.map((group) => (
+                      <div className="permissions-group" key={group.key}>
+                        <div className="permissions-title">{t(group.labelKey)}</div>
+                        {group.permissions.map((permission) => (
+                          <label className="permission-item" key={permission.key}>
+                            <input
+                              type="checkbox"
+                              checked={createDraft.permissions.includes(permission.key)}
+                              onChange={() => toggleCreatePermission(permission.key)}
+                              disabled={!canManageUserPermissions || (permission.key === "audit:view" && !canCreateAuditPermission)}
+                            />
+                            <span>{t(permission.labelKey)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
             {createError && <div className="error">{createError}</div>}

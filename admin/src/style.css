@@ -511,16 +511,38 @@ nav::-webkit-scrollbar {
   border-radius: 12px;
 }
 
-.w-60 { width: 60px; }
-.w-80 { width: 80px; }
-.w-100 { width: 100px; }
-.w-120 { width: 120px; }
-.w-140 { width: 140px; }
-.w-180 { width: 180px; }
+.w-60 {
+  width: 60px;
+}
+
+.w-80 {
+  width: 80px;
+}
+
+.w-100 {
+  width: 100px;
+}
+
+.w-120 {
+  width: 120px;
+}
+
+.w-140 {
+  width: 140px;
+}
+
+.w-180 {
+  width: 180px;
+}
 
 @keyframes skeletonPulse {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .stat {
@@ -567,13 +589,36 @@ nav::-webkit-scrollbar {
   width: 100%;
 }
 
-.detailsTable tr td {
-  padding: 5px;
-  vertical-align: top;
+.detailsRow {
+  display: grid;
+  grid-template-columns: minmax(140px, 25%) 1fr;
+  gap: 12px;
+  align-items: start;
 }
 
-.detailsTable tr td:first-child {
-  width: 25%;
+.detailsLabel,
+.detailsValue {
+  padding: 5px;
+}
+
+.detailsLabel {
+  font-weight: 600;
+}
+
+.detailsValue {
+  min-width: 0;
+}
+
+.detailsValue input,
+.detailsValue select {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .detailsRow {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }
 
 .ghost-btn {
@@ -881,6 +926,7 @@ nav::-webkit-scrollbar {
 .listCenterItems {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 5px;
 }
 
@@ -951,6 +997,18 @@ nav::-webkit-scrollbar {
   font-size: 12px;
 }
 
+.ledger-group {
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.ledger-group h4 {
+  margin: 0;
+  margin-bottom: 10px;
+}
+
 .permissions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -1009,7 +1067,7 @@ nav::-webkit-scrollbar {
 .page-btn {
   background: var(--gray-100);
   color: var(--text-primary);
-  border:none;
+  border: none;
   outline: none;
   padding: 6px 10px;
   border-radius: 10px;
@@ -1194,6 +1252,16 @@ nav::-webkit-scrollbar {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
 }
 
+.user-details-modal {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-details-tab-panel {
+  height: calc(95vh - 180px);
+  overflow: auto;
+}
+
 .modal.import-modal {
   width: min(980px, 100%);
 }
@@ -1318,12 +1386,12 @@ nav::-webkit-scrollbar {
 
 .import-file-actions {
   /* border:1px solid red; */
-  padding-left:50px;
+  padding-left: 50px;
   flex: 1;
-  display:flex;
-  justify-content:flex-end;
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
-  gap:20px;
+  gap: 20px;
 }
 
 .import-preview-controls {
@@ -1518,8 +1586,8 @@ nav::-webkit-scrollbar {
 }
 
 .tab-btn.active {
-  background: var(--orange-600);
-  border-color: var(--orange-600);
+  background: var(--text-primary);
+  border-color: var(--text-primary);
   color: white;
 }
 
@@ -1635,6 +1703,29 @@ nav::-webkit-scrollbar {
 
 .loaderText {
   font-size: 16px;
+}
+
+.addressList {
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 5px;
+}
+
+.addressList li {
+  width: 33.33%;
+  list-style: none;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--gray-300);
+  outline: none !important;
+  transition: all 0.3s ease-in-out;
+  font-family: inherit;
+}
+
+.addressList li:last-child {
+  margin: 0;
 }
 
 @keyframes spin {

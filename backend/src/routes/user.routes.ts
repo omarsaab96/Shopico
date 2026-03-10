@@ -17,22 +17,31 @@ router.get(
   "/",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requireAnyPermissions("users:view", "users:manage"),
+  requirePermissions("users:view"),
   requireBranchContext,
   listUsers
 );
-router.post("/", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:manage"), requireBranchContext, createUser);
-router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:manage"), requireBranchContext, updateUser);
+router.post("/", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:about:manage"), requireBranchContext, createUser);
+router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:about:manage"), requireBranchContext, updateUser);
 router.get(
   "/:id",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requireAnyPermissions("users:view", "users:manage"),
+  requireAnyPermissions(
+    "users:about:view",
+    "users:about:manage",
+    "users:ledger:view",
+    "users:ledger:manage",
+    "users:branches:view",
+    "users:branches:manage",
+    "users:permissions:view",
+    "users:permissions:manage"
+  ),
   requireBranchContext,
   getUserDetails
 );
-router.put("/:id/permissions", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:manage"), requireBranchContext, updateUserPermissions);
-router.put("/:id/branches", authenticate, authorize("admin", "manager", "staff"), requirePermissions("branches:assign"), requireBranchContext, updateUserBranches);
-router.delete("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:manage"), requireBranchContext, deleteUser);
+router.put("/:id/permissions", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:permissions:manage"), requireBranchContext, updateUserPermissions);
+router.put("/:id/branches", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:branches:manage"), requireBranchContext, updateUserBranches);
+router.delete("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:about:manage"), requireBranchContext, deleteUser);
 
 export default router;

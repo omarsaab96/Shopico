@@ -71,7 +71,7 @@ const App = () => {
           <Route
             path="users"
             element={
-              <RequirePermission anyOf={["users:view", "users:manage"]}>
+              <RequirePermission anyOf={["users:view"]}>
                 <UsersPage />
               </RequirePermission>
             }
