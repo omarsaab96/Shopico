@@ -81,29 +81,30 @@ const Layout = () => {
           </Link> */}
           <div className="brand">
             {/* <div className="brand-dot" /> */}
-            <div>
+            <div className="flex items-center">
               <div className="brand-title">
                 {t("shopicoAdminPanel")}
-                {selectedBranch ? ` • ${selectedBranch.name}` : ""}
+                {selectedBranch ? ` • ` : ""}
               </div>
               {/* <div className="brand-sub">Admin</div> */}
+              {branches.length > 1 && selectedBranchId && (
+                <select
+                  className="filter-select branchselector"
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                >
+                  {branches.map((branch) => (
+                    <option key={branch._id} value={branch._id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
           {/* <div className="pill">Orange Pulse</div> */}
           <div className="flex">
-            {branches.length > 1 && selectedBranchId && (
-              <select
-                className="filter-select"
-                value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-              >
-                {branches.map((branch) => (
-                  <option key={branch._id} value={branch._id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
-            )}
+
             <button className="ghost-btn dark icon" type="button" onClick={toggleTheme}>
               <img src="themeIcon.png" alt="" />
             </button>

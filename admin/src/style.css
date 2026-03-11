@@ -803,6 +803,10 @@ nav::-webkit-scrollbar {
   font-family: inherit;
 }
 
+.branchselector {
+  padding: 2px 5px;
+}
+
 .filter-input:hover,
 .filter-input:focus,
 .filter-select:focus,
