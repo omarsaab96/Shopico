@@ -93,4 +93,4 @@ The project is deployed on a VPS using Nginx and PM2.
     ssh root@SERVER_IP "systemctl reload nginx"
     ```
 
-2) **Backend Deployment**
+2) **Backend Deployment**<br/>
