@@ -5,7 +5,6 @@ import { fetchAnnouncements, fetchCoupons, fetchOrders, fetchProductsAdmin, fetc
 import type { Order } from "../types/api";
 import StatusPill from "../components/StatusPill";
 import { usePermissions } from "../hooks/usePermissions";
-import { useI18n } from "../context/I18nContext";
 import { useBranch } from "../context/BranchContext";
 
 const DashboardPage = () => {
@@ -22,7 +21,6 @@ const DashboardPage = () => {
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
   const { can } = usePermissions();
-  const { t } = useI18n();
   const { selectedBranchId } = useBranch();
   const canViewOrders = can("orders:view");
   const canViewProducts = can("products:view");
@@ -30,6 +28,8 @@ const DashboardPage = () => {
   const canViewUsers = can("users:view");
   const canViewAnnouncements = can("announcements:view");
   const canViewCoupons = can("coupons:view");
+  const lockedMetricValue = "******";
+  const lockedMetricSub = "\uD83D\uDD12 Restricted access";
 
   useEffect(() => {
     if (!selectedBranchId) return;
@@ -169,30 +169,30 @@ const DashboardPage = () => {
           <div className="kpi-card accent">
             <div className="kpi-label">Revenue (SYP)</div>
             <div className="kpi-value">
-              {!canViewOrders ? t("noPermissionAction") : loadingOrders ? <span className="skeleton-line w-140" /> : revenue.toLocaleString()}
+              {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-140" /> : revenue.toLocaleString()}
             </div>
-            <div className="kpi-sub">{rangeLabel}</div>
+            <div className="kpi-sub">{!canViewOrders ? lockedMetricSub : rangeLabel}</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Open Orders</div>
             <div className="kpi-value">
-              {!canViewOrders ? t("noPermissionAction") : loadingOrders ? <span className="skeleton-line w-80" /> : pending}
+              {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-80" /> : pending}
             </div>
-            <div className="kpi-sub">Needs attention</div>
+            <div className="kpi-sub">{!canViewOrders ? lockedMetricSub : "Needs attention"}</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Products</div>
             <div className="kpi-value">
-              {!canViewProducts ? t("noPermissionAction") : loadingProducts ? <span className="skeleton-line w-100" /> : productsTotal.toLocaleString()}
+              {!canViewProducts ? lockedMetricValue : loadingProducts ? <span className="skeleton-line w-100" /> : productsTotal.toLocaleString()}
             </div>
-            <div className="kpi-sub">Active catalog</div>
+            <div className="kpi-sub">{!canViewProducts ? lockedMetricSub : "Active catalog"}</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Pending Top-ups</div>
             <div className="kpi-value">
-              {!canViewWallet ? t("noPermissionAction") : loadingTopups ? <span className="skeleton-line w-80" /> : pendingTopups}
+              {!canViewWallet ? lockedMetricValue : loadingTopups ? <span className="skeleton-line w-80" /> : pendingTopups}
             </div>
-            <div className="kpi-sub">Awaiting approval</div>
+            <div className="kpi-sub">{!canViewWallet ? lockedMetricSub : "Awaiting approval"}</div>
           </div>
         </div>
       </Card>
@@ -203,20 +203,32 @@ const DashboardPage = () => {
             <div className="chart-meta">
               <div className="chart-title">7-day trend</div>
               <div className="chart-value">
-                {loadingOrders ? <span className="skeleton-line w-120" /> : `${revenue.toLocaleString()} SYP`}
+                {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-120" /> : `${revenue.toLocaleString()} SYP`}
               </div>
             </div>
             <div className="chart-wrap">
-              {loadingOrders ? <div className="skeleton-block" /> : renderSpark(revenueSeries, "var(--accent)")}
+              {!canViewOrders ? (
+                <div className="chart-locked">{lockedMetricSub}</div>
+              ) : loadingOrders ? (
+                <div className="skeleton-block" />
+              ) : (
+                renderSpark(revenueSeries, "var(--accent)")
+              )}
             </div>
-            <div className="chart-labels">
-              {labels.map((label) => (
-                <span key={label}>{label}</span>
-              ))}
-            </div>
-            <div className="chart-actions">
-              <Link to="/orders" className="ghost-btn">View more</Link>
-            </div>
+            {!canViewOrders ? (
+              <div className="chart-locked-sub">{lockedMetricSub}</div>
+            ) : (
+              <>
+                <div className="chart-labels">
+                  {labels.map((label) => (
+                    <span key={label}>{label}</span>
+                  ))}
+                </div>
+                <div className="chart-actions">
+                  <Link to="/orders" className="ghost-btn">View more</Link>
+                </div>
+              </>
+            )}
           </div>
         </Card>
 
@@ -225,28 +237,42 @@ const DashboardPage = () => {
             <div className="chart-meta">
               <div className="chart-title">Orders per day</div>
               <div className="chart-value">
-                {loadingOrders ? <span className="skeleton-line w-80" /> : orders.length.toLocaleString()}
+                {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-80" /> : orders.length.toLocaleString()}
               </div>
             </div>
             <div className="chart-wrap">
-              {loadingOrders ? <div className="skeleton-block" /> : renderSpark(orderCountSeries, "#16a34a")}
+              {!canViewOrders ? (
+                <div className="chart-locked">{lockedMetricSub}</div>
+              ) : loadingOrders ? (
+                <div className="skeleton-block" />
+              ) : (
+                renderSpark(orderCountSeries, "#16a34a")
+              )}
             </div>
-            <div className="chart-labels">
-              {labels.map((label) => (
-                <span key={label}>{label}</span>
-              ))}
-            </div>
-            <div className="chart-actions">
-              <Link to="/orders" className="ghost-btn">View more</Link>
-            </div>
+            {!canViewOrders ? (
+              <div className="chart-locked-sub">{lockedMetricSub}</div>
+            ) : (
+              <>
+                <div className="chart-labels">
+                  {labels.map((label) => (
+                    <span key={label}>{label}</span>
+                  ))}
+                </div>
+                <div className="chart-actions">
+                  <Link to="/orders" className="ghost-btn">View more</Link>
+                </div>
+              </>
+            )}
           </div>
         </Card>
       </div>
 
       <Card title="Recent Orders" subTitle="">
-        <div className="card-actions">
-          <Link to="/orders" className="ghost-btn">View more</Link>
-        </div>
+        {canViewOrders && (
+          <div className="card-actions">
+            <Link to="/orders" className="ghost-btn">View more</Link>
+          </div>
+        )}
         <table className="table">
           <thead>
             <tr>
@@ -259,7 +285,10 @@ const DashboardPage = () => {
           <tbody>
             {!canViewOrders ? (
               <tr>
-                <td colSpan={6} className="muted">{t("noPermissionAction")}</td>
+                <td>{lockedMetricValue}</td>
+                <td>{lockedMetricValue}</td>
+                <td className="muted">{lockedMetricSub}</td>
+                <td>{lockedMetricValue}</td>
               </tr>
             ) : loadingOrders ? (
               Array.from({ length: 5 }).map((_, idx) => (
@@ -294,39 +323,45 @@ const DashboardPage = () => {
         <div className="quick-grid">
           <div className="quick-card">
             <div className="quick-title">Products</div>
-            <div className="quick-value">{loadingProducts ? <span className="skeleton-line w-100" /> : productsTotal.toLocaleString()}</div>
-            <Link to="/products" className="ghost-btn">View more</Link>
+            <div className="quick-value">
+              {!canViewProducts ? lockedMetricValue : loadingProducts ? <span className="skeleton-line w-100" /> : productsTotal.toLocaleString()}
+            </div>
+            {canViewProducts ? <Link to="/products" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
           <div className="quick-card">
             <div className="quick-title">Orders</div>
-            <div className="quick-value">{loadingOrders ? <span className="skeleton-line w-80" /> : orders.length.toLocaleString()}</div>
-            <Link to="/orders" className="ghost-btn">View more</Link>
+            <div className="quick-value">
+              {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-80" /> : orders.length.toLocaleString()}
+            </div>
+            {canViewOrders ? <Link to="/orders" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
           <div className="quick-card">
             <div className="quick-title">Wallet Top-ups</div>
-            <div className="quick-value">{loadingTopups ? <span className="skeleton-line w-60" /> : pendingTopups}</div>
-            <Link to="/wallet" className="ghost-btn">View more</Link>
+            <div className="quick-value">
+              {!canViewWallet ? lockedMetricValue : loadingTopups ? <span className="skeleton-line w-60" /> : pendingTopups}
+            </div>
+            {canViewWallet ? <Link to="/wallet" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
           <div className="quick-card">
             <div className="quick-title">Coupons</div>
             <div className="quick-value">
-              {!canViewCoupons ? t("noPermissionAction") : loadingCoupons ? <span className="skeleton-line w-60" /> : couponsTotal.toLocaleString()}
+              {!canViewCoupons ? lockedMetricValue : loadingCoupons ? <span className="skeleton-line w-60" /> : couponsTotal.toLocaleString()}
             </div>
-            <Link to="/coupons" className="ghost-btn">View more</Link>
+            {canViewCoupons ? <Link to="/coupons" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
           <div className="quick-card">
             <div className="quick-title">Announcements</div>
             <div className="quick-value">
-              {!canViewAnnouncements ? t("noPermissionAction") : loadingAnnouncements ? <span className="skeleton-line w-60" /> : announcementsTotal.toLocaleString()}
+              {!canViewAnnouncements ? lockedMetricValue : loadingAnnouncements ? <span className="skeleton-line w-60" /> : announcementsTotal.toLocaleString()}
             </div>
-            <Link to="/announcements" className="ghost-btn">View more</Link>
+            {canViewAnnouncements ? <Link to="/announcements" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
           <div className="quick-card">
             <div className="quick-title">Users</div>
             <div className="quick-value">
-              {!canViewUsers ? t("noPermissionAction") : loadingUsers ? <span className="skeleton-line w-60" /> : usersTotal.toLocaleString()}
+              {!canViewUsers ? lockedMetricValue : loadingUsers ? <span className="skeleton-line w-60" /> : usersTotal.toLocaleString()}
             </div>
-            <Link to="/users" className="ghost-btn">View more</Link>
+            {canViewUsers ? <Link to="/users" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
         </div>
       </Card>

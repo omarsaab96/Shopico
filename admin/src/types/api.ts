@@ -1,10 +1,12 @@
 export type UserRole = "customer" | "admin" | "manager" | "staff" | "driver";
+export type DriverStatus = "AVAILABLE" | "BUSY";
 
 export interface ApiUser {
   _id: string;
   name: string;
   email: string;
   role: UserRole;
+  driverStatus?: DriverStatus;
   permissions?: string[];
   branchIds?: string[];
   phone?: string;

@@ -16,10 +16,9 @@ interface UserDetails {
   addresses: { _id: string; label: string; address: string; phone?: string }[];
 }
 
-const USER_ABOUT_VIEW_PERMISSIONS = ["users:about:view", "users:about:manage"] as const;
-const USER_LEDGER_VIEW_PERMISSIONS = ["users:ledger:view", "users:ledger:manage"] as const;
-const USER_BRANCHES_VIEW_PERMISSIONS = ["users:branches:view", "users:branches:manage"] as const;
-const USER_PERMISSIONS_VIEW_PERMISSIONS = ["users:permissions:view", "users:permissions:manage"] as const;
+const USER_ABOUT_VIEW_PERMISSIONS = ["users:about:view"] as const;
+const USER_BRANCHES_VIEW_PERMISSIONS = ["users:branches:view"] as const;
+const USER_PERMISSIONS_VIEW_PERMISSIONS = ["users:permissions:view"] as const;
 
 const UsersPage = () => {
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -65,12 +64,12 @@ const UsersPage = () => {
   const { selectedBranchId, branches } = useBranch();
   const canViewUsersPage = can("users:view");
   const canViewUserAbout = canAny(...USER_ABOUT_VIEW_PERMISSIONS);
-  const canManageUserAbout = can("users:about:manage");
-  const canViewUserLedger = canAny(...USER_LEDGER_VIEW_PERMISSIONS);
+  const canManageUserAbout = canViewUserAbout && can("users:about:manage");
+  const canViewUserLedger = can("users:ledger:view");
   const canViewUserBranches = canAny(...USER_BRANCHES_VIEW_PERMISSIONS);
-  const canManageUserBranches = can("users:branches:manage");
+  const canManageUserBranches = canViewUserBranches && can("users:branches:manage");
   const canViewUserPermissions = canAny(...USER_PERMISSIONS_VIEW_PERMISSIONS);
-  const canManageUserPermissions = can("users:permissions:manage");
+  const canManageUserPermissions = canViewUserPermissions && can("users:permissions:manage");
   const canOpenUserDetails = canViewUserAbout || canViewUserLedger || canViewUserBranches || canViewUserPermissions;
   const canEditAuditPermission = editDraft.role === "admin";
   const canCreateAuditPermission = createDraft.role === "admin";

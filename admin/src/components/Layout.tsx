@@ -7,20 +7,20 @@ import { useBranch } from "../context/BranchContext";
 
 const navItems = [
   { to: "/", key: "dashboard", label: "Dashboard", permissions: ["dashboard:view"] },
-  { to: "/products", key: "products", label: "Products", permissions: ["products:view", "products:manage"] },
-  { to: "/categories", key: "categories", label: "Categories", permissions: ["categories:view", "categories:manage"] },
-  { to: "/orders", key: "orders", label: "Orders", permissions: ["orders:view", "orders:update"] },
+  { to: "/products", key: "products", label: "Products", permissions: ["products:view"] },
+  { to: "/categories", key: "categories", label: "Categories", permissions: ["categories:view"] },
+  { to: "/orders", key: "orders", label: "Orders", permissions: ["orders:view"] },
   {
     to: "/users",
     key: "users",
     label: "Users",
     permissions: ["users:view"],
   },
-  { to: "/wallet", key: "wallet", label: "Wallet Top-ups", permissions: ["wallet:topups:view", "wallet:manage"] },
-  { to: "/announcements", key: "announcements", label: "Announcements", permissions: ["announcements:view", "announcements:manage"] },
-  { to: "/coupons", key: "coupons", label: "Coupons", permissions: ["coupons:view", "coupons:manage"] },
-  { to: "/branches", key: "branches", label: "Branches", permissions: ["branches:view", "branches:manage"] },
-  { to: "/settings", key: "settings", label: "Settings", permissions: ["settings:view", "settings:manage"] },
+  { to: "/wallet", key: "wallet", label: "Wallet Top-ups", permissions: ["wallet:topups:view"] },
+  { to: "/announcements", key: "announcements", label: "Announcements", permissions: ["announcements:view"] },
+  { to: "/coupons", key: "coupons", label: "Coupons", permissions: ["coupons:view"] },
+  { to: "/branches", key: "branches", label: "Branches", permissions: ["branches:view"] },
+  { to: "/settings", key: "settings", label: "Settings", permissions: ["settings:view"] },
   { to: "/audit", key: "audit", label: "Audit Logs", permissions: ["audit:view"] },
 ];
 

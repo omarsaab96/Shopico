@@ -32,9 +32,15 @@ export const listDriverOrders = catchAsync(async (req: AuthRequest, res) => {
 });
 
 export const listOrdersAdmin = catchAsync(async (req, res) => {
-  const { q, status, paymentStatus } = req.query as { q?: string; status?: string; paymentStatus?: string };
+  const { q, status, paymentStatus, from, to } = req.query as {
+    q?: string;
+    status?: string;
+    paymentStatus?: string;
+    from?: string;
+    to?: string;
+  };
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
-  const orders = await getAllOrders({ q, status, paymentStatus, branchId: req.branchId });
+  const orders = await getAllOrders({ q, status, paymentStatus, from, to, branchId: req.branchId });
   sendSuccess(res, orders);
 });
 

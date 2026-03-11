@@ -1,4 +1,5 @@
 export type UserRole = "customer" | "admin" | "manager" | "staff" | "driver";
+export type DriverStatus = "AVAILABLE" | "BUSY";
 
 export type PaymentMethod =
   | "CASH_ON_DELIVERY"

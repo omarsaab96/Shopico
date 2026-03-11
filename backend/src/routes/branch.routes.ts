@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, authorize, requireAnyPermissions, requirePermissions } from "../middleware/auth";
+import { authenticate, authorize, requirePermissions } from "../middleware/auth";
 import { createBranch, deleteBranch, getBranches, getMyBranches, updateBranch, getNearestBranch, getPublicBranches } from "../controllers/branchController";
 
 const router = Router();
@@ -8,7 +8,7 @@ router.get(
   "/",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requireAnyPermissions("branches:view", "branches:manage"),
+  requirePermissions("branches:view"),
   getBranches
 );
 router.get("/nearest", getNearestBranch);
@@ -18,21 +18,21 @@ router.post(
   "/",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requirePermissions("branches:manage"),
+  requirePermissions("branches:view", "branches:manage"),
   createBranch
 );
 router.put(
   "/:id",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requirePermissions("branches:manage"),
+  requirePermissions("branches:view", "branches:manage"),
   updateBranch
 );
 router.delete(
   "/:id",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requirePermissions("branches:manage"),
+  requirePermissions("branches:view", "branches:manage"),
   deleteBranch
 );
 

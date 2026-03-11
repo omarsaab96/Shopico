@@ -162,7 +162,13 @@ export const bulkUpdateProductPrices = async (payload: {
   return res.data.data;
 };
 
-export const fetchOrders = async (params?: { q?: string; status?: string; paymentStatus?: string }) => {
+export const fetchOrders = async (params?: {
+  q?: string;
+  status?: string;
+  paymentStatus?: string;
+  from?: string;
+  to?: string;
+}) => {
   const res = await api.get<{ data: Order[] }>("/orders/admin", { params });
   return res.data.data;
 };

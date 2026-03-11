@@ -1,7 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
 import { bulkUpdatePrices, createProduct, deleteProduct, getProduct, importProductsFromExcel, listAllProductsAdmin, listProducts, listProductsAdminPaginated, previewProductsImport, updateProduct } from "../controllers/productController";
-import { requireAnyPermissions } from "../middleware/auth";
 import { authenticate, authorize, requirePermissions } from "../middleware/auth";
 import { attachBranchContext, requireBranchContext } from "../middleware/branch";
 
@@ -13,7 +12,7 @@ router.get(
   "/admin/all",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requireAnyPermissions("products:view", "products:manage"),
+  requirePermissions("products:view"),
   requireBranchContext,
   listAllProductsAdmin
 );
@@ -21,16 +20,16 @@ router.get(
   "/admin",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requireAnyPermissions("products:view", "products:manage"),
+  requirePermissions("products:view"),
   requireBranchContext,
   listProductsAdminPaginated
 );
-router.post("/bulk-price", authenticate, authorize("admin", "manager", "staff"), requirePermissions("products:manage"), requireBranchContext, bulkUpdatePrices);
+router.post("/bulk-price", authenticate, authorize("admin", "manager", "staff"), requirePermissions("products:view", "products:manage"), requireBranchContext, bulkUpdatePrices);
 router.post(
   "/import",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requirePermissions("products:import"),
+  requirePermissions("products:view", "products:import"),
   requireBranchContext,
   upload.single("file"),
   importProductsFromExcel
@@ -39,14 +38,14 @@ router.post(
   "/import/preview",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requirePermissions("products:import"),
+  requirePermissions("products:view", "products:import"),
   requireBranchContext,
   upload.single("file"),
   previewProductsImport
 );
 router.get("/:id", attachBranchContext, getProduct);
-router.post("/", authenticate, authorize("admin", "manager", "staff"), requirePermissions("products:manage"), requireBranchContext, createProduct);
-router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("products:manage"), requireBranchContext, updateProduct);
-router.delete("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("products:manage"), requireBranchContext, deleteProduct);
+router.post("/", authenticate, authorize("admin", "manager", "staff"), requirePermissions("products:view", "products:manage"), requireBranchContext, createProduct);
+router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("products:view", "products:manage"), requireBranchContext, updateProduct);
+router.delete("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("products:view", "products:manage"), requireBranchContext, deleteProduct);
 
 export default router;

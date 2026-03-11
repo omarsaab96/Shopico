@@ -6,8 +6,8 @@ import { attachBranchContext, requireBranchContext } from "../middleware/branch"
 const router = Router();
 
 router.get("/", attachBranchContext, getCategories);
-router.post("/", authenticate, authorize("admin", "manager", "staff"), requirePermissions("categories:manage"), requireBranchContext, createCategory);
-router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("categories:manage"), requireBranchContext, updateCategory);
-router.delete("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("categories:manage"), requireBranchContext, deleteCategory);
+router.post("/", authenticate, authorize("admin", "manager", "staff"), requirePermissions("categories:view", "categories:manage"), requireBranchContext, createCategory);
+router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("categories:view", "categories:manage"), requireBranchContext, updateCategory);
+router.delete("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("categories:view", "categories:manage"), requireBranchContext, deleteCategory);
 
 export default router;

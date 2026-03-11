@@ -12,7 +12,7 @@ import { Coupon } from "../models/Coupon";
 import { CouponRedemption } from "../models/CouponRedemption";
 import { haversineDistanceKm, calculatePointsEarned } from "../utils/pricing";
 import { Branch } from "../models/Branch";
-import { OrderStatus, PaymentMethod } from "../types";
+import { DriverStatus, OrderStatus, PaymentMethod } from "../types";
 import { AuditLog } from "../models/AuditLog";
 import { updateMembershipOnBalanceChange } from "../utils/membership";
 import { Address } from "../models/Address";
@@ -26,11 +26,51 @@ export const getOrdersForUser = async (userId: Types.ObjectId, branchId: string)
   return Order.find({ user: userId, branchId }).sort({ createdAt: -1 }).populate("items.product");
 };
 
-export const getAllOrders = async (opts?: { status?: string; paymentStatus?: string; q?: string; branchId?: string }) => {
+const ACTIVE_DRIVER_ORDER_STATUSES: OrderStatus[] = ["PENDING", "PROCESSING", "SHIPPING"];
+
+const syncDriverStatus = async (driverId?: Types.ObjectId | string | null) => {
+  if (!driverId) return;
+
+  const activeOrder = await Order.exists({
+    driverId,
+    status: { $in: ACTIVE_DRIVER_ORDER_STATUSES },
+  });
+  const nextStatus: DriverStatus = activeOrder ? "BUSY" : "AVAILABLE";
+
+  await User.findByIdAndUpdate(driverId, { driverStatus: nextStatus });
+};
+
+export const getAllOrders = async (opts?: {
+  status?: string;
+  paymentStatus?: string;
+  q?: string;
+  from?: string;
+  to?: string;
+  branchId?: string;
+}) => {
   const filter: Record<string, unknown> = {};
   if (opts?.branchId) filter.branchId = opts.branchId;
   if (opts?.status) filter.status = opts.status;
   if (opts?.paymentStatus) filter.paymentStatus = opts.paymentStatus;
+  if (opts?.from || opts?.to) {
+    const createdAt: Record<string, Date> = {};
+    if (opts.from) {
+      const fromDate = new Date(opts.from);
+      if (!Number.isNaN(fromDate.getTime())) {
+        createdAt.$gte = fromDate;
+      }
+    }
+    if (opts.to) {
+      const toDate = new Date(opts.to);
+      if (!Number.isNaN(toDate.getTime())) {
+        toDate.setHours(23, 59, 59, 999);
+        createdAt.$lte = toDate;
+      }
+    }
+    if (Object.keys(createdAt).length > 0) {
+      filter.createdAt = createdAt;
+    }
+  }
 
   if (opts?.q) {
     const users = await User.find({
@@ -337,6 +377,7 @@ export const updateOrderStatus = async (
   if (paymentStatus) order.paymentStatus = paymentStatus;
   order.statusHistory.push({ status, at: new Date() });
   await order.save();
+  await syncDriverStatus(order.driverId);
 
   if (status === "DELIVERED") {
     const settings = await getSettingsSnapshot(order.branchId.toString());
@@ -354,6 +395,7 @@ export const assignDriverToOrder = async (orderId: string, driverId: string, bra
   if (branchId) filter.branchId = branchId;
   const order = await Order.findOne(filter);
   if (!order) throw { status: 404, message: "Order not found" };
+  const previousDriverId = order.driverId;
 
   const driver = await User.findById(driverId);
   if (!driver) throw { status: 404, message: "Driver not found" };
@@ -361,6 +403,10 @@ export const assignDriverToOrder = async (orderId: string, driverId: string, bra
   order.driverId = driver._id;
   order.driverLocation = null;
   await order.save();
+  await syncDriverStatus(driver._id);
+  if (previousDriverId && previousDriverId.toString() !== driver._id.toString()) {
+    await syncDriverStatus(previousDriverId);
+  }
   return order;
 };
 
@@ -402,5 +448,6 @@ export const updateOrderStatusAsDriver = async (orderId: string, userId: Types.O
   order.status = status;
   order.statusHistory.push({ status, at: new Date() });
   await order.save();
+  await syncDriverStatus(order.driverId);
   return order;
 };

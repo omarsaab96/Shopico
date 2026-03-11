@@ -56,7 +56,7 @@ const App = () => {
             <Route
               path="products"
               element={
-                <RequirePermission anyOf={["products:view", "products:manage"]}>
+                <RequirePermission anyOf={["products:view"]}>
                   <ProductsPage />
                 </RequirePermission>
               }
@@ -64,7 +64,7 @@ const App = () => {
             <Route
               path="categories"
               element={
-                <RequirePermission anyOf={["categories:view", "categories:manage"]}>
+                <RequirePermission anyOf={["categories:view"]}>
                   <CategoriesPage />
                 </RequirePermission>
               }
@@ -72,7 +72,7 @@ const App = () => {
             <Route
               path="orders"
               element={
-                <RequirePermission anyOf={["orders:view", "orders:update"]}>
+                <RequirePermission anyOf={["orders:view"]}>
                   <OrdersPage />
                 </RequirePermission>
               }
@@ -88,7 +88,7 @@ const App = () => {
             <Route
               path="wallet"
               element={
-                <RequirePermission anyOf={["wallet:topups:view", "wallet:manage"]}>
+                <RequirePermission anyOf={["wallet:topups:view"]}>
                   <WalletPage />
                 </RequirePermission>
               }
@@ -96,7 +96,7 @@ const App = () => {
             <Route
               path="announcements"
               element={
-                <RequirePermission anyOf={["announcements:view", "announcements:manage"]}>
+                <RequirePermission anyOf={["announcements:view"]}>
                   <AnnouncementsPage />
                 </RequirePermission>
               }
@@ -104,7 +104,7 @@ const App = () => {
             <Route
               path="coupons"
               element={
-                <RequirePermission anyOf={["coupons:view", "coupons:manage"]}>
+                <RequirePermission anyOf={["coupons:view"]}>
                   <CouponsPage />
                 </RequirePermission>
               }
@@ -112,7 +112,7 @@ const App = () => {
             <Route
               path="settings"
               element={
-                <RequirePermission anyOf={["settings:view", "settings:manage"]}>
+                <RequirePermission anyOf={["settings:view"]}>
                   <SettingsPage />
                 </RequirePermission>
               }
@@ -120,7 +120,7 @@ const App = () => {
             <Route
               path="branches"
               element={
-                <RequirePermission anyOf={["branches:view", "branches:manage"]}>
+                <RequirePermission anyOf={["branches:view"]}>
                   <BranchesPage />
                 </RequirePermission>
               }
