@@ -81,16 +81,17 @@ From the `admin` folder:
 
 ```powershell
 .\deploy.ps1
-
+```
 #### Manual deploy
 build project
 ```powershell
 npm run build
-
+```
 Then upload the build to the server
 ```powershell
 scp -r dist/* root@SERVER_IP:/var/www/shopico/admin/
-
+```
 Finally reload Nginx
 ```powershell
 ssh root@SERVER_IP "systemctl reload nginx"
+```
