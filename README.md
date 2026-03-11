@@ -24,10 +24,10 @@ cd ../mobile && npm install
 - Mobile app: `cd mobile && npx expo start`
 
 4) Seed sample data and admin user:
-```bash`
+```bash
 cd backend
 npm run seed
-<!-- # defaults: admin@shopico.local / password123 -->
+# defaults: admin@shopico.local / password123
 ```
 
 ## Backend highlights
