@@ -54,3 +54,43 @@ npm run seed
 - ImageKit upload from admin uses the backend auth endpoint; store both `url` and `fileId` on products.
 - REST base path: `/api`.
 - Default delivery rules: free 1 km, 5,000 SYP each additional km (rounded up).
+
+## Deployment
+The project is deployed on a VPS using Nginx and PM2.
+
+### Admin Deployment
+The admin panel is built locally and deployed as static files to the VPS.
+
+#### Server Location
+/var/www/shopico/admin
+Nginx serves this folder directly.
+
+#### Deployment Script
+Admin deployment is automated using a PowerShell script.
+File:admin/deploy.ps1
+
+The script performs the following steps:
+1. Builds the admin panel locally
+2. Removes old files from the VPS
+3. Uploads the new build
+4. Fixes file permissions
+5. Reloads Nginx
+
+#### Deploy Command
+From the `admin` folder:
+
+```powershell
+.\deploy.ps1
+
+#### Manual deploy
+build project
+```powershell
+npm run build
+
+Then upload the build to the server
+```powershell
+scp -r dist/* root@SERVER_IP:/var/www/shopico/admin/
+
+Finally reload Nginx
+```powershell
+ssh root@SERVER_IP "systemctl reload nginx"
