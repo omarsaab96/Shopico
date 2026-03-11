@@ -58,7 +58,7 @@ npm run seed
 ## Deployment
 The project is deployed on a VPS using Nginx and PM2.
 
-1) **Admin Deployment**
+1) **Admin Deployment**<br/>
     The admin panel is built locally and deployed as static files to the VPS.
     
     **Server Location**<br/>
