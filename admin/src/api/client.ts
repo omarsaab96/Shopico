@@ -6,6 +6,15 @@ const api = axios.create({
   withCredentials: true,
 });
 
+const handleUnauthorized = () => {
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+
+  if (window.location.pathname !== "/login") {
+    window.location.replace("/login");
+  }
+};
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("accessToken");
   if (token) {
@@ -19,6 +28,24 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const requestUrl = String(error?.config?.url || "");
+    const isAuthRequest =
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/password-status") ||
+      requestUrl.includes("/auth/set-password");
+
+    if (status === 401 && !isAuthRequest) {
+      handleUnauthorized();
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export interface AuthResponse {
   user: ApiUser;
