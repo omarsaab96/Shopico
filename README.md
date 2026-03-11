@@ -59,7 +59,7 @@ npm run seed
 The project is deployed on a VPS using Nginx and PM2.
 
 1) **Admin Deployment**<br/>
-    The admin panel is built locally and deployed as static files to the VPS.
+    The admin panel is a Vite React build built locally and deployed as static files served by Nginx on the VPS.
     
     **Server Location**<br/>
     Nginx serves this folder directly `/var/www/shopico/admin`<br/>
@@ -73,24 +73,89 @@ The project is deployed on a VPS using Nginx and PM2.
     * Fixes file permissions
     * Reloads Nginx
 
-    **Deploy Command**<br/>
+    **1- Deploy Command**<br/>
     From the `admin` folder, run:
 
     ```
     .\deploy.sh 
     ```
-    **Manual deploy**<br/>
-    1) From the `admin` folder, run:
+    **2- Manual deploy**<br/>
+    From the `admin` folder, run:
     ```
     npm run build
     ```
-    2) Then upload the build to the server
+    Then upload the `dist` folder to the server
     ```
     scp -r dist/* root@SERVER_IP:/var/www/shopico/admin/
     ```
-    3) Finally reload Nginx
+    Finally reload Nginx
     ```
     ssh root@SERVER_IP "systemctl reload nginx"
     ```
 
 2) **Backend Deployment**<br/>
+    The backend is a TypeScript Express API compiled to JavaScript and managed with PM2.<br/>
+    Backend runs onport `PORT=4002`<br/>
+    Nginx proxies `/api` requests to this port.
+
+    **Server Location**<br/>
+    Nginx serves this folder directly `/var/www/shopico/backend`<br/>
+
+    **Backend structure**<br>
+    ```
+    backend
+    ├── dist
+    ├── node_modules
+    ├── package.json
+    ├── package-lock.json
+    └── .env
+    ```
+    
+    **Deployment Script**<br/>
+    Admin deployment is automated using a script `admin/deploy.sh`<br/><br/>
+    The script performs the following steps:
+    * Builds the admin panel locally
+    * Removes old files from the VPS
+    * Uploads the new build
+    * Fixes file permissions
+    * Reloads Nginx
+
+    **1- Deploy Command**<br/>
+    From the `backend` folder, run:
+    ```
+    .\deploy.sh 
+    ```
+    **2- Manual deploy**<br/>
+    Build backend locally.<br>
+    From the `backend` folder, run:
+    ```
+    npm run build
+    ```
+    This generates the compiled application inside `dist`<br>
+
+    Clear old compiled files on the server<br>
+    On the VPS run:
+    ```
+    rm -rf /var/www/shopico/backend/dist/*
+    ```
+
+    Then upload the `dist` folder to the server
+    ```
+    scp -r dist/* root@SERVER_IP:/var/www/shopico/backend/dist/
+    ```
+    Restart backend<br>
+    on the VPS run:
+    ```
+    pm2 restart shopico-backend
+    ```
+
+    Verify backend status<br>
+    on the VPS run:
+    ```
+    pm2 status
+    ```
+
+    View logs<br>
+    on the VPS run:
+    ```
+    pm2 logs shopico-backend -2000

@@ -107,15 +107,21 @@ const DashboardPage = () => {
   const pending = canViewOrders
     ? orders.filter((o) => o.status !== "DELIVERED" && o.status !== "CANCELLED").length
     : 0;
+  const readableDateFormatter = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 
-  const { revenueSeries, orderCountSeries, labels } = useMemo(() => {
+  const { revenueSeries, orderCountSeries, labels, rangeLabel } = useMemo(() => {
     const days = 7;
     const now = new Date();
     const base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const start = new Date(base);
+    start.setDate(start.getDate() - (days - 1));
     const labels = Array.from({ length: days }, (_, i) => {
       const d = new Date(base);
       d.setDate(d.getDate() - (days - 1 - i));
-      return `${d.getMonth() + 1}/${d.getDate()}`;
+      return readableDateFormatter.format(d);
     });
     const buckets = Array.from({ length: days }, () => ({ revenue: 0, count: 0 }));
     orders.forEach((order) => {
@@ -131,10 +137,11 @@ const DashboardPage = () => {
     });
     return {
       labels,
+      rangeLabel: `${readableDateFormatter.format(start)} - ${readableDateFormatter.format(base)}`,
       revenueSeries: buckets.map((b) => b.revenue),
       orderCountSeries: buckets.map((b) => b.count),
     };
-  }, [orders]);
+  }, [orders, readableDateFormatter]);
 
   const renderSpark = (series: number[], color: string) => {
     const max = Math.max(...series, 1);
@@ -164,7 +171,7 @@ const DashboardPage = () => {
             <div className="kpi-value">
               {!canViewOrders ? t("noPermissionAction") : loadingOrders ? <span className="skeleton-line w-140" /> : revenue.toLocaleString()}
             </div>
-            <div className="kpi-sub">{labels[0]} -&gt; {labels[labels.length - 1]}</div>
+            <div className="kpi-sub">{rangeLabel}</div>
           </div>
           <div className="kpi-card">
             <div className="kpi-label">Open Orders</div>

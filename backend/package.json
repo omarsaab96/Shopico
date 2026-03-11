@@ -7,7 +7,9 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "vitest run",
-    "seed": "ts-node-dev --transpile-only src/seed/seed.ts"
+    "seed": "ts-node-dev --transpile-only src/seed/seed.ts",
+    "permissions:audit": "ts-node src/scripts/fixUserPermissions.ts",
+    "permissions:fix": "ts-node src/scripts/fixUserPermissions.ts --apply"
   },
   "keywords": [],
   "author": "",

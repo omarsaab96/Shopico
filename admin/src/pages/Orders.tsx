@@ -1,13 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import Card from "../components/Card";
 import StatusPill from "../components/StatusPill";
-import { assignOrderDriver, fetchDrivers, fetchOrders, updateOrderStatus } from "../api/client";
+import api, { assignOrderDriver, fetchDrivers, fetchOrders, updateOrderStatus } from "../api/client";
 import type { ApiUser, Order } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
 
 const statuses = ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"];
+const USER_ABOUT_VIEW_PERMISSIONS = ["users:about:view", "users:about:manage"] as const;
+const USER_LEDGER_VIEW_PERMISSIONS = ["users:ledger:view", "users:ledger:manage"] as const;
+const USER_BRANCHES_VIEW_PERMISSIONS = ["users:branches:view", "users:branches:manage"] as const;
+const USER_PERMISSIONS_VIEW_PERMISSIONS = ["users:permissions:view", "users:permissions:manage"] as const;
+
+const orderDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+const objectIdPattern = /^[a-f\d]{24}$/i;
+
+interface UserDetails {
+  user: ApiUser;
+  wallet?: { balance: number };
+  walletTx: { amount: number; type: string; source: string; createdAt: string }[];
+  pointTx: { points: number; type: string; createdAt: string }[];
+  addresses: { _id: string; label: string; address: string; phone?: string }[];
+}
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -17,11 +38,52 @@ const OrdersPage = () => {
   const [loading, setLoading] = useState(false);
   const [drivers, setDrivers] = useState<ApiUser[]>([]);
   const [assigning, setAssigning] = useState<Record<string, boolean>>({});
+  const [userDetailsLoading, setUserDetailsLoading] = useState("");
+  const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
   const mutatingRef = useRef(false);
   const { t, tStatus } = useI18n();
-  const { can } = usePermissions();
+  const { can, canAny } = usePermissions();
   const { selectedBranchId } = useBranch();
   const canUpdateOrders = can("orders:update");
+  const canViewUsersPage = can("users:view");
+  const canViewUserAbout = canAny(...USER_ABOUT_VIEW_PERMISSIONS);
+  const canViewUserLedger = canAny(...USER_LEDGER_VIEW_PERMISSIONS);
+  const canViewUserBranches = canAny(...USER_BRANCHES_VIEW_PERMISSIONS);
+  const canViewUserPermissions = canAny(...USER_PERMISSIONS_VIEW_PERMISSIONS);
+  const canOpenUserDetails =
+    canViewUsersPage && (canViewUserAbout || canViewUserLedger || canViewUserBranches || canViewUserPermissions);
+
+  const formatOrderDateTime = (value?: string) => {
+    if (!value) return "—";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "—";
+    return orderDateTimeFormatter.format(parsed);
+  };
+
+  const getOrderUserId = (order: Order) => {
+    const candidate = typeof order.user === "string" ? order.user : order.user?._id;
+    return candidate && objectIdPattern.test(candidate) ? candidate : "";
+  };
+  const getOrderUserLabel = (order: Order) => (typeof order.user === "string" ? order.user : order.user.email);
+
+  const loadUserDetails = async (userId: string) => {
+    if (!canOpenUserDetails) return;
+    setUserDetailsLoading(userId);
+    try {
+      const res = await api.get<{ data: UserDetails }>(`/users/${userId}`);
+      setSelectedUser(res.data.data);
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || "Failed to load user details";
+      console.error("User details load failed:", message);
+      window.alert(message);
+    } finally {
+      setUserDetailsLoading("");
+    }
+  };
+
+  const closeUserDetails = () => {
+    setSelectedUser(null);
+  };
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -138,6 +200,7 @@ const OrdersPage = () => {
           <tr>
             <th>{t("titles.orders")}</th>
             <th>{t("customer")}</th>
+            <th>Date & Time</th>
             <th>{t("status")}</th>
             <th>{t("payment")}</th>
             <th>{t("total")}</th>
@@ -151,6 +214,7 @@ const OrdersPage = () => {
               <tr key={`skeleton-${idx}`} className="productRow">
                 <td><span className="skeleton-line w-80" /></td>
                 <td><span className="skeleton-line w-140" /></td>
+                <td><span className="skeleton-line w-140" /></td>
                 <td><span className="skeleton-line w-100" /></td>
                 <td><span className="skeleton-line w-120" /></td>
                 <td><span className="skeleton-line w-80" /></td>
@@ -160,13 +224,27 @@ const OrdersPage = () => {
             ))
           ) : orders.length == 0 ? (
             <tr>
-              <td colSpan={7} className="muted">{t("noOrders")}</td>
+              <td colSpan={8} className="muted">{t("noOrders")}</td>
             </tr>
           ) : (
             orders.map((order) => (
               <tr key={order._id}>
                 <td>{order._id.slice(-6)}</td>
-                <td>{typeof order.user === "string" ? order.user : order.user.email}</td>
+                <td>
+                  {canOpenUserDetails && getOrderUserId(order) ? (
+                    <button
+                      className="ghost-btn"
+                      type="button"
+                      onClick={() => loadUserDetails(getOrderUserId(order))}
+                      disabled={userDetailsLoading === getOrderUserId(order)}
+                    >
+                      {userDetailsLoading === getOrderUserId(order) ? <div className="spinner small"></div> : getOrderUserLabel(order)}
+                    </button>
+                  ) : (
+                    getOrderUserLabel(order)
+                  )}
+                </td>
+                <td>{formatOrderDateTime(order.createdAt)}</td>
                 <td>
                   <StatusPill value={order.status} />
                 </td>
@@ -224,6 +302,99 @@ const OrdersPage = () => {
 
         </tbody>
       </table>
+      {selectedUser && (
+        <div className="modal-backdrop" onClick={closeUserDetails}>
+          <div className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">
+                {t("titles.userDetail")} <span className="muted" style={{ fontWeight: "normal", fontSize: "12px" }}>{selectedUser.user._id}</span>
+              </div>
+              <button className="ghost-btn" type="button" onClick={closeUserDetails}>
+                {t("close")}
+              </button>
+            </div>
+
+            <div className="user-details-tab-panel">
+              {canViewUserAbout && (
+                <div className="detailsTable">
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("name")}</div>
+                    <div className="detailsValue">{selectedUser.user.name || "—"}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("email")}</div>
+                    <div className="detailsValue">{selectedUser.user.email || "—"}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("phone")}</div>
+                    <div className="detailsValue">{selectedUser.user.phone || t("noPhone")}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("role")}</div>
+                    <div className="detailsValue">{t(`role.${selectedUser.user.role}`) || selectedUser.user.role}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("membership")}</div>
+                    <div className="detailsValue">{selectedUser.user.membershipLevel || "—"}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("addresses")} ({selectedUser.addresses?.length || 0})</div>
+                    <div className="detailsValue">
+                      {selectedUser.addresses?.length ? (
+                        <ul className="addressList">
+                          {selectedUser.addresses.map((addr) => (
+                            <li key={addr._id}>
+                              {addr.label}: {addr.address}
+                              {addr.phone ? ` (${addr.phone})` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="muted">{t("noAddresses")}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {canViewUserLedger && (
+                <div className="two-col">
+                  <div className="ledger-group">
+                    <h4>{t("walletBalance")}</h4>
+                    <div>{selectedUser.wallet?.balance?.toLocaleString() || 0} SYP</div>
+                  </div>
+                  <div className="ledger-group">
+                    <h4>{t("points")}</h4>
+                    <div>{selectedUser.user.points || 0}</div>
+                  </div>
+                </div>
+              )}
+
+              {canViewUserBranches && (
+                <div className="detailsTable" style={{ marginTop: 16 }}>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("branches")}</div>
+                    <div className="detailsValue">
+                      {selectedUser.user.branchIds?.length ? selectedUser.user.branchIds.join(", ") : <span className="muted">{t("noBranches")}</span>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {canViewUserPermissions && selectedUser.user.role !== "customer" && (
+                <div className="detailsTable" style={{ marginTop: 16 }}>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("permissions")}</div>
+                    <div className="detailsValue">
+                      {selectedUser.user.permissions?.length ? selectedUser.user.permissions.join(", ") : <span className="muted">—</span>}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 };
