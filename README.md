@@ -27,7 +27,7 @@ cd ../mobile && npm install
 ```bash`
 cd backend
 npm run seed
-# defaults: admin@shopico.local / password123
+<!-- # defaults: admin@shopico.local / password123 -->
 ```
 
 ## Backend highlights
