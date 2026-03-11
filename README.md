@@ -58,43 +58,40 @@ npm run seed
 ## Deployment
 The project is deployed on a VPS using Nginx and PM2.
 
-**1) Admin Deployment**
+1) **Admin Deployment**
 
-The admin panel is built locally and deployed as static files to the VPS.
+    The admin panel is built locally and deployed as static files to the VPS.
+    
+    **Server Location**<br/>
+    Nginx serves this folder directly `/var/www/shopico/admin`<br/>
+    
+    **Deployment Script**<br/>
+    Admin deployment is automated using a script `admin/deploy.sh`<br/><br/>
+    The script performs the following steps:
+    * Builds the admin panel locally
+    * Removes old files from the VPS
+    * Uploads the new build
+    * Fixes file permissions
+    * Reloads Nginx
 
-#### Server Location
-/var/www/shopico/admin
-Nginx serves this folder directly.
+    **Deploy Command**<br/>
+    From the `admin` folder, run:
 
-#### Deployment Script
-Admin deployment is automated using a PowerShell script.
-File:admin/deploy.ps1
+    ```
+    .\deploy.sh 
+    ```
+    **Manual deploy**<br/>
+    1) From the `admin` folder, run:
+    ```
+    npm run build
+    ```
+    2) Then upload the build to the server
+    ```
+    scp -r dist/* root@SERVER_IP:/var/www/shopico/admin/
+    ```
+    3) Finally reload Nginx
+    ```
+    ssh root@SERVER_IP "systemctl reload nginx"
+    ```
 
-The script performs the following steps:
-1. Builds the admin panel locally
-2. Removes old files from the VPS
-3. Uploads the new build
-4. Fixes file permissions
-5. Reloads Nginx
-
-#### Deploy Command
-From the `admin` folder:
-
-```
-.\deploy.sh 
-```
-#### Manual deploy
-build project
-```
-npm run build
-```
-Then upload the build to the server
-```
-scp -r dist/* root@SERVER_IP:/var/www/shopico/admin/
-```
-Finally reload Nginx
-```
-ssh root@SERVER_IP "systemctl reload nginx"
-```
-
-2) Backend Deployment
+2) **Backend Deployment**
