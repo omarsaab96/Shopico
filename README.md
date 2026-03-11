@@ -80,7 +80,7 @@ The script performs the following steps:
 From the `admin` folder:
 
 ```powershell
-.\deploy.ps1
+.\deploy.sh 
 ```
 #### Manual deploy
 build project
