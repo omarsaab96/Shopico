@@ -41,7 +41,7 @@ const ProductSchema = new Schema<IProduct>(
     images: { type: [ProductImageSchema], default: [] },
     isAvailable: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
-    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
   },
   { timestamps: true }
 );

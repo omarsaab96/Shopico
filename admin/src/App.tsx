@@ -2,6 +2,7 @@ import { Suspense, lazy, type ReactElement } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 import { useAuth } from "./context/AuthContext";
+import { useI18n } from "./context/I18nContext";
 import RequirePermission from "./components/RequirePermission";
 
 const LoginPage = lazy(() => import("./pages/Login"));
@@ -19,17 +20,21 @@ const BranchesPage = lazy(() => import("./pages/Branches"));
 
 const Protected = ({ children }: { children: ReactElement }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="loader"><div className="spinner"></div><div className="loaderText">Loading...</div></div>;
+  const { t } = useI18n();
+  if (loading) return <div className="loader"><div className="spinner"></div><div className="loaderText">{t("loading")}</div></div>;
   if (!user) return <Navigate to="/login" replace />;
   return children;
 };
 
-const RouteLoader = () => (
-  <div className="loader">
-    <div className="spinner"></div>
-    <div className="loaderText">Loading...</div>
-  </div>
-);
+const RouteLoader = () => {
+  const { t } = useI18n();
+  return (
+    <div className="loader">
+      <div className="spinner"></div>
+      <div className="loaderText">{t("loading")}</div>
+    </div>
+  );
+};
 
 const App = () => {
   return (

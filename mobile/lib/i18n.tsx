@@ -397,9 +397,63 @@ const arStrings: Record<string, string> = {
   selectAddress:"اختر عنواناً"
 };
 
+const extraBaseStrings: Record<string, string> = {
+  Add: "Add",
+  addresses: "Addresses",
+  announcements: "Announcements",
+  branchChangeConfirm: "Change branch?",
+  branchChangeNote: "Changing branch will clear your cart and reload nearby products.",
+  confirm: "Confirm",
+  confirmBranchChange: "Confirm branch change",
+  coupon: "Coupon",
+  delivery: "Delivery",
+  destination: "Destination",
+  loading: "Loading",
+  mapNotSupported: "Map is not supported on this device",
+  membershipLoadError: "Could not load membership details.",
+  noBranches: "No branches available",
+  routeUnavailable: "Route unavailable",
+  selectBranch: "Select branch",
+  selectBranchCopy: "Choose the branch you want to shop from.",
+  simulateRoute: "Simulate route",
+  simulating: "Simulating",
+  usingLocation: "Using your location",
+  confirmCouponSelection: "Coupon already selected",
+};
+
+const extraArStrings: Record<string, string> = {
+  Add: "إضافة",
+  addresses: "العناوين",
+  announcements: "الإعلانات",
+  branchChangeConfirm: "تغيير الفرع؟",
+  branchChangeNote: "سيؤدي تغيير الفرع إلى إفراغ السلة وإعادة تحميل المنتجات القريبة.",
+  confirm: "تأكيد",
+  confirmBranchChange: "تأكيد تغيير الفرع",
+  coupon: "كوبون",
+  delivery: "التوصيل",
+  destination: "الوجهة",
+  loading: "جار التحميل",
+  mapNotSupported: "الخريطة غير مدعومة على هذا الجهاز",
+  membershipLoadError: "تعذر تحميل تفاصيل العضوية.",
+  noBranches: "لا توجد فروع متاحة",
+  routeUnavailable: "المسار غير متاح",
+  selectBranch: "اختر الفرع",
+  selectBranchCopy: "اختر الفرع الذي تريد التسوق منه.",
+  simulateRoute: "محاكاة المسار",
+  simulating: "جارٍ المحاكاة",
+  usingLocation: "يتم استخدام موقعك",
+  confirmCouponSelection: "تم اختيار هذا الكوبون بالفعل",
+  driver: "السائق",
+  off: "خصم",
+  orderPlaced: "تم إنشاء الطلب",
+  orderPlacedCopy: "تم تأكيد طلبك وهو في الطريق إليك.",
+  trackOrder: "تتبع الطلب",
+  view: "عرض",
+};
+
 const messages: Record<Lang, Record<string, string>> = {
-  en: { ...baseStrings },
-  ar: { ...arStrings },
+  en: { ...baseStrings, ...extraBaseStrings },
+  ar: { ...arStrings, ...extraArStrings },
 };
 
 interface I18nContextValue {

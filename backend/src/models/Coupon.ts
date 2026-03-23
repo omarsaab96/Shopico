@@ -48,7 +48,7 @@ const CouponSchema = new Schema<ICoupon>(
     maxUsesGlobal: { type: Number },
     usedCount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
-    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
   },
   { timestamps: true }
 );

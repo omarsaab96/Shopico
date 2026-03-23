@@ -14,7 +14,7 @@ const CategorySchema = new Schema<ICategory>(
     name: { type: String, required: true },
     description: { type: String },
     imageUrl: { type: String },
-    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
   },
   { timestamps: true }
 );

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Card from "../components/Card";
 import { fetchAnnouncements, fetchCoupons, fetchOrders, fetchProductsAdmin, fetchTopUps, fetchUsers } from "../api/client";
+import { useI18n } from "../context/I18nContext";
 import type { Order } from "../types/api";
 import StatusPill from "../components/StatusPill";
 import { usePermissions } from "../hooks/usePermissions";
@@ -20,6 +21,7 @@ const DashboardPage = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const { t } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
   const canViewOrders = can("orders:view");
@@ -29,7 +31,7 @@ const DashboardPage = () => {
   const canViewAnnouncements = can("announcements:view");
   const canViewCoupons = can("coupons:view");
   const lockedMetricValue = "******";
-  const lockedMetricSub = "\uD83D\uDD12 Restricted access";
+  const lockedMetricSub = `\uD83D\uDD12 ${t("dashboard.restrictedAccess")}`;
 
   useEffect(() => {
     if (!selectedBranchId) return;
@@ -164,44 +166,44 @@ const DashboardPage = () => {
 
   return (
     <div className="dashboard-grid">
-      <Card title="Store Pulse" subTitle="">
+      <Card title={t("dashboard.storePulse")} subTitle="">
         <div className="kpi-grid">
           <div className="kpi-card accent">
-            <div className="kpi-label">Revenue (SYP)</div>
+            <div className="kpi-label">{t("dashboard.revenueSyp")}</div>
             <div className="kpi-value">
               {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-140" /> : revenue.toLocaleString()}
             </div>
             <div className="kpi-sub">{!canViewOrders ? lockedMetricSub : rangeLabel}</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Open Orders</div>
+            <div className="kpi-label">{t("dashboard.openOrders")}</div>
             <div className="kpi-value">
               {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-80" /> : pending}
             </div>
-            <div className="kpi-sub">{!canViewOrders ? lockedMetricSub : "Needs attention"}</div>
+            <div className="kpi-sub">{!canViewOrders ? lockedMetricSub : t("dashboard.needsAttention")}</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Products</div>
+            <div className="kpi-label">{t("dashboard.products")}</div>
             <div className="kpi-value">
               {!canViewProducts ? lockedMetricValue : loadingProducts ? <span className="skeleton-line w-100" /> : productsTotal.toLocaleString()}
             </div>
-            <div className="kpi-sub">{!canViewProducts ? lockedMetricSub : "Active catalog"}</div>
+            <div className="kpi-sub">{!canViewProducts ? lockedMetricSub : t("dashboard.activeCatalog")}</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Pending Top-ups</div>
+            <div className="kpi-label">{t("dashboard.pendingTopups")}</div>
             <div className="kpi-value">
               {!canViewWallet ? lockedMetricValue : loadingTopups ? <span className="skeleton-line w-80" /> : pendingTopups}
             </div>
-            <div className="kpi-sub">{!canViewWallet ? lockedMetricSub : "Awaiting approval"}</div>
+            <div className="kpi-sub">{!canViewWallet ? lockedMetricSub : t("dashboard.awaitingApproval")}</div>
           </div>
         </div>
       </Card>
 
       <div className="dashboard-row">
-        <Card title="Weekly Revenue" subTitle="">
+        <Card title={t("dashboard.weeklyRevenue")} subTitle="">
           <div className="chart-card">
             <div className="chart-meta">
-              <div className="chart-title">7-day trend</div>
+              <div className="chart-title">{t("dashboard.sevenDayTrend")}</div>
               <div className="chart-value">
                 {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-120" /> : `${revenue.toLocaleString()} SYP`}
               </div>
@@ -225,17 +227,17 @@ const DashboardPage = () => {
                   ))}
                 </div>
                 <div className="chart-actions">
-                  <Link to="/orders" className="ghost-btn">View more</Link>
+                  <Link to="/orders" className="ghost-btn">{t("dashboard.viewMore")}</Link>
                 </div>
               </>
             )}
           </div>
         </Card>
 
-        <Card title="Order Volume" subTitle="">
+        <Card title={t("dashboard.orderVolume")} subTitle="">
           <div className="chart-card">
             <div className="chart-meta">
-              <div className="chart-title">Orders per day</div>
+              <div className="chart-title">{t("dashboard.ordersPerDay")}</div>
               <div className="chart-value">
                 {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-80" /> : orders.length.toLocaleString()}
               </div>
@@ -259,7 +261,7 @@ const DashboardPage = () => {
                   ))}
                 </div>
                 <div className="chart-actions">
-                  <Link to="/orders" className="ghost-btn">View more</Link>
+                  <Link to="/orders" className="ghost-btn">{t("dashboard.viewMore")}</Link>
                 </div>
               </>
             )}
@@ -267,19 +269,19 @@ const DashboardPage = () => {
         </Card>
       </div>
 
-      <Card title="Recent Orders" subTitle="">
+      <Card title={t("dashboard.recentOrders")} subTitle="">
         {canViewOrders && (
           <div className="card-actions">
-            <Link to="/orders" className="ghost-btn">View more</Link>
+            <Link to="/orders" className="ghost-btn">{t("dashboard.viewMore")}</Link>
           </div>
         )}
         <table className="table">
           <thead>
             <tr>
-              <th>Order</th>
-              <th>Customer</th>
-              <th>Status</th>
-              <th>Total</th>
+              <th>{t("titles.orders")}</th>
+              <th>{t("customer")}</th>
+              <th>{t("status")}</th>
+              <th>{t("total")}</th>
             </tr>
           </thead>
           <tbody>
@@ -301,7 +303,7 @@ const DashboardPage = () => {
               ))
             ) : orders.length == 0 ? (
               <tr>
-                <td colSpan={6} className="muted">No orders</td>
+                <td colSpan={6} className="muted">{t("dashboard.noOrders")}</td>
               </tr>
             ) : (
               orders.slice(0, 5).map((order) => (
@@ -319,49 +321,49 @@ const DashboardPage = () => {
         </table>
       </Card>
 
-      <Card title="Quick View" subTitle="">
+      <Card title={t("dashboard.quickView")} subTitle="">
         <div className="quick-grid">
           <div className="quick-card">
-            <div className="quick-title">Products</div>
+            <div className="quick-title">{t("dashboard.products")}</div>
             <div className="quick-value">
               {!canViewProducts ? lockedMetricValue : loadingProducts ? <span className="skeleton-line w-100" /> : productsTotal.toLocaleString()}
             </div>
-            {canViewProducts ? <Link to="/products" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
+            {canViewProducts ? <Link to="/products" className="ghost-btn text-center">{t("dashboard.viewMore")}</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
           <div className="quick-card">
-            <div className="quick-title">Orders</div>
+            <div className="quick-title">{t("titles.orders")}</div>
             <div className="quick-value">
               {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-80" /> : orders.length.toLocaleString()}
             </div>
-            {canViewOrders ? <Link to="/orders" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
+            {canViewOrders ? <Link to="/orders" className="ghost-btn text-center">{t("dashboard.viewMore")}</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
           <div className="quick-card">
-            <div className="quick-title">Wallet Top-ups</div>
+            <div className="quick-title">{t("dashboard.walletTopups")}</div>
             <div className="quick-value">
               {!canViewWallet ? lockedMetricValue : loadingTopups ? <span className="skeleton-line w-60" /> : pendingTopups}
             </div>
-            {canViewWallet ? <Link to="/wallet" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
+            {canViewWallet ? <Link to="/wallet" className="ghost-btn text-center">{t("dashboard.viewMore")}</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
           <div className="quick-card">
-            <div className="quick-title">Coupons</div>
+            <div className="quick-title">{t("nav.coupons")}</div>
             <div className="quick-value">
               {!canViewCoupons ? lockedMetricValue : loadingCoupons ? <span className="skeleton-line w-60" /> : couponsTotal.toLocaleString()}
             </div>
-            {canViewCoupons ? <Link to="/coupons" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
+            {canViewCoupons ? <Link to="/coupons" className="ghost-btn text-center">{t("dashboard.viewMore")}</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
           <div className="quick-card">
-            <div className="quick-title">Announcements</div>
+            <div className="quick-title">{t("dashboard.announcements")}</div>
             <div className="quick-value">
               {!canViewAnnouncements ? lockedMetricValue : loadingAnnouncements ? <span className="skeleton-line w-60" /> : announcementsTotal.toLocaleString()}
             </div>
-            {canViewAnnouncements ? <Link to="/announcements" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
+            {canViewAnnouncements ? <Link to="/announcements" className="ghost-btn text-center">{t("dashboard.viewMore")}</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
           <div className="quick-card">
-            <div className="quick-title">Users</div>
+            <div className="quick-title">{t("dashboard.users")}</div>
             <div className="quick-value">
               {!canViewUsers ? lockedMetricValue : loadingUsers ? <span className="skeleton-line w-60" /> : usersTotal.toLocaleString()}
             </div>
-            {canViewUsers ? <Link to="/users" className="ghost-btn text-center">View more</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
+            {canViewUsers ? <Link to="/users" className="ghost-btn text-center">{t("dashboard.viewMore")}</Link> : <div className="kpi-sub">{lockedMetricSub}</div>}
           </div>
         </div>
       </Card>

@@ -275,7 +275,7 @@ const AnnouncementsPage = () => {
               ))
             ) : announcements.length === 0 ? (
               <tr>
-                <td colSpan={8} className="muted">No announcements</td>
+                <td colSpan={8} className="muted">{t("noResults")}</td>
               </tr>
             ) : (
               announcements.map((announcement) => (
@@ -342,7 +342,7 @@ const AnnouncementsPage = () => {
                       <input
                         value={editDraft.title || ""}
                         onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
-                        placeholder="Optional"
+                        placeholder={t("announcements.optional")}
                       />
                     ) : (
                       announcement.title || "-"
@@ -353,7 +353,7 @@ const AnnouncementsPage = () => {
                       <input
                         value={editDraft.description || ""}
                         onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
-                        placeholder="Optional"
+                        placeholder={t("announcements.optional")}
                       />
                     ) : (
                       announcement.description || "-"

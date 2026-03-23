@@ -501,7 +501,7 @@ export default function CartScreen() {
     }
     const normalized = inputCouponCode.trim().toUpperCase();
     if (selectedCoupons.some((c) => c.code.toUpperCase() === normalized)) {
-      setCouponError("Coupon already selected");
+      setCouponError(t("confirmCouponSelection") ?? "Coupon already selected");
       return;
     }
     setApplyingCoupon(true);
@@ -949,7 +949,7 @@ export default function CartScreen() {
                           alignItems: 'center'
                         }}>
                           <View>
-                            <Text style={styles.addressText}>No saved addresses</Text>
+                            <Text style={styles.addressText}>{t("noAddresses") ?? "No saved addresses"}</Text>
                           </View>
                         </View>
                       </View>
@@ -1207,14 +1207,14 @@ export default function CartScreen() {
                                       </Text>
                                       {!c.freeDelivery && c.discountType == "PERCENT" && <View style={{ gap: 0 }}>
                                         <Text style={styles.percentSign}>%</Text>
-                                        <Text style={styles.off}>OFF</Text>
+                                        <Text style={styles.off}>{t("off") ?? "OFF"}</Text>
                                       </View>}
                                       {!c.freeDelivery && c.discountType == "FIXED" && <View style={{ gap: 0 }}>
                                         <Text style={styles.percentSign}>{t('syp')}</Text>
                                       </View>}
                                     </View>
                                     <Text style={styles.subtitle} numberOfLines={1}>
-                                      {c.freeDelivery ? "Free delivery" : "Discount"} {c.assignedProductName && ` - ${c.assignedProductName}`}
+                                      {c.freeDelivery ? (t("freeDelivery") ?? "Free delivery") : (t("discount") ?? "Discount")} {c.assignedProductName && ` - ${c.assignedProductName}`}
                                     </Text>
 
                                     {/* <Text style={styles.subtitle}>DISCOUNT COUPON</Text> */}

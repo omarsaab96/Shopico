@@ -106,9 +106,9 @@ const WalletPage = () => {
             </select>
             <select className="filter-select" value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}>
               <option value="">{t("method")}</option>
-              <option value="CASH_STORE">{t("method")} (store)</option>
-              <option value="SHAM_CASH">Sham Cash</option>
-              <option value="BANK_TRANSFER">Bank Transfer</option>
+              <option value="CASH_STORE">{t("wallet.methodStore")}</option>
+              <option value="SHAM_CASH">{t("wallet.methodShamCash")}</option>
+              <option value="BANK_TRANSFER">{t("wallet.methodBankTransfer")}</option>
             </select>
             <button className="ghost-btn" type="button" onClick={load}>
               {t("filter")}

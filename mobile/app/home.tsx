@@ -1370,7 +1370,7 @@ export default function Home() {
                   <ActivityIndicator color={palette.accent} />
                 </View>
               ) : membershipError ? (
-                <Text style={styles.sheetText}>Could not load membership details.</Text>
+                <Text style={styles.sheetText}>{t("membershipLoadError") ?? "Could not load membership details."}</Text>
               ) : (
                 <View style={{ gap: 12 }}>
                   <View style={styles.kvRow}>

@@ -33,7 +33,7 @@ const MembershipThresholdSchema = new Schema<IMembershipThresholds>(
 
 const SettingsSchema = new Schema<ISettings>(
   {
-    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
     deliveryFreeKm: { type: Number, default: 1 },
     deliveryRatePerKm: { type: Number, default: 5000 },
     allowMultipleCoupons: { type: Boolean, default: false },

@@ -496,6 +496,91 @@ const statusTranslations: Record<string, { en: string; ar: string }> = {
   CONFIRMED: { en: "Confirmed", ar: "مؤكد" },
 };
 
+const translationOverrides: Record<Language, Record<string, string>> = {
+  en: {
+    loading: "Loading...",
+    back: "Back",
+    change: "Change",
+    standard: "Standard",
+    loadingPreview: "Loading preview...",
+    invalidFileType: "Invalid file type",
+    isAvailable: "Available",
+    noPoints: "No points",
+    unknownUser: "Unknown user",
+    topUpRequest: "Top-up request",
+    auditTrail: "Audit trail",
+    "audit.by": "by",
+    "orders.dateTime": "Date & Time",
+    "orders.recentOrders": "Recent Orders",
+    "orders.viewOrder": "View order",
+    "wallet.methodStore": "Store cash",
+    "wallet.methodShamCash": "Sham Cash",
+    "wallet.methodBankTransfer": "Bank Transfer",
+    "announcements.optional": "Optional",
+    "dashboard.storePulse": "Store Pulse",
+    "dashboard.revenueSyp": "Revenue (SYP)",
+    "dashboard.openOrders": "Open Orders",
+    "dashboard.needsAttention": "Needs attention",
+    "dashboard.products": "Products",
+    "dashboard.activeCatalog": "Active catalog",
+    "dashboard.pendingTopups": "Pending Top-ups",
+    "dashboard.awaitingApproval": "Awaiting approval",
+    "dashboard.weeklyRevenue": "Weekly Revenue",
+    "dashboard.sevenDayTrend": "7-day trend",
+    "dashboard.orderVolume": "Order Volume",
+    "dashboard.ordersPerDay": "Orders per day",
+    "dashboard.recentOrders": "Recent Orders",
+    "dashboard.quickView": "Quick View",
+    "dashboard.viewMore": "View more",
+    "dashboard.walletTopups": "Wallet Top-ups",
+    "dashboard.announcements": "Announcements",
+    "dashboard.users": "Users",
+    "dashboard.noOrders": "No orders",
+    "dashboard.restrictedAccess": "Restricted access",
+  },
+  ar: {
+    loading: "جار التحميل...",
+    back: "رجوع",
+    change: "تغيير",
+    standard: "عادي",
+    loadingPreview: "جار تحميل المعاينة...",
+    invalidFileType: "نوع الملف غير صالح",
+    isAvailable: "متاح",
+    noPoints: "لا توجد نقاط",
+    unknownUser: "مستخدم غير معروف",
+    topUpRequest: "طلب شحن",
+    auditTrail: "سجل التدقيق",
+    "audit.by": "بواسطة",
+    "orders.dateTime": "التاريخ والوقت",
+    "orders.recentOrders": "الطلبات الأخيرة",
+    "orders.viewOrder": "عرض الطلب",
+    "wallet.methodStore": "نقداً في المتجر",
+    "wallet.methodShamCash": "شام كاش",
+    "wallet.methodBankTransfer": "حوالة مصرفية",
+    "announcements.optional": "اختياري",
+    "dashboard.storePulse": "مؤشرات الفرع",
+    "dashboard.revenueSyp": "الإيراد (ل.س)",
+    "dashboard.openOrders": "الطلبات المفتوحة",
+    "dashboard.needsAttention": "تحتاج متابعة",
+    "dashboard.products": "المنتجات",
+    "dashboard.activeCatalog": "الكتالوج النشط",
+    "dashboard.pendingTopups": "طلبات الشحن المعلقة",
+    "dashboard.awaitingApproval": "بانتظار الموافقة",
+    "dashboard.weeklyRevenue": "إيراد الأسبوع",
+    "dashboard.sevenDayTrend": "اتجاه 7 أيام",
+    "dashboard.orderVolume": "حجم الطلبات",
+    "dashboard.ordersPerDay": "الطلبات لكل يوم",
+    "dashboard.recentOrders": "أحدث الطلبات",
+    "dashboard.quickView": "نظرة سريعة",
+    "dashboard.viewMore": "عرض المزيد",
+    "dashboard.walletTopups": "شحنات المحفظة",
+    "dashboard.announcements": "الإعلانات",
+    "dashboard.users": "المستخدمون",
+    "dashboard.noOrders": "لا توجد طلبات",
+    "dashboard.restrictedAccess": "وصول مقيّد",
+  },
+};
+
 interface I18nContextValue {
   lang: Language;
   dir: "ltr" | "rtl";
@@ -516,7 +601,12 @@ export const I18nProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("lang", lang);
   }, [lang, dir]);
 
-  const t = (key: string) => translations[lang][key] || translations.en[key] || key;
+  const t = (key: string) =>
+    translationOverrides[lang][key] ||
+    translations[lang][key] ||
+    translationOverrides.en[key] ||
+    translations.en[key] ||
+    key;
   const tStatus = (key: string) => statusTranslations[key]?.[lang] || key;
   const toggleLanguage = () => setLang((prev) => (prev === "en" ? "ar" : "en"));
 

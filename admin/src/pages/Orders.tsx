@@ -304,7 +304,7 @@ const OrdersPage = () => {
           <tr>
             <th>{t("titles.orders")}</th>
             <th>{t("customer")}</th>
-            <th>Date & Time</th>
+            <th>{t("orders.dateTime")}</th>
             <th>{t("status")}</th>
             <th>{t("payment")}</th>
             <th>{t("total")}</th>
@@ -516,7 +516,7 @@ const OrdersPage = () => {
               {canViewOrders && (
                 <div className="detailsTable" style={{ marginTop: 16 }}>
                   <div className="detailsRow">
-                    <div className="detailsLabel">Recent Orders</div>
+                    <div className="detailsLabel">{t("orders.recentOrders")}</div>
                     <div className="detailsValue">
                       {selectedUserRecentOrders.length ? (
                         <div className="list">
@@ -532,7 +532,7 @@ const OrdersPage = () => {
                                 </div>
                               </div>
                               <button className="ghost-btn" type="button" onClick={() => jumpToOrder(order._id)}>
-                                View order
+                                {t("orders.viewOrder")}
                               </button>
                             </div>
                           ))}
