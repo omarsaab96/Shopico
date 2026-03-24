@@ -30,18 +30,29 @@ const WalletPage = () => {
   const canCreateTopups = can("wallet:topups:create");
   const canViewTopups = can("wallet:topups:view") || canManageWallet;
 
-  const toIso = (value?: Date | null) => {
+  const toQueryDateTime = (value?: Date | null) => {
     if (!value) return undefined;
     if (Number.isNaN(value.getTime())) return undefined;
-    return value.toISOString();
+    const pad = (num: number) => String(num).padStart(2, "0");
+    const year = value.getFullYear();
+    const month = pad(value.getMonth() + 1);
+    const day = pad(value.getDate());
+    const hours = pad(value.getHours());
+    const minutes = pad(value.getMinutes());
+    const seconds = pad(value.getSeconds());
+    const offsetMinutes = -value.getTimezoneOffset();
+    const sign = offsetMinutes >= 0 ? "+" : "-";
+    const offsetHours = pad(Math.floor(Math.abs(offsetMinutes) / 60));
+    const offsetMins = pad(Math.abs(offsetMinutes) % 60);
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${sign}${offsetHours}:${offsetMins}`;
   };
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
     status: statusFilter || undefined,
     method: methodFilter || undefined,
-    from: toIso(fromDate),
-    to: toIso(toDate),
+    from: toQueryDateTime(fromDate),
+    to: toQueryDateTime(toDate),
   });
 
   const load = async () => {

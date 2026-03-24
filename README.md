@@ -123,7 +123,7 @@ The project is deployed on a VPS using Nginx and PM2.
     **1- Deploy Command**<br/>
     From the `backend` folder, run:
     ```
-    .\deploy.sh 
+    & "C:\Program Files\Git\bin\bash.exe" -lc "cd /c/Users/User/Desktop/Shopico/backend && ./deploy.sh"
     ```
     **2- Manual deploy**<br/>
     Build backend locally.<br>
