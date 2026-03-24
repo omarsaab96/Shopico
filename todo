@@ -1,0 +1,6 @@
+☐ check filters dates
+☐ fix styling of select dropdowns specilly in orders
+☐ fix styling for user click for details in orders
+☐ create order details page
+☐ add a new address for omar and then check if it shows in order details, it should not
+    ☐ order list should show order details and user with current delivery address, then on user click we see its details
