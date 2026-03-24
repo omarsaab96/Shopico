@@ -185,6 +185,7 @@ const ProductsPage = () => {
       const result = await importProductsFromExcel(importFile);
       setImportResult(result);
       load();
+      setShowImportModal(false);
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Import failed";
       setImportError(msg);

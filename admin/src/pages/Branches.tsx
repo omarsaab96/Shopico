@@ -5,6 +5,7 @@ import type { Branch } from "../types/api";
 import { deleteBranch, fetchBranches, saveBranch } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
+import { useAuth } from "../context/AuthContext";
 
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 const DEFAULT_CENTER = { lat: 33.5138, lng: 36.2765 };
@@ -51,6 +52,7 @@ const BranchLocationPicker = ({
   mapsError: string;
   compact?: boolean;
 }) => {
+  const { t } = useI18n();
   const mapRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -137,7 +139,7 @@ const BranchLocationPicker = ({
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setLocationError("Geolocation not supported");
+      setLocationError(t("branches.geolocationNotSupported"));
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -149,7 +151,7 @@ const BranchLocationPicker = ({
         markerRef.current?.setPosition(next);
         reverseGeocode(next.lat, next.lng);
       },
-      () => setLocationError("Location permission denied")
+      () => setLocationError(t("branches.locationPermissionDenied"))
     );
   };
 
@@ -157,19 +159,19 @@ const BranchLocationPicker = ({
     <div className="form">
       {!compact && (
         <label style={{ margin: 0 }}>
-          Location
+          {t("branches.location")}
         </label>
       )}
       <div className="flex align-center" style={{ gap: 10, alignItems: "center" }}>
         <input
           ref={searchRef}
-          placeholder="Search on map"
+          placeholder={t("branches.searchOnMap")}
           defaultValue=""
           disabled={!mapsReady}
           style={{ flex: 1 }}
         />
         <button className="ghost-btn" type="button" style={{ margin: 0 }} onClick={useCurrentLocation}>
-          Use current location
+          {t("branches.useCurrentLocation")}
         </button>
       </div>
 
@@ -177,13 +179,13 @@ const BranchLocationPicker = ({
         <div className="flex align-center" style={{ gap: 10, marginTop: 8 }}>
           <div style={{ flex: 1 }}>
             <label>
-              Lat
+              {t("latitude")}
               <input value={formatNumber(value.lat)} readOnly />
             </label>
           </div>
           <div style={{ flex: 1 }}>
             <label>
-              Lng
+              {t("longitude")}
               <input value={formatNumber(value.lng)} readOnly />
             </label>
           </div>
@@ -222,6 +224,7 @@ const BranchesPage = () => {
   const [editError, setEditError] = useState("");
   const { t } = useI18n();
   const { can } = usePermissions();
+  const { refreshProfile } = useAuth();
   const canManage = can("branches:manage");
   const canView = can("branches:view") || canManage;
   const [mapsReady, setMapsReady] = useState(false);
@@ -254,16 +257,17 @@ const BranchesPage = () => {
     try {
       setFormError("");
       if (draft.lat === undefined || draft.lng === undefined || Number.isNaN(draft.lat) || Number.isNaN(draft.lng)) {
-        setFormError("Select a location on the map.");
+        setFormError(t("branches.selectLocationOnMap"));
         return;
       }
       const saved = await saveBranch(draft);
       setBranches((prev) => [saved, ...prev]);
+      await refreshProfile();
       setDraft({ isActive: true, deliveryRadiusKm: 5 });
       setShowNewModal(false);
       load(getFilterParams());
     } catch (err: any) {
-      const message = err?.response?.data?.message || "Could not save branch";
+      const message = err?.response?.data?.message || t("branches.couldNotSave");
       setFormError(message);
     }
   };
@@ -281,7 +285,7 @@ const BranchesPage = () => {
     try {
       setEditError("");
       if (editDraft.lat === undefined || editDraft.lng === undefined || Number.isNaN(editDraft.lat) || Number.isNaN(editDraft.lng)) {
-        setEditError("Select a location on the map.");
+        setEditError(t("branches.selectLocationOnMap"));
         return;
       }
       const saved = await saveBranch({
@@ -295,7 +299,7 @@ const BranchesPage = () => {
       setEditDraft({});
       load(getFilterParams());
     } catch (err: any) {
-      const message = err?.response?.data?.message || "Could not update branch";
+      const message = err?.response?.data?.message || t("branches.couldNotUpdate");
       setEditError(message);
     }
   };
@@ -332,7 +336,7 @@ const BranchesPage = () => {
       })
       .catch((err) => {
         setMapsReady(false);
-        setMapsError(err?.message || "Google Maps failed to load");
+        setMapsError(err?.message || t("branches.googleMapsFailed"));
       });
   }, [mapOpen]);
 
@@ -529,7 +533,7 @@ const BranchesPage = () => {
               </div>
               <label style={{ display: 'none' }}>
                 {t("address")}
-                <input value={draft.address || ""} onChange={(e) => setDraft({ ...draft, address: e.target.value })} required />
+                <input value={draft.address || ""} onChange={(e) => setDraft({ ...draft, address: e.target.value })} />
               </label>
               <BranchLocationPicker
                 isOpen={showNewModal}

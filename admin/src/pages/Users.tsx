@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Card from "../components/Card";
-import api, { createUser, deleteUser, fetchBranches, updateUser, updateUserBranches, updateUserPermissions } from "../api/client";
+import api, { createUser, deleteUser, updateUser, updateUserBranches, updateUserPermissions } from "../api/client";
 import type { ApiUser } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
@@ -111,14 +111,8 @@ const UsersPage = () => {
   }, [selectedBranchId, canViewUsersPage]);
 
   useEffect(() => {
-    if (!canManageUserBranches) {
-      setAssignableBranches(branches);
-      return;
-    }
-    fetchBranches()
-      .then(setAssignableBranches)
-      .catch(() => setAssignableBranches(branches));
-  }, [canManageUserBranches, branches.length]);
+    setAssignableBranches(branches);
+  }, [branches]);
 
   useEffect(() => {
     setPermissionsDraft(selected?.user?.permissions || []);
@@ -467,7 +461,7 @@ const UsersPage = () => {
                   type="button"
                   onClick={() => setActiveDetailTab("about")}
                 >
-                  About
+                  {t("about")}
                 </button>
               )}
               {canViewUserLedger && (
@@ -476,7 +470,7 @@ const UsersPage = () => {
                   type="button"
                   onClick={() => setActiveDetailTab("ledger")}
                 >
-                  Ledger
+                  {t("ledger")}
                 </button>
               )}
               {canViewUserBranches && (
@@ -504,7 +498,7 @@ const UsersPage = () => {
                 <>
                   <div className="detailsTable form">
                   <div className="detailsRow">
-                    <div className="detailsLabel">Name</div>
+                    <div className="detailsLabel">{t("name")}</div>
                     <div className="detailsValue">
                       {canManageUserAbout ? (
                         <input
@@ -517,7 +511,7 @@ const UsersPage = () => {
                     </div>
                   </div>
                   <div className="detailsRow">
-                    <div className="detailsLabel">Email</div>
+                    <div className="detailsLabel">{t("email")}</div>
                     <div className="detailsValue">
                       {canManageUserAbout ? (
                         <input
@@ -530,7 +524,7 @@ const UsersPage = () => {
                     </div>
                   </div>
                   <div className="detailsRow">
-                    <div className="detailsLabel">Phone</div>
+                    <div className="detailsLabel">{t("phone")}</div>
                     <div className="detailsValue">
                       {canManageUserAbout ? (
                         <input
@@ -545,7 +539,7 @@ const UsersPage = () => {
                     </div>
                   </div>
                   <div className="detailsRow">
-                    <div className="detailsLabel">Role</div>
+                    <div className="detailsLabel">{t("role")}</div>
                     <div className="detailsValue">
                       {canManageUserAbout ? (
                         <select
@@ -563,7 +557,7 @@ const UsersPage = () => {
                     </div>
                   </div>
                   <div className="detailsRow">
-                    <div className="detailsLabel">Membership Level</div>
+                    <div className="detailsLabel">{t("membershipLevel")}</div>
                     <div className="detailsValue">{selected.user.membershipLevel}</div>
                   </div>
                   <div className="detailsRow">
@@ -801,7 +795,7 @@ const UsersPage = () => {
                 type="button"
                 onClick={() => setActiveCreateTab("about")}
               >
-                About
+                {t("about")}
               </button>
               {canViewUserBranches && (
                 <button

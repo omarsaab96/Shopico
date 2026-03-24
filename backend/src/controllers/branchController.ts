@@ -1,4 +1,5 @@
 import { Branch } from "../models/Branch";
+import { User } from "../models/User";
 import { branchSchema } from "../validators/branchValidators";
 import { catchAsync } from "../utils/catchAsync";
 import { sendSuccess } from "../utils/response";
@@ -27,6 +28,11 @@ export const getMyBranches = catchAsync(async (req, res) => {
 export const createBranch = catchAsync(async (req, res) => {
   const payload = branchSchema.parse(req.body);
   const branch = await Branch.create(payload);
+  if (req.user?._id) {
+    await User.findByIdAndUpdate(req.user._id, {
+      $addToSet: { branchIds: branch._id },
+    });
+  }
   sendSuccess(res, branch, "Branch created", 201);
 });
 
