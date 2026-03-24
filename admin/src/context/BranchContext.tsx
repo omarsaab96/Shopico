@@ -50,7 +50,7 @@ export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
         else localStorage.removeItem("branchId");
       })
       .finally(() => setLoading(false));
-  }, [user?._id]);
+  }, [user?._id, JSON.stringify(user?.branchIds || [])]);
 
   const setSelectedBranchId = (id: string) => {
     setSelectedBranchIdState(id);

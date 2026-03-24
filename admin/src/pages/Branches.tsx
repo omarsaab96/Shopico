@@ -58,6 +58,7 @@ const BranchLocationPicker = ({
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const [locationError, setLocationError] = useState("");
+  const [locationLoading, setLocationLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !mapsReady || !mapRef.current) return;
@@ -142,6 +143,7 @@ const BranchLocationPicker = ({
       setLocationError(t("branches.geolocationNotSupported"));
       return;
     }
+    setLocationLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -150,8 +152,12 @@ const BranchLocationPicker = ({
         mapInstanceRef.current?.setCenter(next);
         markerRef.current?.setPosition(next);
         reverseGeocode(next.lat, next.lng);
+        setLocationLoading(false);
       },
-      () => setLocationError(t("branches.locationPermissionDenied"))
+      () => {
+        setLocationError(t("branches.locationPermissionDenied"));
+        setLocationLoading(false);
+      }
     );
   };
 
@@ -170,8 +176,14 @@ const BranchLocationPicker = ({
           disabled={!mapsReady}
           style={{ flex: 1 }}
         />
-        <button className="ghost-btn" type="button" style={{ margin: 0 }} onClick={useCurrentLocation}>
-          {t("branches.useCurrentLocation")}
+        <button
+          className="ghost-btn flex"
+          type="button"
+          style={{ margin: 0, minWidth: 170 }}
+          onClick={useCurrentLocation}
+          disabled={locationLoading}
+        >
+          {locationLoading && <div className="spinner small" />} {t("branches.useCurrentLocation")}
         </button>
       </div>
 
