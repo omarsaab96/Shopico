@@ -18,7 +18,7 @@ export const requestTopUp = async (userId: Types.ObjectId, branchId: string, amo
   return topUp;
 };
 
-export const listTopUps = async (branchId: string, status?: string, method?: string, q?: string) => {
+export const listTopUps = async (branchId: string, status?: string, method?: string, q?: string, from?: string, to?: string) => {
   const query: Record<string, unknown> = { branchId };
   if (status) query.status = status;
   if (method) query.method = method;
@@ -32,6 +32,24 @@ export const listTopUps = async (branchId: string, status?: string, method?: str
     const ids = users.map((u) => u._id);
     if (ids.length) query.user = { $in: ids };
     else query.user = null; // force empty if no user matches
+  }
+  if (from || to) {
+    const createdAt: Record<string, Date> = {};
+    if (from) {
+      const fromDate = new Date(from);
+      if (!Number.isNaN(fromDate.getTime())) {
+        createdAt.$gte = fromDate;
+      }
+    }
+    if (to) {
+      const toDate = new Date(to);
+      if (!Number.isNaN(toDate.getTime())) {
+        createdAt.$lte = toDate;
+      }
+    }
+    if (Object.keys(createdAt).length > 0) {
+      query.createdAt = createdAt;
+    }
   }
   return TopUpRequest.find(query).sort({ createdAt: -1 }).populate("user");
 };

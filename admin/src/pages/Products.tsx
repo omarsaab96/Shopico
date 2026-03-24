@@ -561,15 +561,23 @@ const ProductsPage = () => {
       setPromoteError(t("invalidAmount") || "Enter a valid amount");
       return;
     }
-    setPromoteSaving(true);
-    setPromoteError("");
-    try {
-      const payload: Partial<Product> = {
-        _id: promoteProduct._id,
-        isPromoted: promoteActive,
-        promoPrice: promoteActive ? promoteValue : undefined,
-      };
-      const saved = await saveProduct(payload);
+      setPromoteSaving(true);
+      setPromoteError("");
+      try {
+        const payload: Partial<Product> = {
+          _id: promoteProduct._id,
+          name: promoteProduct.name,
+          description: promoteProduct.description,
+          price: promoteProduct.price,
+          isAvailable: promoteProduct.isAvailable,
+          images: promoteProduct.images || [],
+          categories: Array.isArray(promoteProduct.categories)
+            ? promoteProduct.categories.map((category) => (typeof category === "string" ? category : category._id))
+            : [],
+          isPromoted: promoteActive,
+          promoPrice: promoteActive ? promoteValue : undefined,
+        };
+        const saved = await saveProduct(payload);
       setProducts((prev) => prev.map((p) => (p._id === saved._id ? saved : p)));
       closePromote();
     } catch (err: any) {
@@ -839,7 +847,7 @@ const ProductsPage = () => {
                           ((editDraft.images as ProductImage[]) || []).map((img) => (
                             <div key={img.fileId} className="thumb">
                               <div className="listImage">
-                                <img src={img.url} alt="" />
+                                <img src={img.url} alt="" style={{borderRadius:0}}/>
                                 <button
                                   type="button"
                                   className="removeImageBtn"
@@ -967,7 +975,7 @@ const ProductsPage = () => {
                   <td style={{}}>
                     {editingId === product._id ? (
                       <div className="flex">
-                        <button className="ghost-btn" onClick={saveEdit}>
+                        <button className="ghost-btn" onClick={saveEdit} disabled={Boolean(editUploadingId)}>
                           {t("save")}
                         </button>
                         <button className="ghost-btn" onClick={cancelEdit}>

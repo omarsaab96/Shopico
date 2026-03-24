@@ -18,9 +18,9 @@ export const createTopUp = catchAsync(async (req: AuthRequest, res) => {
 });
 
 export const adminListTopUps = catchAsync(async (req, res) => {
-  const { status, method, q } = req.query as { status?: string; method?: string; q?: string };
+  const { status, method, q, from, to } = req.query as { status?: string; method?: string; q?: string; from?: string; to?: string };
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
-  const data = await listTopUps(req.branchId, status, method, q);
+  const data = await listTopUps(req.branchId, status, method, q, from, to);
   sendSuccess(res, data);
 });
 

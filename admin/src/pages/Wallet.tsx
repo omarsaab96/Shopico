@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import Card from "../components/Card";
 import StatusPill from "../components/StatusPill";
 import { createTopUpRequestAdmin, fetchTopUps, updateTopUp } from "../api/client";
@@ -12,6 +14,8 @@ const WalletPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [methodFilter, setMethodFilter] = useState("");
+  const [fromDate, setFromDate] = useState<Date | null>(null);
+  const [toDate, setToDate] = useState<Date | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createDraft, setCreateDraft] = useState({ email: "", amount: "", note: "" });
   const [createSaving, setCreateSaving] = useState(false);
@@ -26,10 +30,18 @@ const WalletPage = () => {
   const canCreateTopups = can("wallet:topups:create");
   const canViewTopups = can("wallet:topups:view") || canManageWallet;
 
+  const toIso = (value?: Date | null) => {
+    if (!value) return undefined;
+    if (Number.isNaN(value.getTime())) return undefined;
+    return value.toISOString();
+  };
+
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
     status: statusFilter || undefined,
     method: methodFilter || undefined,
+    from: toIso(fromDate),
+    to: toIso(toDate),
   });
 
   const load = async () => {
@@ -110,6 +122,28 @@ const WalletPage = () => {
               <option value="SHAM_CASH">{t("wallet.methodShamCash")}</option>
               <option value="BANK_TRANSFER">{t("wallet.methodBankTransfer")}</option>
             </select>
+            <DatePicker
+              className="filter-input date-picker"
+              selected={fromDate}
+              onChange={(date: Date | null) => setFromDate(date)}
+              placeholderText={t("from") || "From"}
+              showTimeInput
+              timeFormat="HH:mm"
+              timeIntervals={15}
+              dateFormat="yyyy-MM-dd HH:mm"
+              isClearable
+            />
+            <DatePicker
+              className="filter-input date-picker"
+              selected={toDate}
+              onChange={(date: Date | null) => setToDate(date)}
+              placeholderText={t("till") || "Till"}
+              showTimeInput
+              timeFormat="HH:mm"
+              timeIntervals={15}
+              dateFormat="yyyy-MM-dd HH:mm"
+              isClearable
+            />
             <button className="ghost-btn" type="button" onClick={load}>
               {t("filter")}
             </button>
@@ -120,6 +154,8 @@ const WalletPage = () => {
                 setSearchTerm("");
                 setStatusFilter("");
                 setMethodFilter("");
+                setFromDate(null);
+                setToDate(null);
                 load();
               }}
             >
@@ -140,6 +176,7 @@ const WalletPage = () => {
               <th>{t("customer")}</th>
               <th>{t("amount")}</th>
               <th>{t("method")}</th>
+              <th>{t("orders.dateTime")}</th>
               <th>{t("status")}</th>
               <th></th>
             </tr>
@@ -151,6 +188,7 @@ const WalletPage = () => {
                   <td><span className="skeleton-line w-180" /></td>
                   <td><span className="skeleton-line w-80" /></td>
                   <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-140" /></td>
                   <td><span className="skeleton-line w-80" /></td>
                   <td><span className="skeleton-line w-120" /></td>
                 </tr>
@@ -173,6 +211,7 @@ const WalletPage = () => {
                     <td>{customerLabel}</td>
                     <td>{topup.amount.toLocaleString()}</td>
                     <td>{topup.method}</td>
+                    <td>{topup.createdAt ? new Date(topup.createdAt).toLocaleString() : "-"}</td>
                     <td>
                       <StatusPill value={topup.status} />
                     </td>

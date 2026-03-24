@@ -215,7 +215,7 @@ export const fetchDrivers = async () => {
   return users.filter((user) => user.role === "driver");
 };
 
-export const fetchTopUps = async (params?: { status?: string; method?: string; q?: string }) => {
+export const fetchTopUps = async (params?: { status?: string; method?: string; q?: string; from?: string; to?: string }) => {
   const res = await api.get<{ data: WalletTopUp[] }>("/wallet/topups/admin", { params });
   return res.data.data;
 };
