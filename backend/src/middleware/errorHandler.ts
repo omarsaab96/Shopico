@@ -8,6 +8,16 @@ export const errorHandler = (err: any, _req: Request, res: Response, _next: Next
   if (err instanceof ZodError) {
     return res.status(400).json({ success: false, message: "Validation failed", errors: err.issues });
   }
+  if (err?.code === 11000) {
+    const duplicateFields = Object.keys(err?.keyPattern || err?.keyValue || {});
+    if (duplicateFields.includes("barcode")) {
+      return res.status(409).json({
+        success: false,
+        message: "Barcode already exists in this branch",
+      });
+    }
+    return res.status(409).json({ success: false, message: "Duplicate value" });
+  }
   const status = err.status || 500;
   const message = err.message || "Internal server error";
   const response: ApiResponse<null> = { success: false, message };
