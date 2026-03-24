@@ -143,6 +143,37 @@ html[dir="rtl"] .filters>* {
   direction: rtl;
 }
 
+html[dir="rtl"] .import-file-actions {
+  padding-left: 0;
+  padding-right: 50px;
+}
+
+html[dir="rtl"] .import-file-size,
+html[dir="rtl"] .import-progress-meta {
+  text-align: right;
+}
+
+html[dir="rtl"] .checkboxContainer label,
+html[dir="rtl"] .promoteLabel,
+html[dir="rtl"] .radioOption label {
+  direction: rtl;
+  padding-left: 0;
+  padding-right: 30px;
+}
+html[dir="rtl"] .checkboxContainer label::before,
+html[dir="rtl"] .radioOption label::before{
+  right:0;
+  left:auto;
+}
+html[dir="rtl"] .react-datepicker__close-icon{
+  left:0;
+  right:auto;
+  padding:0 0px 0 6px;
+}
+html[dir="rtl"] .rtlFix{
+  text-align: right;
+}
+
 
 .brandLogo img {
   width: 100%;
@@ -757,8 +788,8 @@ nav::-webkit-scrollbar {
 }
 
 
-.filters .react-datepicker-time__input{
-  padding:2px;
+.filters .react-datepicker-time__input {
+  padding: 2px;
 }
 
 .date-picker {
@@ -1556,6 +1587,7 @@ nav::-webkit-scrollbar {
 .import-progress-meta {
   margin-top: 6px;
   font-size: 12px;
+  direction: ltr !important;
 }
 
 .import-change-badge {
@@ -1637,6 +1669,7 @@ nav::-webkit-scrollbar {
 .import-file-size {
   color: var(--gray-600);
   font-size: 12px;
+  /* direction:ltr!important; */
 }
 
 .multi-select {

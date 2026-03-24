@@ -783,7 +783,7 @@ const ProductsPage = () => {
           <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
             <div className="muted">
               {/* {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total} */}
-              Showing
+              {t("showing")}
             </div>
             <select
               className="filter-select"
@@ -798,7 +798,7 @@ const ProductsPage = () => {
             </select>
             <div className="muted">
               {/* {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total} */}
-              per page
+              {t("perPage")}
             </div>
           </div>
         </div>
@@ -874,6 +874,9 @@ const ProductsPage = () => {
                             id={`prodImg${product._id}`}
                             className="uploadForm"
                             accept="image/*"
+                            onClick={(e) => {
+                              e.currentTarget.value = "";
+                            }}
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
@@ -1040,7 +1043,7 @@ const ProductsPage = () => {
           <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
             <div className="muted">
               {/* {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total} */}
-              Showing
+              {t("showing")}
             </div>
             <select
               className="filter-select"
@@ -1055,7 +1058,7 @@ const ProductsPage = () => {
             </select>
             <div className="muted">
               {/* {t("page")} {page} {t("of")} {totalPages} · {t("total")} {total} */}
-              per page
+              {t("perPage")}
             </div>
           </div>
         </div>
@@ -1110,7 +1113,7 @@ const ProductsPage = () => {
                   checked={promoteActive}
                   onChange={(e) => setPromoteActive(e.target.checked)}
                 />
-                <label htmlFor="promoteActive">{t("active") || "Active"}</label>
+                <label htmlFor="promoteActive" className="promoteLabel">{t("active") || "Active"}</label>
               </div>
               <label>
                 {t("oldPrice") || "Old price"}
@@ -1237,6 +1240,9 @@ const ProductsPage = () => {
                     id="prodImgUpload"
                     accept="image/*"
                     className="uploadForm"
+                    onClick={(e) => {
+                      e.currentTarget.value = "";
+                    }}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file)
@@ -1441,8 +1447,8 @@ const ProductsPage = () => {
                         <img src="uploadIcon.png" alt="" />
                       </div>
                       {/* <div className="import-title">{t("selectFile") || "Select file"}</div> */}
-                      <div className="import-sub">Drag & drop your Excel file here, or click to browse.</div>
-                      <div className="import-meta muted">Allowed extensions: .xlsx or .xls</div>
+                      <div className="import-sub">{t("importDropzoneHint")}</div>
+                      <div className="import-meta muted">{t("importAllowedExtensions")}</div>
                     </label>
                   </div>
                 )}

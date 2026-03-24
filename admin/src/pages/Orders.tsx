@@ -91,8 +91,8 @@ const OrdersPage = () => {
   };
 
   const getDriverStatusLabel = (driver?: ApiUser | null) => {
-    if (!driver) return "Available";
-    return driver.driverStatus === "BUSY" ? "Busy" : "Available";
+    if (!driver) return t("driverStatus.available");
+    return driver.driverStatus === "BUSY" ? t("driverStatus.busy") : t("driverStatus.available");
   };
 
   const getDriverStatusClassName = (driver?: ApiUser | null) =>
@@ -417,7 +417,7 @@ const OrdersPage = () => {
                                   <strong>{driver.name}</strong>
                                   <span className={getDriverStatusClassName(driver)}>{getDriverStatusLabel(driver)}</span>
                                 </div>
-                                <span style={{ opacity: 0.6 }}>{driver.email}</span>
+                                <span className="rtlFix" style={{ opacity: 0.6 }}>{driver.email}</span>
                               </button>
                             ))}
                           </div>

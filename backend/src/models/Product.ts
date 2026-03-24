@@ -33,7 +33,7 @@ const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true },
     description: { type: String },
-    barcode: { type: String, sparse: true, index: true },
+    barcode: { type: String, sparse: true },
     price: { type: Number, required: true },
     promoPrice: { type: Number },
     isPromoted: { type: Boolean, default: false },

@@ -48,3 +48,24 @@ export const ensureCategoryIndexes = async () => {
     // ignore
   }
 };
+
+export const ensureProductIndexes = async () => {
+  try {
+    const indexes = await Product.collection.indexes();
+    const legacyBarcodeIndex = indexes.find((idx) => idx.name === "barcode_1");
+    if (legacyBarcodeIndex) {
+      await Product.collection.dropIndex("barcode_1");
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    await Product.collection.createIndex(
+      { branchId: 1, barcode: 1 },
+      { unique: true, sparse: true, name: "branchId_1_barcode_1" }
+    );
+  } catch {
+    // ignore
+  }
+};
