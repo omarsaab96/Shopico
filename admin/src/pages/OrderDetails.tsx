@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Card from "../components/Card";
 import StatusPill from "../components/StatusPill";
-import api, { fetchDrivers, fetchOrderById, updateOrderDetails, updateOrderStatus } from "../api/client";
-import type { ApiUser, Order, Product } from "../types/api";
+import api, { fetchCoupons, fetchDrivers, fetchOrderById, updateOrderDetails, updateOrderStatus } from "../api/client";
+import type { ApiUser, Coupon, Order, Product } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 
@@ -62,8 +62,12 @@ const OrderDetailsPage = () => {
   const [detailsError, setDetailsError] = useState("");
   const [detailsSuccess, setDetailsSuccess] = useState("");
   const [activePicker, setActivePicker] = useState<PickerType>(null);
+  const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
   const canViewOrders = can("orders:view");
   const canUpdateOrders = canViewOrders && can("orders:update");
+  const canViewCoupons = can("coupons:view");
   const canViewUsersPage = can("users:view");
   const canViewUserAbout = canAny(...USER_ABOUT_VIEW_PERMISSIONS);
   const canViewUserLedger = can("users:ledger:view");
@@ -173,6 +177,33 @@ const OrderDetailsPage = () => {
   const closePicker = () => {
     if (driverSaving || statusSaving) return;
     setActivePicker(null);
+  };
+
+  const closeCoupon = () => {
+    setSelectedCoupon(null);
+    setCouponError("");
+    setCouponLoading(false);
+  };
+
+  const openCouponDetails = async (code: string) => {
+    if (!canViewCoupons || !code) return;
+    setCouponLoading(true);
+    setCouponError("");
+    setSelectedCoupon(null);
+    try {
+      const coupons = await fetchCoupons({ q: code });
+      const match = coupons.find((coupon) => coupon.code?.toUpperCase() === code.toUpperCase()) || null;
+      if (!match) {
+        setCouponError("Coupon not found");
+        return;
+      }
+      setSelectedCoupon(match);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || "Failed to load coupon";
+      setCouponError(message);
+    } finally {
+      setCouponLoading(false);
+    }
   };
 
   const refreshOrder = async (orderId: string) => {
@@ -371,7 +402,31 @@ const OrderDetailsPage = () => {
               </div>
               <div className="detailsRow">
                 <div className="detailsLabel">{t("orders.couponCodes")}</div>
-                <div className="detailsValue">{order.couponCodes?.length ? order.couponCodes.join(", ") : order.couponCode || "-"}</div>
+                <div className="detailsValue">
+                  {order.couponCodes?.length ? (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {order.couponCodes.map((code) =>
+                        canViewCoupons ? (
+                          <button key={code} className="link-btn" type="button" onClick={() => openCouponDetails(code)}>
+                            {code}
+                          </button>
+                        ) : (
+                          <span key={code}>{code}</span>
+                        )
+                      )}
+                    </div>
+                  ) : order.couponCode ? (
+                    canViewCoupons ? (
+                      <button className="link-btn" type="button" onClick={() => openCouponDetails(order.couponCode || "")}>
+                        {order.couponCode}
+                      </button>
+                    ) : (
+                      order.couponCode
+                    )
+                  ) : (
+                    "-"
+                  )}
+                </div>
               </div>
               <div className="detailsRow">
                 <div className="detailsLabel">{t("orders.distance")}</div>
@@ -499,12 +554,13 @@ const OrderDetailsPage = () => {
                 {t("close")}
               </button>
             </div>
-            <div className="list">
+            <div className={activePicker === 'status' ? 'list-row' : 'list'} style={activePicker === 'status' ? {"gap":"10px"} : {}}>
               {activePicker === "status" ? (
                 statuses.map((status) => (
                   <button
                     key={status}
                     className="driver-picker-option"
+                    style={activePicker === 'status' ? {"textAlign": 'center'} : {}}
                     type="button"
                     onClick={async () => {
                       if (status === statusDraft) {
@@ -517,10 +573,9 @@ const OrderDetailsPage = () => {
                     }}
                     disabled={statusSaving}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                      <strong>{tStatus(status)}</strong>
+                    {/* <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}> */}
                       <StatusPill value={status} />
-                    </div>
+                    {/* </div> */}
                   </button>
                 ))
               ) : (
@@ -539,7 +594,7 @@ const OrderDetailsPage = () => {
                     }}
                     disabled={driverSaving}
                   >
-                    <strong>{t("selectDriver") ?? "No driver"}</strong>
+                    <strong className="unassignLabel">{t("unassign") ?? "Unassign driver"}</strong>
                   </button>
                   {drivers.map((item) => (
                     <button
@@ -569,6 +624,65 @@ const OrderDetailsPage = () => {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {(couponLoading || selectedCoupon || couponError) && (
+        <div className="modal-backdrop" onClick={closeCoupon}>
+          <div className="modal" style={{ width: "min(560px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{t("discountCoupon")}</div>
+              <button className="ghost-btn" type="button" onClick={closeCoupon}>
+                {t("close")}
+              </button>
+            </div>
+            {couponLoading ? (
+              <div className="loader" style={{ height: 120, width: "100%" }}>
+                <div className="spinner"></div>
+                <div className="loaderText">{t("loading")}</div>
+              </div>
+            ) : couponError ? (
+              <div className="error">{couponError}</div>
+            ) : selectedCoupon ? (
+              <div className="detailsTable">
+                <div className="detailsRow">
+                  <div className="detailsLabel">{t("code")}</div>
+                  <div className="detailsValue">{selectedCoupon.code}</div>
+                </div>
+                <div className="detailsRow">
+                  <div className="detailsLabel">{t("title")}</div>
+                  <div className="detailsValue">{selectedCoupon.title || "-"}</div>
+                </div>
+                <div className="detailsRow">
+                  <div className="detailsLabel">{t("description")}</div>
+                  <div className="detailsValue">{selectedCoupon.description || "-"}</div>
+                </div>
+                <div className="detailsRow">
+                  <div className="detailsLabel">{t("discount")}</div>
+                  <div className="detailsValue">
+                    {selectedCoupon.freeDelivery
+                      ? t("freeDelivery")
+                      : `${selectedCoupon.discountValue}${selectedCoupon.discountType === "PERCENT" ? "%" : ` ${t("syp").toUpperCase()}`}`}
+                  </div>
+                </div>
+                <div className="detailsRow">
+                  <div className="detailsLabel">{t("usage")}</div>
+                  <div className="detailsValue">{selectedCoupon.usageType}</div>
+                </div>
+                <div className="detailsRow">
+                  <div className="detailsLabel">{t("used")}</div>
+                  <div className="detailsValue">{selectedCoupon.usedCount ?? 0}</div>
+                </div>
+                <div className="detailsRow">
+                  <div className="detailsLabel">{t("expires")}</div>
+                  <div className="detailsValue">{selectedCoupon.expiresAt ? formatDateTime(selectedCoupon.expiresAt) : "-"}</div>
+                </div>
+                <div className="detailsRow">
+                  <div className="detailsLabel">{t("status")}</div>
+                  <div className="detailsValue">{selectedCoupon.isActive ? t("active") : t("inactive")}</div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       )}

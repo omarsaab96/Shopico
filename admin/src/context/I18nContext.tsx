@@ -5,6 +5,7 @@ type Language = "en" | "ar";
 const translations: Record<Language, Record<string, string>> = {
   en: {
     "syp":"syp",
+    "unassign":"Unassign driver",
     // navigation
     "nav.dashboard": "Dashboard",
     "nav.products": "Products",
@@ -288,6 +289,7 @@ const translations: Record<Language, Record<string, string>> = {
 
   ar: {
     "syp":"ل.س",
+    "unassign":"إلغاء تعيين السائق",
     // navigation
     "nav.dashboard": "لوحة التحكم",
     "nav.products": "المنتجات",
