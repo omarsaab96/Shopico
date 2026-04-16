@@ -742,6 +742,13 @@ nav::-webkit-scrollbar {
   transform: translate(-50%, -50%);
 }
 
+.link-btn{
+  border:none;
+  background-color: transparent;
+  color: #e45f00;
+  text-decoration: underline;
+}
+
 .primary {
   background: #ffb347;
   color: #0f172a;
@@ -1165,6 +1172,12 @@ nav::-webkit-scrollbar {
   display: flex;
   gap: 12px;
   margin-top: 8px;
+}
+.gridcol {
+  flex-wrap:wrap;
+}
+.gridcol .permissions-group{
+  flex: 0 0 32.2%
 }
 
 .permissions-group {

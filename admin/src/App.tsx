@@ -10,6 +10,7 @@ const DashboardPage = lazy(() => import("./pages/Dashboard"));
 const ProductsPage = lazy(() => import("./pages/Products"));
 const CategoriesPage = lazy(() => import("./pages/Categories"));
 const OrdersPage = lazy(() => import("./pages/Orders"));
+const OrderDetailsPage = lazy(() => import("./pages/OrderDetails"));
 const UsersPage = lazy(() => import("./pages/Users"));
 const WalletPage = lazy(() => import("./pages/Wallet"));
 const AnnouncementsPage = lazy(() => import("./pages/Announcements"));
@@ -79,6 +80,14 @@ const App = () => {
               element={
                 <RequirePermission anyOf={["orders:view"]}>
                   <OrdersPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="orders/:id"
+              element={
+                <RequirePermission anyOf={["orders:view"]}>
+                  <OrderDetailsPage />
                 </RequirePermission>
               }
             />

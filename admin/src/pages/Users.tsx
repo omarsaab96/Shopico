@@ -741,7 +741,7 @@ const UsersPage = () => {
 
               {canViewUserPermissions && selectedSupportsPermissions && activeDetailTab === "permissions" && (
                 <div style={{ marginBottom: 12 }}>
-                  <div className="permissions-grid">
+                  <div className="permissions-grid gridcol">
                     {PERMISSION_GROUPS.map((group) => (
                       <div className="permissions-group" key={group.key}>
                         <div className="permissions-title">{t(group.labelKey)}</div>
@@ -883,7 +883,7 @@ const UsersPage = () => {
               {canViewUserPermissions && createRoleSupportsPermissions && activeCreateTab === "permissions" && (
                 <>
                   <h4>{t("permissions")}</h4>
-                  <div className="permissions-grid">
+                  <div className="permissions-grid gridcol">
                     {PERMISSION_GROUPS.map((group) => (
                       <div className="permissions-group" key={group.key}>
                         <div className="permissions-title">{t(group.labelKey)}</div>

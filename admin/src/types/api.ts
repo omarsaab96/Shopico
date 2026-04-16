@@ -56,10 +56,19 @@ export interface Order {
   subtotal: number;
   deliveryFee: number;
   discount: number;
+  couponCode?: string;
+  couponCodes?: string[];
+  couponDiscount?: number;
   total: number;
   address: string;
   deliveryDistanceKm: number;
+  lat?: number;
+  lng?: number;
+  notes?: string;
+  rewardApplied?: boolean;
+  statusHistory?: { status: string; at: string }[];
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface WalletTopUp {

@@ -94,9 +94,13 @@ export const getAllOrders = async (opts?: {
 export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId?: string) => {
   const filter: Record<string, unknown> = { _id: id };
   if (branchId) filter.branchId = branchId;
-  const order = await Order.findOne(filter).populate("items.product");
+  const order = await Order.findOne(filter).populate("user").populate("items.product");
   if (!order) return null;
-  if (userId && order.user.toString() !== userId.toString()) return null;
+  const orderUserId =
+    typeof order.user === "string"
+      ? order.user
+      : ((order.user as { _id?: Types.ObjectId | string })._id?.toString() ?? order.user.toString());
+  if (userId && orderUserId !== userId.toString()) return null;
   return order;
 };
 

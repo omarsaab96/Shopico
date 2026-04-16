@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Card from "../components/Card";
@@ -56,6 +57,7 @@ const OrdersPage = () => {
   const { t, tStatus } = useI18n();
   const { can, canAny } = usePermissions();
   const { selectedBranchId } = useBranch();
+  const navigate = useNavigate();
   const canViewOrders = can("orders:view");
   const canUpdateOrders = canViewOrders && can("orders:update");
   const canViewUsersPage = can("users:view");
@@ -121,11 +123,9 @@ const OrdersPage = () => {
     setSelectedUser(null);
   };
 
-  const jumpToOrder = (orderId: string) => {
+  const openOrderDetails = (orderId: string) => {
     closeUserDetails();
-    requestAnimationFrame(() => {
-      document.getElementById(`order-row-${orderId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
+    navigate(`/orders/${orderId}`);
   };
 
   const getFilterParams = () => ({
@@ -139,9 +139,19 @@ const OrdersPage = () => {
   const load = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [data, driverList] = await Promise.all([fetchOrders(getFilterParams()), fetchDrivers()]);
+      const data = await fetchOrders(getFilterParams());
       setOrders(data);
-      setDrivers(driverList);
+
+      if (canViewUsersPage) {
+        try {
+          const driverList = await fetchDrivers();
+          setDrivers(driverList);
+        } catch {
+          setDrivers([]);
+        }
+      } else {
+        setDrivers([]);
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -150,7 +160,7 @@ const OrdersPage = () => {
   useEffect(() => {
     if (!selectedBranchId) return;
     load();
-  }, [selectedBranchId]);
+  }, [selectedBranchId, canViewUsersPage]);
 
   useEffect(() => {
     if (!selectedBranchId) return;
@@ -333,11 +343,15 @@ const OrdersPage = () => {
           ) : (
             orders.map((order) => (
               <tr key={order._id} id={`order-row-${order._id}`}>
-                <td>{order._id.slice(-6)}</td>
+                <td>
+                  <button className="link-btn" type="button" onClick={() => openOrderDetails(order._id)}>
+                    {order._id.slice(-6)}
+                  </button>
+                </td>
                 <td>
                   {canOpenUserDetails && getOrderUserId(order) ? (
                     <button
-                      className="ghost-btn"
+                      className="link-btn"
                       type="button"
                       onClick={() => loadUserDetails(getOrderUserId(order))}
                       disabled={userDetailsLoading === getOrderUserId(order)}
@@ -524,14 +538,14 @@ const OrdersPage = () => {
                             <div key={order._id} className="list-row">
                               <div>
                                 <div>
-                                  <strong>#{order._id.slice(-6)}</strong>
+                                  <strong>{order._id.slice(-6)}</strong>
                                 </div>
                                 <div className="muted">{formatOrderDateTime(order.createdAt)}</div>
                                 <div className="muted">
                                   <StatusPill value={order.status} />
                                 </div>
                               </div>
-                              <button className="ghost-btn" type="button" onClick={() => jumpToOrder(order._id)}>
+                              <button className="ghost-btn" type="button" onClick={() => openOrderDetails(order._id)}>
                                 {t("orders.viewOrder")}
                               </button>
                             </div>
