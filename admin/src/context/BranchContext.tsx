@@ -14,7 +14,7 @@ interface BranchContextValue {
 const BranchContext = createContext<BranchContextValue | undefined>(undefined);
 
 export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchIdState] = useState<string | null>(
     localStorage.getItem("branchId")
@@ -22,18 +22,14 @@ export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
     if (!user) {
       setBranches([]);
       setSelectedBranchIdState(null);
       localStorage.removeItem("branchId");
       return;
-    }
-    const userBranchIds = user.branchIds || [];
-    const stored = localStorage.getItem("branchId");
-    const initial = stored && userBranchIds.includes(stored) ? stored : userBranchIds[0] || null;
-    if (initial) {
-      setSelectedBranchIdState(initial);
-      localStorage.setItem("branchId", initial);
     }
 
     setLoading(true);
@@ -41,16 +37,19 @@ export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
       .then((list) => {
         setBranches(list);
         const allowedIds = list.map((b) => b._id);
-        let next = initial;
-        if (!next || !allowedIds.includes(next)) {
-          next = allowedIds[0] || null;
-        }
+        const stored = localStorage.getItem("branchId");
+        const current = selectedBranchId;
+        const next =
+          (stored && allowedIds.includes(stored) ? stored : null) ||
+          (current && allowedIds.includes(current) ? current : null) ||
+          allowedIds[0] ||
+          null;
         setSelectedBranchIdState(next);
         if (next) localStorage.setItem("branchId", next);
         else localStorage.removeItem("branchId");
       })
       .finally(() => setLoading(false));
-  }, [user?._id, JSON.stringify(user?.branchIds || [])]);
+  }, [authLoading, user?._id]);
 
   const setSelectedBranchId = (id: string) => {
     setSelectedBranchIdState(id);

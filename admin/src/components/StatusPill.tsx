@@ -5,6 +5,7 @@ const colors: Record<string, string> = {
   DELIVERED: "var(--green-600)",
   CANCELLED: "var(--red-500)",
   APPROVED: "var(--green-600)",
+  CONFIRMED: "var(--green-600)",
   REJECTED: "var(--red-500)",
 };
 

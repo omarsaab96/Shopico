@@ -1925,3 +1925,30 @@ nav::-webkit-scrollbar {
     grid-template-columns: 1fr;
   }
 }
+
+.onHoverEdit{
+  position: relative;
+  cursor:pointer;
+}
+
+.onHoverEdit::after{
+  content:'';
+  position: absolute;
+  display:block;
+  top:50%;
+  left:calc(100% + 10px);
+  transform: translateY(-50%);
+  width:12px;
+  height:12px;
+  opacity:0;
+  transition:all 0.3s ease-in-out;
+  background-image: url(../public/editIcon.png);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter:grayscale(1)
+}
+
+.onHoverEdit:hover::after{
+  opacity:1;
+}

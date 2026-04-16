@@ -4,6 +4,7 @@ import {
   createOrderSchema,
   driverLocationSchema,
   driverStatusSchema,
+  updateOrderDetailsSchema,
   updateOrderStatusSchema,
 } from "../validators/orderValidators";
 import {
@@ -13,6 +14,7 @@ import {
   getOrderById,
   getOrdersForUser,
   getOrdersForDriver,
+  updateOrderDetails,
   updateOrderDriverLocation,
   updateOrderStatus,
   updateOrderStatusAsDriver,
@@ -70,6 +72,13 @@ export const assignDriver = catchAsync(async (req: AuthRequest, res) => {
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const order = await assignDriverToOrder(req.params.id, payload.driverId, req.branchId);
   sendSuccess(res, order, "Driver assigned");
+});
+
+export const adminUpdateOrderDetails = catchAsync(async (req, res) => {
+  const payload = updateOrderDetailsSchema.parse(req.body);
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const order = await updateOrderDetails(req.params.id, payload, req.branchId);
+  sendSuccess(res, order, "Order updated");
 });
 
 export const updateDriverLocation = catchAsync(async (req: AuthRequest, res) => {

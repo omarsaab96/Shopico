@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Card from "../components/Card";
 import StatusPill from "../components/StatusPill";
-import api, { fetchOrderById } from "../api/client";
+import api, { fetchDrivers, fetchOrderById, updateOrderDetails, updateOrderStatus } from "../api/client";
 import type { ApiUser, Order, Product } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 
 const USER_ABOUT_VIEW_PERMISSIONS = ["users:about:view"] as const;
 const USER_BRANCHES_VIEW_PERMISSIONS = ["users:branches:view"] as const;
+const statuses = ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"] as const;
 
 interface UserDetails {
   user: ApiUser;
@@ -40,6 +41,8 @@ const getProductName = (product: Product | string | null | undefined, fallbackLa
   return typeof product === "string" ? product : product.name;
 };
 
+type PickerType = "status" | "driver" | null;
+
 const OrderDetailsPage = () => {
   const { id = "" } = useParams();
   const navigate = useNavigate();
@@ -51,6 +54,16 @@ const OrderDetailsPage = () => {
   const [userDetailsLoading, setUserDetailsLoading] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
   const [driverUser, setDriverUser] = useState<ApiUser | null>(null);
+  const [drivers, setDrivers] = useState<ApiUser[]>([]);
+  const [driverDraft, setDriverDraft] = useState("");
+  const [statusDraft, setStatusDraft] = useState("");
+  const [driverSaving, setDriverSaving] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [detailsError, setDetailsError] = useState("");
+  const [detailsSuccess, setDetailsSuccess] = useState("");
+  const [activePicker, setActivePicker] = useState<PickerType>(null);
+  const canViewOrders = can("orders:view");
+  const canUpdateOrders = canViewOrders && can("orders:update");
   const canViewUsersPage = can("users:view");
   const canViewUserAbout = canAny(...USER_ABOUT_VIEW_PERMISSIONS);
   const canViewUserLedger = can("users:ledger:view");
@@ -81,6 +94,14 @@ const OrderDetailsPage = () => {
 
     loadOrder();
   }, [id]);
+
+  useEffect(() => {
+    if (!canViewUsersPage) {
+      setDrivers([]);
+      return;
+    }
+    fetchDrivers().then(setDrivers).catch(() => setDrivers([]));
+  }, [canViewUsersPage]);
 
   useEffect(() => {
     const driverId = typeof order?.driverId === "string" ? order.driverId : "";
@@ -122,6 +143,15 @@ const OrderDetailsPage = () => {
   const customerId = typeof order?.user === "string" ? order.user : order?.user?._id || "";
   const driverId = typeof order?.driverId === "string" ? order.driverId : order?.driverId?._id || "";
 
+  useEffect(() => {
+    setDriverDraft(driverId);
+    setStatusDraft(order?.status || "");
+    setDetailsError("");
+    setDetailsSuccess("");
+    setDriverSaving(false);
+    setStatusSaving(false);
+  }, [order?._id, order?.status, driverId]);
+
   const loadUserDetails = async (userId: string) => {
     if (!canOpenUserDetails || !userId) return;
     setUserDetailsLoading(userId);
@@ -138,6 +168,54 @@ const OrderDetailsPage = () => {
 
   const closeUserDetails = () => {
     setSelectedUser(null);
+  };
+
+  const closePicker = () => {
+    if (driverSaving || statusSaving) return;
+    setActivePicker(null);
+  };
+
+  const refreshOrder = async (orderId: string) => {
+    const refreshed = await fetchOrderById(orderId);
+    setOrder(refreshed);
+  };
+
+  const saveDriver = async (nextDriverId: string) => {
+    if (!order || !canUpdateOrders) return;
+    setDriverSaving(true);
+    setDetailsError("");
+    setDetailsSuccess("");
+    try {
+      await updateOrderDetails(order._id, {
+        driverId: nextDriverId || null,
+      });
+      await refreshOrder(order._id);
+      setDetailsSuccess(t("save") || "Saved");
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || "Failed to update order";
+      setDetailsError(message);
+      setDriverDraft(driverId);
+    } finally {
+      setDriverSaving(false);
+    }
+  };
+
+  const saveStatus = async (nextStatus: string) => {
+    if (!order || !canUpdateOrders) return;
+    setStatusSaving(true);
+    setDetailsError("");
+    setDetailsSuccess("");
+    try {
+      await updateOrderStatus(order._id, nextStatus, order.paymentStatus);
+      await refreshOrder(order._id);
+      setDetailsSuccess(t("save") || "Saved");
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || "Failed to update order";
+      setDetailsError(message);
+      setStatusDraft(order.status);
+    } finally {
+      setStatusSaving(false);
+    }
   };
 
   if (loading) {
@@ -179,7 +257,21 @@ const OrderDetailsPage = () => {
         <div className="detail-grid">
           <div className="stat">
             <div className="stat-label">{t("status")}</div>
-            <div className="stat-value"><StatusPill value={order.status} size="big"/></div>
+            <div className="stat-value">
+              {canUpdateOrders ? (
+                <button
+                  className="onHoverEdit"
+                  style={{"backgroundColor":"transparent","border":"none","padding":0}}
+                  type="button"
+                  onClick={() => setActivePicker("status")}
+                  disabled={statusSaving}
+                >
+                  {statusSaving ? <div className="spinner small"></div> : <StatusPill value={statusDraft || order.status} size="big" />}
+                </button>
+              ) : (
+                <StatusPill value={order.status} size="big" />
+              )}
+            </div>
           </div>
           <div className="stat">
             <div className="stat-label">{t("payment")}</div>
@@ -227,13 +319,17 @@ const OrderDetailsPage = () => {
               <div className="detailsRow">
                 <div className="detailsLabel">{t("driver")}</div>
                 <div className="detailsValue">
-                  {canOpenUserDetails && driverId ? (
+                  {canUpdateOrders ? (
                     <button
-                      className="link-btn"
+                      className="link-btn onHoverEdit"
                       type="button"
-                      onClick={() => loadUserDetails(driverId)}
-                      disabled={userDetailsLoading === driverId}
+                      onClick={() => setActivePicker("driver")}
+                      disabled={driverSaving}
                     >
+                      {driverSaving ? <div className="spinner small"></div> : driver?.name || driver?.email || (t("selectDriver") ?? "Select driver")}
+                    </button>
+                  ) : canOpenUserDetails && driverId ? (
+                    <button className="link-btn" type="button" onClick={() => loadUserDetails(driverId)} disabled={userDetailsLoading === driverId}>
                       {userDetailsLoading === driverId ? <div className="spinner small"></div> : driver?.name || driver?.email || driverId}
                     </button>
                   ) : (
@@ -246,13 +342,15 @@ const OrderDetailsPage = () => {
                 <div className="detailsValue">{order.paymentMethod}</div>
               </div>
               <div className="detailsRow">
-                <div className="detailsLabel">{t("address")}</div>
+                <div className="detailsLabel">{t("deliveryAddress")}</div>
                 <div className="detailsValue">{order.address}</div>
               </div>
               <div className="detailsRow">
                 <div className="detailsLabel">{t("note")}</div>
                 <div className="detailsValue">{order.notes || "-"}</div>
               </div>
+              {detailsError && <div className="error">{detailsError}</div>}
+              {detailsSuccess && <div className="success">{detailsSuccess}</div>}
             </div>
           </div>
 
@@ -276,8 +374,8 @@ const OrderDetailsPage = () => {
                 <div className="detailsValue">{order.couponCodes?.length ? order.couponCodes.join(", ") : order.couponCode || "-"}</div>
               </div>
               <div className="detailsRow">
-                <div className="detailsLabel">{t("orders.distanceKm")}</div>
-                <div className="detailsValue">{typeof order.deliveryDistanceKm === "number" ? order.deliveryDistanceKm.toFixed(2) : "-"}</div>
+                <div className="detailsLabel">{t("orders.distance")}</div>
+                <div className="detailsValue">{typeof order.deliveryDistanceKm === "number" ? order.deliveryDistanceKm.toFixed(2) : "-"} {t("orders.km")}</div>
               </div>
               <div className="detailsRow">
                 <div className="detailsLabel">{t("orders.rewardApplied")}</div>
@@ -385,6 +483,90 @@ const OrderDetailsPage = () => {
                     </div>
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {activePicker && (
+        <div className="modal-backdrop" onClick={closePicker}>
+          <div className="modal" style={{ width: "min(420px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">
+                {activePicker === "status" ? t("status") : t("driver")}
+              </div>
+              <button className="ghost-btn" type="button" onClick={closePicker} disabled={driverSaving || statusSaving}>
+                {t("close")}
+              </button>
+            </div>
+            <div className="list">
+              {activePicker === "status" ? (
+                statuses.map((status) => (
+                  <button
+                    key={status}
+                    className="driver-picker-option"
+                    type="button"
+                    onClick={async () => {
+                      if (status === statusDraft) {
+                        closePicker();
+                        return;
+                      }
+                      setStatusDraft(status);
+                      await saveStatus(status);
+                      setActivePicker(null);
+                    }}
+                    disabled={statusSaving}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <strong>{tStatus(status)}</strong>
+                      <StatusPill value={status} />
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <>
+                  <button
+                    className={`driver-picker-option${driverDraft === "" ? " active" : ""}`}
+                    type="button"
+                    onClick={async () => {
+                      if (driverDraft === "") {
+                        closePicker();
+                        return;
+                      }
+                      setDriverDraft("");
+                      await saveDriver("");
+                      setActivePicker(null);
+                    }}
+                    disabled={driverSaving}
+                  >
+                    <strong>{t("selectDriver") ?? "No driver"}</strong>
+                  </button>
+                  {drivers.map((item) => (
+                    <button
+                      key={item._id}
+                      className={`driver-picker-option${driverDraft === item._id ? " active" : ""}`}
+                      type="button"
+                      onClick={async () => {
+                        if (driverDraft === item._id) {
+                          closePicker();
+                          return;
+                        }
+                        setDriverDraft(item._id);
+                        await saveDriver(item._id);
+                        setActivePicker(null);
+                      }}
+                      disabled={driverSaving}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                        <strong>{item.name}</strong>
+                        <span className={item.driverStatus === "BUSY" ? "driver-picker-status busy" : "driver-picker-status available"}>
+                          {item.driverStatus === "BUSY" ? t("driverStatus.busy") : t("driverStatus.available")}
+                        </span>
+                      </div>
+                      <span className="rtlFix" style={{ opacity: 0.6 }}>{item.email}</span>
+                    </button>
+                  ))}
+                </>
               )}
             </div>
           </div>

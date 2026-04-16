@@ -23,6 +23,11 @@ export const updateOrderStatusSchema = z.object({
   paymentStatus: z.enum(["PENDING", "CONFIRMED"]).optional(),
 });
 
+export const updateOrderDetailsSchema = z.object({
+  notes: z.string().optional(),
+  driverId: z.string().nullable().optional(),
+});
+
 export const assignDriverSchema = z.object({
   driverId: z.string().min(1),
 });

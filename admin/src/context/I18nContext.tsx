@@ -4,6 +4,7 @@ type Language = "en" | "ar";
 
 const translations: Record<Language, Record<string, string>> = {
   en: {
+    "syp":"syp",
     // navigation
     "nav.dashboard": "Dashboard",
     "nav.products": "Products",
@@ -195,6 +196,7 @@ const translations: Record<Language, Record<string, string>> = {
     note: "Note",
     addresses: "Addresses",
     address: "Address",
+    deliveryAddress: "Delivery address",
     noAddresses: "No addresses",
     noPhone: "No phone number",
     noOrders: "No orders",
@@ -285,6 +287,7 @@ const translations: Record<Language, Record<string, string>> = {
   },
 
   ar: {
+    "syp":"ل.س",
     // navigation
     "nav.dashboard": "لوحة التحكم",
     "nav.products": "المنتجات",
@@ -482,6 +485,7 @@ const translations: Record<Language, Record<string, string>> = {
     note: "ملاحظة",
     addresses: "العناوين",
     address: "العنوان",
+    deliveryAddress: "عنوان التوصيل",
     noAddresses: "لا توجد عناوين",
     noPhone: "لا يوجد رقم هاتف",
     noOrders: "لا توجد طلبات",
@@ -607,6 +611,8 @@ const translationOverrides: Record<Language, Record<string, string>> = {
     "orders.deliveryFee": "Delivery Fee",
     "orders.couponCodes": "Coupon Codes",
     "orders.distanceKm": "Distance (Km)",
+    "orders.distance": "Distance",
+    "orders.km": "Km",
     "orders.rewardApplied": "Reward Applied",
     "orders.items": "Items",
     "orders.quantity": "Quantity",
@@ -674,6 +680,8 @@ const translationOverrides: Record<Language, Record<string, string>> = {
     "orders.deliveryFee": "رسم التوصيل",
     "orders.couponCodes": "أكواد القسائم",
     "orders.distanceKm": "المسافة (كم)",
+    "orders.distance": "المسافة",
+    "orders.km": "كم",
     "orders.rewardApplied": "تم تطبيق المكافأة",
     "orders.items": "العناصر",
     "orders.quantity": "الكمية",

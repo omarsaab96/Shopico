@@ -414,6 +414,49 @@ export const assignDriverToOrder = async (orderId: string, driverId: string, bra
   return order;
 };
 
+export const updateOrderDetails = async (
+  orderId: string,
+  payload: { notes?: string; driverId?: string | null },
+  branchId?: string
+) => {
+  const filter: Record<string, unknown> = { _id: orderId };
+  if (branchId) filter.branchId = branchId;
+  const order = await Order.findOne(filter);
+  if (!order) throw { status: 404, message: "Order not found" };
+
+  if (payload.notes !== undefined) {
+    order.notes = payload.notes.trim() || undefined;
+  }
+
+  if (payload.driverId !== undefined) {
+    const previousDriverId = order.driverId;
+    if (!payload.driverId) {
+      order.driverId = null as any;
+      order.driverLocation = null;
+      await order.save();
+      if (previousDriverId) {
+        await syncDriverStatus(previousDriverId);
+      }
+    } else {
+      const driver = await User.findById(payload.driverId);
+      if (!driver) throw { status: 404, message: "Driver not found" };
+      order.driverId = driver._id;
+      order.driverLocation = null;
+      await order.save();
+      await syncDriverStatus(driver._id);
+      if (previousDriverId && previousDriverId.toString() !== driver._id.toString()) {
+        await syncDriverStatus(previousDriverId);
+      }
+    }
+  } else {
+    await order.save();
+  }
+
+  const populated = await Order.findById(order._id).populate("user").populate("driverId").populate("items.product");
+  if (!populated) throw { status: 404, message: "Order not found" };
+  return populated;
+};
+
 export const updateOrderDriverLocation = async (
   orderId: string,
   userId: Types.ObjectId,

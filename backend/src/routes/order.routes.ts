@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   adminUpdateOrder,
+  adminUpdateOrderDetails,
   assignDriver,
   createOrderHandler,
   getOrder,
@@ -27,6 +28,7 @@ router.get(
 );
 router.get("/:id", authenticate, requireBranchContext, getOrder);
 router.post("/", authenticate, requireBranchContext, createOrderHandler);
+router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("orders:view", "orders:update"), requireBranchContext, adminUpdateOrderDetails);
 router.put("/:id/status", authenticate, authorize("admin", "manager", "staff"), requirePermissions("orders:view", "orders:update"), requireBranchContext, adminUpdateOrder);
 router.put(
   "/:id/assign-driver",
