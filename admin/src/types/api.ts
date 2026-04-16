@@ -30,6 +30,7 @@ export interface Product {
   _id: string;
   name: string;
   description?: string;
+  barcode?: string;
   price: number;
   promoPrice?: number;
   isPromoted?: boolean;

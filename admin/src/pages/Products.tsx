@@ -483,6 +483,7 @@ const ProductsPage = () => {
       _id: p._id,
       name: p.name,
       description: p.description,
+      barcode: p.barcode,
       price: p.price,
       isAvailable: p.isAvailable,
       images: p.images || [],
@@ -810,6 +811,7 @@ const ProductsPage = () => {
               <th>{t("images")}</th>
               <th>{t("name")}</th>
               <th>{t("description")}</th>
+              <th>{t("barcode") || "Barcode"}</th>
               <th>{t("category")}</th>
               <th>{t("price")}</th>
               <th>{t("promoStatus") || "Promo"}</th>
@@ -930,6 +932,17 @@ const ProductsPage = () => {
                       />
                     ) : (
                       product.description || "-"
+                    )}
+                  </td>
+                  <td>
+                    {editingId === product._id ? (
+                      <input
+                        value={editDraft.barcode || ""}
+                        onChange={(e) => setEditDraft({ ...editDraft, barcode: e.target.value })}
+                        placeholder=""
+                      />
+                    ) : (
+                      product.barcode || "-"
                     )}
                   </td>
                   <td>
@@ -1168,6 +1181,13 @@ const ProductsPage = () => {
               <label>
                 {t("name")}
                 <input value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
+              </label>
+              <label>
+                {t("barcode") || "Barcode"}
+                <input
+                  value={draft.barcode || ""}
+                  onChange={(e) => setDraft({ ...draft, barcode: e.target.value })}
+                />
               </label>
               <label>
                 {t("description")}
