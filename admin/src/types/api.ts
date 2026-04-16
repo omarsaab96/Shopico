@@ -48,7 +48,7 @@ export interface Order {
   _id: string;
   user: ApiUser | string;
   items: OrderItem[];
-  driverId?: string | null;
+  driverId?: ApiUser | string | null;
   driverLocation?: { lat: number; lng: number; updatedAt?: string } | null;
   status: string;
   paymentMethod: string;

@@ -5,7 +5,7 @@ import { requireBranchContext } from "../middleware/branch";
 
 const router = Router();
 
-router.get("/", authenticate, requireBranchContext, getWallet);
+router.get("/", authenticate, getWallet);
 router.post("/topups", authenticate, requireBranchContext, createTopUp);
 router.get(
   "/topups/admin",

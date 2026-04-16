@@ -81,12 +81,17 @@ const OrdersPage = () => {
 
   const getOrderUserLabel = (order: Order) => (typeof order.user === "string" ? order.user : order.user.email);
 
-  const getDriver = (driverId?: string | null) => {
-    if (!driverId) return null;
-    return drivers.find((item) => item._id === driverId) || null;
+  const getDriverIdValue = (driverId?: ApiUser | string | null) =>
+    typeof driverId === "string" ? driverId : driverId?._id || "";
+
+  const getDriver = (driverId?: ApiUser | string | null) => {
+    const driverIdValue = getDriverIdValue(driverId);
+    if (!driverIdValue) return null;
+    if (typeof driverId !== "string") return driverId;
+    return drivers.find((item) => item._id === driverIdValue) || null;
   };
 
-  const getDriverLabel = (driverId?: string | null) => {
+  const getDriverLabel = (driverId?: ApiUser | string | null) => {
     if (!driverId) return "—";
     const driver = getDriver(driverId);
     return driver ? `${driver.name}` : "—";
@@ -217,7 +222,7 @@ const OrdersPage = () => {
     setEditingId(order._id);
     setEditDraft({
       status: order.status,
-      driverId: order.driverId || "",
+      driverId: getDriverIdValue(order.driverId),
       paymentStatus: order.paymentStatus,
     });
   };
@@ -230,7 +235,7 @@ const OrdersPage = () => {
 
   const saveEdit = async (order: Order) => {
     if (!editDraft) return;
-    if (editDraft.driverId !== (order.driverId || "")) {
+    if (editDraft.driverId !== getDriverIdValue(order.driverId)) {
       await assignDriver(order, editDraft.driverId);
     }
     if (editDraft.status !== order.status || editDraft.paymentStatus !== order.paymentStatus) {

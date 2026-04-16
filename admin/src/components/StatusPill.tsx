@@ -10,11 +10,14 @@ const colors: Record<string, string> = {
 
 import { useI18n } from "../context/I18nContext";
 
-const StatusPill = ({ value }: { value: string }) => {
+const StatusPill = ({ value, size = "default" }: { value: string; size?: "default" | "big" }) => {
   const { tStatus } = useI18n();
   const color = colors[value] || "var(--gray-600)";
   return (
-    <span className="status-pill" style={{padding:0, background: color + "22", color }}>
+    <span
+      className="status-pill"
+      style={{ padding: 0, background: color + "22", color, fontSize: size === "big" ? 24 : undefined }}
+    >
       {tStatus(value)}
     </span>
   );

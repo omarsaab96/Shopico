@@ -187,7 +187,7 @@ export default function Home() {
 
     Promise.all([api.get("/wallet"), api.get("/settings")])
       .then(([walletRes, settingsRes]) => {
-        setWallet(walletRes.data.data.wallet);
+        setWallet(walletRes.data.data.wallet || { balance: 0 });
         setSettings(settingsRes.data.data);
       })
       .catch(() => setMembershipError(true))
@@ -635,7 +635,7 @@ export default function Home() {
     if (!user) return null;
     if (hasQuery) return null;
 
-    if (membershipLoading || !wallet || !settings) {
+    if (membershipLoading) {
       return (
         <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg }]}>
           <View style={styles.walletRow}>
@@ -646,6 +646,33 @@ export default function Home() {
             </View>
           </View>
         </View>
+      );
+    }
+
+    if (!selectedBranch) {
+      return (
+        <TouchableOpacity activeOpacity={0.92} style={[styles.walletCard, { backgroundColor: membershipTone.cardBg }]} onPress={openBranchSheet}>
+          <Text style={styles.walletLabel}>{t("wallet") ?? "Wallet"}</Text>
+          <Text style={styles.walletMiniLabel}>{t("selectBranchFirst") ?? "Select a branch first."}</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    if (!settings) {
+      return (
+        <TouchableOpacity activeOpacity={0.92} style={[styles.walletCard, { backgroundColor: membershipTone.cardBg }]} onPress={fetchMembershipMeta}>
+          <Text style={styles.walletLabel}>{t("wallet") ?? "Wallet"}</Text>
+          <Text style={styles.walletMiniLabel}>{t("membershipLoadError") ?? "Could not load membership details."}</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    if (membershipError) {
+      return (
+        <TouchableOpacity activeOpacity={0.92} style={[styles.walletCard, { backgroundColor: membershipTone.cardBg }]} onPress={fetchMembershipMeta}>
+          <Text style={styles.walletLabel}>{t("wallet") ?? "Wallet"}</Text>
+          <Text style={styles.walletMiniLabel}>{t("membershipLoadError") ?? "Could not load membership details."}</Text>
+        </TouchableOpacity>
       );
     }
 

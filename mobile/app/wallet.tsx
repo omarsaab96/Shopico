@@ -14,6 +14,7 @@ export default function WalletScreen() {
   const insets = useSafeAreaInsets();
   const [wallet, setWallet] = useState<any>();
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
   const { user } = useAuth();
@@ -21,10 +22,17 @@ export default function WalletScreen() {
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   const load = () =>
-    api.get("/wallet").then((res) => {
-      setWallet(res.data.data.wallet || res.data.data);
-      setTransactions(res.data.data.transactions || res.data.data?.walletTx || []);
-    });
+    api
+      .get("/wallet")
+      .then((res) => {
+        setWallet(res.data.data.wallet || res.data.data || { balance: 0 });
+        setTransactions(res.data.data.transactions || res.data.data?.walletTx || []);
+      })
+      .catch(() => {
+        setWallet({ balance: 0 });
+        setTransactions([]);
+      })
+      .finally(() => setLoading(false));
 
   useEffect(() => {
     load();
@@ -97,6 +105,15 @@ export default function WalletScreen() {
     const progress = Math.min(1, (balance - levels[currentIdx].min) / range);
     return { nextLabel: next.name, remaining, progress };
   }, [balance, membershipLevel, thresholds]);
+
+  if (loading) {
+    return (
+      <Screen showBack backLabel={t("back") ?? "Back"}>
+        <Text style={styles.title}>{t("wallet")}</Text>
+        <Text style={styles.muted}>{t("loading") ?? "Loading"}...</Text>
+      </Screen>
+    );
+  }
 
   return (
     <Screen showBack backLabel={t("back") ?? "Back"}>

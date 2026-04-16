@@ -747,6 +747,8 @@ nav::-webkit-scrollbar {
   background-color: transparent;
   color: #e45f00;
   text-decoration: underline;
+  cursor: pointer;
+  padding:0;
 }
 
 .primary {
