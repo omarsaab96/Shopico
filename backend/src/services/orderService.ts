@@ -22,6 +22,8 @@ interface CheckoutItemInput {
   quantity: number;
 }
 
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export const getOrdersForUser = async (userId: Types.ObjectId, branchId: string) => {
   return Order.find({ user: userId, branchId }).sort({ createdAt: -1 }).populate("items.product");
 };
@@ -73,17 +75,20 @@ export const getAllOrders = async (opts?: {
   }
 
   if (opts?.q) {
+    const normalizedQuery = opts.q.trim();
     const users = await User.find({
       $or: [
-        { email: { $regex: opts.q, $options: "i" } },
-        { name: { $regex: opts.q, $options: "i" } },
+        { email: { $regex: normalizedQuery, $options: "i" } },
+        { name: { $regex: normalizedQuery, $options: "i" } },
       ],
     }).select("_id");
     const userIds = users.map((u) => u._id);
+    const escapedQuery = escapeRegex(normalizedQuery);
     const orClauses = [
       userIds.length ? { user: { $in: userIds } } : null,
-      { _id: opts.q },
-      { address: { $regex: opts.q, $options: "i" } },
+      Types.ObjectId.isValid(normalizedQuery) ? { _id: new Types.ObjectId(normalizedQuery) } : null,
+      { $expr: { $regexMatch: { input: { $toString: "$_id" }, regex: escapedQuery, options: "i" } } },
+      { address: { $regex: normalizedQuery, $options: "i" } },
     ].filter(Boolean) as Record<string, unknown>[];
     if (orClauses.length) filter.$or = orClauses;
   }

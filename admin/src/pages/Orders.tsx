@@ -4,7 +4,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Card from "../components/Card";
 import StatusPill from "../components/StatusPill";
-import api, { assignOrderDriver, fetchDrivers, fetchOrders, updateOrderStatus } from "../api/client";
+import api, { fetchDrivers, fetchOrders, updateOrderDetails, updateOrderStatus } from "../api/client";
 import type { ApiUser, Order } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
@@ -32,6 +32,8 @@ interface UserDetails {
   addresses: { _id: string; label: string; address: string; phone?: string }[];
 }
 
+type EditPickerType = "status" | "driver" | null;
+
 const toIso = (value?: Date | null) => {
   if (!value) return undefined;
   if (Number.isNaN(value.getTime())) return undefined;
@@ -50,7 +52,7 @@ const OrdersPage = () => {
   const [assigning, setAssigning] = useState<Record<string, boolean>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{ status: string; driverId: string; paymentStatus: string } | null>(null);
-  const [openDriverMenuId, setOpenDriverMenuId] = useState<string | null>(null);
+  const [activeEditPicker, setActiveEditPicker] = useState<EditPickerType>(null);
   const [userDetailsLoading, setUserDetailsLoading] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
   const mutatingRef = useRef(false);
@@ -205,11 +207,11 @@ const OrdersPage = () => {
     }
   };
 
-  const assignDriver = async (order: Order, driverId: string) => {
+  const saveDriverAssignment = async (order: Order, driverId: string) => {
     setAssigning((prev) => ({ ...prev, [order._id]: true }));
     mutatingRef.current = true;
     try {
-      await assignOrderDriver(order._id, driverId);
+      await updateOrderDetails(order._id, { driverId: driverId || null });
       await load(true);
     } finally {
       setAssigning((prev) => ({ ...prev, [order._id]: false }));
@@ -230,13 +232,13 @@ const OrdersPage = () => {
   const cancelEdit = () => {
     setEditingId(null);
     setEditDraft(null);
-    setOpenDriverMenuId(null);
+    setActiveEditPicker(null);
   };
 
   const saveEdit = async (order: Order) => {
     if (!editDraft) return;
     if (editDraft.driverId !== getDriverIdValue(order.driverId)) {
-      await assignDriver(order, editDraft.driverId);
+      await saveDriverAssignment(order, editDraft.driverId);
     }
     if (editDraft.status !== order.status || editDraft.paymentStatus !== order.paymentStatus) {
       await update(
@@ -247,7 +249,7 @@ const OrdersPage = () => {
     }
     setEditingId(null);
     setEditDraft(null);
-    setOpenDriverMenuId(null);
+    setActiveEditPicker(null);
   };
 
   return (
@@ -370,16 +372,9 @@ const OrdersPage = () => {
                 <td>{formatOrderDateTime(order.createdAt)}</td>
                 <td>
                   {editingId === order._id && editDraft ? (
-                    <select
-                      value={editDraft.status}
-                      onChange={(e) => setEditDraft((prev) => (prev ? { ...prev, status: e.target.value } : prev))}
-                    >
-                      {statuses.map((s) => (
-                        <option key={s} value={s}>
-                          {tStatus(s)}
-                        </option>
-                      ))}
-                    </select>
+                    <button className="onHoverEdit" style={{"backgroundColor":"transparent","border":"none","padding":0}} type="button" onClick={() => setActiveEditPicker("status")}>
+                      <StatusPill value={editDraft.status} />
+                    </button>
                   ) : (
                     <StatusPill value={order.status} />
                   )}
@@ -399,49 +394,34 @@ const OrdersPage = () => {
                       )}
                     </>
                   ) : (
-                    <>
-                      <StatusPill value={order.paymentStatus} /> {order.paymentMethod}
-                    </>
+                    <div style={{}}>
+                      <StatusPill value={order.paymentStatus} />
+                      <div style={{"fontSize":12}}>{order.paymentMethod}</div>
+                    </div>
                   )}
                 </td>
-                <td>{order.total.toLocaleString()}</td>
+                <td>{order.total.toLocaleString()} {t('syp').toUpperCase()}</td>
                 <td>
                   {editingId === order._id && editDraft ? (
                     drivers.length === 0 ? (
                       <span className="muted">-</span>
                     ) : (
-                      <div className="driver-picker">
-                        <button
-                          className="driver-picker-trigger"
-                          type="button"
-                          onClick={() => setOpenDriverMenuId((prev) => (prev === order._id ? null : order._id))}
-                          disabled={assigning[order._id]}
-                        >
-                          <strong>{editDraft.driverId ? getDriver(editDraft.driverId)?.name || (t("selectDriver") ?? "Select driver") : (t("selectDriver") ?? "Select driver")}</strong>
-                          <span className="driver-picker-arrow">▾</span>
-                        </button>
-                        {openDriverMenuId === order._id && (
-                          <div className="driver-picker-menu">
-                            {drivers.map((driver) => (
-                              <button
-                                key={driver._id}
-                                className={`driver-picker-option${editDraft.driverId === driver._id ? " active" : ""}`}
-                                type="button"
-                                onClick={() => {
-                                  setEditDraft((prev) => (prev ? { ...prev, driverId: driver._id } : prev));
-                                  setOpenDriverMenuId(null);
-                                }}
-                              >
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                  <strong>{driver.name}</strong>
-                                  <span className={getDriverStatusClassName(driver)}>{getDriverStatusLabel(driver)}</span>
-                                </div>
-                                <span className="rtlFix" style={{ opacity: 0.6 }}>{driver.email}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <button
+                        className="link-btn onHoverEdit"
+                        type="button"
+                        onClick={() => setActiveEditPicker("driver")}
+                        disabled={assigning[order._id]}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 12,
+                        }}
+                      >
+                          {editDraft.driverId
+                            ? getDriver(editDraft.driverId)?.name || (t("selectDriver") ?? "Select driver")
+                            : t("selectDriver") ?? "Select driver"}
+                      </button>
                     )
                   ) : (
                     getDriverLabel(order.driverId)
@@ -562,6 +542,68 @@ const OrdersPage = () => {
                     </div>
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {editingId && editDraft && activeEditPicker && (
+        <div className="modal-backdrop" onClick={() => setActiveEditPicker(null)}>
+          <div className="modal" style={{ width: "min(420px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{activeEditPicker === "status" ? t("status") : (t("driver") ?? "Driver")}</div>
+              <button className="ghost-btn" type="button" onClick={() => setActiveEditPicker(null)}>
+                {t("close")}
+              </button>
+            </div>
+            <div className="list">
+              {activeEditPicker === "status" ? (
+                statuses.map((status) => (
+                  <button
+                    key={status}
+                    className="driver-picker-option"
+                    type="button"
+                    onClick={() => {
+                      setEditDraft((prev) => (prev ? { ...prev, status } : prev));
+                      setActiveEditPicker(null);
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <strong>{tStatus(status)}</strong>
+                      <StatusPill value={status} />
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <>
+                  <button
+                    className={`driver-picker-option${editDraft.driverId === "" ? " active" : ""}`}
+                    type="button"
+                    onClick={() => {
+                      setEditDraft((prev) => (prev ? { ...prev, driverId: "" } : prev));
+                      setActiveEditPicker(null);
+                    }}
+                  >
+                    <strong>{t("selectDriver") ?? "Select driver"}</strong>
+                  </button>
+                  {drivers.map((driver) => (
+                    <button
+                      key={driver._id}
+                      className={`driver-picker-option${editDraft.driverId === driver._id ? " active" : ""}`}
+                      type="button"
+                      onClick={() => {
+                        setEditDraft((prev) => (prev ? { ...prev, driverId: driver._id } : prev));
+                        setActiveEditPicker(null);
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                        <strong>{driver.name}</strong>
+                        <span className={getDriverStatusClassName(driver)}>{getDriverStatusLabel(driver)}</span>
+                      </div>
+                      <span className="rtlFix" style={{ opacity: 0.6 }}>{driver.email}</span>
+                    </button>
+                  ))}
+                </>
               )}
             </div>
           </div>
