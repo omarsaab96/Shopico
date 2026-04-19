@@ -6,6 +6,7 @@ import {
   TextInput,
   View,
   StyleSheet,
+  Animated,
   Image,
   TouchableOpacity,
   ActivityIndicator,
@@ -89,6 +90,7 @@ export default function Home() {
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<SavedAddress | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const [addressLoading, setAddressLoading] = useState(false);
   const [branchLoading, setBranchLoading] = useState(false);
   const [locationFallback, setLocationFallback] = useState(false);
   const [branchLocked, setBranchLocked] = useState(false);
@@ -96,7 +98,6 @@ export default function Home() {
   const [showBranchPrompt, setShowBranchPrompt] = useState(false);
   const [branchOptions, setBranchOptions] = useState<Branch[]>([]);
   const [branchPromptLoading, setBranchPromptLoading] = useState(false);
-  const [addressSheetOpen, setAddressSheetOpen] = useState(false);
   const [lottieKey, setLottieKey] = useState(0);
   const [settings, setSettings] = useState<any>();
   const [wallet, setWallet] = useState<any>();
@@ -105,6 +106,7 @@ export default function Home() {
   const [profile, setProfile] = useState<any>(user);
   const [page, setPage] = useState(1);
   const searchInputRef = useRef<TextInput>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [promoIndex, setPromoIndex] = useState(0);
@@ -140,22 +142,6 @@ export default function Home() {
   const fallbackLogo = isDark ? require("../assets/shopico_logo.png") : require("../assets/shopico_logo-black.png");
   const promoWidth = Math.min(360, windowWidth - 32);
   const hasAnnouncements = announcements.length > 0;
-
-  const handleAddressSheetChange = useCallback((index: number) => {
-    const open = index >= 0;
-    setAddressSheetOpen(open);
-
-    // only when open AND there are no addresses (your empty state)
-    if (index === 0 && addresses.length === 0) {
-      // wait for BottomSheet to finish layout
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          lottieRef.current?.reset();
-          lottieRef.current?.play();
-        });
-      });
-    }
-  }, [addresses.length]);
 
   const customFooter = (props: any) => (
     <BottomSheetFooter {...props}>
@@ -346,6 +332,7 @@ export default function Home() {
 
   const loadLatestAddress = useCallback(() => {
     if (!user) {
+      setAddressLoading(false);
       setLatestAddress(null);
       setAddresses([]);
       setSelectedAddress(null);
@@ -360,6 +347,7 @@ export default function Home() {
     }
     if (addressLoadingRef.current) return;
     addressLoadingRef.current = true;
+    setAddressLoading(true);
     api
       .get("/addresses")
       .then((res) => {
@@ -368,25 +356,20 @@ export default function Home() {
           (a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime()
         );
         setAddresses(sorted);
-        const latest = sorted[0] || null;
-        setLatestAddress(latest?.label || latest?.address || null);
-        setSelectedAddress(latest);
-        setLocationFallback(false);
+        setSelectedAddress((prev) => {
+          if (sorted.length === 0) return null;
+          if (!prev) return sorted[0];
+          return sorted.find((address) => address._id === prev._id) || sorted[0];
+        });
       })
       .catch(() => {
         setLatestAddress(null);
         setAddresses([]);
         setSelectedAddress(null);
-        updateSelectedBranch(null);
-        setBranchId(null);
-        setBranchLock(false);
-        setLocationFallback(false);
-        setBranchLocked(false);
-        setShowBranchPrompt(false);
-        setRefreshing(false);
       })
       .finally(() => {
         addressLoadingRef.current = false;
+        setAddressLoading(false);
       });
   }, [user, updateSelectedBranch]);
 
@@ -509,6 +492,11 @@ export default function Home() {
   }, [user, selectedAddress, fetchNearestBranch]);
 
   useEffect(() => {
+    const nextLatestAddress = selectedAddress?.label || selectedAddress?.address || null;
+    setLatestAddress((prev) => (prev === nextLatestAddress ? prev : nextLatestAddress));
+  }, [selectedAddress]);
+
+  useEffect(() => {
     if (!user) return;
     if (!selectedAddress && locationFallback && !branchLocked) {
       fetchNearestByLocation();
@@ -539,7 +527,6 @@ export default function Home() {
 
   useFocusEffect(
     useCallback(() => {
-      if (user && !branchLockReady) return;
       loadLatestAddress();
     }, [loadLatestAddress])
   );
@@ -555,6 +542,11 @@ export default function Home() {
 
   const hasQuery = debouncedSearch.length > 0;
   const searching = loadingProducts && hasQuery;
+  // const heroTranslateY = scrollY.interpolate({
+  //   inputRange: [0, 120],
+  //   outputRange: [0, -16],
+  //   extrapolate: "clamp",
+  // });
 
   const filteredAndSorted = useMemo(() => {
     let list = products;
@@ -592,7 +584,9 @@ export default function Home() {
   const openSheet = () => sheetRef.current?.present();
   const openAddressSheet = () => {
     if (!user) return;
-    loadLatestAddress();
+    if (addresses.length === 0 && !addressLoadingRef.current) {
+      loadLatestAddress();
+    }
     addressSheetRef.current?.present();
   };
   const openBranchSheet = () => {
@@ -840,16 +834,111 @@ export default function Home() {
 
   const renderHeader = () => (
     <View style={[styles.headerWrap]}>
-      {/* {renderTopBar()} */}
-
-
-      {renderWalletCard()}
       {renderCategoriesGrid()}
 
       <Text weight="black" style={[styles.sectionTitle, { marginBottom: 10 }]}>
         {hasQuery ? `${t("products") ?? "Products"} (${filteredAndSorted.length})` : (t("freshPicks") ?? "Fresh picks")}
       </Text>
     </View>
+  );
+
+
+  const renderHero = () => (
+    <Animated.View
+      style={[
+        styles.heroBlock,
+        {
+          // borderWidth: 1,
+          opacity: scrollY.interpolate({ inputRange: [0, 70, 120], outputRange: [1, 0.35, 0], extrapolate: "clamp" }),
+          height: scrollY.interpolate({ inputRange: [0, 150], outputRange: [50, 0], extrapolate: "clamp" }),
+          // marginBottom: scrollY.interpolate({ inputRange: [0, 1], outputRange: [0, 16] }),
+          transform: [
+            {
+              translateY: scrollY.interpolate({ inputRange: [0, 150], outputRange: [0, -10], extrapolate: "clamp" }),
+            },
+          ],
+        },
+      ]}
+    >
+      {/* {renderTopBar()} */}
+      {/* {renderWalletCard()} */}
+      <View style={styles.greetingWrap}>
+        <View style={styles.greetingCol}>
+          {/* <Text style={styles.helloText}>
+            {user ? `${t("hello") ?? "Hello"}, ${user.name}` : (t("helloShopper") ?? "Hello shopper")}
+          </Text> */}
+
+          {user ? (
+            <View style={styles.locationRow}>
+              <TouchableOpacity onPress={openAddressSheet} activeOpacity={0.9} style={[styles.addressRow]}>
+                <Feather name="map-pin" size={18} color={palette.muted} />
+
+                <View style={styles.locationTextWrap}>
+                  <Text style={styles.addressLabel} numberOfLines={1}>
+                    {t("deliveryTo") ?? "Delivery to"}
+                  </Text>
+
+                  {addressLoading ? (
+                    <Skeleton width={100} height={14} colorScheme={isDark ? "dark" : "light"} />
+                  ) : latestAddress ? (
+                    <Text style={[styles.addressValue]} numberOfLines={1}>
+                      {latestAddress}
+                      {/* <Entypo name="chevron-down" size={12} color="black" /> */}
+                    </Text>
+                  ) : (
+                    <Text style={[styles.addressValue]} numberOfLines={1}>
+                      {t("selectAddress") ?? "Select address"}
+                      {/* <Entypo name="chevron-down" size={12} color="black" /> */}
+                    </Text>
+                  )}
+
+                  <View style={styles.locationSeperator}></View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={openBranchSheet} activeOpacity={0.9} style={[styles.branchRow]}>
+                <Ionicons name="storefront-outline" size={18} color={palette.muted} />
+
+                <View style={styles.locationTextWrap}>
+                  <Text style={styles.addressLabel} numberOfLines={1}>
+                    {t("fromBranch") ?? "From branch"}
+                  </Text>
+                  {branchLoading ? (
+                    <Skeleton width={100} height={14} colorScheme={isDark ? "dark" : "light"} />
+                  ) : selectedBranch ? (
+                    <Text style={[styles.addressValue]} numberOfLines={1}>
+                      {selectedBranch.name}
+                      {/* <Entypo name="chevron-down" size={12} color="black" /> */}
+                    </Text>
+                  ) : (
+                    <Text style={styles.addressValue} numberOfLines={1}>
+                      {locationFallback
+                        ? (t("usingLocation") ?? "Using current location")
+                        : (t("selectBranch") ?? "Select branch")}
+                    </Text>
+                  )}
+                </View>
+
+
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={() => {
+                router.push("/auth/login");
+              }}
+              activeOpacity={0.9}
+              style={styles.addressRow}
+            >
+              <Feather name="log-in" size={14} color={palette.muted} />
+              <Text style={styles.addressValue} numberOfLines={1}>
+                {t("loginToLoadLocation") ?? "Login to load your location"} · {t("login") ?? "Login"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </Animated.View>
   );
 
   return (
@@ -908,7 +997,7 @@ export default function Home() {
           </View>
         </View>
       </Modal>
-      
+
       <View style={styles.safe}>
         <View style={styles.container}>
           {/* <LottieView
@@ -929,80 +1018,24 @@ export default function Home() {
             contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 16 }}
             columnWrapperStyle={styles.productRow}
             ListHeaderComponent={
-              <View>
-                <View style={{ paddingHorizontal: 0, marginBottom: 16, gap: 10 }}>
-                  {renderTopBar()}
-                  <View style={styles.greetingWrap}>
-                    <View style={styles.greetingCol}>
-                      <Text style={styles.helloText}>
-                        {user ? `${t("hello") ?? "Hello"}, ${user.name}` : (t("helloShopper") ?? "Hello shopper")}
-                      </Text>
+              <>
+                <View style={styles.stickyHeroWrap}>
+                  {renderHero()}
 
-                      {user ? (
-                        <>
-                          <TouchableOpacity onPress={openAddressSheet} activeOpacity={0.9} style={[styles.addressRow, { width: "100%" }]}>
-                            <Feather name="map-pin" size={14} color={palette.muted} />
-                            <Text style={styles.addressLabel} numberOfLines={1}>
-                              {t("deliveryTo") ?? "Delivery to"}
-                            </Text>
-
-                            {latestAddress ? (
-                              <>
-                                <Text style={[styles.addressValue, { flex: 1 }]} numberOfLines={1}>
-                                  {latestAddress.substring(0, 52)}
-                                  <Entypo name="chevron-down" size={12} color="black" />
-                                </Text>
-                              </>
-                            ) : (
-                              <Text style={[styles.addressValue, { flex: 1 }]} numberOfLines={1}>
-                                {t("selectAddress") ?? "Select address"}
-                                <Entypo name="chevron-down" size={12} color="black" />
-                              </Text>
-                            )}
-                          </TouchableOpacity>
-
-                          <TouchableOpacity onPress={openBranchSheet} activeOpacity={0.9} style={[styles.branchRow, { width: "100%" }]}>
-                            <Ionicons name="storefront-outline" size={14} color={palette.muted} />
-                            <Text style={styles.addressLabel} numberOfLines={1}>
-                              {t("fromBranch") ?? "From branch"}
-                            </Text>
-                            {branchLoading ? (
-                              <Skeleton width={140} height={14} colorScheme={isDark ? "dark" : "light"} />
-                            ) : selectedBranch ? (
-                              <Text style={[styles.addressValue, { flex: 1 }]} numberOfLines={1}>
-                                {selectedBranch.name}
-                                <Entypo name="chevron-down" size={12} color="black" />
-                              </Text>
-                            ) : (
-                              <Text style={styles.addressValue} numberOfLines={1}>
-                                {locationFallback
-                                  ? (t("usingLocation") ?? "Using current location")
-                                  : (t("selectAddress") ?? "Add address to load branch")}
-                              </Text>
-                            )}
-                          </TouchableOpacity>
-                        </>
-                      ) : (
-                        <TouchableOpacity
-                          onPress={() => {
-                            router.push("/auth/login");
-                          }}
-                          activeOpacity={0.9}
-                          style={styles.addressRow}
-                        >
-                          <Feather name="log-in" size={14} color={palette.muted} />
-                          <Text style={styles.addressValue} numberOfLines={1}>
-                            {t("loginToLoadLocation") ?? "Login to load your location"} · {t("login") ?? "Login"}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
+                  <View style={styles.stickySearchWrap}>
+                    {renderSearchAndFilters()}
                   </View>
-                  {renderSearchAndFilters()}
+
                 </View>
                 {renderHeader()}
-              </View>
+              </>
             }
+            stickyHeaderIndices={[0]}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: false }
+            )}
+            scrollEventThrottle={16}
             refreshing={refreshing}
             onRefresh={() => {
               fetchProducts(1, false);
@@ -1218,13 +1251,22 @@ export default function Home() {
           {/* Addresses */}
           <BottomSheetModal
             ref={addressSheetRef}
-            onChange={handleAddressSheetChange}
             enablePanDownToClose
             backdropComponent={renderBackdrop}
             backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
           >
             <BottomSheetView style={[styles.sheetContainer, { paddingBottom: 0 }]}>
-              {addresses.length === 0 ? (
+              {addressLoading ? (
+                <View style={{ paddingTop: 20, gap: 12 }}>
+                  <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <View key={`address-skeleton-${index}`} style={styles.addressItem}>
+                      <Skeleton width={140} height={16} colorScheme={isDark ? "dark" : "light"} />
+                      <Skeleton width={"100%"} height={14} colorScheme={isDark ? "dark" : "light"} />
+                    </View>
+                  ))}
+                </View>
+              ) : addresses.length === 0 ? (
                 <View style={{ alignItems: "center", paddingTop: 20 }}>
                   <LottieView
                     key={`address-lottie-${lottieKey}`}
@@ -1248,17 +1290,16 @@ export default function Home() {
                   {addresses.map((addr) => (
                     <TouchableOpacity
                       key={addr._id}
-                      style={[styles.addressItem, (latestAddress === addr.label || latestAddress === addr.address) && styles.addressItemActive]}
+                      style={[styles.addressItem, selectedAddress?._id === addr._id && styles.addressItemActive]}
                       onPress={() => {
-                        setLatestAddress(addr.label || addr.address);
-                        setSelectedAddress(addr);
+                        setSelectedAddress((prev) => (prev?._id === addr._id ? prev : addr));
                         addressSheetRef.current?.dismiss();
                       }}
                       activeOpacity={0.9}
                     >
                       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                         <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
-                        {latestAddress === addr.label || addr.address ? <Feather name="check" size={18} color={palette.accent} /> : null}
+                        {selectedAddress?._id === addr._id ? <Feather name="check" size={18} color={palette.accent} /> : null}
                       </View>
                       <Text style={styles.sheetText}>{addr.address}</Text>
                     </TouchableOpacity>
@@ -1381,7 +1422,7 @@ export default function Home() {
           </BottomSheetModal>
 
           {/* Membership */}
-          <BottomSheetModal
+          {/* <BottomSheetModal
             ref={membershipSheetRef}
             snapPoints={membershipSnapPoints}
             enablePanDownToClose
@@ -1410,7 +1451,6 @@ export default function Home() {
                     <Text style={styles.kvValue}>{balance.toLocaleString()} SYP</Text>
                   </View>
 
-                  {/* <View style={{ gap: 8 }}> */}
                   {remaining > 0 && <View style={styles.kvRow}>
                     <View style={[styles.kvRow, { justifyContent: 'flex-start', gap: 0 }]}>
                       <Text style={styles.kvLabel}>{t("remainingToNext") ?? "Remaining"}</Text>
@@ -1421,7 +1461,6 @@ export default function Home() {
                     </Text>
                   </View>}
                   {remaining > 0 && <ProgressBar progress={progress} />}
-                  {/* </View> */}
 
                   <View style={styles.kvRow}>
                     <Text style={styles.kvLabel}>{t("graceDays") ?? "Grace days"}</Text>
@@ -1442,7 +1481,7 @@ export default function Home() {
                 </View>
               )}
             </BottomSheetView>
-          </BottomSheetModal>
+          </BottomSheetModal> */}
         </View>
       </View>
     </BottomSheetModalProvider >
@@ -1484,6 +1523,28 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       // paddingTop: 10,
       // paddingHorizontal: 16,
       gap: 12,
+    },
+    heroBlock: {
+      gap: 10,
+    },
+    locationRow: {
+      flexDirection: "row",
+      gap: 10,
+    },
+    stickyHeroWrap: {
+      backgroundColor: palette.background,
+      zIndex: 2,
+      marginHorizontal: -16,
+      paddingHorizontal: 16,
+      paddingBottom: 10,
+      // gap: 10,
+      // borderWidth: 1
+    },
+    stickySearchWrap: {
+      backgroundColor: palette.background,
+      // borderBottomWidth: 1,
+      // borderBottomColor: hairline,
+      // borderWidth: 1
     },
 
     topBar: {
@@ -1530,13 +1591,31 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     addressRow: {
       flexDirection: 'row',
       alignItems: "center",
-      gap: 5,
+      gap: 10,
+      flex: 1,
+      minWidth: 0,
     },
     branchRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 5,
-      marginTop: 2,
+      gap: 10,
+      flex: 1,
+      minWidth: 0,
+      paddingLeft: 10
+    },
+    locationTextWrap: {
+      flex: 1,
+      position: 'relative',
+      gap: 2,
+    },
+    locationSeperator: {
+      position: "absolute",
+      height: 25,
+      width: 1,
+      backgroundColor: palette.muted,
+      top: 5,
+      right: -5,
+      opacity: 0.5
     },
     branchPromptBackdrop: {
       flex: 1,
@@ -1566,8 +1645,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     branchOptionTitle: { fontSize: 14, fontWeight: "700", color: palette.text },
     branchOptionSub: { fontSize: 12, color: palette.muted, marginTop: 2 },
-    addressLabel: { color: palette.muted, fontSize: 13, },
-    addressValue: { color: palette.muted, fontSize: 13, fontWeight: "700", textAlign: 'left' },
+    addressLabel: { color: palette.muted, fontSize: 13, textAlign: align, lineHeight: 16, fontWeight: "700" },
+    addressValue: { color: palette.muted, fontSize: 13, lineHeight: 16, textAlign: align },
 
     walletCard: {
       borderRadius: 20,
