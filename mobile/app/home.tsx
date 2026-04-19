@@ -815,7 +815,7 @@ export default function Home() {
                       </>
                     ) : (
                       <>
-                        <View style={styles.catOverlay} />
+                        <View style={[styles.catOverlay, { backgroundColor: '#f0f0f0' }]} />
                         <Image source={fallbackLogo} style={[styles.catIcon, { tintColor: '#dedede' }]} />
                       </>
                     )}
@@ -871,7 +871,7 @@ export default function Home() {
           {user ? (
             <View style={styles.locationRow}>
               <TouchableOpacity onPress={openAddressSheet} activeOpacity={0.9} style={[styles.addressRow]}>
-                <Feather name="map-pin" size={18} color={palette.muted} />
+                <Feather name="map-pin" size={18} color={'white'} />
 
                 <View style={styles.locationTextWrap}>
                   <Text style={styles.addressLabel} numberOfLines={1}>
@@ -897,7 +897,7 @@ export default function Home() {
               </TouchableOpacity>
 
               <TouchableOpacity onPress={openBranchSheet} activeOpacity={0.9} style={[styles.branchRow]}>
-                <Ionicons name="storefront-outline" size={18} color={palette.muted} />
+                <Ionicons name="storefront-outline" size={18} color={'white'} />
 
                 <View style={styles.locationTextWrap}>
                   <Text style={styles.addressLabel} numberOfLines={1}>
@@ -1001,199 +1001,195 @@ export default function Home() {
       <View style={styles.safe}>
         <View style={styles.container}>
           {/* <LottieView
-            autoPlay
-            loop
-            style={{ width: 220, height: 220 }}
-            source={{ uri: "https://assets10.lottiefiles.com/packages/lf20_usmfx6bp.json" }}
-          /> */}
+              autoPlay
+              loop
+              style={{ width: 220, height: 220 }}
+              source={{ uri: "https://assets10.lottiefiles.com/packages/lf20_usmfx6bp.json" }}
+            /> */}
 
-          <FlatList
-            data={(refreshing || (loadingProducts && filteredAndSorted.length === 0)) ? skeletonProducts : filteredAndSorted}
-            numColumns={2}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            keyboardShouldPersistTaps="handled"
-            keyExtractor={(p, idx) => `${p._id}-${idx}`}
-            contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 16 }}
-            columnWrapperStyle={styles.productRow}
-            ListHeaderComponent={
-              <>
-                <View style={styles.stickyHeroWrap}>
-                  {renderHero()}
+          <View style={styles.stickyHeroWrap}>
+            {renderHero()}
 
-                  <View style={styles.stickySearchWrap}>
-                    {renderSearchAndFilters()}
-                  </View>
+            <View style={styles.stickySearchWrap}>
+              {renderSearchAndFilters()}
+            </View>
+          </View>
 
-                </View>
-                {renderHeader()}
-              </>
-            }
-            stickyHeaderIndices={[0]}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: false }
-            )}
-            scrollEventThrottle={16}
-            refreshing={refreshing}
-            onRefresh={() => {
-              fetchProducts(1, false);
-              fetchMembershipMeta();
-              setCategoriesLoading(true);
-              api
-                .get("/categories")
-                .then((res) => setCategories(res.data.data || []))
-                .catch(() => setCategories([]))
-                .finally(() => setCategoriesLoading(false));
-            }}
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.4}
-            renderItem={({ item, index }) => {
-              if ((item as any).__skeleton) {
+          <View style={{ flex: 1, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: palette.background, borderWidth: 1, borderColor: palette.background }}>
+            <FlatList
+              data={(refreshing || (loadingProducts && filteredAndSorted.length === 0)) ? skeletonProducts : filteredAndSorted}
+              numColumns={2}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              keyboardShouldPersistTaps="handled"
+              keyExtractor={(p, idx) => `${p._id}-${idx}`}
+              contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 16 }}
+              columnWrapperStyle={styles.productRow}
+              ListHeaderComponent={renderHeader()}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                { useNativeDriver: false }
+              )}
+              scrollEventThrottle={16}
+              refreshing={refreshing}
+              onRefresh={() => {
+                fetchProducts(1, false);
+                fetchMembershipMeta();
+                setCategoriesLoading(true);
+                api
+                  .get("/categories")
+                  .then((res) => setCategories(res.data.data || []))
+                  .catch(() => setCategories([]))
+                  .finally(() => setCategoriesLoading(false));
+              }}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.4}
+              renderItem={({ item, index }) => {
+                if ((item as any).__skeleton) {
+                  return (
+                    <View style={{ width: "48%" }}>
+                      <View style={styles.productCard}>
+                        <View style={styles.prodImgBox}>
+                          <Skeleton width={300} height={120} colorScheme={isDark ? "dark" : "light"} />
+                        </View>
+                        <View style={{ paddingHorizontal: 8, paddingVertical: 10, gap: 6 }}>
+                          <Skeleton width={120} height={12} colorScheme={isDark ? "dark" : "light"} />
+                          <Skeleton width={80} height={12} colorScheme={isDark ? "dark" : "light"} />
+                        </View>
+                      </View>
+                    </View>
+                  );
+                }
+                const isLeft = index % 2 === 0;
+
                 return (
-                  <View style={{ width: "48%" }}>
+                  <View
+                    style={{
+                      width: "48%",
+                    }}
+                  >
                     <View style={styles.productCard}>
-                      <View style={styles.prodImgBox}>
-                        <Skeleton width={300} height={120} colorScheme={isDark ? "dark" : "light"} />
-                      </View>
-                      <View style={{ paddingHorizontal: 8, paddingVertical: 10, gap: 6 }}>
-                        <Skeleton width={120} height={12} colorScheme={isDark ? "dark" : "light"} />
-                        <Skeleton width={80} height={12} colorScheme={isDark ? "dark" : "light"} />
-                      </View>
+                      <Link href={`/products/${item._id}`} asChild>
+                        <TouchableOpacity
+                          style={styles.productPressable}
+                          activeOpacity={0.92}
+                        >
+                          <View style={styles.prodImgBox}>
+                            <Image
+                              source={
+                                item.images?.[0]?.url
+                                  ? { uri: item.images?.[0]?.url }
+                                  : fallbackLogo
+                              }
+                              style={[
+                                styles.productImg,
+                                !item.images?.[0]?.url && { tintColor: '#dedede' },
+                              ]}
+                            />
+                          </View>
+
+                          <View style={{ flexDirection: 'row', justifyContent: 'center', position: 'relative' }}>
+                            {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
+                              <Text style={[styles.promoBadge,]}>
+                                {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
+                              </Text>
+                            ) : null}
+                          </View>
+
+                          <Text style={styles.productName} numberOfLines={1}>
+                            {item.name}
+                          </Text>
+
+                          <Text style={styles.productDesc} numberOfLines={2}>
+                            {item.description ? item.description : '-'}
+                          </Text>
+
+                          <View style={styles.priceRow}>
+                            <Text style={[styles.productOldPrice]} numberOfLines={1}>
+                              {item.isPromoted && item.promoPrice !== undefined
+                                && `${item.price.toLocaleString()} ${t("syp")}`
+                              }
+                            </Text>
+                            <Text style={[styles.productPrice]}>
+                              {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} {t("syp")}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      </Link>
+
+                      {(() => {
+                        const existing = items.find(
+                          (i) => i.productId === item._id
+                        );
+
+                        if (existing) {
+                          return (
+                            <View style={styles.qtyRow}>
+                              <TouchableOpacity
+                                style={styles.qtyBtn}
+                                onPress={() =>
+                                  setQuantity(existing.productId, existing.quantity - 1)
+                                }
+                              >
+                                <Text style={styles.qtySym}>-</Text>
+                              </TouchableOpacity>
+
+                              <Text style={styles.qtyVal}>{existing.quantity}</Text>
+
+                              <TouchableOpacity
+                                style={styles.qtyBtn}
+                                onPress={() =>
+                                  addItem({
+                                    productId: item._id,
+                                    name: item.name,
+                                    price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
+                                    image: item.images?.[0]?.url,
+                                    quantity: 1,
+                                  })
+                                }
+                              >
+                                <Text style={styles.qtySym}>+</Text>
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        }
+
+                        return (
+                          <TouchableOpacity
+                            style={styles.addBtn}
+                            onPress={() =>
+                              addItem({
+                                productId: item._id,
+                                name: item.name,
+                                price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
+                                image: item.images?.[0]?.url,
+                                quantity: 1,
+                              })
+                            }
+                          >
+                            <Text style={styles.addBtnText}>
+                              {t("addToCart") ?? "Add to cart"}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })()}
                     </View>
                   </View>
                 );
-              }
-              const isLeft = index % 2 === 0;
-
-              return (
-                <View
-                  style={{
-                    width: "48%",
-                  }}
-                >
-                  <View style={styles.productCard}>
-                    <Link href={`/products/${item._id}`} asChild>
-                      <TouchableOpacity
-                        style={styles.productPressable}
-                        activeOpacity={0.92}
-                      >
-                        <View style={styles.prodImgBox}>
-                          <Image
-                            source={
-                              item.images?.[0]?.url
-                                ? { uri: item.images?.[0]?.url }
-                                : fallbackLogo
-                            }
-                            style={[
-                              styles.productImg,
-                              !item.images?.[0]?.url && { tintColor: '#dedede' },
-                            ]}
-                          />
-                        </View>
-
-                        <View style={{ flexDirection: 'row', justifyContent: 'center', position: 'relative' }}>
-                          {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
-                            <Text style={[styles.promoBadge,]}>
-                              {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
-                            </Text>
-                          ) : null}
-                        </View>
-
-                        <Text style={styles.productName} numberOfLines={1}>
-                          {item.name}
-                        </Text>
-
-                        <Text style={styles.productDesc} numberOfLines={2}>
-                          {item.description ? item.description : '-'}
-                        </Text>
-
-                        <View style={styles.priceRow}>
-                          <Text style={[styles.productOldPrice]} numberOfLines={1}>
-                            {item.isPromoted && item.promoPrice !== undefined
-                              && `${item.price.toLocaleString()} ${t("syp")}`
-                            }
-                          </Text>
-                          <Text style={[styles.productPrice]}>
-                            {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} {t("syp")}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    </Link>
-
-                    {(() => {
-                      const existing = items.find(
-                        (i) => i.productId === item._id
-                      );
-
-                      if (existing) {
-                        return (
-                          <View style={styles.qtyRow}>
-                            <TouchableOpacity
-                              style={styles.qtyBtn}
-                              onPress={() =>
-                                setQuantity(existing.productId, existing.quantity - 1)
-                              }
-                            >
-                              <Text style={styles.qtySym}>-</Text>
-                            </TouchableOpacity>
-
-                            <Text style={styles.qtyVal}>{existing.quantity}</Text>
-
-                            <TouchableOpacity
-                              style={styles.qtyBtn}
-                              onPress={() =>
-                                addItem({
-                                  productId: item._id,
-                                  name: item.name,
-                                  price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
-                                  image: item.images?.[0]?.url,
-                                  quantity: 1,
-                                })
-                              }
-                            >
-                              <Text style={styles.qtySym}>+</Text>
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      }
-
-                      return (
-                        <TouchableOpacity
-                          style={styles.addBtn}
-                          onPress={() =>
-                            addItem({
-                              productId: item._id,
-                              name: item.name,
-                              price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
-                              image: item.images?.[0]?.url,
-                              quantity: 1,
-                            })
-                          }
-                        >
-                          <Text style={styles.addBtnText}>
-                            {t("addToCart") ?? "Add to cart"}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })()}
-                  </View>
+              }}
+              ListFooterComponent={
+                <View style={{ paddingBottom: 0 }}>
+                  {loadingMore ? (
+                    <View style={{ paddingVertical: 10 }}>
+                      <ActivityIndicator color={palette.accent} />
+                    </View>
+                  ) : null}
+                  {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
                 </View>
-              );
-            }}
-            ListFooterComponent={
-              <View style={{ paddingBottom: 0 }}>
-                {loadingMore ? (
-                  <View style={{ paddingVertical: 10 }}>
-                    <ActivityIndicator color={palette.accent} />
-                  </View>
-                ) : null}
-                {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
-              </View>
-            }
-          />
-
+              }
+            />
+          </View>
           {/* Filters */}
           <BottomSheetModal
             ref={sheetRef}
@@ -1506,7 +1502,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
   return StyleSheet.create({
     safe: {
       flex: 1,
-      backgroundColor: palette.background,
+      backgroundColor: palette.accent,
       paddingTop: insets.top,
       writingDirection: isRTL ? "rtl" : "ltr",
       direction: isRTL ? "rtl" : "ltr",
@@ -1532,16 +1528,16 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       gap: 10,
     },
     stickyHeroWrap: {
-      backgroundColor: palette.background,
+      backgroundColor: palette.accent,
       zIndex: 2,
-      marginHorizontal: -16,
+      // marginHorizontal: -16,
       paddingHorizontal: 16,
       paddingBottom: 10,
       // gap: 10,
       // borderWidth: 1
     },
     stickySearchWrap: {
-      backgroundColor: palette.background,
+      backgroundColor: palette.accent,
       // borderBottomWidth: 1,
       // borderBottomColor: hairline,
       // borderWidth: 1
@@ -1607,14 +1603,16 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       flex: 1,
       position: 'relative',
       gap: 2,
+      borderWidth:1
     },
     locationSeperator: {
       position: "absolute",
       height: 25,
       width: 1,
-      backgroundColor: palette.muted,
+      backgroundColor: 'white',
       top: 5,
-      right: -5,
+      right: isRTL ? '100%' : -11,
+      // left: isRTL ? -11 : 'auto',
       opacity: 0.5
     },
     branchPromptBackdrop: {
@@ -1645,8 +1643,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     branchOptionTitle: { fontSize: 14, fontWeight: "700", color: palette.text },
     branchOptionSub: { fontSize: 12, color: palette.muted, marginTop: 2 },
-    addressLabel: { color: palette.muted, fontSize: 13, textAlign: align, lineHeight: 16, fontWeight: "700" },
-    addressValue: { color: palette.muted, fontSize: 13, lineHeight: 16, textAlign: align },
+    addressLabel: { color: 'white', fontSize: 13, lineHeight: 16, fontWeight: "700" },
+    addressValue: { color: 'white', fontSize: 13, lineHeight: 16 },
 
     walletCard: {
       borderRadius: 20,
@@ -1722,13 +1720,13 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       flex: 1,
       position: "relative",
       backgroundColor: palette.card,
-      borderWidth: 1,
-      borderColor: hairline,
+      // borderWidth: 1,
+      // borderColor: hairline,
       borderRadius: 999,
       paddingHorizontal: 14,
       height: 48,
       justifyContent: "center",
-      ...cardShadow,
+      // ...cardShadow,
     },
     searchIcon: {
       position: "absolute",
@@ -1756,14 +1754,14 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       height: 48,
       borderRadius: 16,
       backgroundColor: palette.card,
-      borderWidth: 1,
-      borderColor: hairline,
+      // borderWidth: 1,
+      // borderColor: hairline,
       flexDirection: 'row',
       alignItems: "center",
       justifyContent: "center",
       gap: 10,
       paddingHorizontal: 10,
-      ...cardShadow,
+      // ...cardShadow,
     },
     filterDot: {
       minWidth: 18,
@@ -1821,11 +1819,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       backgroundColor: isDark ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.45)",
     },
     catIcon: {
-      width: 86,
+      width: '90%',
       height: 44,
       resizeMode: "contain",
     },
-    catName: { color: palette.text, fontSize: 12, textAlign: "center" },
+    catName: { color: palette.text, fontSize: 10, textAlign: "center", fontWeight: '700' },
 
     productRow: {
       gap: 12,
@@ -1838,7 +1836,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     productCard: {
       backgroundColor: palette.card,
       borderRadius: 20,
-      padding: 10,
+      padding: 5,
       borderWidth: 1,
       borderColor: hairline,
       gap: 10,
@@ -1849,7 +1847,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       width: "100%",
       height: 110,
       borderRadius: 16,
-      backgroundColor: palette.surface,
+      backgroundColor: '#f0f0f0',
       overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",
@@ -1887,11 +1885,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       position: 'absolute',
       bottom: 0
     },
-    productPrice: { color: palette.accent, fontWeight: "900", fontSize: 16, lineHeight: 16 },
+    productPrice: { color: palette.accent, fontWeight: "900", fontSize: 18, lineHeight: 16 },
 
     addBtn: {
       backgroundColor: palette.accent,
-      borderRadius: 14,
+      borderRadius: 15,
       paddingVertical: 12,
       alignItems: "center",
       justifyContent: "center",
