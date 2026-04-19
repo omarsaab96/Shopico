@@ -489,6 +489,28 @@ nav::-webkit-scrollbar {
   background: var(--gray-100);
 }
 
+.chart-wrap .recharts-surface {
+  overflow: visible;
+}
+
+.chart-wrap .recharts-cartesian-axis-tick-value,
+.chart-wrap .recharts-tooltip-item,
+.chart-wrap .recharts-label {
+  fill: var(--gray-600);
+  color: var(--gray-600);
+}
+
+.chart-wrap .recharts-default-tooltip {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--gray-300) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+}
+
+.chart-wrap .recharts-tooltip-label {
+  color: var(--text-primary);
+}
+
 
 .chart-locked {
   width: 100%;
@@ -498,19 +520,6 @@ nav::-webkit-scrollbar {
   color: var(--gray-600);
   font-weight: 700;
   font-size: 14px;
-}
-
-.chart-svg {
-  width: 100%;
-  height: 100%;
-}
-
-.chart-labels {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  font-size: 11px;
-  color: var(--gray-600);
 }
 
 .chart-actions {

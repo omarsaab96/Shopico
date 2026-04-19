@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import Card from "../components/Card";
 import { fetchAnnouncements, fetchCoupons, fetchOrders, fetchProductsAdmin, fetchTopUps, fetchUsers } from "../api/client";
 import { useI18n } from "../context/I18nContext";
@@ -21,7 +33,7 @@ const DashboardPage = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
   const canViewOrders = can("orders:view");
@@ -32,6 +44,8 @@ const DashboardPage = () => {
   const canViewCoupons = can("coupons:view");
   const lockedMetricValue = "******";
   const lockedMetricSub = `\uD83D\uDD12 ${t("dashboard.restrictedAccess")}`;
+  const formatTooltipNumber = (value: unknown) =>
+    typeof value === "number" ? value.toLocaleString() : String(value ?? "");
 
   useEffect(() => {
     if (!selectedBranchId) return;
@@ -105,7 +119,7 @@ const DashboardPage = () => {
     selectedBranchId,
   ]);
 
-  const revenue = canViewOrders ? orders.reduce((sum, o) => sum + o.total, 0) : 0;
+  const totalRevenue = canViewOrders ? orders.reduce((sum, o) => sum + o.total, 0) : 0;
   const pending = canViewOrders
     ? orders.filter((o) => o.status !== "DELIVERED" && o.status !== "CANCELLED").length
     : 0;
@@ -114,7 +128,7 @@ const DashboardPage = () => {
     day: "numeric",
   });
 
-  const { revenueSeries, orderCountSeries, labels, rangeLabel } = useMemo(() => {
+  const { chartData, rangeLabel, weeklyRevenue, weeklyOrderCount } = useMemo(() => {
     const days = 7;
     const now = new Date();
     const base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -138,31 +152,17 @@ const DashboardPage = () => {
       }
     });
     return {
-      labels,
       rangeLabel: `${readableDateFormatter.format(start)} - ${readableDateFormatter.format(base)}`,
-      revenueSeries: buckets.map((b) => b.revenue),
-      orderCountSeries: buckets.map((b) => b.count),
+      chartData: buckets.map((bucket, index) => ({
+        label: labels[index],
+        revenue: bucket.revenue,
+        orders: bucket.count,
+      })),
+      weeklyRevenue: buckets.reduce((sum, bucket) => sum + bucket.revenue, 0),
+      weeklyOrderCount: buckets.reduce((sum, bucket) => sum + bucket.count, 0),
     };
   }, [orders, readableDateFormatter]);
-
-  const renderSpark = (series: number[], color: string) => {
-    const max = Math.max(...series, 1);
-    const min = Math.min(...series, 0);
-    const range = Math.max(1, max - min);
-    const points = series.map((v, i) => {
-      const x = (i / (series.length - 1 || 1)) * 100;
-      const y = 100 - ((v - min) / range) * 100;
-      return `${x},${y}`;
-    });
-    const path = `M ${points.join(" L ")}`;
-    const area = `${path} L 100,100 L 0,100 Z`;
-    return (
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="chart-svg">
-        <path d={area} fill={`${color}22`} />
-        <path d={path} fill="none" stroke={color} strokeWidth="2" />
-      </svg>
-    );
-  };
+  const chartMargin = { top: 10, right: 8, left: 8, bottom: 0 };
 
   return (
     <div className="dashboard-grid">
@@ -171,7 +171,7 @@ const DashboardPage = () => {
           <div className="kpi-card accent">
             <div className="kpi-label">{t("dashboard.revenueSyp")}</div>
             <div className="kpi-value">
-              {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-140" /> : revenue.toLocaleString()}
+              {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-140" /> : totalRevenue.toLocaleString()}
             </div>
             <div className="kpi-sub">{!canViewOrders ? lockedMetricSub : rangeLabel}</div>
           </div>
@@ -205,27 +205,55 @@ const DashboardPage = () => {
             <div className="chart-meta">
               <div className="chart-title">{t("dashboard.sevenDayTrend")}</div>
               <div className="chart-value">
-                {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-120" /> : `${revenue.toLocaleString()} SYP`}
+                {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-120" /> : `${weeklyRevenue.toLocaleString()} ${t("syp").toUpperCase()}`}
               </div>
             </div>
-            <div className="chart-wrap">
+            <div className="chart-wrap" dir="ltr">
               {!canViewOrders ? (
                 <div className="chart-locked">{lockedMetricSub}</div>
               ) : loadingOrders ? (
                 <div className="skeleton-block" />
               ) : (
-                renderSpark(revenueSeries, "var(--accent)")
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={chartMargin}>
+                    <defs>
+                      <linearGradient id="dashboardRevenueFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#111827" stopOpacity={0.22} />
+                        <stop offset="95%" stopColor="#111827" stopOpacity={0.04} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="var(--gray-300)" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={10} reversed={dir === "rtl"} />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      width={52}
+                      orientation={dir === "rtl" ? "right" : "left"}
+                      mirror={false}
+                      tickMargin={8}
+                    />
+                    <Tooltip
+                      cursor={{ stroke: "#cbd5e1", strokeWidth: 1 }}
+                      contentStyle={{ borderRadius: 12, border: "1px solid var(--gray-300)" }}
+                      wrapperStyle={{ direction: dir }}
+                      formatter={(value) => [`${formatTooltipNumber(value)} SYP`, t("dashboard.revenueSyp")]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#111827"
+                      strokeWidth={2.5}
+                      fill="url(#dashboardRevenueFill)"
+                    />
+                    <Line type="monotone" dataKey="revenue" stroke="#111827" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
               )}
             </div>
             {!canViewOrders ? (
               <div className="chart-locked-sub">{lockedMetricSub}</div>
             ) : (
               <>
-                <div className="chart-labels">
-                  {labels.map((label) => (
-                    <span key={label}>{label}</span>
-                  ))}
-                </div>
                 <div className="chart-actions">
                   <Link to="/orders" className="ghost-btn">{t("dashboard.viewMore")}</Link>
                 </div>
@@ -239,27 +267,43 @@ const DashboardPage = () => {
             <div className="chart-meta">
               <div className="chart-title">{t("dashboard.ordersPerDay")}</div>
               <div className="chart-value">
-                {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-80" /> : orders.length.toLocaleString()}
+                {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-80" /> : weeklyOrderCount.toLocaleString()}
               </div>
             </div>
-            <div className="chart-wrap">
+            <div className="chart-wrap" dir="ltr">
               {!canViewOrders ? (
                 <div className="chart-locked">{lockedMetricSub}</div>
               ) : loadingOrders ? (
                 <div className="skeleton-block" />
               ) : (
-                renderSpark(orderCountSeries, "#16a34a")
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={chartMargin} barCategoryGap="28%">
+                    <CartesianGrid stroke="var(--gray-300)" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={10} reversed={dir === "rtl"} />
+                    <YAxis
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      width={40}
+                      orientation={dir === "rtl" ? "right" : "left"}
+                      mirror={false}
+                      tickMargin={8}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "rgba(148, 163, 184, 0.12)" }}
+                      contentStyle={{ borderRadius: 12, border: "1px solid var(--gray-300)" }}
+                      wrapperStyle={{ direction: dir }}
+                      formatter={(value) => [formatTooltipNumber(value), t("titles.orders")]}
+                    />
+                    <Bar dataKey="orders" fill="#111827" radius={[10, 10, 4, 4]} />
+                  </BarChart>
+                </ResponsiveContainer>
               )}
             </div>
             {!canViewOrders ? (
               <div className="chart-locked-sub">{lockedMetricSub}</div>
             ) : (
               <>
-                <div className="chart-labels">
-                  {labels.map((label) => (
-                    <span key={label}>{label}</span>
-                  ))}
-                </div>
                 <div className="chart-actions">
                   <Link to="/orders" className="ghost-btn">{t("dashboard.viewMore")}</Link>
                 </div>

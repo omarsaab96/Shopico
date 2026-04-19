@@ -278,7 +278,7 @@ const OrderDetailsPage = () => {
     <div className="grid">
       <Card
         title={t("orders.orderDetails")}
-        subTitle={`${order._id.slice(-6)}`}
+        subTitle={`#${order._id.slice(-6)}`}
         actions={
           <button className="ghost-btn" type="button" onClick={() => navigate("/orders")}>
             {t("back")}

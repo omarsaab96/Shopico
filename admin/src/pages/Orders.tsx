@@ -319,7 +319,7 @@ const OrdersPage = () => {
       <table className="table">
         <thead>
           <tr>
-            <th>{t("titles.orders")}</th>
+            <th>#</th>
             <th>{t("customer")}</th>
             <th>{t("orders.dateTime")}</th>
             <th>{t("status")}</th>
