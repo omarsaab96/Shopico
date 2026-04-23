@@ -1,21 +1,21 @@
-import { Link, useFocusEffect } from "expo-router";
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { Link, useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AppState,
   FlatList,
+  RefreshControl,
+  StyleSheet,
   TouchableOpacity,
   View,
-  StyleSheet,
-  RefreshControl,
-  AppState,
 } from "react-native";
+import Entypo from "@expo/vector-icons/Entypo";
+import LottieView from "lottie-react-native";
 import Screen from "../../components/Screen";
 import Text from "../../components/Text";
+import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../lib/i18n";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
-import { useI18n } from "../../lib/i18n";
-import { useAuth } from "../../lib/auth";
-import { useRouter } from 'expo-router';
-
 
 export default function Orders() {
   const router = useRouter();
@@ -29,6 +29,13 @@ export default function Orders() {
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
+  const formatOrderDate = useCallback((value?: string) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString();
+  }, []);
+
   const load = useCallback(async () => {
     if (!user) return;
 
@@ -36,14 +43,9 @@ export default function Orders() {
     try {
       const res = await api.get("/orders");
       const list = res.data.data || [];
-
-      // newest first
       const sorted = [...list].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-
       setOrders(sorted);
     } catch {
       setOrders([]);
@@ -55,23 +57,15 @@ export default function Orders() {
   const loadSilently = useCallback(async () => {
     if (!user) return;
 
-    // setRefreshing(true);
     try {
       const res = await api.get("/orders");
       const list = res.data.data || [];
-
-      // newest first
       const sorted = [...list].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-
       setOrders(sorted);
     } catch {
       setOrders([]);
-    } finally {
-      // setRefreshing(false);
     }
   }, [user]);
 
@@ -102,6 +96,7 @@ export default function Orders() {
         startPolling();
       }
     });
+
     return () => sub.remove();
   }, [user, startPolling, stopPolling]);
 
@@ -121,17 +116,35 @@ export default function Orders() {
           <Text style={styles.emptyTitle}>
             {t("noOrders") ?? "No orders yet"}
           </Text>
-          <Text style={styles.emptyText}>{t("loginToSeeOrders") ?? "Please login to view your orders."}</Text>
+          <Text style={styles.emptyText}>
+            {t("loginToSeeOrders") ?? "Please login to view your orders."}
+          </Text>
 
-          <TouchableOpacity style={styles.browseBtn} onPress={() => { router.replace("/auth/login") }}>
+          <TouchableOpacity
+            style={styles.browseBtn}
+            onPress={() => {
+              router.replace("/auth/login");
+            }}
+          >
             <Text style={styles.browseBtnText}>{t("login")}</Text>
           </TouchableOpacity>
         </View>
       ) : orders.length === 0 ? (
         <View style={styles.emptyBox}>
+          <LottieView
+            autoPlay
+            loop
+            style={{ width: 120, height: 120 }}
+            source={require("../../assets/noorders.json")}
+          />
           <Text style={styles.emptyTitle}>{t("noOrders") ?? "No orders yet"}</Text>
-          <Text style={styles.emptyText}>{t("noOrdersHint") ?? "Start browsing to place your first order."}</Text>
-          <TouchableOpacity style={styles.browseBtn} onPress={() => router.replace("/(tabs)/store")}>
+          <Text style={styles.emptyText}>
+            {t("noOrdersHint") ?? "Start browsing to place your first order."}
+          </Text>
+          <TouchableOpacity
+            style={styles.browseBtn}
+            onPress={() => router.replace("/(tabs)/store")}
+          >
             <Text style={styles.browseBtnText}>{t("startBrowsing")}</Text>
           </TouchableOpacity>
         </View>
@@ -150,18 +163,51 @@ export default function Orders() {
           renderItem={({ item }) => (
             <Link href={`/orders/${item._id}`} asChild>
               <TouchableOpacity style={styles.row}>
-                <View>
-                  <Text style={styles.name}>
-                    #{item._id.slice(-6)}
-                  </Text>
+                <View style={{ flexDirection: 'row', gap: 15, marginBottom: 10, alignItems: 'center' }}>
 
-                  <Text style={styles.muted}>
-                    {t(item.status) ?? item.status}
-                  </Text>
+                  <View style={{ borderWidth: 1, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderColor: palette.border }}>
+
+                  </View>
+
+                  <View style={{ flex: 1, gap:2 }}>
+                    <Text style={styles.name}>#{item._id.slice(-6)}</Text>
+                    <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+                      <Text style={styles.meta}>{formatOrderDate(item.createdAt)}</Text>
+                      <Text style={styles.status}>{t(item.status) ?? item.status}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.arrow}>
+                    <Entypo
+                      name={isRTL ? "chevron-left" : "chevron-right"}
+                      size={24}
+                      color={palette.accent}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.itemsList}>
+                  <View>
+                    {item.items?.slice(0, 2).map((orderItem: any, index: number) => (
+                      <View
+                        key={orderItem._id ?? `${orderItem.product?.name}-${index}`}
+                        style={styles.itemLine}
+                      >
+                        <Text style={styles.itemQty}>{orderItem.quantity}</Text>
+                        <Text style={styles.itemName}>{orderItem.product?.name}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {(item.items?.length ?? 0) > 2 ? (
+                    <Text style={styles.moreItemsText}>
+                      {item.items.length - 2} {item.items.length - 2 == 1 ? t("otherItem") : t("otherItems")}
+                    </Text>
+                  ) : null}
                 </View>
 
                 <Text style={styles.value}>
-                  {item.total?.toLocaleString()} SYP
+                  {t("total")}: {item.total?.toLocaleString()} {t("SYP") ?? "SYP"}
                 </Text>
               </TouchableOpacity>
             </Link>
@@ -172,40 +218,66 @@ export default function Orders() {
   );
 }
 
-
 const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
     title: {
       color: palette.text,
       fontSize: 22,
-      fontWeight: "800",
+      fontWeight: "900",
       marginBottom: 12,
-       textAlign:'left'
+      textAlign: "left",
     },
 
     row: {
       backgroundColor: palette.card,
-      borderRadius: 20,
-      padding: 12,
+      borderRadius: 15,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
       borderWidth: 1,
       borderColor: palette.border,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
+      // position: "relative",
+      // gap: 0,
     },
 
-    name: { color: palette.text, fontWeight: "700" },
+    arrow: {
+      // position: "absolute",
+      // top: 8,
+      // right: isRTL ? "auto" : 12,
+      // left: isRTL ? 12 : "auto",
+      height: 40,
+      width: 40,
+      justifyContent: 'center',
+      alignItems: 'flex-end',
+    },
+
+    name: { color: palette.text, fontWeight: "700", lineHeight: 14, fontSize: 14 },
     muted: { color: palette.muted },
-    value: { color: palette.accent, fontWeight: "800" },
+    meta: { color: palette.muted, fontSize: 12, lineHeight: 12 },
+    status: { color: palette.muted, fontSize: 12, lineHeight: 12 },
+    itemsList: { marginBottom: 15, gap: 5 },
+    itemLine: { flexDirection: "row", gap: 4, alignItems: "baseline" },
+    itemQty: {
+      color: palette.accent,
+      fontSize: 13,
+      fontWeight: "900",
+    },
+    itemName: {
+      color: palette.text,
+      fontWeight: "500",
+      fontSize: 13,
+    },
+    moreItemsText: {
+      color: palette.muted,
+      fontWeight: "500",
+      fontSize: 13,
+    },
+    value: { color: "black", fontSize: 13, fontWeight: "500" },
 
     emptyBox: {
-      backgroundColor: palette.card,
-      borderRadius: 20,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: palette.border,
       alignItems: "center",
       gap: 8,
+      flex: 1,
+      justifyContent: "center",
     },
     emptyTitle: { color: palette.text, fontSize: 18, fontWeight: "800" },
     emptyText: { color: palette.muted, textAlign: "center" },

@@ -79,7 +79,7 @@ export default function CartScreen() {
   const [contentHeight, setContentHeight] = useState(0);
   const [successHeight, setSuccessHeight] = useState(0);
   const [footerHeight, setFooterHeight] = useState(0);
-  const lottieRef = useRef(null);
+  const successLottieRef = useRef<LottieView>(null);
   const couponScrollRef = useRef<any>(null);
   const pendingCouponScrollToEnd = useRef(false);
 
@@ -212,7 +212,7 @@ export default function CartScreen() {
   useEffect(() => {
     if (showSuccessContent) {
       requestAnimationFrame(() => {
-        lottieRef.current?.play(0, 145);
+        successLottieRef.current?.play(0, 145);
       });
     }
   }, [showSuccessContent]);
@@ -641,7 +641,7 @@ export default function CartScreen() {
               {t("subtotal")}: {subtotal.toLocaleString()} SYP
             </Text>
 
-            {couponDiscountTotal > 0&&<Text style={styles.sheetText}>
+            {couponDiscountTotal > 0 && <Text style={styles.sheetText}>
               {t("discount") ?? "Discount"}:{" "}
               {couponDiscountTotal > 0
                 ? `-${couponDiscountTotal.toLocaleString()} ${t("syp")}`
@@ -665,8 +665,8 @@ export default function CartScreen() {
             disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading}
           >
             <Text style={styles.primaryBtnText}>
-              {submitting ? t("placingOrder") : t("placeOrder")}• 
-              {!submitting && <Text style={[styles.primaryBtnText,{textDecorationLine: "line-through"}]}>{`${(orderTotal*100).toLocaleString()} ${t('syp')}`}</Text>}
+              {submitting ? t("placingOrder") : t("placeOrder")}•
+              {!submitting && <Text style={[styles.primaryBtnText, { textDecorationLine: "line-through" }]}>{`${(orderTotal * 100).toLocaleString()} ${t('syp')}`}</Text>}
               {!submitting && `• ${orderTotal.toLocaleString()} ${t('syp')}`}
             </Text>
             {submitting && <ActivityIndicator color={'#fff'} size={'small'} style={{}} />}
@@ -675,6 +675,7 @@ export default function CartScreen() {
       </BottomSheetFooter>
     );
   };
+
   return (
     <BottomSheetModalProvider>
       <Screen>
@@ -682,6 +683,17 @@ export default function CartScreen() {
 
         {items.length === 0 ? (
           <View style={styles.emptyBox}>
+            <View style={styles.successIcon}>
+              <LottieView
+                autoPlay
+                loop
+                style={{ width: 100, height: 100 }}
+                source={require("../assets/cart_empty_recolored.json")}
+                onAnimationFinish={() => {
+                  return;
+                }}
+              />
+            </View>
             <Text weight="bold" style={styles.emptyTitle}>{t("emptyCartTitle") ?? "Your cart is empty"}</Text>
             <Text style={styles.emptyText}>{t("emptyCartCopy") ?? "Add items to your cart to see them here."}</Text>
 
@@ -701,7 +713,7 @@ export default function CartScreen() {
                   <View style={{ flex: 1 }}>
                     <Text weight="bold" style={styles.name}>{item.name}</Text>
                     <Text style={styles.muted}>
-                      {item.price.toLocaleString()} SYP
+                      {item.price.toLocaleString()} {t("syp").toUpperCase()}
                     </Text>
                   </View>
                   <View style={styles.qtyRow}>
@@ -847,12 +859,12 @@ export default function CartScreen() {
                     },
                   ]}>
                     <LottieView
-                      ref={lottieRef}
+                      ref={successLottieRef}
                       loop={false}
                       style={{ width: 200, height: 200 }}
                       source={require("../assets/orderSuccess.json")}
                       onAnimationFinish={() => {
-                        lottieRef.current?.play(145, 145);
+                        successLottieRef.current?.play(145, 145);
                       }}
                     />
                   </Animated.View>
@@ -923,7 +935,7 @@ export default function CartScreen() {
                       </View>
 
                       {!showAddresses ? (
-                        <TouchableOpacity style={styles.addressBtn} onPress={() => { if(addresses.length==0){router.push("/addresses")}else{setShowAddresses(true)} }}>
+                        <TouchableOpacity style={styles.addressBtn} onPress={() => { if (addresses.length == 0) { router.push("/addresses") } else { setShowAddresses(true) } }}>
                           <Text weight="bold" style={styles.addressBtnText}>{selectedAddress ? t("change") ?? "Change address" : t("Add") ?? "Add"}</Text>
                         </TouchableOpacity>
                       ) : (
@@ -977,7 +989,7 @@ export default function CartScreen() {
                       </View>
                     }
 
-                    {!addressesLoading && showAddresses &&(
+                    {!addressesLoading && showAddresses && (
                       <View style={styles.addressBox}>
                         <View style={{
                           backgroundColor: "#fff",
@@ -1111,7 +1123,7 @@ export default function CartScreen() {
                                 <FontAwesome6 name="circle-exclamation" size={14} color="#ff5555" />
                               }
                               <TextInput
-                                style={[styles.couponInput,couponError && {borderWidth:1,borderColor:'#ff5555'}]}
+                                style={[styles.couponInput, couponError && { borderWidth: 1, borderColor: '#ff5555' }]}
                                 placeholder={t("couponCode") ?? "Code"}
                                 placeholderTextColor={palette.muted}
                                 value={inputCouponCode}
@@ -1255,7 +1267,13 @@ export default function CartScreen() {
 
 const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
   StyleSheet.create({
-    title: { color: palette.text, fontSize: 22, marginBottom: 12, textAlign: 'left' },
+    title: {
+      color: palette.text,
+      fontSize: 22,
+      marginBottom: 12,
+      textAlign: 'left',
+      fontWeight: "900",
+    },
     row: {
       backgroundColor: palette.card,
       borderRadius: 20,
@@ -1299,13 +1317,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       tintColor: '#fff'
     },
     emptyBox: {
-      backgroundColor: palette.card,
-      borderRadius: 20,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: palette.border,
       alignItems: "center",
       gap: 8,
+      flex: 1,
+      justifyContent: 'center'
     },
     emptyTitle: { color: palette.text, fontSize: 18 },
     emptyText: { color: palette.muted, textAlign: "center" },

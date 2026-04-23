@@ -359,7 +359,8 @@ export default function Home() {
         setSelectedAddress((prev) => {
           if (sorted.length === 0) return null;
           if (!prev) return sorted[0];
-          return sorted.find((address) => address._id === prev._id) || sorted[0];
+          const match = sorted.find((address) => address._id === prev._id);
+          return match ? prev : sorted[0];
         });
       })
       .catch(() => {
@@ -400,7 +401,7 @@ export default function Home() {
     } finally {
       setBranchLoading(false);
     }
-  }, [updateSelectedBranch]);
+  }, [branchLocked, updateSelectedBranch]);
 
   const fetchNearestByLocation = useCallback(async () => {
     setBranchLoading(true);
@@ -487,9 +488,11 @@ export default function Home() {
 
   useEffect(() => {
     if (!user) return;
+    if (!branchLockReady) return;
     if (!selectedAddress) return;
+    if (branchLocked) return;
     fetchNearestBranch(selectedAddress);
-  }, [user, selectedAddress, fetchNearestBranch]);
+  }, [user, selectedAddress, branchLockReady, branchLocked, fetchNearestBranch]);
 
   useEffect(() => {
     const nextLatestAddress = selectedAddress?.label || selectedAddress?.address || null;
@@ -1597,13 +1600,14 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       gap: 10,
       flex: 1,
       minWidth: 0,
-      paddingLeft: 10
+      paddingLeft: isRTL ? 0 : 10,
+      paddingRight: isRTL ? 10 : 0
     },
     locationTextWrap: {
       flex: 1,
       position: 'relative',
       gap: 2,
-      borderWidth:1
+      // borderWidth:1
     },
     locationSeperator: {
       position: "absolute",
@@ -1611,8 +1615,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       width: 1,
       backgroundColor: 'white',
       top: 5,
-      right: isRTL ? '100%' : -11,
-      // left: isRTL ? -11 : 'auto',
+      right: isRTL ? 'auto' : -11,
+      left: isRTL ? -11 : 'auto',
       opacity: 0.5
     },
     branchPromptBackdrop: {
@@ -1740,7 +1744,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       paddingHorizontal: 34,
       fontSize: 14,
       fontWeight: "600",
-      textAlign: align
+      textAlign: align,
     },
     searchRight: {
       position: "absolute",

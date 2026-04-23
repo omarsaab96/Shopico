@@ -202,7 +202,9 @@ const baseStrings = {
   addNewAddress: "Add a new address",
   off: "off",
   fromBranch:"Shopico branch",
-  selectAddress:"Select an address"
+  selectAddress:"Select an address",
+  otherItem: "other item...",
+  otherItems: "other items..."
 };
 
 const arStrings: Record<string, string> = {
@@ -394,7 +396,9 @@ const arStrings: Record<string, string> = {
   alreadyHaveAnAccount:"هل أنشأت حساب من قبل؟",
   addNewAddress:"إضافة عنوان جديد",
   fromBranch:"فرع شوبكو",  
-  selectAddress:"اختر عنواناً"
+  selectAddress:"اختر عنواناً",
+  otherItem:"عنصر آخر...",
+  otherItems:"عناصر أخرى..."
 };
 
 const extraBaseStrings: Record<string, string> = {
