@@ -30,6 +30,7 @@ import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Fontisto from '@expo/vector-icons/Fontisto';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import LottieView from "lottie-react-native";
 
 const MAP_FALLBACK = { latitude: 0, longitude: 0 };
 const MAP_EDGE_PADDING = { top: 120, right: 20, bottom: 120, left: 20 };
@@ -101,7 +102,7 @@ export default function OrderDetail() {
   // );
 
   const sheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ["50%", "90%"], []);
+  const snapPoints = useMemo(() => ["50%", "88%"], []);
   const renderBackdrop = useCallback(
     (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />,
     []
@@ -293,7 +294,7 @@ export default function OrderDetail() {
             },
           ]}
         >
-          {false && <MapView
+          {order.status!='CANCELLED' && order.status!='DELIVERED' && <MapView
             ref={mapRef}
             style={styles.mapFull}
             customMapStyle={MAP_STYLE}
@@ -312,16 +313,17 @@ export default function OrderDetail() {
               </Marker>
             ) : null}
             {branchOrigin ? (
-              <Marker coordinate={branchOrigin} title={t("branch") ?? "Branch"} anchor={{ x: 0.5, y: 1 }}>
-                <View style={[styles.pin, styles.pinBranch]}>
-                  <Feather name="home" size={16} color="#fff" />
-                </View>
-              </Marker>
+              <></>
+              // <Marker coordinate={branchOrigin} title={t("branch") ?? "Branch"} anchor={{ x: 0.5, y: 1 }}>
+              //   <View style={[styles.pin, styles.pinBranch]}>
+              //     <Feather name="home" size={16} color="#fff" />
+              //   </View>
+              // </Marker>
             ) : null}
             {destination ? (
               <Marker coordinate={destination} title={t("destination") ?? "Destination"} anchor={{ x: 0.5, y: 1 }}>
                 <View style={[styles.pin, styles.pinDestination]}>
-                  <Feather name="map-pin" size={16} color="#fff" />
+                  <Feather name="home" size={16} color="#fff" />
                 </View>
               </Marker>
             ) : null}
@@ -355,9 +357,25 @@ export default function OrderDetail() {
             ) : null}
           </MapView>}
 
-          <View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
-            <Text>hiiiii</Text>
-          </View>
+          {order.status=='CANCELLED' &&<View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
+            <LottieView
+              autoPlay
+              loop
+              style={{ width: 120, height: 120 }}
+              source={require("../../assets/orderCancelled.json")}
+            />
+            <Text>Your order is cancelled...</Text>
+          </View>}
+
+          {order.status=='DELIVERED' &&<View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
+            <LottieView
+              autoPlay
+              loop
+              style={{ width: 120, height: 120 }}
+              source={require("../../assets/orderDelivered.json")}
+            />
+            <Text>Your order has been delivered...</Text>
+          </View>}
 
           <TouchableOpacity
             onPress={() => router.back()}
@@ -649,7 +667,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       backgroundColor: palette.accent,
     },
     pinDestination: {
-      backgroundColor: "#ef4444",
+      backgroundColor: "#ff7a1f",
     },
     pinDriver: {
       backgroundColor: "#0ea5e9",
