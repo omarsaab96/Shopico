@@ -101,7 +101,7 @@ export default function OrderDetail() {
   // );
 
   const sheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ["50%","90%"], []);
+  const snapPoints = useMemo(() => ["50%", "90%"], []);
   const renderBackdrop = useCallback(
     (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />,
     []
@@ -281,99 +281,102 @@ export default function OrderDetail() {
   }
 
   return (
-      <View style={styles.safe}>
-        <View style={styles.root}>
-          {/* <Animated.View style={[styles.mapWrap, { height: mapHeight }]}> */}
-          <View
-            style={[
-              styles.mapWrap,
-              {
-                height: MAP_HEIGHT,
-                // transform: [{ translateY: mapTranslateY }, { scale: mapScale }],
-              },
-            ]}
+    <View style={styles.safe}>
+      <View style={styles.root}>
+        {/* <Animated.View style={[styles.mapWrap, { height: mapHeight }]}> */}
+        <View
+          style={[
+            styles.mapWrap,
+            {
+              height: MAP_HEIGHT,
+              // transform: [{ translateY: mapTranslateY }, { scale: mapScale }],
+            },
+          ]}
+        >
+          {false && <MapView
+            ref={mapRef}
+            style={styles.mapFull}
+            customMapStyle={MAP_STYLE}
+            initialRegion={{
+              latitude: effectiveOrigin?.latitude ?? destination?.latitude ?? MAP_FALLBACK.latitude,
+              longitude: effectiveOrigin?.longitude ?? destination?.longitude ?? MAP_FALLBACK.longitude,
+              latitudeDelta: 0.08,
+              longitudeDelta: 0.08,
+            }}
           >
-            <MapView
-              ref={mapRef}
-              style={styles.mapFull}
-              customMapStyle={MAP_STYLE}
-              initialRegion={{
-                latitude: effectiveOrigin?.latitude ?? destination?.latitude ?? MAP_FALLBACK.latitude,
-                longitude: effectiveOrigin?.longitude ?? destination?.longitude ?? MAP_FALLBACK.longitude,
-                latitudeDelta: 0.08,
-                longitudeDelta: 0.08,
-                zoom: 12
-              }}
-            >
-              {showDriver ? (
-                <Marker coordinate={driverOrigin} title={t("driver") ?? "Driver"} anchor={{ x: 0.5, y: 1 }}>
-                  <View style={[styles.pin, styles.pinDriver]}>
-                    <Feather name="navigation-2" size={16} color="#fff" />
-                  </View>
-                </Marker>
-              ) : null}
-              {branchOrigin ? (
-                <Marker coordinate={branchOrigin} title={t("branch") ?? "Branch"} anchor={{ x: 0.5, y: 1 }}>
-                  <View style={[styles.pin, styles.pinBranch]}>
-                    <Feather name="home" size={16} color="#fff" />
-                  </View>
-                </Marker>
-              ) : null}
-              {destination ? (
-                <Marker coordinate={destination} title={t("destination") ?? "Destination"} anchor={{ x: 0.5, y: 1 }}>
-                  <View style={[styles.pin, styles.pinDestination]}>
-                    <Feather name="map-pin" size={16} color="#fff" />
-                  </View>
-                </Marker>
-              ) : null}
-              {canUseDirections ? (
-                <MapViewDirections
-                  key={`${effectiveOrigin.latitude},${effectiveOrigin.longitude}-${destination.latitude},${destination.longitude}`}
-                  origin={effectiveOrigin}
-                  destination={destination}
-                  apikey={GOOGLE_MAPS_KEY}
-                  strokeWidth={4}
-                  strokeColor={palette.accent}
-                  onReady={(result) => {
-                    mapRef.current?.fitToCoordinates(result.coordinates, {
-                      edgePadding: MAP_EDGE_PADDING,
-                      animated: true,
-                    });
-                  }}
-                  onError={(errorMessage) => {
-                    setRouteError(true);
-                    setRouteErrorMessage(String(errorMessage || "Directions error"));
-                    console.warn("MapViewDirections error:", errorMessage);
-                  }}
-                />
-              ) : null}
-              {shouldDrawFallbackLine ? (
-                <Polyline
-                  coordinates={[effectiveOrigin, destination]}
-                  strokeWidth={4}
-                  strokeColor={palette.accent}
-                />
-              ) : null}
-            </MapView>
+            {showDriver ? (
+              <Marker coordinate={driverOrigin} title={t("driver") ?? "Driver"} anchor={{ x: 0.5, y: 1 }}>
+                <View style={[styles.pin, styles.pinDriver]}>
+                  <Feather name="navigation-2" size={16} color="#fff" />
+                </View>
+              </Marker>
+            ) : null}
+            {branchOrigin ? (
+              <Marker coordinate={branchOrigin} title={t("branch") ?? "Branch"} anchor={{ x: 0.5, y: 1 }}>
+                <View style={[styles.pin, styles.pinBranch]}>
+                  <Feather name="home" size={16} color="#fff" />
+                </View>
+              </Marker>
+            ) : null}
+            {destination ? (
+              <Marker coordinate={destination} title={t("destination") ?? "Destination"} anchor={{ x: 0.5, y: 1 }}>
+                <View style={[styles.pin, styles.pinDestination]}>
+                  <Feather name="map-pin" size={16} color="#fff" />
+                </View>
+              </Marker>
+            ) : null}
+            {canUseDirections ? (
+              <MapViewDirections
+                key={`${effectiveOrigin.latitude},${effectiveOrigin.longitude}-${destination.latitude},${destination.longitude}`}
+                origin={effectiveOrigin}
+                destination={destination}
+                apikey={GOOGLE_MAPS_KEY}
+                strokeWidth={4}
+                strokeColor={palette.accent}
+                onReady={(result) => {
+                  mapRef.current?.fitToCoordinates(result.coordinates, {
+                    edgePadding: MAP_EDGE_PADDING,
+                    animated: true,
+                  });
+                }}
+                onError={(errorMessage) => {
+                  setRouteError(true);
+                  setRouteErrorMessage(String(errorMessage || "Directions error"));
+                  console.warn("MapViewDirections error:", errorMessage);
+                }}
+              />
+            ) : null}
+            {shouldDrawFallbackLine ? (
+              <Polyline
+                coordinates={[effectiveOrigin, destination]}
+                strokeWidth={4}
+                strokeColor={palette.accent}
+              />
+            ) : null}
+          </MapView>}
 
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={[styles.backBtn, isRTL && styles.backBtnRtl]}
-            >
-              <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} />
-            </TouchableOpacity>
+          <View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
+            <Text>hiiiii</Text>
           </View>
 
-          <BottomSheet
-            ref={sheetRef}
-            index={0}
-            snapPoints={snapPoints}
-            enableDynamicSizing={false}
-            enablePanDownToClose={false}
-            // backdropComponent={renderBackdrop}
-            backgroundStyle={styles.bottomSheetBg}
-            handleIndicatorStyle={styles.bottomSheetHandle}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={[styles.backBtn, isRTL && styles.backBtnRtl]}
           >
+            <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} />
+          </TouchableOpacity>
+        </View>
+
+        <BottomSheet
+          ref={sheetRef}
+          index={0}
+          snapPoints={snapPoints}
+          enableDynamicSizing={false}
+          enablePanDownToClose={false}
+          // backdropComponent={renderBackdrop}
+          backgroundStyle={styles.bottomSheetBg}
+          handleIndicatorStyle={styles.bottomSheetHandle}
+        >
           <BottomSheetScrollView
             contentContainerStyle={styles.sheetScroll}
             scrollEventThrottle={16}
@@ -595,10 +598,10 @@ export default function OrderDetail() {
               </View>
             </View>
           </BottomSheetScrollView>
-          </BottomSheet>
+        </BottomSheet>
 
-        </View>
       </View>
+    </View>
   );
 }
 
