@@ -30,6 +30,12 @@ import Octicons from '@expo/vector-icons/Octicons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Fontisto from '@expo/vector-icons/Fontisto';
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetModalProvider,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 
 const MAP_FALLBACK = { latitude: 0, longitude: 0 };
 const MAP_EDGE_PADDING = { top: 120, right: 20, bottom: 40, left: 20 };
@@ -64,9 +70,11 @@ export default function OrderDetail() {
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  const { palette } = useTheme();
+  const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL, insets), [palette, isRTL, insets]);
+  const fallbackLogo = isDark ? require("../../assets/shopico_logo.png") : require("../../assets/shopico_logo-black.png");
+
   // const mapHeight = useMemo(
   //   () =>
   //     scrollY.interpolate({
@@ -98,6 +106,15 @@ export default function OrderDetail() {
     [scrollY]
   );
 
+  const sheetRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ["60%","80%"], []);
+  const renderBackdrop = useCallback(
+    (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />,
+    []
+  );
+  const openSheet = useCallback(() => {
+    sheetRef.current?.present();
+  }, []);
   const [order, setOrder] = useState<any>(null);
   const [branch, setBranch] = useState<any>(null);
   const [routeError, setRouteError] = useState(false);
@@ -253,8 +270,7 @@ export default function OrderDetail() {
 
   const canRateDriver =
     order.status === "DELIVERED" &&
-    Boolean(order.driverId) &&
-    !hasRatedDriver;
+    Boolean(order.driverId);
 
   const formatOrderDate = (value?: string) => {
     if (!value) return "";
@@ -274,268 +290,306 @@ export default function OrderDetail() {
   }
 
   return (
-    <View style={styles.safe}>
-      <View style={styles.root}>
-        {/* <Animated.View style={[styles.mapWrap, { height: mapHeight }]}> */}
-        <Animated.View
-          style={[
-            styles.mapWrap,
-            {
-              height: MAP_HEIGHT,
-              transform: [{ translateY: mapTranslateY }, { scale: mapScale }],
-            },
-          ]}
-        >
-          <MapView
-            ref={mapRef}
-            style={styles.mapFull}
-            customMapStyle={MAP_STYLE}
-            initialRegion={{
-              latitude: effectiveOrigin?.latitude ?? destination?.latitude ?? MAP_FALLBACK.latitude,
-              longitude: effectiveOrigin?.longitude ?? destination?.longitude ?? MAP_FALLBACK.longitude,
-              latitudeDelta: 0.08,
-              longitudeDelta: 0.08,
-              zoom: 12
-            }}
-          >
-            {showDriver ? (
-              <Marker coordinate={driverOrigin} title={t("driver") ?? "Driver"} anchor={{ x: 0.5, y: 1 }}>
-                <View style={[styles.pin, styles.pinDriver]}>
-                  <Feather name="navigation-2" size={16} color="#fff" />
-                </View>
-              </Marker>
-            ) : null}
-            {branchOrigin ? (
-              <Marker coordinate={branchOrigin} title={t("branch") ?? "Branch"} anchor={{ x: 0.5, y: 1 }}>
-                <View style={[styles.pin, styles.pinBranch]}>
-                  <Feather name="home" size={16} color="#fff" />
-                </View>
-              </Marker>
-            ) : null}
-            {destination ? (
-              <Marker coordinate={destination} title={t("destination") ?? "Destination"} anchor={{ x: 0.5, y: 1 }}>
-                <View style={[styles.pin, styles.pinDestination]}>
-                  <Feather name="map-pin" size={16} color="#fff" />
-                </View>
-              </Marker>
-            ) : null}
-            {canUseDirections ? (
-              <MapViewDirections
-                key={`${effectiveOrigin.latitude},${effectiveOrigin.longitude}-${destination.latitude},${destination.longitude}`}
-                origin={effectiveOrigin}
-                destination={destination}
-                apikey={GOOGLE_MAPS_KEY}
-                strokeWidth={4}
-                strokeColor={palette.accent}
-                onReady={(result) => {
-                  mapRef.current?.fitToCoordinates(result.coordinates, {
-                    edgePadding: MAP_EDGE_PADDING,
-                    animated: true,
-                  });
-                }}
-                onError={(errorMessage) => {
-                  setRouteError(true);
-                  setRouteErrorMessage(String(errorMessage || "Directions error"));
-                  console.warn("MapViewDirections error:", errorMessage);
-                }}
-              />
-            ) : null}
-            {shouldDrawFallbackLine ? (
-              <Polyline
-                coordinates={[effectiveOrigin, destination]}
-                strokeWidth={4}
-                strokeColor={palette.accent}
-              />
-            ) : null}
-          </MapView>
-
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={[styles.backBtn, isRTL && styles.backBtnRtl]}
-          >
-            <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} />
-          </TouchableOpacity>
-        </Animated.View>
-
-        <ScrollView
-          style={styles.sheet}
-          contentContainerStyle={styles.sheetScroll}
-          scrollEventThrottle={16}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
-        >
-          {routeErrorMessage ? (
-            <View style={styles.routeWarning}>
-              <Text style={styles.routeWarningText}>
-                {t("routeUnavailable") ?? "Route unavailable"} · {routeErrorMessage}
-              </Text>
-            </View>
-          ) : null}
-
-          <View style={styles.sheetHeader}>
-            <View>
-              <Text style={styles.title}>{t("order")} #{order._id.slice(-6)}</Text>
-              <Text style={styles.subtle}>{formatOrderDate(order.createdAt)}</Text>
-            </View>
-
-            <View style={[{
-              borderWidth: 2,
-              borderRadius: 20,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderColor: palette.border,
-              paddingHorizontal: 10,
-              paddingVertical: 5,
-              flexDirection: 'row',
-              gap: 5,
-            },
-            order.status && order.status === "PENDING" && { borderColor: '#ff7a1f', backgroundColor: 'rgba(255, 122, 31, 0.1)' },
-            order.status && order.status === "PROCESSING" && { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
-            order.status && order.status === "SHIPPING" && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' },
-            order.status && order.status === "DELIVERED" && { borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' },
-            order.status && order.status === "CANCELLED" && { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
-            ]}>
-              {order.status && order.status === "PENDING" && <Entypo name="dots-three-horizontal" size={16} color="#ff7a1f" />}
-              {order.status && order.status === "PROCESSING" && <Feather name="loader" size={20} color="#2563eb" />}
-              {order.status && order.status === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
-              {order.status && order.status === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
-              {order.status && order.status === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
-              <Text numberOfLines={1} style={[{
-                fontSize: 12,
-                fontWeight: '600',
+    <BottomSheetModalProvider>
+      <View style={styles.safe}>
+        <View style={styles.root}>
+          {/* <Animated.View style={[styles.mapWrap, { height: mapHeight }]}> */}
+          <Animated.View
+            style={[
+              styles.mapWrap,
+              {
+                height: MAP_HEIGHT,
+                transform: [{ translateY: mapTranslateY }, { scale: mapScale }],
               },
-              order.status && order.status === "PENDING" && { color: '#ff7a1f' },
-              order.status && order.status === "PROCESSING" && { color: '#2563eb' },
-              order.status && order.status === "SHIPPING" && { color: '#4f46e5' },
-              order.status && order.status === "DELIVERED" && { color: '#16a34a' },
-              order.status && order.status === "CANCELLED" && { color: '#ef4444' },
+            ]}
+          >
+            <MapView
+              ref={mapRef}
+              style={styles.mapFull}
+              customMapStyle={MAP_STYLE}
+              initialRegion={{
+                latitude: effectiveOrigin?.latitude ?? destination?.latitude ?? MAP_FALLBACK.latitude,
+                longitude: effectiveOrigin?.longitude ?? destination?.longitude ?? MAP_FALLBACK.longitude,
+                latitudeDelta: 0.08,
+                longitudeDelta: 0.08,
+                zoom: 12
+              }}
+            >
+              {showDriver ? (
+                <Marker coordinate={driverOrigin} title={t("driver") ?? "Driver"} anchor={{ x: 0.5, y: 1 }}>
+                  <View style={[styles.pin, styles.pinDriver]}>
+                    <Feather name="navigation-2" size={16} color="#fff" />
+                  </View>
+                </Marker>
+              ) : null}
+              {branchOrigin ? (
+                <Marker coordinate={branchOrigin} title={t("branch") ?? "Branch"} anchor={{ x: 0.5, y: 1 }}>
+                  <View style={[styles.pin, styles.pinBranch]}>
+                    <Feather name="home" size={16} color="#fff" />
+                  </View>
+                </Marker>
+              ) : null}
+              {destination ? (
+                <Marker coordinate={destination} title={t("destination") ?? "Destination"} anchor={{ x: 0.5, y: 1 }}>
+                  <View style={[styles.pin, styles.pinDestination]}>
+                    <Feather name="map-pin" size={16} color="#fff" />
+                  </View>
+                </Marker>
+              ) : null}
+              {canUseDirections ? (
+                <MapViewDirections
+                  key={`${effectiveOrigin.latitude},${effectiveOrigin.longitude}-${destination.latitude},${destination.longitude}`}
+                  origin={effectiveOrigin}
+                  destination={destination}
+                  apikey={GOOGLE_MAPS_KEY}
+                  strokeWidth={4}
+                  strokeColor={palette.accent}
+                  onReady={(result) => {
+                    mapRef.current?.fitToCoordinates(result.coordinates, {
+                      edgePadding: MAP_EDGE_PADDING,
+                      animated: true,
+                    });
+                  }}
+                  onError={(errorMessage) => {
+                    setRouteError(true);
+                    setRouteErrorMessage(String(errorMessage || "Directions error"));
+                    console.warn("MapViewDirections error:", errorMessage);
+                  }}
+                />
+              ) : null}
+              {shouldDrawFallbackLine ? (
+                <Polyline
+                  coordinates={[effectiveOrigin, destination]}
+                  strokeWidth={4}
+                  strokeColor={palette.accent}
+                />
+              ) : null}
+            </MapView>
+
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={[styles.backBtn, isRTL && styles.backBtnRtl]}
+            >
+              <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} />
+            </TouchableOpacity>
+          </Animated.View>
+
+          <ScrollView
+            style={styles.sheet}
+            contentContainerStyle={styles.sheetScroll}
+            scrollEventThrottle={16}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: false }
+            )}
+          >
+            {routeErrorMessage ? (
+              <View style={styles.routeWarning}>
+                <Text style={styles.routeWarningText}>
+                  {t("routeUnavailable") ?? "Route unavailable"} · {routeErrorMessage}
+                </Text>
+              </View>
+            ) : null}
+
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={styles.title}>{t("order")} #{order._id.slice(-6)}</Text>
+                <Text style={styles.subtle}>{formatOrderDate(order.createdAt)}</Text>
+              </View>
+
+              <View style={[{
+                borderWidth: 2,
+                borderRadius: 20,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderColor: palette.border,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                flexDirection: 'row',
+                gap: 5,
+              },
+              order.status && order.status === "PENDING" && { borderColor: '#ff7a1f', backgroundColor: 'rgba(255, 122, 31, 0.1)' },
+              order.status && order.status === "PROCESSING" && { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
+              order.status && order.status === "SHIPPING" && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' },
+              order.status && order.status === "DELIVERED" && { borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' },
+              order.status && order.status === "CANCELLED" && { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
               ]}>
-                {t(order.status) ?? order.status}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.detailsSection}>
-            <View style={{ marginBottom: 10, borderBottomWidth: 1, borderBottomColor: palette.border, paddingBottom: 10 }}>
-              <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
-                <Ionicons name="storefront-outline" size={24} color={palette.muted} />
-
-                <View style={{ gap: 5 }}>
-                  <Text style={styles.addressLabel}>{branchName}</Text>
-                </View>
+                {order.status && order.status === "PENDING" && <Entypo name="dots-three-horizontal" size={16} color="#ff7a1f" />}
+                {order.status && order.status === "PROCESSING" && <Feather name="loader" size={20} color="#2563eb" />}
+                {order.status && order.status === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
+                {order.status && order.status === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
+                {order.status && order.status === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
+                <Text numberOfLines={1} style={[{
+                  fontSize: 12,
+                  fontWeight: '600',
+                },
+                order.status && order.status === "PENDING" && { color: '#ff7a1f' },
+                order.status && order.status === "PROCESSING" && { color: '#2563eb' },
+                order.status && order.status === "SHIPPING" && { color: '#4f46e5' },
+                order.status && order.status === "DELIVERED" && { color: '#16a34a' },
+                order.status && order.status === "CANCELLED" && { color: '#ef4444' },
+                ]}>
+                  {t(order.status) ?? order.status}
+                </Text>
               </View>
             </View>
 
-            <View style={{ marginBottom: 10, borderBottomWidth: 1, borderBottomColor: palette.border, paddingBottom: 10 }}>
-              <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
-                <Octicons name="location" size={24} color={palette.muted} />
+            <View style={styles.detailsSection}>
+              <View style={{ marginBottom: 10, borderBottomWidth: 1, borderBottomColor: palette.border, paddingBottom: 10 }}>
+                <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+                  <Ionicons name="storefront-outline" size={24} color={palette.muted} />
 
-                <View style={{ gap: 2 }}>
-                  <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                    {addressLabel ?
-                      <Text style={styles.addressLabel}>{addressLabel}</Text>
-                      :
-                      <Text style={styles.addressLabel}>{t('distance')}</Text>
-                    }
-                    <Text style={styles.deliveryDistanceKm}>
-                      {order.deliveryDistanceKm > 1 ? Math.ceil(order.deliveryDistanceKm - 1) : order.deliveryDistanceKm} {t('km')}
-                    </Text>
+                  <View style={{ gap: 5 }}>
+                    <Text style={styles.addressLabel}>{branchName}</Text>
                   </View>
-                  <Text style={styles.addressText}>{order.address}</Text>
                 </View>
               </View>
-            </View>
 
-            <View style={[]}>
-              <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
-                <MaterialIcons name="delivery-dining" size={24} color={palette.muted} />
-                <View style={{ gap: 2 }}>
-                  <Text style={styles.addressLabel}>{driverName ? driverName : t("noAssignedDriverYet") ?? "No driver assigned yet"}</Text>
+              <View style={{ marginBottom: 10, borderBottomWidth: 1, borderBottomColor: palette.border, paddingBottom: 10 }}>
+                <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+                  <Octicons name="location" size={24} color={palette.muted} />
 
-                  {(driverName) && 
-                    <View>
-                      {hasRatedDriver ? (
-                        <Text style={styles.addressText}>
-                          {t("yourRating") ?? "Your rating"}: {order.driverRating}/5
-                        </Text>
-                      ) : driverRatingCount > 0 ? (
-                        <Text style={styles.addressText}>
-                          <Fontisto name="star" size={12} color={palette.text} /> {driverRatingAverage.toFixed(1)} ({driverRatingCount})
-                        </Text>
-                      ) : (
-                        <Text style={styles.addressText}>{t("noRatingsYet") ?? "No ratings yet"}</Text>
-                      )}
+                  <View style={{ gap: 2 }}>
+                    <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                      {addressLabel ?
+                        <Text style={styles.addressLabel}>{addressLabel}</Text>
+                        :
+                        <Text style={styles.addressLabel}>{t('distance')}</Text>
+                      }
+                      <Text style={styles.deliveryDistanceKm}>
+                        {order.deliveryDistanceKm > 1 ? Math.ceil(order.deliveryDistanceKm - 1) : order.deliveryDistanceKm} {t('km')}
+                      </Text>
+                    </View>
+                    <Text style={styles.addressText}>{order.address}</Text>
+                  </View>
+                </View>
+              </View>
 
-                    {canRateDriver ? (
-                      <View style={styles.ratingBox}>
-                        <Text style={styles.ratingHint}>{t("tapToRate") ?? "Tap a star to rate"}</Text>
-                        <View style={styles.ratingRow}>
-                          {[1, 2, 3, 4, 5].map((value) => (
-                            <TouchableOpacity
-                              key={value}
-                              onPress={() => submitDriverRating(value)}
-                              hitSlop={8}
-                              disabled={submittingRating}
-                            >
-                              <MaterialIcons
-                                name={value <= Number(order.driverRating || 0) ? "star" : "star-border"}
-                                size={22}
-                                color={value <= Number(order.driverRating || 0) ? "#f59e0b" : palette.muted}
-                              />
-                            </TouchableOpacity>
-                          ))}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                disabled={!driverName}
+                onPress={openSheet}
+              >
+                <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+                  <MaterialIcons name="delivery-dining" size={24} color={palette.muted} />
+
+                  <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                    <View style={{ gap: 2 }}>
+                      <Text style={styles.addressLabel}>{driverName ? driverName : t("noAssignedDriverYet") ?? "No driver assigned yet"}</Text>
+
+                      {(driverName) &&
+                        <View>
+                          {driverRatingCount > 0 ? (
+                            <View style={{ flexDirection: 'row', gap: 4, alignItems: 'baseline' }}>
+                              <Fontisto name="star" size={12} color={palette.text} style={{ opacity: 0.4 }} />
+                              <Text style={styles.addressText}>{driverRatingAverage.toFixed(1)} ({driverRatingCount})</Text>
+                            </View>
+                          ) : (
+                            <Text style={styles.addressText}>{t("noRatingsYet") ?? "No ratings yet"}</Text>
+                          )}
                         </View>
-                      </View>
-                    ) : null}
+                      }
+                    </View>
+
+                    <View style={{ gap: 2 }}>
+                      {canRateDriver ? (
+                        <View style={styles.ratingBox}>
+                          {/* <Text style={styles.ratingHint}>{t("tapToRate") ?? "Tap a star to rate"}</Text> */}
+                          <View style={styles.ratingRow}>
+                            {[1, 2, 3, 4, 5].map((value) => (
+                              <TouchableOpacity
+                                key={value}
+                                onPress={() => submitDriverRating(value)}
+                                hitSlop={8}
+                                disabled={submittingRating}
+                              >
+                                <Fontisto name="star"
+                                  size={16}
+                                  color={value <= Number(order.driverRating || 0) ? "#f59e0b" : palette.muted}
+                                  style={value > Number(order.driverRating || 0) && { opacity: 0.4 }}
+                                />
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      ) : null}
+                    </View>
                   </View>
-                  }
-
-
                 </View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.detailsSection}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                <Text style={styles.sectionTitle}>{t("items") ?? "Items"}</Text>
+                <Text style={[styles.sectionTitle, { color: palette.accent }]}>{order.items.length}</Text>
+              </View>
+              {order.items.map((item: any, index: number) => (
+                <View key={getOrderItemKey(item, index)} style={[styles.itemRow, index === order.items.length - 1 && { borderBottomWidth: 0 }]}>
+                  <View style={styles.itemInfo}>
+                    <View style={styles.prodImgBox}>
+                      <Image
+                        source={
+                          item.images?.[0]?.url
+                            ? { uri: item.images?.[0]?.url }
+                            : fallbackLogo
+                        }
+                        style={[
+                          styles.productImg,
+                          !item.images?.[0]?.url && { tintColor: '#dedede' },
+                        ]}
+                      />
+                    </View>
+                    <View>
+                      <Text style={styles.itemName}>
+                        {item.product?.name || item.product}
+                      </Text>
+                      <Text style={styles.itemQty}>{item.quantity}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.itemPrice}>{item.price.toLocaleString()}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.detailsSection}>
+              <View style={styles.row}>
+                <Text style={styles.label}>{t('subtotal')}</Text>
+                <Text style={styles.value}>{order.subtotal.toLocaleString()}</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>{t('deliveryFee')}</Text>
+                <Text style={styles.value}>{order.deliveryFee.toLocaleString()}</Text>
+              </View>
+              <View style={styles.heroTotal}>
+                <Text style={styles.totalText}>{t('total')} <Text style={styles.totalCurrency}>({t("syp")})</Text></Text>
+                <Text style={styles.totalText}>{order.total.toLocaleString()}</Text>
+              </View>
+              <View style={[styles.row, { marginBottom: 0 }]}>
+                <Text style={styles.label}>{t('paymentMethod')}</Text>
+                {order.paymentMethod == 'CASH_ON_DELIVERY' && <View style={styles.valueWithIcon}>
+                  <Text style={styles.value}>{t('cash')}</Text>
+                  <Image source={require('../../assets/bill.png')} style={styles.methodIcon} />
+                </View>}
               </View>
             </View>
-          </View>
+          </ScrollView>
 
-          <View style={styles.detailsSection}>
-            <View style={styles.row}>
-              <Text style={styles.label}>{t('subtotal')}</Text>
-              <Text style={styles.value}>{order.subtotal.toLocaleString()}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>{t('deliveryFee')}</Text>
-              <Text style={styles.value}>{order.deliveryFee.toLocaleString()}</Text>
-            </View>
-            <View style={styles.heroTotal}>
-              <Text style={styles.totalText}>{t('total')} <Text style={styles.totalCurrency}>({t("syp")})</Text></Text>
-              <Text style={styles.totalText}>{order.total.toLocaleString()}</Text>
-            </View>
-            <View style={[styles.row, { marginBottom: 0 }]}>
-              <Text style={styles.label}>{t('paymentMethod')}</Text>
-              {order.paymentMethod == 'CASH_ON_DELIVERY' && <View style={styles.valueWithIcon}>
-                <Text style={styles.value}>{t('cash')}</Text>
-                <Image source={require('../../assets/bill.png')} style={styles.methodIcon} />
-              </View>}
-            </View>
-          </View>
+          <BottomSheetModal
+            ref={sheetRef}
+            enablePanDownToClose
+            backdropComponent={renderBackdrop}
+            backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+            snapPoints={snapPoints}
+          >
+            <BottomSheetView style={styles.bottomSheetContent}>
+              <Text>hello</Text>
+            </BottomSheetView>
+          </BottomSheetModal>
 
-          <View style={styles.detailsSection}>
-            <Text style={styles.sectionTitle}>{t("items") ?? "Items"}</Text>
-            {order.items.map((item: any, index: number) => (
-              <View key={getOrderItemKey(item, index)} style={styles.itemRow}>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName}>
-                    {item.quantity} x {item.product?.name || item.product}
-                  </Text>
-                </View>
-                <Text style={styles.itemPrice}>{item.price.toLocaleString()}</Text>
-              </View>
-            ))}
-          </View>
-        </ScrollView>
+        </View>
       </View>
-    </View>
+    </BottomSheetModalProvider>
   );
 }
 
@@ -556,6 +610,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
     root: {
       flex: 1,
       direction: isRTL ? "rtl" : "ltr",
+      paddingBottom: insets.bottom
     },
     mapWrap: {
       width: "100%",
@@ -609,7 +664,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
     sheetScroll: {
       paddingHorizontal: 10,
       paddingTop: 10,
-      paddingBottom: insets.bottom + 10,
+      paddingBottom: 10,
       gap: 12,
       borderWidth: 2,
     },
@@ -699,20 +754,19 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       gap: 8,
     },
     ratingBox: {
-      gap: 8,
-      marginTop: 4,
-      alignItems: isRTL ? "flex-end" : "flex-start",
+      gap: 2,
+      paddingHorizontal: 10
     },
     ratingHint: {
       color: palette.muted,
       fontSize: 12,
       fontWeight: "600",
-      textAlign: isRTL ? "right" : "left",
-      writingDirection: isRTL ? "rtl" : "ltr",
+      borderWidth: 1,
+      lineHeight: 14
     },
     ratingRow: {
-      flexDirection: isRTL ? "row-reverse" : "row",
-      gap: 4,
+      flexDirection: "row",
+      gap: 10,
       alignItems: "center",
     },
     methodIcon: {
@@ -751,15 +805,11 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       color: palette.text,
       fontSize: 16,
       fontWeight: "800",
-      textAlign: isRTL ? "right" : "left",
-      writingDirection: isRTL ? "rtl" : "ltr",
     },
     sectionMeta: {
       color: palette.muted,
       fontSize: 12,
       fontWeight: "600",
-      textAlign: isRTL ? "right" : "left",
-      writingDirection: isRTL ? "rtl" : "ltr",
     },
     addressText: {
       color: palette.text,
@@ -775,9 +825,9 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       lineHeight: 18,
     },
     itemRow: {
-      flexDirection: isRTL ? "row-reverse" : "row",
+      flexDirection: "row",
       justifyContent: "space-between",
-      alignItems: "center",
+      alignItems: "flex-start",
       paddingVertical: 6,
       borderBottomWidth: 1,
       borderBottomColor: palette.border,
@@ -785,20 +835,37 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
     },
     itemInfo: {
       flex: 1,
-      gap: 2,
+      gap: 10,
+      flexDirection: "row",
+      alignItems: "center",
+
+    },
+    productImg: { height: '100%', aspectRatio: 4 / 3, resizeMode: "contain" },
+    prodImgBox: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      backgroundColor: '#f0f0f0',
+      overflow: "hidden",
+      alignItems: "center",
+      justifyContent: "center",
     },
     itemName: {
       color: palette.text,
+      fontWeight: "600",
+      fontSize: 14,
+      lineHeight: 18
+    },
+    itemQty: {
+      color: palette.accent,
       fontWeight: "700",
       fontSize: 14,
-      textAlign: isRTL ? "right" : "left",
-      writingDirection: isRTL ? "rtl" : "ltr",
+      lineHeight: 18
     },
     itemPrice: {
       color: palette.text,
-      fontWeight: "800",
-      textAlign: isRTL ? "right" : "left",
-      writingDirection: isRTL ? "rtl" : "ltr",
+      fontWeight: "600",
+      opacity: 0.4
     },
 
     deliveryDistanceKm: {
@@ -817,5 +884,8 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       fontSize: 12,
       color: palette.text,
       textDecorationLine: "line-through",
+    },
+    bottomSheetContent: {
+      padding: 16,
     },
   });
