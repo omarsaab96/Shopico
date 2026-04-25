@@ -118,7 +118,6 @@ export default function OrderDetail() {
   const driverRatingCount =
     order?.driverId && typeof order.driverId === "object" ? Number(order.driverId.ratingCount || 0) : 0;
   const hasRatedDriver = typeof order?.driverRating === "number";
-  const [ratingDraft, setRatingDraft] = useState(0);
   const [submittingRating, setSubmittingRating] = useState(false);
 
   const getOrderItemKey = useCallback((item: any, index: number) => {
@@ -211,25 +210,19 @@ export default function OrderDetail() {
     }
   }, []);
 
-  const submitDriverRating = useCallback(async () => {
-    if (!id || ratingDraft < 1 || submittingRating) return;
-
+  const submitDriverRating = useCallback(async (rating: number) => {
+    if (!id || rating < 1 || submittingRating) return;
     setSubmittingRating(true);
     try {
-      const res = await api.post(`/orders/${id}/driver-rating`, { rating: ratingDraft });
+      const res = await api.post(`/orders/${id}/driver-rating`, { rating });
       setOrder(res.data.data);
-      setRatingDraft(0);
-      Alert.alert(
-        t("ratingSubmitted") ?? "Rating submitted",
-        t("ratingSubmittedCopy") ?? "Thanks for rating your driver."
-      );
     } catch (error: any) {
       const message = error?.response?.data?.message || error?.message || "Failed to submit rating";
       Alert.alert(t("networkError") ?? "Unable to reach the server", message);
     } finally {
       setSubmittingRating(false);
     }
-  }, [id, ratingDraft, submittingRating, t]);
+  }, [id, submittingRating, t]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
@@ -475,37 +468,28 @@ export default function OrderDetail() {
                         <Text style={styles.addressText}>{t("noRatingsYet") ?? "No ratings yet"}</Text>
                       )}
 
-                      {canRateDriver ? (
-                        <View style={styles.ratingBox}>
-                          <Text style={styles.ratingHint}>{t("tapToRate") ?? "Tap a star to rate"}</Text>
-                          <View style={styles.ratingRow}>
-                            {[1, 2, 3, 4, 5].map((value) => (
-                              <TouchableOpacity
-                                key={value}
-                                onPress={() => setRatingDraft(value)}
-                                hitSlop={8}
-                                disabled={submittingRating}
-                              >
-                                <MaterialIcons
-                                  name={value <= ratingDraft ? "star" : "star-border"}
-                                  size={22}
-                                  color={value <= ratingDraft ? "#f59e0b" : palette.muted}
-                                />
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                          <TouchableOpacity
-                            style={[styles.rateBtn, (!ratingDraft || submittingRating) && styles.rateBtnDisabled]}
-                            onPress={submitDriverRating}
-                            disabled={!ratingDraft || submittingRating}
-                          >
-                            <Text style={styles.rateBtnText}>
-                              {submittingRating ? (t("saving") ?? "Saving...") : (t("submitRating") ?? "Submit rating")}
-                            </Text>
-                          </TouchableOpacity>
+                    {canRateDriver ? (
+                      <View style={styles.ratingBox}>
+                        <Text style={styles.ratingHint}>{t("tapToRate") ?? "Tap a star to rate"}</Text>
+                        <View style={styles.ratingRow}>
+                          {[1, 2, 3, 4, 5].map((value) => (
+                            <TouchableOpacity
+                              key={value}
+                              onPress={() => submitDriverRating(value)}
+                              hitSlop={8}
+                              disabled={submittingRating}
+                            >
+                              <MaterialIcons
+                                name={value <= Number(order.driverRating || 0) ? "star" : "star-border"}
+                                size={22}
+                                color={value <= Number(order.driverRating || 0) ? "#f59e0b" : palette.muted}
+                              />
+                            </TouchableOpacity>
+                          ))}
                         </View>
-                      ) : null}
-                    </View>
+                      </View>
+                    ) : null}
+                  </View>
                   }
 
 
@@ -730,20 +714,6 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       flexDirection: isRTL ? "row-reverse" : "row",
       gap: 4,
       alignItems: "center",
-    },
-    rateBtn: {
-      backgroundColor: palette.accent,
-      borderRadius: 10,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-    },
-    rateBtnDisabled: {
-      opacity: 0.5,
-    },
-    rateBtnText: {
-      color: "#fff",
-      fontSize: 12,
-      fontWeight: "700",
     },
     methodIcon: {
       width: 30,

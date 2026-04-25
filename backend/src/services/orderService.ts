@@ -129,6 +129,25 @@ const populateOrderDetail = (query: ReturnType<typeof Order.findById>) =>
     .populate("items.product")
     .populate("addressRef");
 
+const syncDriverRatingAggregate = async (driverId: Types.ObjectId | string) => {
+  const ratedOrders = await Order.find({
+    driverId,
+    driverRating: { $ne: null },
+  }).select("driverRating");
+
+  const ratingCount = ratedOrders.length;
+  const ratingAverage = ratingCount
+    ? Number(
+        (
+          ratedOrders.reduce((sum, item) => sum + Number(item.driverRating || 0), 0) /
+          ratingCount
+        ).toFixed(2)
+      )
+    : 0;
+
+  await User.findByIdAndUpdate(driverId, { ratingCount, ratingAverage });
+};
+
 const buildOrderItems = async (itemsInput?: CheckoutItemInput[], userId?: Types.ObjectId, branchId?: string) => {
   if (itemsInput && itemsInput.length > 0) {
     const ids = itemsInput.map((i) => i.productId);
@@ -541,21 +560,15 @@ export const rateDriverForOrder = async (
   if (order.user.toString() !== userId.toString()) throw { status: 403, message: "Forbidden" };
   if (order.status !== "DELIVERED") throw { status: 400, message: "Only delivered orders can be rated" };
   if (!order.driverId) throw { status: 400, message: "No driver assigned to this order" };
-  if (order.driverRating) throw { status: 400, message: "Driver already rated for this order" };
 
   const driver = await User.findById(order.driverId);
   if (!driver || driver.role !== "driver") throw { status: 404, message: "Driver not found" };
 
-  const nextCount = (driver.ratingCount || 0) + 1;
-  const nextAverage = (((driver.ratingAverage || 0) * (driver.ratingCount || 0)) + rating) / nextCount;
-
   order.driverRating = rating;
   order.driverRatedAt = new Date();
-  driver.ratingCount = nextCount;
-  driver.ratingAverage = Number(nextAverage.toFixed(2));
 
   await order.save();
-  await driver.save();
+  await syncDriverRatingAggregate(driver._id);
 
   const populated = await populateOrderDetail(Order.findById(order._id));
   if (!populated) throw { status: 404, message: "Order not found" };
