@@ -8,7 +8,8 @@ import {
   Animated,
   useWindowDimensions,
   ScrollView,
-  Image
+  Image,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, Polyline } from "react-native-maps";
@@ -105,6 +106,20 @@ export default function OrderDetail() {
   const appStateRef = useRef(AppState.currentState);
   const addressLabel =
     order?.addressRef && typeof order.addressRef === "object" ? order.addressRef.label : "";
+  const orderBranch =
+    order?.branchId && typeof order.branchId === "object" ? order.branchId : branch;
+  const branchName = orderBranch?.name || (t("branch") ?? "Branch");
+  const driverName =
+    order?.driverId && typeof order.driverId === "object"
+      ? order.driverId.name || order.driverId.email || null
+      : null;
+  const driverRatingAverage =
+    order?.driverId && typeof order.driverId === "object" ? Number(order.driverId.ratingAverage || 0) : 0;
+  const driverRatingCount =
+    order?.driverId && typeof order.driverId === "object" ? Number(order.driverId.ratingCount || 0) : 0;
+  const hasRatedDriver = typeof order?.driverRating === "number";
+  const [ratingDraft, setRatingDraft] = useState(0);
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   const getOrderItemKey = useCallback((item: any, index: number) => {
     const productId =
@@ -122,7 +137,18 @@ export default function OrderDetail() {
     api.get(`/orders/${id}`).then((res) => {
       const payload = res.data.data;
       setOrder(payload);
-      const branchId = payload?.branchId;
+      const branchId =
+        typeof payload?.branchId === "string"
+          ? payload.branchId
+          : payload?.branchId?._id;
+      const populatedBranch =
+        payload?.branchId && typeof payload.branchId === "object" ? payload.branchId : null;
+
+      if (populatedBranch) {
+        setBranch(populatedBranch);
+        return;
+      }
+
       if (branchId) {
         api
           .get("/branches/public")
@@ -146,7 +172,7 @@ export default function OrderDetail() {
 
   const driverLocation = order?.driverLocation;
   const driverOrigin = toCoordinate(driverLocation?.lat, driverLocation?.lng);
-  const branchOrigin = toCoordinate(branch?.lat, branch?.lng);
+  const branchOrigin = toCoordinate(orderBranch?.lat, orderBranch?.lng);
   const destination = toCoordinate(order?.lat, order?.lng);
 
   const effectiveOrigin =
@@ -185,6 +211,26 @@ export default function OrderDetail() {
     }
   }, []);
 
+  const submitDriverRating = useCallback(async () => {
+    if (!id || ratingDraft < 1 || submittingRating) return;
+
+    setSubmittingRating(true);
+    try {
+      const res = await api.post(`/orders/${id}/driver-rating`, { rating: ratingDraft });
+      setOrder(res.data.data);
+      setRatingDraft(0);
+      Alert.alert(
+        t("ratingSubmitted") ?? "Rating submitted",
+        t("ratingSubmittedCopy") ?? "Thanks for rating your driver."
+      );
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || "Failed to submit rating";
+      Alert.alert(t("networkError") ?? "Unable to reach the server", message);
+    } finally {
+      setSubmittingRating(false);
+    }
+  }, [id, ratingDraft, submittingRating, t]);
+
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
       appStateRef.current = nextState;
@@ -211,6 +257,11 @@ export default function OrderDetail() {
   );
 
   if (!order) return null;
+
+  const canRateDriver =
+    order.status === "DELIVERED" &&
+    Boolean(order.driverId) &&
+    !hasRatedDriver;
 
   const formatOrderDate = (value?: string) => {
     if (!value) return "";
@@ -379,7 +430,7 @@ export default function OrderDetail() {
                 <Ionicons name="storefront-outline" size={24} color={palette.muted} />
 
                 <View style={{ gap: 5 }}>
-                  <Text style={styles.addressLabel}>{order.branchId}</Text>
+                  <Text style={styles.addressLabel}>{branchName}</Text>
                 </View>
               </View>
             </View>
@@ -407,11 +458,57 @@ export default function OrderDetail() {
             <View style={[]}>
               <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
                 <MaterialIcons name="delivery-dining" size={24} color={palette.muted} />
-                <View style={{ gap: 5 }}>
-                  <Text style={styles.addressLabel}>{order.driverId ?? t('noAssignedDriverYet')}</Text>
-                  <Text style={styles.addressText}>
-                    <Fontisto name="star" size={12} color={palette.text} /> 3.2
-                  </Text>
+                <View style={{ gap: 2 }}>
+                  <Text style={styles.addressLabel}>{driverName ? driverName : t("noAssignedDriverYet") ?? "No driver assigned yet"}</Text>
+
+                  {(driverName) && 
+                    <View>
+                      {hasRatedDriver ? (
+                        <Text style={styles.addressText}>
+                          {t("yourRating") ?? "Your rating"}: {order.driverRating}/5
+                        </Text>
+                      ) : driverRatingCount > 0 ? (
+                        <Text style={styles.addressText}>
+                          <Fontisto name="star" size={12} color={palette.text} /> {driverRatingAverage.toFixed(1)} ({driverRatingCount})
+                        </Text>
+                      ) : (
+                        <Text style={styles.addressText}>{t("noRatingsYet") ?? "No ratings yet"}</Text>
+                      )}
+
+                      {canRateDriver ? (
+                        <View style={styles.ratingBox}>
+                          <Text style={styles.ratingHint}>{t("tapToRate") ?? "Tap a star to rate"}</Text>
+                          <View style={styles.ratingRow}>
+                            {[1, 2, 3, 4, 5].map((value) => (
+                              <TouchableOpacity
+                                key={value}
+                                onPress={() => setRatingDraft(value)}
+                                hitSlop={8}
+                                disabled={submittingRating}
+                              >
+                                <MaterialIcons
+                                  name={value <= ratingDraft ? "star" : "star-border"}
+                                  size={22}
+                                  color={value <= ratingDraft ? "#f59e0b" : palette.muted}
+                                />
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                          <TouchableOpacity
+                            style={[styles.rateBtn, (!ratingDraft || submittingRating) && styles.rateBtnDisabled]}
+                            onPress={submitDriverRating}
+                            disabled={!ratingDraft || submittingRating}
+                          >
+                            <Text style={styles.rateBtnText}>
+                              {submittingRating ? (t("saving") ?? "Saving...") : (t("submitRating") ?? "Submit rating")}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                    </View>
+                  }
+
+
                 </View>
               </View>
             </View>
@@ -617,6 +714,37 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       alignItems: 'center',
       gap: 8,
     },
+    ratingBox: {
+      gap: 8,
+      marginTop: 4,
+      alignItems: isRTL ? "flex-end" : "flex-start",
+    },
+    ratingHint: {
+      color: palette.muted,
+      fontSize: 12,
+      fontWeight: "600",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
+    },
+    ratingRow: {
+      flexDirection: isRTL ? "row-reverse" : "row",
+      gap: 4,
+      alignItems: "center",
+    },
+    rateBtn: {
+      backgroundColor: palette.accent,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    rateBtnDisabled: {
+      opacity: 0.5,
+    },
+    rateBtnText: {
+      color: "#fff",
+      fontSize: 12,
+      fontWeight: "700",
+    },
     methodIcon: {
       width: 30,
       height: 30,
@@ -675,8 +803,6 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       fontWeight: "600",
       fontSize: 14,
       lineHeight: 18,
-      textAlign: isRTL ? "right" : "left",
-      writingDirection: isRTL ? "rtl" : "ltr",
     },
     itemRow: {
       flexDirection: isRTL ? "row-reverse" : "row",

@@ -4,6 +4,7 @@ import {
   createOrderSchema,
   driverLocationSchema,
   driverStatusSchema,
+  rateDriverSchema,
   updateOrderDetailsSchema,
   updateOrderStatusSchema,
 } from "../validators/orderValidators";
@@ -14,6 +15,7 @@ import {
   getOrderById,
   getOrdersForUser,
   getOrdersForDriver,
+  rateDriverForOrder,
   updateOrderDetails,
   updateOrderDriverLocation,
   updateOrderStatus,
@@ -92,4 +94,11 @@ export const updateDriverStatus = catchAsync(async (req: AuthRequest, res) => {
   const payload = driverStatusSchema.parse(req.body);
   const order = await updateOrderStatusAsDriver(req.params.id, req.user!._id, payload.status);
   sendSuccess(res, order, "Order updated");
+});
+
+export const rateDriver = catchAsync(async (req: AuthRequest, res) => {
+  const payload = rateDriverSchema.parse(req.body);
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const order = await rateDriverForOrder(req.params.id, req.user!._id, payload.rating, req.branchId);
+  sendSuccess(res, order, "Driver rated");
 });

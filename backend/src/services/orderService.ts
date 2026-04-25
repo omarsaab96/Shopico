@@ -109,6 +109,7 @@ export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId
   const order = await Order.findOne(filter)
     .populate("user")
     .populate("driverId")
+    .populate("branchId")
     .populate("items.product")
     .populate("addressRef");
   if (!order) return null;
@@ -119,6 +120,14 @@ export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId
   if (userId && orderUserId !== userId.toString()) return null;
   return order;
 };
+
+const populateOrderDetail = (query: ReturnType<typeof Order.findById>) =>
+  query
+    .populate("user")
+    .populate("driverId")
+    .populate("branchId")
+    .populate("items.product")
+    .populate("addressRef");
 
 const buildOrderItems = async (itemsInput?: CheckoutItemInput[], userId?: Types.ObjectId, branchId?: string) => {
   if (itemsInput && itemsInput.length > 0) {
@@ -471,11 +480,7 @@ export const updateOrderDetails = async (
     await order.save();
   }
 
-  const populated = await Order.findById(order._id)
-    .populate("user")
-    .populate("driverId")
-    .populate("items.product")
-    .populate("addressRef");
+  const populated = await populateOrderDetail(Order.findById(order._id));
   if (!populated) throw { status: 404, message: "Order not found" };
   return populated;
 };
@@ -520,4 +525,39 @@ export const updateOrderStatusAsDriver = async (orderId: string, userId: Types.O
   await order.save();
   await syncDriverStatus(order.driverId);
   return order;
+};
+
+export const rateDriverForOrder = async (
+  orderId: string,
+  userId: Types.ObjectId,
+  rating: number,
+  branchId?: string
+) => {
+  const filter: Record<string, unknown> = { _id: orderId };
+  if (branchId) filter.branchId = branchId;
+
+  const order = await Order.findOne(filter);
+  if (!order) throw { status: 404, message: "Order not found" };
+  if (order.user.toString() !== userId.toString()) throw { status: 403, message: "Forbidden" };
+  if (order.status !== "DELIVERED") throw { status: 400, message: "Only delivered orders can be rated" };
+  if (!order.driverId) throw { status: 400, message: "No driver assigned to this order" };
+  if (order.driverRating) throw { status: 400, message: "Driver already rated for this order" };
+
+  const driver = await User.findById(order.driverId);
+  if (!driver || driver.role !== "driver") throw { status: 404, message: "Driver not found" };
+
+  const nextCount = (driver.ratingCount || 0) + 1;
+  const nextAverage = (((driver.ratingAverage || 0) * (driver.ratingCount || 0)) + rating) / nextCount;
+
+  order.driverRating = rating;
+  order.driverRatedAt = new Date();
+  driver.ratingCount = nextCount;
+  driver.ratingAverage = Number(nextAverage.toFixed(2));
+
+  await order.save();
+  await driver.save();
+
+  const populated = await populateOrderDetail(Order.findById(order._id));
+  if (!populated) throw { status: 404, message: "Order not found" };
+  return populated;
 };

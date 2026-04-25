@@ -8,6 +8,8 @@ export interface IUser extends Document {
   password?: string | null;
   role: UserRole;
   driverStatus?: DriverStatus;
+  ratingAverage?: number;
+  ratingCount?: number;
   permissions: string[];
   branchIds: Array<Types.ObjectId | string>;
   membershipLevel: string;
@@ -25,6 +27,8 @@ const UserSchema = new Schema<IUser>(
     password: { type: String, required: false, default: null },
     role: { type: String, enum: ["customer", "admin", "manager", "staff", "driver"], default: "customer" },
     driverStatus: { type: String, enum: ["AVAILABLE", "BUSY"], default: "AVAILABLE" },
+    ratingAverage: { type: Number, default: 0, min: 0 },
+    ratingCount: { type: Number, default: 0, min: 0 },
     permissions: { type: [String], default: [] },
     branchIds: { type: [Schema.Types.ObjectId], ref: "Branch", default: [] },
     membershipLevel: { type: String, default: "None" },

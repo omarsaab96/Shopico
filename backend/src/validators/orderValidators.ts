@@ -40,3 +40,7 @@ export const driverLocationSchema = z.object({
 export const driverStatusSchema = z.object({
   status: z.enum(["SHIPPING", "DELIVERED"]),
 });
+
+export const rateDriverSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+});

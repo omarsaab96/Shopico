@@ -212,6 +212,13 @@ const baseStrings = {
   CANCELLED:"Cancelled",
   cash:"Cash",
   noAssignedDriverYet: "No assigned driver yet",
+  noRatingsYet: "No ratings yet",
+  rateDriver: "Rate driver",
+  submitRating: "Submit rating",
+  ratingSubmitted: "Rating submitted",
+  ratingSubmittedCopy: "Thanks for rating your driver.",
+  yourRating: "Your rating",
+  tapToRate: "Tap a star to rate",
 };
 
 const arStrings: Record<string, string> = {
@@ -413,6 +420,7 @@ const arStrings: Record<string, string> = {
   CANCELLED:"ملغي",
   cash:"الدفع عند الاستلام",
   noAssignedDriverYet: "لا يوجد سائق معين بعد",
+  noRatingsYet: "لا توجد تقييمات بعد",
 };
 
 const extraBaseStrings: Record<string, string> = {

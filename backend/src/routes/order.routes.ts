@@ -8,6 +8,7 @@ import {
   listDriverOrders,
   listOrders,
   listOrdersAdmin,
+  rateDriver,
   updateDriverLocation,
   updateDriverStatus,
 } from "../controllers/orderController";
@@ -40,5 +41,6 @@ router.put(
 );
 router.put("/:id/driver-location", authenticate, authorize("driver", "admin", "manager", "staff"), updateDriverLocation);
 router.put("/:id/driver-status", authenticate, authorize("driver"), updateDriverStatus);
+router.post("/:id/driver-rating", authenticate, authorize("customer"), requireBranchContext, rateDriver);
 
 export default router;

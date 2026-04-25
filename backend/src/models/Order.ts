@@ -29,6 +29,8 @@ export interface IOrder extends Document {
   paymentMethod: PaymentMethod;
   paymentStatus: "PENDING" | "CONFIRMED";
   address: string;
+  driverRating?: number | null;
+  driverRatedAt?: Date | null;
   lat?: number;
   lng?: number;
   notes?: string;
@@ -84,6 +86,8 @@ const OrderSchema = new Schema<IOrder>(
     paymentMethod: { type: String, required: true },
     paymentStatus: { type: String, enum: ["PENDING", "CONFIRMED"], default: "PENDING" },
     address: { type: String, required: true },
+    driverRating: { type: Number, default: null, min: 1, max: 5 },
+    driverRatedAt: { type: Date, default: null },
     lat: { type: Number },
     lng: { type: Number },
     notes: { type: String },
