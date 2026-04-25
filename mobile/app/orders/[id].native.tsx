@@ -1,17 +1,31 @@
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { View, StyleSheet, ScrollView, TouchableOpacity, AppState } from "react-native";
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  AppState,
+  Animated,
+  useWindowDimensions,
+  ScrollView,
+  Image
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
-import Feather from "@expo/vector-icons/Feather";
 import Constants from "expo-constants";
 import Text from "../../components/Text";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Feather from '@expo/vector-icons/Feather';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Entypo from "@expo/vector-icons/Entypo";
 
-const MAP_FALLBACK = { latitude: 30.5085, longitude: 47.7804 };
+const MAP_FALLBACK = { latitude: 0, longitude: 0 };
+const MAP_EDGE_PADDING = { top: 120, right: 20, bottom: 40, left: 20 };
 const MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#f1f1f1" }] },
   { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
@@ -39,10 +53,43 @@ export default function OrderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
-  const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
+  const styles = useMemo(() => createStyles(palette, isRTL, insets), [palette, isRTL, insets]);
+  // const mapHeight = useMemo(
+  //   () =>
+  //     scrollY.interpolate({
+  //       inputRange: [0, 220],
+  //       outputRange: [windowHeight * 0.7, windowHeight * 0.4],
+  //       extrapolate: "clamp",
+  //     }),
+  //   [scrollY, windowHeight]
+  // );
+  const MAP_HEIGHT = windowHeight * 0.55;
+
+  const mapTranslateY = useMemo(
+    () =>
+      scrollY.interpolate({
+        inputRange: [0, 220],
+        outputRange: [0, -80],
+        extrapolate: "clamp",
+      }),
+    [scrollY]
+  );
+
+  const mapScale = useMemo(
+    () =>
+      scrollY.interpolate({
+        inputRange: [0, 220],
+        outputRange: [1, 0.96],
+        extrapolate: "clamp",
+      }),
+    [scrollY]
+  );
 
   const [order, setOrder] = useState<any>(null);
   const [branch, setBranch] = useState<any>(null);
@@ -50,6 +97,20 @@ export default function OrderDetail() {
   const [routeErrorMessage, setRouteErrorMessage] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const appStateRef = useRef(AppState.currentState);
+  const addressLabel =
+    order?.addressRef && typeof order.addressRef === "object" ? order.addressRef.label : "";
+
+  const getOrderItemKey = useCallback((item: any, index: number) => {
+    const productId =
+      typeof item?.product === "string"
+        ? item.product
+        : item?.product?._id ?? item?.product?.id;
+
+    if (productId) return `${productId}-${index}`;
+    if (item?._id) return `${item._id}-${index}`;
+
+    return `${item?.product?.name ?? "item"}-${item?.price ?? 0}-${item?.quantity ?? 0}-${index}`;
+  }, []);
 
   useEffect(() => {
     api.get(`/orders/${id}`).then((res) => {
@@ -92,7 +153,7 @@ export default function OrderDetail() {
   useEffect(() => {
     if (!effectiveOrigin || !destination) return;
     mapRef.current?.fitToCoordinates([effectiveOrigin, destination], {
-      edgePadding: { top: 40, right: 40, bottom: 40, left: 40 },
+      edgePadding: MAP_EDGE_PADDING,
       animated: true,
     });
   }, [effectiveOrigin?.latitude, effectiveOrigin?.longitude, destination?.latitude, destination?.longitude]);
@@ -145,10 +206,36 @@ export default function OrderDetail() {
 
   if (!order) return null;
 
+  const formatOrderDate = (value?: string) => {
+    if (!value) return "";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+
+    return date.toLocaleString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <View style={styles.root}>
-        <View style={styles.mapWrap}>
+        {/* <Animated.View style={[styles.mapWrap, { height: mapHeight }]}> */}
+        <Animated.View
+          style={[
+            styles.mapWrap,
+            {
+              height: MAP_HEIGHT,
+              transform: [{ translateY: mapTranslateY }, { scale: mapScale }],
+            },
+          ]}
+        >
           <MapView
             ref={mapRef}
             style={styles.mapFull}
@@ -156,8 +243,9 @@ export default function OrderDetail() {
             initialRegion={{
               latitude: effectiveOrigin?.latitude ?? destination?.latitude ?? MAP_FALLBACK.latitude,
               longitude: effectiveOrigin?.longitude ?? destination?.longitude ?? MAP_FALLBACK.longitude,
-              latitudeDelta: 0.05,
-              longitudeDelta: 0.05,
+              latitudeDelta: 0.08,
+              longitudeDelta: 0.08,
+              zoom: 12
             }}
           >
             {showDriver ? (
@@ -191,7 +279,7 @@ export default function OrderDetail() {
                 strokeColor={palette.accent}
                 onReady={(result) => {
                   mapRef.current?.fitToCoordinates(result.coordinates, {
-                    edgePadding: { top: 40, right: 40, bottom: 40, left: 40 },
+                    edgePadding: MAP_EDGE_PADDING,
                     animated: true,
                   });
                 }}
@@ -217,9 +305,17 @@ export default function OrderDetail() {
           >
             <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} />
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
-        <ScrollView contentContainerStyle={styles.sheetScroll}>
+        <ScrollView
+          style={styles.sheet}
+          contentContainerStyle={styles.sheetScroll}
+          scrollEventThrottle={16}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+        >
           {routeErrorMessage ? (
             <View style={styles.routeWarning}>
               <Text style={styles.routeWarningText}>
@@ -227,34 +323,89 @@ export default function OrderDetail() {
               </Text>
             </View>
           ) : null}
+
           <View style={styles.sheetHeader}>
             <View>
               <Text style={styles.title}>{t("order")} #{order._id.slice(-6)}</Text>
-              <Text style={styles.subtle}>{new Date(order.createdAt).toLocaleString()}</Text>
+              <Text style={styles.subtle}>{formatOrderDate(order.createdAt)}</Text>
             </View>
-            <View style={styles.statusPill}>
-              <Text style={styles.statusPillText}>{t(order.status) ?? order.status}</Text>
+
+            <View style={[{
+              borderWidth: 2,
+              borderRadius: 20,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderColor: palette.border,
+              paddingHorizontal: 10,
+              paddingVertical: 5,
+              flexDirection: 'row',
+              gap: 5,
+            },
+            order.status && order.status === "PENDING" && { borderColor: '#ff7a1f', backgroundColor: 'rgba(255, 122, 31, 0.1)' },
+            order.status && order.status === "PROCESSING" && { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
+            order.status && order.status === "SHIPPING" && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' },
+            order.status && order.status === "DELIVERED" && { borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' },
+            order.status && order.status === "CANCELLED" && { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+            ]}>
+              {order.status && order.status === "PENDING" && <Entypo name="dots-three-horizontal" size={16} color="#ff7a1f" />}
+              {order.status && order.status === "PROCESSING" && <Feather name="loader" size={20} color="#2563eb" />}
+              {order.status && order.status === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
+              {order.status && order.status === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
+              {order.status && order.status === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
+              <Text style={[{
+                fontSize: 12,
+                fontWeight: '600'
+              },
+              order.status && order.status === "PENDING" && { color: '#ff7a1f' },
+              order.status && order.status === "PROCESSING" && { color: '#2563eb' },
+              order.status && order.status === "SHIPPING" && { color: '#4f46e5' },
+              order.status && order.status === "DELIVERED" && { color: '#16a34a' },
+              order.status && order.status === "CANCELLED" && { color: '#ef4444' },
+              ]}>
+                {t(order.status) ?? order.status}
+              </Text>
             </View>
           </View>
 
-          <Text style={styles.heroTotal}>
-            {order.total.toLocaleString()} {t("syp")}
-          </Text>
-
-          <View style={styles.card}>
+          <View style={styles.detailsSection}>
             <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>{t("delivery") ?? "Delivery"}</Text>
+              <Text style={styles.sectionTitle}>
+                {t("delivery") ?? "Delivery"}
+              </Text>
               <Text style={styles.sectionMeta}>
                 {order.deliveryDistanceKm} {t("km")}
               </Text>
             </View>
+            {addressLabel ? <Text style={styles.addressLabel}>{addressLabel}</Text> : null}
             <Text style={styles.addressText}>{order.address}</Text>
           </View>
 
-          <View style={styles.card}>
+          <View style={styles.detailsSection}>
+            <View style={styles.row}>
+              <Text style={styles.label}>{t('subtotal')}</Text>
+              <Text style={styles.value}>{order.subtotal.toLocaleString()}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>{t('deliveryFee')}</Text>
+              <Text style={styles.value}>{order.deliveryFee.toLocaleString()}</Text>
+            </View>
+            <View style={styles.heroTotal}>
+              <Text style={styles.totalText}>{t('total')} <Text style={styles.totalCurrency}>({t("syp")})</Text></Text>
+              <Text style={styles.totalText}>{order.total.toLocaleString()}</Text>
+            </View>
+            <View style={[styles.row, { marginBottom: 0 }]}>
+              <Text style={styles.label}>{t('paymentMethod')}</Text>
+              {order.paymentMethod == 'CASH_ON_DELIVERY' && <View style={styles.valueWithIcon}>
+                <Text style={styles.value}>{t('cash')}</Text>
+                <Image source={require('../../assets/bill.png')} style={styles.methodIcon} />
+              </View>}
+            </View>
+          </View>
+
+          <View style={styles.detailsSection}>
             <Text style={styles.sectionTitle}>{t("items") ?? "Items"}</Text>
-            {order.items.map((item: any) => (
-              <View key={item.product} style={styles.itemRow}>
+            {order.items.map((item: any, index: number) => (
+              <View key={getOrderItemKey(item, index)} style={styles.itemRow}>
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemName}>
                     {item.quantity} x {item.product?.name || item.product}
@@ -266,21 +417,29 @@ export default function OrderDetail() {
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const createStyles = (palette: any, isRTL: boolean) =>
+const createStyles = (palette: any, isRTL: boolean, insets: any) =>
   StyleSheet.create({
+    detailsSection: {
+      backgroundColor: palette.card,
+      borderRadius: 15,
+      padding: 10,
+      borderWidth: 1,
+      borderColor: palette.border,
+    },
     safe: {
       flex: 1,
       backgroundColor: palette.background,
+      direction: isRTL ? "rtl" : "ltr",
     },
     root: {
       flex: 1,
+      direction: isRTL ? "rtl" : "ltr",
     },
     mapWrap: {
-      height: "70%",
       width: "100%",
     },
     mapFull: {
@@ -312,7 +471,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
     },
     backBtn: {
       position: "absolute",
-      top: 16,
+      top: 60,
       left: 16,
       width: 40,
       height: 40,
@@ -326,10 +485,15 @@ const createStyles = (palette: any, isRTL: boolean) =>
       left: undefined,
       right: 16,
     },
+    sheet: {
+      flex: 1,
+    },
     sheetScroll: {
-      paddingHorizontal: 16,
-      paddingBottom: 24,
+      paddingHorizontal: 10,
+      paddingTop: 10,
+      paddingBottom: insets.bottom + 10,
       gap: 12,
+      borderWidth: 2,
     },
     routeWarning: {
       paddingHorizontal: 12,
@@ -343,32 +507,83 @@ const createStyles = (palette: any, isRTL: boolean) =>
       color: palette.muted,
       fontSize: 12,
       fontWeight: "600",
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
     },
     sheetHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      gap: 10,
-      marginTop: 6,
     },
     title: {
       color: palette.text,
       fontSize: 22,
       fontWeight: "900",
-      textAlign: "left",
+      lineHeight: 26,
+      marginBottom: 5
     },
     subtle: {
       color: palette.muted,
       fontSize: 12,
+      lineHeight: 14,
       fontWeight: "600",
-      textAlign: "left",
+      opacity: 0.6
     },
     heroTotal: {
-      color: palette.accent,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: "center",
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: palette.border,
+      borderStyle: 'dashed',
+      marginBottom: 5
+    },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: "center",
+      marginBottom: 10
+    },
+    totalText: {
+      color: palette.text,
       fontSize: 22,
-      fontWeight: "900",
-      textAlign: "left",
+      fontWeight: "700",
+      textAlign: isRTL ? "right" : "left",
+      paddingBottom: 5,
+      writingDirection: isRTL ? "rtl" : "ltr",
+    },
+    totalCurrency: {
+      color: palette.text,
+      fontSize: 14,
+      fontWeight: "600",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
+    },
+    label: {
+      color: palette.text,
+      fontSize: 14,
+      fontWeight: "600",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
+    },
+    value: {
+      color: palette.text,
+      opacity: 0.4,
+      fontSize: 14,
+      fontWeight: "600",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
+    },
+    valueWithIcon: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    methodIcon: {
+      width: 30,
+      height: 30,
+      resizeMode: 'contain'
     },
     statusPill: {
       paddingHorizontal: 10,
@@ -393,7 +608,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       gap: 10,
     },
     sectionHead: {
-      flexDirection: "row",
+      flexDirection: isRTL ? "row-reverse" : "row",
       justifyContent: "space-between",
       alignItems: "center",
     },
@@ -401,22 +616,33 @@ const createStyles = (palette: any, isRTL: boolean) =>
       color: palette.text,
       fontSize: 16,
       fontWeight: "800",
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
     },
     sectionMeta: {
       color: palette.muted,
       fontSize: 12,
       fontWeight: "600",
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
     },
     addressText: {
       color: palette.text,
       fontWeight: "600",
       fontSize: 13,
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
+    },
+    addressLabel: {
+      color: palette.text,
+      fontWeight: "800",
+      fontSize: 14,
+      marginBottom: 4,
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
     },
     itemRow: {
-      flexDirection: "row",
+      flexDirection: isRTL ? "row-reverse" : "row",
       justifyContent: "space-between",
       alignItems: "center",
       paddingVertical: 6,
@@ -432,11 +658,13 @@ const createStyles = (palette: any, isRTL: boolean) =>
       color: palette.text,
       fontWeight: "700",
       fontSize: 14,
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
     },
     itemPrice: {
       color: palette.text,
       fontWeight: "800",
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
     },
   });

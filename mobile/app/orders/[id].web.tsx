@@ -15,6 +15,20 @@ export default function OrderDetailWeb() {
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
   const [order, setOrder] = useState<any>(null);
+  const addressLabel =
+    order?.addressRef && typeof order.addressRef === "object" ? order.addressRef.label : "";
+
+  const getOrderItemKey = (item: any, index: number) => {
+    const productId =
+      typeof item?.product === "string"
+        ? item.product
+        : item?.product?._id ?? item?.product?.id;
+
+    if (productId) return `${productId}-${index}`;
+    if (item?._id) return `${item._id}-${index}`;
+
+    return `${item?.product?.name ?? "item"}-${item?.price ?? 0}-${item?.quantity ?? 0}-${index}`;
+  };
 
   useEffect(() => {
     api.get(`/orders/${id}`).then((res) => setOrder(res.data.data));
@@ -44,12 +58,13 @@ export default function OrderDetailWeb() {
         </View>
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("delivery") ?? "Delivery"}</Text>
+          {addressLabel ? <Text style={styles.sectionLabel}>{addressLabel}</Text> : null}
           <Text style={styles.sectionValue}>{order.address}</Text>
         </View>
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("items") ?? "Items"}</Text>
-          {order.items.map((item: any) => (
-            <View key={item.product} style={styles.itemRow}>
+          {order.items.map((item: any, index: number) => (
+            <View key={getOrderItemKey(item, index)} style={styles.itemRow}>
               <Text style={styles.itemName}>
                 {item.quantity} x {item.product?.name || item.product}
               </Text>
@@ -102,6 +117,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       gap: 8,
     },
     sectionTitle: { color: palette.muted, fontSize: 12, fontWeight: "700" },
+    sectionLabel: { color: palette.text, fontSize: 14, fontWeight: "800" },
     sectionValue: { color: palette.text, fontSize: 14, fontWeight: "700" },
     itemRow: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
     itemName: { color: palette.text, fontWeight: "700" },

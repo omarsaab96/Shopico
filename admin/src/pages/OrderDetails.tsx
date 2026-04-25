@@ -36,6 +36,9 @@ const formatDateTime = (value?: string) => {
 
 const formatMoney = (value?: number) => (typeof value === "number" ? value.toLocaleString() : "0");
 
+const getOrderAddressLabel = (order: Order) =>
+  order.addressRef && typeof order.addressRef !== "string" ? order.addressRef.label : "";
+
 const getProductName = (product: Product | string | null | undefined, fallbackLabel: string) => {
   if (!product) return fallbackLabel;
   return typeof product === "string" ? product : product.name;
@@ -371,6 +374,10 @@ const OrderDetailsPage = () => {
               <div className="detailsRow">
                 <div className="detailsLabel">{t("method")}</div>
                 <div className="detailsValue">{order.paymentMethod}</div>
+              </div>
+              <div className="detailsRow">
+                <div className="detailsLabel">{t("label")}</div>
+                <div className="detailsValue">{getOrderAddressLabel(order) || "-"}</div>
               </div>
               <div className="detailsRow">
                 <div className="detailsLabel">{t("deliveryAddress")}</div>

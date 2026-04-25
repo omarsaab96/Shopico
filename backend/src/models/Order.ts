@@ -22,6 +22,7 @@ export interface IOrder extends Document {
   user: Types.ObjectId | string;
   items: IOrderItem[];
   branchId: Types.ObjectId | string;
+  addressRef?: Types.ObjectId | string | null;
   driverId?: Types.ObjectId | string;
   driverLocation?: IOrderDriverLocation | null;
   status: OrderStatus;
@@ -76,6 +77,7 @@ const OrderSchema = new Schema<IOrder>(
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     items: { type: [OrderItemSchema], required: true },
     branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
+    addressRef: { type: Schema.Types.ObjectId, ref: "Address", default: null },
     driverId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     driverLocation: { type: DriverLocationSchema, default: null },
     status: { type: String, enum: ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"], default: "PENDING" },

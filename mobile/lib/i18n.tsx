@@ -204,7 +204,13 @@ const baseStrings = {
   fromBranch:"Shopico branch",
   selectAddress:"Select an address",
   otherItem: "other item...",
-  otherItems: "other items..."
+  otherItems: "other items...",
+  PENDING:"Pending",
+  PROCESSING:"Processing",
+  SHIPPING:"Shipping",
+  DELIVERED:"Delivered",
+  CANCELLED:"Cancelled",
+  cash:"Cash",
 };
 
 const arStrings: Record<string, string> = {
@@ -398,7 +404,13 @@ const arStrings: Record<string, string> = {
   fromBranch:"فرع شوبكو",  
   selectAddress:"اختر عنواناً",
   otherItem:"عنصر آخر...",
-  otherItems:"عناصر أخرى..."
+  otherItems:"عناصر أخرى...",
+  PENDING:"قيد الانتظار",
+  PROCESSING:"قيد المعالجة",
+  SHIPPING:"قيد الشحن",
+  DELIVERED:"تم التوصيل",
+  CANCELLED:"ملغي",
+  cash:"الدفع عند الاستلام"
 };
 
 const extraBaseStrings: Record<string, string> = {

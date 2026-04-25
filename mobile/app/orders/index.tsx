@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Entypo from "@expo/vector-icons/Entypo";
 import LottieView from "lottie-react-native";
 import Screen from "../../components/Screen";
 import Text from "../../components/Text";
@@ -16,6 +15,11 @@ import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Feather from '@expo/vector-icons/Feather';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Entypo from "@expo/vector-icons/Entypo";
+
 
 export default function Orders() {
   const router = useRouter();
@@ -31,9 +35,19 @@ export default function Orders() {
 
   const formatOrderDate = useCallback((value?: string) => {
     if (!value) return "";
+
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
-    return date.toLocaleDateString();
+
+    return date.toLocaleString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
   }, []);
 
   const load = useCallback(async () => {
@@ -153,6 +167,7 @@ export default function Orders() {
           data={orders}
           keyExtractor={(o) => o._id}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          contentContainerStyle={{ paddingBottom: 10 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -165,15 +180,46 @@ export default function Orders() {
               <TouchableOpacity style={styles.row}>
                 <View style={{ flexDirection: 'row', gap: 15, marginBottom: 10, alignItems: 'center' }}>
 
-                  <View style={{ borderWidth: 1, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderColor: palette.border }}>
-
+                  <View style={[{
+                    borderWidth: 2,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderColor: palette.border
+                  },
+                  item.status && item.status === "PENDING" && { borderColor: '#ff7a1f', backgroundColor: 'rgba(255, 122, 31, 0.1)' },
+                  item.status && item.status === "PROCESSING" && { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
+                  item.status && item.status === "SHIPPING" && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' },
+                  item.status && item.status === "DELIVERED" && { borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' },
+                  item.status && item.status === "CANCELLED" && { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+                  ]}>
+                    {item.status && item.status === "PENDING" && <Entypo name="dots-three-horizontal" size={16} color="#ff7a1f" />}
+                    {item.status && item.status === "PROCESSING" && <Feather name="loader" size={20} color="#2563eb" />}
+                    {item.status && item.status === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
+                    {item.status && item.status === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
+                    {item.status && item.status === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
                   </View>
 
-                  <View style={{ flex: 1, gap:2 }}>
-                    <Text style={styles.name}>#{item._id.slice(-6)}</Text>
-                    <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
+                      <Text style={styles.name}>#{item._id.slice(-6)}</Text>
+                      <View style={styles.textSeperator}></View>
+                      <Text style={[
+                        styles.status,
+                        // item.status && item.status === "PENDING" && { color: '#ff7a1f' },
+                        // item.status && item.status === "PROCESSING" && { color: '#2563eb' },
+                        // item.status && item.status === "SHIPPING" && { color: '#4f46e5' },
+                        // item.status && item.status === "DELIVERED" && { color: '#16a34a' },
+                        // item.status && item.status === "CANCELLED" && { color: '#ef4444' },
+                      ]}>
+                        {t(item.status) ?? item.status}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
                       <Text style={styles.meta}>{formatOrderDate(item.createdAt)}</Text>
-                      <Text style={styles.status}>{t(item.status) ?? item.status}</Text>
+
                     </View>
                   </View>
 
@@ -252,26 +298,28 @@ const createStyles = (palette: any, isRTL: boolean) =>
 
     name: { color: palette.text, fontWeight: "700", lineHeight: 14, fontSize: 14 },
     muted: { color: palette.muted },
-    meta: { color: palette.muted, fontSize: 12, lineHeight: 12 },
-    status: { color: palette.muted, fontSize: 12, lineHeight: 12 },
+    meta: { color: palette.muted, fontSize: 12, lineHeight: 16, fontWeight: '500', opacity: 0.6 },
+    textSeperator: { width: 3, height: 3, borderRadius: 20, backgroundColor: palette.text },
+    status: { color: palette.muted, fontSize: 12, lineHeight: 16, fontWeight: '600' },
     itemsList: { marginBottom: 15, gap: 5 },
-    itemLine: { flexDirection: "row", gap: 4, alignItems: "baseline" },
+    itemLine: { flexDirection: "row", gap: 8, alignItems: "baseline" },
     itemQty: {
       color: palette.accent,
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: "900",
     },
     itemName: {
       color: palette.text,
-      fontWeight: "500",
-      fontSize: 13,
+      fontWeight: "600",
+      fontSize: 14,
     },
     moreItemsText: {
       color: palette.muted,
-      fontWeight: "500",
+      fontWeight: "600",
       fontSize: 13,
+      opacity: 0.6
     },
-    value: { color: "black", fontSize: 13, fontWeight: "500" },
+    value: { color: "black", fontSize: 13, fontWeight: "600" },
 
     emptyBox: {
       alignItems: "center",

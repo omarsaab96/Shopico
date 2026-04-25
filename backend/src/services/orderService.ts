@@ -25,7 +25,10 @@ interface CheckoutItemInput {
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export const getOrdersForUser = async (userId: Types.ObjectId, branchId: string) => {
-  return Order.find({ user: userId, branchId }).sort({ createdAt: -1 }).populate("items.product");
+  return Order.find({ user: userId, branchId })
+    .sort({ createdAt: -1 })
+    .populate("items.product")
+    .populate("addressRef");
 };
 
 const ACTIVE_DRIVER_ORDER_STATUSES: OrderStatus[] = ["PENDING", "PROCESSING", "SHIPPING"];
@@ -93,13 +96,21 @@ export const getAllOrders = async (opts?: {
     if (orClauses.length) filter.$or = orClauses;
   }
 
-  return Order.find(filter).sort({ createdAt: -1 }).populate("user").populate("items.product");
+  return Order.find(filter)
+    .sort({ createdAt: -1 })
+    .populate("user")
+    .populate("items.product")
+    .populate("addressRef");
 };
 
 export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId?: string) => {
   const filter: Record<string, unknown> = { _id: id };
   if (branchId) filter.branchId = branchId;
-  const order = await Order.findOne(filter).populate("user").populate("driverId").populate("items.product");
+  const order = await Order.findOne(filter)
+    .populate("user")
+    .populate("driverId")
+    .populate("items.product")
+    .populate("addressRef");
   if (!order) return null;
   const orderUserId =
     typeof order.user === "string"
@@ -294,6 +305,7 @@ export const createOrder = async (
   let address = payload.address;
   let lat = payload.lat;
   let lng = payload.lng;
+  let addressRef: Types.ObjectId | undefined;
 
   if (payload.addressId) {
     const saved = await Address.findOne({ _id: payload.addressId, user: userId });
@@ -301,6 +313,7 @@ export const createOrder = async (
     address = saved.address;
     lat = saved.lat;
     lng = saved.lng;
+    addressRef = saved._id;
   }
 
   if (!address || lat === undefined || lng === undefined) {
@@ -342,6 +355,7 @@ export const createOrder = async (
     paymentMethod: payload.paymentMethod,
     paymentStatus: payload.paymentMethod === "WALLET" ? "CONFIRMED" : "PENDING",
     address,
+    addressRef: addressRef ?? null,
     lat,
     lng,
     notes: payload.notes,
@@ -457,7 +471,11 @@ export const updateOrderDetails = async (
     await order.save();
   }
 
-  const populated = await Order.findById(order._id).populate("user").populate("driverId").populate("items.product");
+  const populated = await Order.findById(order._id)
+    .populate("user")
+    .populate("driverId")
+    .populate("items.product")
+    .populate("addressRef");
   if (!populated) throw { status: 404, message: "Order not found" };
   return populated;
 };
@@ -488,7 +506,7 @@ export const updateOrderDriverLocation = async (
 };
 
 export const getOrdersForDriver = async (driverId: Types.ObjectId) => {
-  return Order.find({ driverId }).sort({ createdAt: -1 }).populate("items.product");
+  return Order.find({ driverId }).sort({ createdAt: -1 }).populate("items.product").populate("addressRef");
 };
 
 export const updateOrderStatusAsDriver = async (orderId: string, userId: Types.ObjectId, status: OrderStatus) => {

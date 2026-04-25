@@ -45,10 +45,18 @@ export interface OrderItem {
   price: number;
 }
 
+export interface OrderAddressRef {
+  _id: string;
+  label: string;
+  address: string;
+  phone?: string;
+}
+
 export interface Order {
   _id: string;
   user: ApiUser | string;
   items: OrderItem[];
+  addressRef?: OrderAddressRef | string | null;
   driverId?: ApiUser | string | null;
   driverLocation?: { lat: number; lng: number; updatedAt?: string } | null;
   status: string;
