@@ -24,8 +24,8 @@ interface CheckoutItemInput {
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-export const getOrdersForUser = async (userId: Types.ObjectId, branchId: string) => {
-  return Order.find({ user: userId, branchId })
+export const getOrdersForUser = async (userId: Types.ObjectId, branchId?: string) => {
+  return Order.find({ user: userId, ...(branchId ? { branchId } : {}) })
     .sort({ createdAt: -1 })
     .populate("items.product")
     .populate("addressRef");

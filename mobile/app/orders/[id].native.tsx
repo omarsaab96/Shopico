@@ -308,7 +308,8 @@ export default function OrderDetail() {
             {showDriver ? (
               <Marker coordinate={driverOrigin} title={t("driver") ?? "Driver"} anchor={{ x: 0.5, y: 1 }}>
                 <View style={[styles.pin, styles.pinDriver]}>
-                  <Feather name="navigation-2" size={16} color="#fff" />
+                  {/* <Feather name="navigation-2" size={16} color="#fff" /> */}
+                  <MaterialIcons name="delivery-dining" size={20} color="#000" />
                 </View>
               </Marker>
             ) : null}
@@ -323,7 +324,7 @@ export default function OrderDetail() {
             {destination ? (
               <Marker coordinate={destination} title={t("destination") ?? "Destination"} anchor={{ x: 0.5, y: 1 }}>
                 <View style={[styles.pin, styles.pinDestination]}>
-                  <Feather name="home" size={16} color="#fff" />
+                  <Feather name="home" size={16} color={palette.text} />
                 </View>
               </Marker>
             ) : null}
@@ -656,7 +657,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 2,
-      borderColor: "#fff",
+      borderColor: "#000",
       shadowColor: "#000",
       shadowOpacity: 0.2,
       shadowRadius: 6,
@@ -667,10 +668,10 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       backgroundColor: palette.accent,
     },
     pinDestination: {
-      backgroundColor: "#ff7a1f",
+      backgroundColor: palette.accent,
     },
     pinDriver: {
-      backgroundColor: "#0ea5e9",
+      backgroundColor: palette.accent,
     },
     backBtn: {
       position: "absolute",

@@ -25,8 +25,11 @@ import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
 
 export const listOrders = catchAsync(async (req: AuthRequest, res) => {
-  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
-  const orders = await getOrdersForUser(req.user!._id, req.branchId);
+  const branchId = req.user?.role === "customer" ? undefined : req.branchId;
+  if (req.user?.role !== "customer" && !branchId) {
+    return res.status(400).json({ success: false, message: "Branch access required" });
+  }
+  const orders = await getOrdersForUser(req.user!._id, branchId);
   sendSuccess(res, orders);
 });
 
@@ -49,8 +52,12 @@ export const listOrdersAdmin = catchAsync(async (req, res) => {
 });
 
 export const getOrder = catchAsync(async (req: AuthRequest, res) => {
-  const branchId = req.branchId;
-  const order = await getOrderById(req.params.id, req.user?.role === "customer" ? req.user._id : undefined, branchId);
+  const isCustomer = req.user?.role === "customer";
+  const branchId = isCustomer ? undefined : req.branchId;
+  if (!isCustomer && !branchId) {
+    return res.status(400).json({ success: false, message: "Branch access required" });
+  }
+  const order = await getOrderById(req.params.id, isCustomer ? req.user!._id : undefined, branchId);
   if (!order) return res.status(404).json({ success: false, message: "Order not found" });
   sendSuccess(res, order);
 });

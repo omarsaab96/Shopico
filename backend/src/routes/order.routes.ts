@@ -13,11 +13,11 @@ import {
   updateDriverStatus,
 } from "../controllers/orderController";
 import { authenticate, authorize, requirePermissions } from "../middleware/auth";
-import { requireBranchContext } from "../middleware/branch";
+import { attachBranchContext, requireBranchContext } from "../middleware/branch";
 
 const router = Router();
 
-router.get("/", authenticate, requireBranchContext, listOrders);
+router.get("/", authenticate, attachBranchContext, listOrders);
 router.get("/driver", authenticate, authorize("driver"), listDriverOrders);
 router.get(
   "/admin",
@@ -27,7 +27,7 @@ router.get(
   requireBranchContext,
   listOrdersAdmin
 );
-router.get("/:id", authenticate, requireBranchContext, getOrder);
+router.get("/:id", authenticate, attachBranchContext, getOrder);
 router.post("/", authenticate, requireBranchContext, createOrderHandler);
 router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("orders:view", "orders:update"), requireBranchContext, adminUpdateOrderDetails);
 router.put("/:id/status", authenticate, authorize("admin", "manager", "staff"), requirePermissions("orders:view", "orders:update"), requireBranchContext, adminUpdateOrder);
