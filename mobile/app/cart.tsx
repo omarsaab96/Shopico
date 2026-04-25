@@ -982,8 +982,8 @@ export default function CartScreen() {
                             <Text style={styles.addressText}>{selectedAddress.address}</Text>
                           </View>
                           <View style={{ alignItems: 'center' }}>
-                            {distanceKm > 1 && <Text style={styles.oldDistance}>{distanceKm} Km</Text>}
-                            <Text weight="bold" style={styles.distance}>{distanceKm > 1 ? Math.ceil(distanceKm - 1) : distanceKm} Km</Text>
+                            {distanceKm > 1 && <Text style={styles.oldDistance}>{distanceKm} {t('Km')}</Text>}
+                            <Text weight="bold" style={styles.distance}>{distanceKm > 1 ? Math.ceil(distanceKm - 1) : distanceKm} {t('Km')}</Text>
                           </View>
                         </View>
                       </View>

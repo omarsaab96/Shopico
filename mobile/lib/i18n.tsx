@@ -211,6 +211,7 @@ const baseStrings = {
   DELIVERED:"Delivered",
   CANCELLED:"Cancelled",
   cash:"Cash",
+  noAssignedDriverYet: "No assigned driver yet",
 };
 
 const arStrings: Record<string, string> = {
@@ -410,7 +411,8 @@ const arStrings: Record<string, string> = {
   SHIPPING:"قيد الشحن",
   DELIVERED:"تم التوصيل",
   CANCELLED:"ملغي",
-  cash:"الدفع عند الاستلام"
+  cash:"الدفع عند الاستلام",
+  noAssignedDriverYet: "لا يوجد سائق معين بعد",
 };
 
 const extraBaseStrings: Record<string, string> = {

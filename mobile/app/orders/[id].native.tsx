@@ -23,6 +23,12 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Entypo from "@expo/vector-icons/Entypo";
+import EvilIcons from '@expo/vector-icons/EvilIcons';
+import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons';
+import Octicons from '@expo/vector-icons/Octicons';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import Fontisto from '@expo/vector-icons/Fontisto';
 
 const MAP_FALLBACK = { latitude: 0, longitude: 0 };
 const MAP_EDGE_PADDING = { top: 120, right: 20, bottom: 40, left: 20 };
@@ -352,9 +358,9 @@ export default function OrderDetail() {
               {order.status && order.status === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
               {order.status && order.status === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
               {order.status && order.status === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
-              <Text style={[{
+              <Text numberOfLines={1} style={[{
                 fontSize: 12,
-                fontWeight: '600'
+                fontWeight: '600',
               },
               order.status && order.status === "PENDING" && { color: '#ff7a1f' },
               order.status && order.status === "PROCESSING" && { color: '#2563eb' },
@@ -368,16 +374,47 @@ export default function OrderDetail() {
           </View>
 
           <View style={styles.detailsSection}>
-            <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>
-                {t("delivery") ?? "Delivery"}
-              </Text>
-              <Text style={styles.sectionMeta}>
-                {order.deliveryDistanceKm} {t("km")}
-              </Text>
+            <View style={{ marginBottom: 10, borderBottomWidth: 1, borderBottomColor: palette.border, paddingBottom: 10 }}>
+              <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+                <Ionicons name="storefront-outline" size={24} color={palette.muted} />
+
+                <View style={{ gap: 5 }}>
+                  <Text style={styles.addressLabel}>{order.branchId}</Text>
+                </View>
+              </View>
             </View>
-            {addressLabel ? <Text style={styles.addressLabel}>{addressLabel}</Text> : null}
-            <Text style={styles.addressText}>{order.address}</Text>
+
+            <View style={{ marginBottom: 10, borderBottomWidth: 1, borderBottomColor: palette.border, paddingBottom: 10 }}>
+              <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+                <Octicons name="location" size={24} color={palette.muted} />
+
+                <View style={{ gap: 2 }}>
+                  <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                    {addressLabel ?
+                      <Text style={styles.addressLabel}>{addressLabel}</Text>
+                      :
+                      <Text style={styles.addressLabel}>{t('distance')}</Text>
+                    }
+                    <Text style={styles.deliveryDistanceKm}>
+                      {order.deliveryDistanceKm > 1 ? Math.ceil(order.deliveryDistanceKm - 1) : order.deliveryDistanceKm} {t('km')}
+                    </Text>
+                  </View>
+                  <Text style={styles.addressText}>{order.address}</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={[]}>
+              <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+                <MaterialIcons name="delivery-dining" size={24} color={palette.muted} />
+                <View style={{ gap: 5 }}>
+                  <Text style={styles.addressLabel}>{order.driverId ?? t('noAssignedDriverYet')}</Text>
+                  <Text style={styles.addressText}>
+                    <Fontisto name="star" size={12} color={palette.text} /> 3.2
+                  </Text>
+                </View>
+              </View>
+            </View>
           </View>
 
           <View style={styles.detailsSection}>
@@ -608,8 +645,8 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       gap: 10,
     },
     sectionHead: {
-      flexDirection: isRTL ? "row-reverse" : "row",
-      justifyContent: "space-between",
+      flexDirection: "row",
+      justifyContent: "flex-start",
       alignItems: "center",
     },
     sectionTitle: {
@@ -628,16 +665,16 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
     },
     addressText: {
       color: palette.text,
-      fontWeight: "600",
+      fontWeight: "500",
       fontSize: 13,
-      textAlign: isRTL ? "right" : "left",
-      writingDirection: isRTL ? "rtl" : "ltr",
+      lineHeight: 16,
+      opacity: 0.4,
     },
     addressLabel: {
       color: palette.text,
-      fontWeight: "800",
+      fontWeight: "600",
       fontSize: 14,
-      marginBottom: 4,
+      lineHeight: 18,
       textAlign: isRTL ? "right" : "left",
       writingDirection: isRTL ? "rtl" : "ltr",
     },
@@ -666,5 +703,23 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       fontWeight: "800",
       textAlign: isRTL ? "right" : "left",
       writingDirection: isRTL ? "rtl" : "ltr",
+    },
+
+    deliveryDistanceKm: {
+      fontSize: 12,
+      color: palette.text,
+      fontWeight: "600",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
+      paddingHorizontal: 5,
+      paddingVertical: 3,
+      borderRadius: 10,
+      backgroundColor: palette.surface,
+      lineHeight: 14,
+    },
+    oldDistance: {
+      fontSize: 12,
+      color: palette.text,
+      textDecorationLine: "line-through",
     },
   });
