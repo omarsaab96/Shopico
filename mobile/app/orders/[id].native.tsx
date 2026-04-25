@@ -7,7 +7,6 @@ import {
   AppState,
   Animated,
   useWindowDimensions,
-  ScrollView,
   Image,
   Alert,
 } from "react-native";
@@ -30,15 +29,10 @@ import Octicons from '@expo/vector-icons/Octicons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Fontisto from '@expo/vector-icons/Fontisto';
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetModalProvider,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 
 const MAP_FALLBACK = { latitude: 0, longitude: 0 };
-const MAP_EDGE_PADDING = { top: 120, right: 20, bottom: 40, left: 20 };
+const MAP_EDGE_PADDING = { top: 120, right: 20, bottom: 120, left: 20 };
 const MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#f1f1f1" }] },
   { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
@@ -86,35 +80,32 @@ export default function OrderDetail() {
   // );
   const MAP_HEIGHT = windowHeight * 0.55;
 
-  const mapTranslateY = useMemo(
-    () =>
-      scrollY.interpolate({
-        inputRange: [0, 220],
-        outputRange: [0, -80],
-        extrapolate: "clamp",
-      }),
-    [scrollY]
-  );
+  // const mapTranslateY = useMemo(
+  //   () =>
+  //     scrollY.interpolate({
+  //       inputRange: [0, 220],
+  //       outputRange: [0, -80],
+  //       extrapolate: "clamp",
+  //     }),
+  //   [scrollY]
+  // );
 
-  const mapScale = useMemo(
-    () =>
-      scrollY.interpolate({
-        inputRange: [0, 220],
-        outputRange: [1, 0.96],
-        extrapolate: "clamp",
-      }),
-    [scrollY]
-  );
+  // const mapScale = useMemo(
+  //   () =>
+  //     scrollY.interpolate({
+  //       inputRange: [0, 220],
+  //       outputRange: [1, 0.96],
+  //       extrapolate: "clamp",
+  //     }),
+  //   [scrollY]
+  // );
 
-  const sheetRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ["60%","80%"], []);
+  const sheetRef = useRef<BottomSheet>(null);
+  const snapPoints = useMemo(() => ["50%","90%"], []);
   const renderBackdrop = useCallback(
     (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />,
     []
   );
-  const openSheet = useCallback(() => {
-    sheetRef.current?.present();
-  }, []);
   const [order, setOrder] = useState<any>(null);
   const [branch, setBranch] = useState<any>(null);
   const [routeError, setRouteError] = useState(false);
@@ -290,16 +281,15 @@ export default function OrderDetail() {
   }
 
   return (
-    <BottomSheetModalProvider>
       <View style={styles.safe}>
         <View style={styles.root}>
           {/* <Animated.View style={[styles.mapWrap, { height: mapHeight }]}> */}
-          <Animated.View
+          <View
             style={[
               styles.mapWrap,
               {
                 height: MAP_HEIGHT,
-                transform: [{ translateY: mapTranslateY }, { scale: mapScale }],
+                // transform: [{ translateY: mapTranslateY }, { scale: mapScale }],
               },
             ]}
           >
@@ -372,10 +362,19 @@ export default function OrderDetail() {
             >
               <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} />
             </TouchableOpacity>
-          </Animated.View>
+          </View>
 
-          <ScrollView
-            style={styles.sheet}
+          <BottomSheet
+            ref={sheetRef}
+            index={0}
+            snapPoints={snapPoints}
+            enableDynamicSizing={false}
+            enablePanDownToClose={false}
+            // backdropComponent={renderBackdrop}
+            backgroundStyle={styles.bottomSheetBg}
+            handleIndicatorStyle={styles.bottomSheetHandle}
+          >
+          <BottomSheetScrollView
             contentContainerStyle={styles.sheetScroll}
             scrollEventThrottle={16}
             onScroll={Animated.event(
@@ -465,11 +464,7 @@ export default function OrderDetail() {
                 </View>
               </View>
 
-              <TouchableOpacity
-                activeOpacity={0.85}
-                disabled={!driverName}
-                onPress={openSheet}
-              >
+              <View>
                 <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
                   <MaterialIcons name="delivery-dining" size={24} color={palette.muted} />
 
@@ -516,7 +511,7 @@ export default function OrderDetail() {
                     </View>
                   </View>
                 </View>
-              </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.detailsSection}>
@@ -524,6 +519,32 @@ export default function OrderDetail() {
                 <Text style={styles.sectionTitle}>{t("items") ?? "Items"}</Text>
                 <Text style={[styles.sectionTitle, { color: palette.accent }]}>{order.items.length}</Text>
               </View>
+              {order.items.map((item: any, index: number) => (
+                <View key={getOrderItemKey(item, index)} style={[styles.itemRow, index === order.items.length - 1 && { borderBottomWidth: 0 }]}>
+                  <View style={styles.itemInfo}>
+                    <View style={styles.prodImgBox}>
+                      <Image
+                        source={
+                          item.images?.[0]?.url
+                            ? { uri: item.images?.[0]?.url }
+                            : fallbackLogo
+                        }
+                        style={[
+                          styles.productImg,
+                          !item.images?.[0]?.url && { tintColor: '#dedede' },
+                        ]}
+                      />
+                    </View>
+                    <View>
+                      <Text style={styles.itemName}>
+                        {item.product?.name || item.product}
+                      </Text>
+                      <Text style={styles.itemQty}>{item.quantity}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.itemPrice}>{item.price.toLocaleString()}</Text>
+                </View>
+              ))}
               {order.items.map((item: any, index: number) => (
                 <View key={getOrderItemKey(item, index)} style={[styles.itemRow, index === order.items.length - 1 && { borderBottomWidth: 0 }]}>
                   <View style={styles.itemInfo}>
@@ -573,23 +594,11 @@ export default function OrderDetail() {
                 </View>}
               </View>
             </View>
-          </ScrollView>
-
-          <BottomSheetModal
-            ref={sheetRef}
-            enablePanDownToClose
-            backdropComponent={renderBackdrop}
-            backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
-            snapPoints={snapPoints}
-          >
-            <BottomSheetView style={styles.bottomSheetContent}>
-              <Text>hello</Text>
-            </BottomSheetView>
-          </BottomSheetModal>
+          </BottomSheetScrollView>
+          </BottomSheet>
 
         </View>
       </View>
-    </BottomSheetModalProvider>
   );
 }
 
@@ -658,15 +667,12 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       left: undefined,
       right: 16,
     },
-    sheet: {
-      flex: 1,
-    },
     sheetScroll: {
       paddingHorizontal: 10,
       paddingTop: 10,
-      paddingBottom: 10,
+      paddingBottom: insets.bottom + 12,
       gap: 12,
-      borderWidth: 2,
+      flexGrow: 1,
     },
     routeWarning: {
       paddingHorizontal: 12,
@@ -885,7 +891,12 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       color: palette.text,
       textDecorationLine: "line-through",
     },
-    bottomSheetContent: {
-      padding: 16,
+    bottomSheetBg: {
+      backgroundColor: palette.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+    },
+    bottomSheetHandle: {
+      backgroundColor: palette.border,
     },
   });
