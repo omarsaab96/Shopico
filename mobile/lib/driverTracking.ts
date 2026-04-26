@@ -49,15 +49,15 @@ export const startDriverBackgroundTracking = async (orderId: string) => {
     throw new Error("Foreground location permission denied");
   }
 
-  const background = await Location.requestBackgroundPermissionsAsync();
-  if (background.status !== "granted") {
-    throw new Error("Background location permission denied");
-  }
-
   await SecureStore.setItemAsync(ACTIVE_DRIVER_ORDER_KEY, orderId);
 
   const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
   await pushDriverLocation(orderId, current.coords);
+
+  const background = await Location.requestBackgroundPermissionsAsync();
+  if (background.status !== "granted") {
+    return { background: false };
+  }
 
   const alreadyStarted = await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK);
   if (alreadyStarted) {
@@ -75,6 +75,8 @@ export const startDriverBackgroundTracking = async (orderId: string) => {
       notificationColor: "#f97316",
     },
   });
+
+  return { background: true };
 };
 
 export const stopDriverBackgroundTracking = async () => {

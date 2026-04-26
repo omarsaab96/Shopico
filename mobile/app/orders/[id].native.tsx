@@ -111,6 +111,8 @@ export default function OrderDetail() {
   const [branch, setBranch] = useState<any>(null);
   const [routeError, setRouteError] = useState(false);
   const [routeErrorMessage, setRouteErrorMessage] = useState<string | null>(null);
+  const [routeDistance, setRouteDistance] = useState<number | null>(null);
+  const [routeDuration, setRouteDuration] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const appStateRef = useRef(AppState.currentState);
   const addressLabel =
@@ -201,6 +203,8 @@ export default function OrderDetail() {
   useEffect(() => {
     setRouteError(false);
     setRouteErrorMessage(null);
+    setRouteDistance(null);
+    setRouteDuration(null);
   }, [effectiveOrigin?.latitude, effectiveOrigin?.longitude, destination?.latitude, destination?.longitude]);
 
   const startPolling = useCallback(() => {
@@ -336,6 +340,8 @@ export default function OrderDetail() {
                 strokeWidth={4}
                 strokeColor={palette.accent}
                 onReady={(result) => {
+                  setRouteDistance(result.distance);
+                  setRouteDuration(result.duration);
                   mapRef.current?.fitToCoordinates(result.coordinates, {
                     edgePadding: MAP_EDGE_PADDING,
                     animated: true,
@@ -408,6 +414,24 @@ export default function OrderDetail() {
                 <Text style={styles.routeWarningText}>
                   {t("routeUnavailable") ?? "Route unavailable"} · {routeErrorMessage}
                 </Text>
+              </View>
+            ) : null}
+
+            {order.status === "SHIPPING" ? (
+              <View style={styles.etaCard}>
+                <View style={styles.etaItem}>
+                  <Text style={styles.etaLabel}>ETA</Text>
+                  <Text style={styles.etaValue}>
+                    {routeDuration !== null ? `${Math.round(routeDuration)} min` : "-"}
+                  </Text>
+                </View>
+                <View style={styles.etaDivider} />
+                <View style={styles.etaItem}>
+                  <Text style={styles.etaLabel}>{t("distance") ?? "Distance"}</Text>
+                  <Text style={styles.etaValue}>
+                    {routeDistance !== null ? `${routeDistance.toFixed(1)} ${t("km")}` : `${order.deliveryDistanceKm} ${t("km")}`}
+                  </Text>
+                </View>
               </View>
             ) : null}
 
@@ -706,6 +730,38 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       fontWeight: "600",
       textAlign: isRTL ? "right" : "left",
       writingDirection: isRTL ? "rtl" : "ltr",
+    },
+    etaCard: {
+      backgroundColor: palette.card,
+      borderRadius: 15,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: palette.border,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    etaItem: {
+      flex: 1,
+      gap: 4,
+    },
+    etaLabel: {
+      color: palette.muted,
+      fontSize: 11,
+      fontWeight: "900",
+      textTransform: "uppercase",
+      textAlign: isRTL ? "right" : "left",
+    },
+    etaValue: {
+      color: palette.text,
+      fontSize: 18,
+      fontWeight: "900",
+      textAlign: isRTL ? "right" : "left",
+    },
+    etaDivider: {
+      width: 1,
+      alignSelf: "stretch",
+      backgroundColor: palette.border,
+      marginHorizontal: 12,
     },
     sheetHeader: {
       flexDirection: "row",

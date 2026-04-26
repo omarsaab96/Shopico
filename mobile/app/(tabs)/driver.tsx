@@ -130,7 +130,13 @@ export default function DriverOrders() {
     setUpdating((prev) => ({ ...prev, [order._id]: true }));
     try {
       await api.put(`/orders/${order._id}/driver-status`, { status: "SHIPPING" });
-      await startDriverBackgroundTracking(order._id);
+      const tracking = await startDriverBackgroundTracking(order._id);
+      if (!tracking.background) {
+        Alert.alert(
+          t("locationDenied") ?? "Location denied",
+          "Background location is not enabled. Customers can track you while Shopico is open, but tracking may stop if you switch apps."
+        );
+      }
       setTrackingOrderId(order._id);
       await load();
       openDirections(order);
