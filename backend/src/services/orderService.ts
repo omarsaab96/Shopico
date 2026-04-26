@@ -10,7 +10,8 @@ import { PointsTransaction } from "../models/PointsTransaction";
 import { Settings } from "../models/Settings";
 import { Coupon } from "../models/Coupon";
 import { CouponRedemption } from "../models/CouponRedemption";
-import { haversineDistanceKm, calculatePointsEarned } from "../utils/pricing";
+import { calculatePointsEarned } from "../utils/pricing";
+import { getRouteDistanceKm } from "../utils/routeDistance";
 import { Branch } from "../models/Branch";
 import { DriverStatus, OrderStatus, PaymentMethod } from "../types";
 import { AuditLog } from "../models/AuditLog";
@@ -353,7 +354,10 @@ export const createOrder = async (
   const branch = await Branch.findById(branchId).select("lat lng");
   if (!branch) throw { status: 404, message: "Branch not found" };
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const distanceKm = haversineDistanceKm(branch.lat, branch.lng, lat, lng);
+  const distanceKm = await getRouteDistanceKm(
+    { lat: branch.lat, lng: branch.lng },
+    { lat, lng }
+  );
   const deliveryFee =
     distanceKm <= settings.deliveryFreeKm
       ? 0
@@ -412,6 +416,41 @@ export const createOrder = async (
   await Cart.findOneAndUpdate({ user: userId }, { items: [] });
   await AuditLog.create({ user: userId, action: "ORDER_CREATED", metadata: { orderId: order._id } });
   return order;
+};
+
+export const estimateOrderDelivery = async (
+  userId: Types.ObjectId,
+  branchId: string,
+  payload: { addressId?: string; lat?: number; lng?: number }
+) => {
+  let lat = payload.lat;
+  let lng = payload.lng;
+
+  if (payload.addressId) {
+    const saved = await Address.findOne({ _id: payload.addressId, user: userId });
+    if (!saved) throw { status: 404, message: "Address not found" };
+    lat = saved.lat;
+    lng = saved.lng;
+  }
+
+  if (lat === undefined || lng === undefined) {
+    throw { status: 400, message: "Location is required" };
+  }
+
+  const settings = await getSettingsSnapshot(branchId);
+  const branch = await Branch.findById(branchId).select("lat lng");
+  if (!branch) throw { status: 404, message: "Branch not found" };
+
+  const distanceKm = await getRouteDistanceKm(
+    { lat: branch.lat, lng: branch.lng },
+    { lat, lng }
+  );
+  const deliveryFee =
+    distanceKm <= settings.deliveryFreeKm
+      ? 0
+      : Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm;
+
+  return { distanceKm, deliveryFee };
 };
 
 export const updateOrderStatus = async (

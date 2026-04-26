@@ -33,7 +33,7 @@ import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom
 import LottieView from "lottie-react-native";
 
 const MAP_FALLBACK = { latitude: 0, longitude: 0 };
-const MAP_EDGE_PADDING = { top: 120, right: 20, bottom: 120, left: 20 };
+const MAP_EDGE_PADDING = { top: 120, right: 50, bottom: 120, left: 50 };
 const MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#f1f1f1" }] },
   { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
@@ -294,7 +294,7 @@ export default function OrderDetail() {
             },
           ]}
         >
-          {order.status!='CANCELLED' && order.status!='DELIVERED' && <MapView
+          {order.status != 'CANCELLED' && order.status != 'DELIVERED' && <MapView
             ref={mapRef}
             style={styles.mapFull}
             customMapStyle={MAP_STYLE}
@@ -308,7 +308,6 @@ export default function OrderDetail() {
             {showDriver ? (
               <Marker coordinate={driverOrigin} title={t("driver") ?? "Driver"} anchor={{ x: 0.5, y: 1 }}>
                 <View style={[styles.pin, styles.pinDriver]}>
-                  {/* <Feather name="navigation-2" size={16} color="#fff" /> */}
                   <MaterialIcons name="delivery-dining" size={20} color="#000" />
                 </View>
               </Marker>
@@ -358,7 +357,7 @@ export default function OrderDetail() {
             ) : null}
           </MapView>}
 
-          {order.status=='CANCELLED' &&<View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
+          {order.status == 'CANCELLED' && <View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
             <LottieView
               autoPlay
               loop
@@ -368,7 +367,7 @@ export default function OrderDetail() {
             <Text>Your order is cancelled...</Text>
           </View>}
 
-          {order.status=='DELIVERED' &&<View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
+          {order.status == 'DELIVERED' && <View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
             <LottieView
               autoPlay
               loop
@@ -637,11 +636,11 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       flex: 1,
       backgroundColor: palette.background,
       direction: isRTL ? "rtl" : "ltr",
+      paddingBottom: insets.bottom
     },
     root: {
       flex: 1,
       direction: isRTL ? "rtl" : "ltr",
-      paddingBottom: insets.bottom
     },
     mapWrap: {
       width: "100%",
@@ -656,34 +655,31 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       borderRadius: 17,
       alignItems: "center",
       justifyContent: "center",
-      borderWidth: 2,
-      borderColor: "#000",
-      shadowColor: "#000",
-      shadowOpacity: 0.2,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 6,
+      borderWidth: 3,
+      borderColor: palette.accent,
     },
     pinBranch: {
       backgroundColor: palette.accent,
     },
     pinDestination: {
-      backgroundColor: palette.accent,
+      backgroundColor: palette.card,
     },
     pinDriver: {
+      borderColor: palette.card,
       backgroundColor: palette.accent,
     },
     backBtn: {
       position: "absolute",
-      top: 60,
+      top: insets.top + 10,
       left: 16,
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: "#fff",
       alignItems: "center",
       justifyContent: "center",
-      elevation: 6,
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      backgroundColor: palette.card,
+      borderWidth: 1,
+      borderColor: palette.border,
     },
     backBtnRtl: {
       left: undefined,

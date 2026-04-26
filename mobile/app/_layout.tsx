@@ -30,6 +30,7 @@ import { AuthProvider } from "../lib/auth";
 import { CartProvider } from "../lib/cart";
 import { ThemeProvider, useTheme } from "../lib/theme";
 import { I18nProvider, useI18n } from "../lib/i18n";
+import "../lib/driverTracking";
 
 const FontGate = ({ children }: { children: React.ReactNode }) => {
   const { isRTL } = useI18n();

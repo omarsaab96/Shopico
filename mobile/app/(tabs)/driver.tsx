@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from "react-native";
 import * as Location from "expo-location";
 import Screen from "../../components/Screen";
 import Text from "../../components/Text";
@@ -7,67 +8,110 @@ import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
+import { startDriverBackgroundTracking, stopDriverBackgroundTracking } from "../../lib/driverTracking";
 
 type DriverOrder = {
   _id: string;
   status: string;
   address: string;
   total: number;
+  createdAt?: string;
+  statusHistory?: { status: string; at?: string }[];
   deliveryDistanceKm?: number;
-  branchId?: string;
   lat?: number;
   lng?: number;
+  addressRef?: { lat?: number | string; lng?: number | string } | string | null;
 };
 
 export default function DriverOrders() {
+  const router = useRouter();
   const { user } = useAuth();
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
   const [orders, setOrders] = useState<DriverOrder[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState<Record<string, boolean>>({});
   const trackingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
-  const [simulatingOrderId, setSimulatingOrderId] = useState<string | null>(null);
-  const simulationRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [branchMap, setBranchMap] = useState<Record<string, { lat: number; lng: number }>>({});
+  const [now, setNow] = useState(() => Date.now());
 
   const canDeliver = user?.role === "driver";
 
-  const load = async () => {
+  const load = useCallback(async (showSpinner = true) => {
     if (!canDeliver) return;
-    setLoading(true);
+    if (showSpinner) setLoading(true);
     try {
       const res = await api.get("/orders/driver");
       setOrders(res.data.data || []);
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
-  };
+  }, [canDeliver]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load(false);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
 
   useEffect(() => {
     load();
-    api
-      .get("/branches/public")
-      .then((res) => {
-        const list = res.data.data || [];
-        const map: Record<string, { lat: number; lng: number }> = {};
-        list.forEach((b: any) => {
-          const lat = typeof b.lat === "string" ? Number(b.lat) : b.lat;
-          const lng = typeof b.lng === "string" ? Number(b.lng) : b.lng;
-          if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            map[b._id] = { lat, lng };
-          }
-        });
-        setBranchMap(map);
-      })
-      .catch(() => setBranchMap({}));
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => {
+      clearInterval(timer);
       if (trackingRef.current) clearInterval(trackingRef.current);
-      if (simulationRef.current) clearInterval(simulationRef.current);
     };
+  }, [load]);
+
+  const visibleOrders = useMemo(
+    () => orders.filter((order) => ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED"].includes(order.status)),
+    [orders]
+  );
+
+  const pendingCount = useMemo(
+    () => visibleOrders.filter((order) => order.status !== "DELIVERED").length,
+    [visibleOrders]
+  );
+
+  const deliveredCount = useMemo(
+    () => visibleOrders.filter((order) => order.status === "DELIVERED").length,
+    [visibleOrders]
+  );
+
+  const formatDuration = useCallback((startAt?: string, endAt?: string) => {
+    if (!startAt) return "-";
+
+    const start = new Date(startAt).getTime();
+    const end = endAt ? new Date(endAt).getTime() : now;
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return "-";
+
+    const elapsedMs = Math.max(0, end - start);
+    const totalSeconds = Math.floor(elapsedMs / 1000);
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = totalMinutes % 60;
+    const seconds = totalSeconds % 60;
+
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    return `${minutes}m ${seconds}s`;
+  }, [now]);
+
+  const getStatusTime = useCallback((order: DriverOrder, status: string) => {
+    return order.statusHistory?.find((entry) => entry.status === status)?.at;
   }, []);
+
+  const getDeliveryDuration = useCallback((order: DriverOrder) => {
+    const startedAt = getStatusTime(order, "SHIPPING");
+    const deliveredAt = getStatusTime(order, "DELIVERED");
+    return formatDuration(startedAt, order.status === "DELIVERED" ? deliveredAt : undefined);
+  }, [formatDuration, getStatusTime]);
 
   const pushLocation = async (orderId: string) => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -82,19 +126,21 @@ export default function DriverOrders() {
     });
   };
 
-  const startTracking = async (orderId: string) => {
-    setUpdating((prev) => ({ ...prev, [orderId]: true }));
+  const startTracking = async (order: DriverOrder) => {
+    setUpdating((prev) => ({ ...prev, [order._id]: true }));
     try {
-      await api.put(`/orders/${orderId}/driver-status`, { status: "SHIPPING" });
-      await pushLocation(orderId);
-      if (trackingRef.current) clearInterval(trackingRef.current);
-      trackingRef.current = setInterval(() => {
-        pushLocation(orderId).catch(() => {});
-      }, 10000);
-      setTrackingOrderId(orderId);
+      await api.put(`/orders/${order._id}/driver-status`, { status: "SHIPPING" });
+      await startDriverBackgroundTracking(order._id);
+      setTrackingOrderId(order._id);
       await load();
+      openDirections(order);
+    } catch (error: any) {
+      Alert.alert(
+        t("locationDenied") ?? "Location denied",
+        error?.message || "Please allow background location so customers can track this delivery."
+      );
     } finally {
-      setUpdating((prev) => ({ ...prev, [orderId]: false }));
+      setUpdating((prev) => ({ ...prev, [order._id]: false }));
     }
   };
 
@@ -104,6 +150,7 @@ export default function DriverOrders() {
       await api.put(`/orders/${orderId}/driver-status`, { status: "DELIVERED" });
       if (trackingRef.current) clearInterval(trackingRef.current);
       trackingRef.current = null;
+      await stopDriverBackgroundTracking();
       setTrackingOrderId(null);
       await load();
     } finally {
@@ -111,38 +158,26 @@ export default function DriverOrders() {
     }
   };
 
-  const simulateRoute = async (order: DriverOrder) => {
-    const orderLat = order.lat;
-    const orderLng = order.lng;
-    const branch = order.branchId ? branchMap[order.branchId] : null;
-    if (!branch || orderLat === undefined || orderLng === undefined) {
-      Alert.alert(t("routeUnavailable") ?? "Route unavailable", "Missing branch or destination coordinates.");
-      return;
-    }
-    setUpdating((prev) => ({ ...prev, [order._id]: true }));
-    try {
-      await api.put(`/orders/${order._id}/driver-status`, { status: "SHIPPING" });
-      if (simulationRef.current) clearInterval(simulationRef.current);
-      setSimulatingOrderId(order._id);
-      const steps = 30;
-      let step = 0;
-      simulationRef.current = setInterval(() => {
-        if (step > steps) {
-          if (simulationRef.current) clearInterval(simulationRef.current);
-          simulationRef.current = null;
-          setSimulatingOrderId(null);
-          return;
-        }
-        const tRatio = step / steps;
-        const lat = branch.lat + (orderLat - branch.lat) * tRatio;
-        const lng = branch.lng + (orderLng - branch.lng) * tRatio;
-        api.put(`/orders/${order._id}/driver-location`, { lat, lng }).catch(() => {});
-        step += 1;
-      }, 3000);
-      await load();
-    } finally {
-      setUpdating((prev) => ({ ...prev, [order._id]: false }));
-    }
+  const getOrderCoordinate = (order: DriverOrder, key: "lat" | "lng") => {
+    const direct = order[key];
+    if (Number.isFinite(direct)) return direct;
+    const addressValue = typeof order.addressRef === "object" && order.addressRef ? order.addressRef[key] : undefined;
+    const parsed = typeof addressValue === "string" ? Number(addressValue) : addressValue;
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
+  const openDirections = (order: DriverOrder) => {
+    const lat = getOrderCoordinate(order, "lat");
+    const lng = getOrderCoordinate(order, "lng");
+    router.push({
+      pathname: "/driver-directions/[id]",
+      params: {
+        id: order._id,
+        lat: String(lat),
+        lng: String(lng),
+        address: order.address,
+      },
+    });
   };
 
   if (!canDeliver) {
@@ -158,91 +193,138 @@ export default function DriverOrders() {
 
   return (
     <Screen>
-      <Text style={styles.title}>{t("driver") ?? "Driver"}</Text>
-      {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator color={palette.accent} />
-        </View>
-      ) : orders.length === 0 ? (
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyTitle}>{t("noOrders") ?? "No orders yet"}</Text>
-          <Text style={styles.emptyText}>{t("driverNoOrders") ?? "No assigned deliveries right now."}</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={orders}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={{ gap: 10, paddingBottom: 16 }}
-          renderItem={({ item }) => {
-            const isShipping = item.status === "SHIPPING";
-            const isTracking = trackingOrderId === item._id;
-            const isSimulating = simulatingOrderId === item._id;
-            return (
-              <View style={styles.card}>
-                <View style={styles.cardRow}>
-                  <Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text>
-                  <Text style={styles.status}>{item.status}</Text>
-                </View>
-                <Text style={styles.cardSub}>{item.address}</Text>
-                <View style={styles.cardRow}>
-                  <Text style={styles.cardMeta}>
-                    {item.total?.toLocaleString()} {t("syp")}
+      <FlatList
+        data={visibleOrders}
+        keyExtractor={(item) => item._id}
+        contentContainerStyle={visibleOrders.length === 0 ? styles.emptyListContent : styles.listContent}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <Text style={styles.title}>{t("orders") ?? "Orders"}</Text>
+            <Text style={styles.subtitle}>
+              {t("pendingOrders") ?? "Pending"}: {pendingCount} · {t("deliveredOrders") ?? "Delivered"}: {deliveredCount}
+            </Text>
+          </View>
+        }
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator color={palette.accent} />
+            </View>
+          ) : (
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyTitle}>{t("noOrders") ?? "No orders yet"}</Text>
+              <Text style={styles.emptyText}>{t("driverNoOrders") ?? "No assigned deliveries right now."}</Text>
+            </View>
+          )
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={palette.accent}
+          />
+        }
+        renderItem={({ item }) => {
+          const isShipping = item.status === "SHIPPING";
+          const isTracking = trackingOrderId === item._id;
+          return (
+            <View style={styles.card}>
+              <View style={styles.cardRow}>
+                <Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text>
+                <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
+                  <Text style={[styles.status, item.status === "DELIVERED" && styles.doneStatus]}>{t(item.status) ?? item.status}</Text>
+                  <Text style={[styles.cardMeta, item.status !== "DELIVERED" && styles.elapsedValue]}>
+                    {getDeliveryDuration(item)}
                   </Text>
-                  {item.deliveryDistanceKm !== undefined ? (
-                    <Text style={styles.cardMeta}>
-                      {item.deliveryDistanceKm} {t("km")}
-                    </Text>
-                  ) : null}
                 </View>
-                <View style={styles.btnRow}>
-                  {item.status === "PROCESSING" || item.status === "PENDING" ? (
+              </View>
+
+              <View style={styles.metricsRow}>
+                {/* <View style={styles.metricBox}>
+                  <Text style={styles.infoLabel}>{t("address") ?? "Address"}</Text>
+                  <Text style={styles.cardSub} numberOfLines={1}>{item.address}</Text>
+                </View> */}
+                {/* <View style={styles.metricBox}>
+                  <Text style={styles.infoLabel}>{t("distance") ?? "Distance"}</Text>
+                  <Text style={styles.cardSub}>
+                    {item.deliveryDistanceKm !== undefined ? `${item.deliveryDistanceKm} ${t("km")}` : "-"}
+                  </Text>
+                </View> */}
+                {/* <View style={styles.metricBox}>
+                  <Text style={styles.infoLabel}>{t("deliveryTimer") ?? "Delivery time"}</Text>
+                  <Text style={[styles.cardSub, item.status !== "DELIVERED" && styles.elapsedValue]}>
+                    {getDeliveryDuration(item)}
+                  </Text>
+                </View> */}
+                <View style={styles.metricBox}>
+                  <Text style={styles.infoLabel}>{t("destination") ?? "Destination"}</Text>
+                  <Text style={styles.cardSub} numberOfLines={1}>{item.address}</Text>
+                </View>
+                <View style={styles.metricBox}>
+                  <Text style={styles.infoLabel}>{t("distance") ?? "Distance"}</Text>
+                  <Text style={styles.cardSub}>{item.deliveryDistanceKm !== undefined ? `${item.deliveryDistanceKm} ${t("km")}` : "-"}</Text>
+                </View>
+              </View>
+
+              <View style={styles.btnRow}>
+                {item.status === "PROCESSING" || item.status === "PENDING" ? (
+                  <>
                     <TouchableOpacity
                       style={styles.primaryBtn}
-                      onPress={() => startTracking(item._id)}
+                      onPress={() => startTracking(item)}
                       disabled={updating[item._id]}
                     >
                       <Text style={styles.primaryBtnText}>
                         {updating[item._id] ? (t("starting") ?? "Starting...") : (t("startDelivery") ?? "Start delivery")}
                       </Text>
                     </TouchableOpacity>
-                  ) : null}
-                  {isShipping ? (
-                    <>
+                    {getOrderCoordinate(item, "lat") !== undefined && getOrderCoordinate(item, "lng") !== undefined ? (
                       <TouchableOpacity
-                        style={styles.ghostBtn}
-                        onPress={() => pushLocation(item._id)}
+                        style={styles.directionsBtn}
+                        onPress={() => openDirections(item)}
                         disabled={updating[item._id]}
                       >
-                        <Text style={styles.ghostBtnText}>
-                          {isTracking ? (t("trackingOn") ?? "Tracking") : (t("updateLocation") ?? "Update location")}
-                        </Text>
+                        <Text style={styles.directionsBtnText}>{t("directions") ?? "Directions"}</Text>
                       </TouchableOpacity>
+                    ) : null}
+                  </>
+                ) : null}
+                {isShipping ? (
+                  <>
+                    {/* <TouchableOpacity
+                      style={styles.ghostBtn}
+                      onPress={() => pushLocation(item._id)}
+                      disabled={updating[item._id]}
+                    >
+                      <Text style={styles.ghostBtnText}>
+                        {isTracking ? (t("trackingOn") ?? "Tracking") : (t("updateLocation") ?? "Update location")}
+                      </Text>
+                    </TouchableOpacity> */}
+                    {getOrderCoordinate(item, "lat") !== undefined && getOrderCoordinate(item, "lng") !== undefined ? (
                       <TouchableOpacity
-                        style={styles.simBtn}
-                        onPress={() => simulateRoute(item)}
-                        disabled={updating[item._id] || isSimulating}
-                      >
-                        <Text style={styles.simBtnText}>
-                          {isSimulating ? (t("simulating") ?? "Simulating...") : (t("simulateRoute") ?? "Simulate route")}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.dangerBtn}
-                        onPress={() => markDelivered(item._id)}
+                        style={styles.directionsBtn}
+                        onPress={() => openDirections(item)}
                         disabled={updating[item._id]}
                       >
-                        <Text style={styles.dangerBtnText}>
-                          {updating[item._id] ? (t("saving") ?? "Saving...") : (t("markDelivered") ?? "Mark delivered")}
-                        </Text>
+                        <Text style={styles.directionsBtnText}>{t("directions") ?? "Directions"}</Text>
                       </TouchableOpacity>
-                    </>
-                  ) : null}
-                </View>
+                    ) : null}
+                    <TouchableOpacity
+                      style={styles.dangerBtn}
+                      onPress={() => markDelivered(item._id)}
+                      disabled={updating[item._id]}
+                    >
+                      <Text style={styles.dangerBtnText}>
+                        {updating[item._id] ? (t("saving") ?? "Saving...") : (t("markDelivered") ?? "Mark delivered")}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : null}
               </View>
-            );
-          }}
-        />
-      )}
+            </View>
+          );
+        }}
+      />
     </Screen>
   );
 }
@@ -253,12 +335,29 @@ const createStyles = (palette: any, isRTL: boolean) =>
       fontSize: 22,
       fontWeight: "900",
       color: palette.text,
-      marginBottom: 12,
+      textAlign: "left",
+    },
+    header: {
+      gap: 4,
+      marginBottom: 2,
+    },
+    subtitle: {
+      color: palette.muted,
+      fontSize: 13,
+      fontWeight: "700",
       textAlign: "left",
     },
     loadingBox: {
       paddingVertical: 16,
       alignItems: "center",
+    },
+    listContent: {
+      gap: 10,
+      paddingBottom: 16,
+    },
+    emptyListContent: {
+      flexGrow: 1,
+      paddingBottom: 16,
     },
     emptyBox: {
       backgroundColor: palette.card,
@@ -286,8 +385,35 @@ const createStyles = (palette: any, isRTL: boolean) =>
     },
     cardTitle: { color: palette.text, fontWeight: "800" },
     status: { color: palette.accent, fontWeight: "700" },
-    cardSub: { color: palette.muted },
+    doneStatus: { color: "#16a34a" },
+    cardSub: { 
+      color: palette.text,
+      fontSize: 12,
+      fontWeight: "700",
+     },
     cardMeta: { color: palette.text, fontWeight: "600" },
+    infoBlock: {
+      gap: 3,
+    },
+    infoLabel: {
+      color: palette.muted,
+      fontSize: 12,
+      fontWeight: "500",
+      textAlign: "left",
+      textTransform: "uppercase",
+    },
+    metricsRow: {
+      gap: 5,
+    },
+    metricBox: {
+      gap: 4,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    elapsedValue: {
+      color: palette.accent,
+    },
     btnRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
     primaryBtn: {
       backgroundColor: palette.accent,
@@ -304,15 +430,13 @@ const createStyles = (palette: any, isRTL: boolean) =>
       borderRadius: 10,
     },
     ghostBtnText: { color: palette.text, fontWeight: "700" },
-    simBtn: {
-      borderWidth: 1,
-      borderColor: palette.accent,
+    directionsBtn: {
+      backgroundColor: "#2563eb",
       paddingVertical: 10,
       paddingHorizontal: 14,
       borderRadius: 10,
-      backgroundColor: "rgba(249,115,22,0.12)",
     },
-    simBtnText: { color: palette.accent, fontWeight: "700" },
+    directionsBtnText: { color: "#fff", fontWeight: "700" },
     dangerBtn: {
       backgroundColor: "#ef4444",
       paddingVertical: 10,

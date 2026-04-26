@@ -22,4 +22,7 @@ export const env = {
     freeKm: parseFloat(process.env.DELIVERY_FREE_KM || "1"),
     ratePerKm: parseInt(process.env.DELIVERY_RATE_PER_KM || "5000", 10),
   },
+  maps: {
+    googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || "",
+  },
 };

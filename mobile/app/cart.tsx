@@ -43,6 +43,8 @@ export default function CartScreen() {
   const [walletLoading, setWalletLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [branchLoading, setBranchLoading] = useState(false);
+  const [deliveryEstimate, setDeliveryEstimate] = useState<{ distanceKm: number; deliveryFee: number } | null>(null);
+  const [deliveryEstimateLoading, setDeliveryEstimateLoading] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [inputCouponCode, setInputCouponCode] = useState("");
   const [selectedCoupons, setSelectedCoupons] = useState<Array<{ code: string; discount: number; freeDelivery: boolean; discountType?: string; discountValue?: number }>>([]);
@@ -375,28 +377,40 @@ export default function CartScreen() {
     checkoutSheetRef.current?.present();
   };
 
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371;
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-    return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 100) / 100;
-  };
-  const distanceKm =
-    settings && selectedAddress && selectedBranch
-      ? haversine(selectedBranch.lat, selectedBranch.lng, selectedAddress.lat, selectedAddress.lng)
-      : 0;
-  const deliveryFee =
-    settings && selectedAddress && distanceKm > settings.deliveryFreeKm
-      ? Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm
-      : 0;
+  useEffect(() => {
+    if (!checkoutOpen || !user || !selectedAddress || !selectedBranch) {
+      setDeliveryEstimate(null);
+      setDeliveryEstimateLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setDeliveryEstimateLoading(true);
+    api
+      .post("/orders/delivery-estimate", { addressId: selectedAddress._id })
+      .then((res) => {
+        if (!cancelled) setDeliveryEstimate(res.data.data || null);
+      })
+      .catch(() => {
+        if (!cancelled) setDeliveryEstimate(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDeliveryEstimateLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutOpen, user, selectedAddress?._id, selectedBranch?._id]);
+
+  const distanceKm = deliveryEstimate?.distanceKm ?? 0;
+  const deliveryFee = deliveryEstimate?.deliveryFee ?? 0;
   const hasFreeDeliveryCoupon = selectedCoupons.some((c) => c.freeDelivery);
   const couponDiscountTotal = selectedCoupons.reduce((sum, c) => sum + (c.freeDelivery ? 0 : c.discount || 0), 0);
   const effectiveDeliveryFee = hasFreeDeliveryCoupon ? 0 : deliveryFee;
   const orderTotal = Math.max(0, subtotal + effectiveDeliveryFee - couponDiscountTotal);
   const walletInsufficient = paymentMethod === "WALLET" && walletBalance < orderTotal;
-  const checkoutLoading = addressesLoading || walletLoading || settingsLoading || branchLoading;
+  const checkoutLoading = addressesLoading || walletLoading || settingsLoading || branchLoading || deliveryEstimateLoading;
   const allowMultipleCoupons = settings?.allowMultipleCoupons ?? false;
 
   const fetchAvailableCoupons = useCallback(() => {
@@ -982,8 +996,7 @@ export default function CartScreen() {
                             <Text style={styles.addressText}>{selectedAddress.address}</Text>
                           </View>
                           <View style={{ alignItems: 'center' }}>
-                            {distanceKm > 1 && <Text style={styles.oldDistance}>{distanceKm} {t('Km')}</Text>}
-                            <Text weight="bold" style={styles.distance}>{distanceKm > 1 ? Math.ceil(distanceKm - 1) : distanceKm} {t('Km')}</Text>
+                            <Text weight="bold" style={styles.distance}>{distanceKm.toLocaleString()} {t('km')}</Text>
                           </View>
                         </View>
                       </View>

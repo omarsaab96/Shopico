@@ -4,6 +4,7 @@ import {
   adminUpdateOrderDetails,
   assignDriver,
   createOrderHandler,
+  estimateDelivery,
   getOrder,
   listDriverOrders,
   listOrders,
@@ -28,6 +29,7 @@ router.get(
   listOrdersAdmin
 );
 router.get("/:id", authenticate, attachBranchContext, getOrder);
+router.post("/delivery-estimate", authenticate, requireBranchContext, estimateDelivery);
 router.post("/", authenticate, requireBranchContext, createOrderHandler);
 router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("orders:view", "orders:update"), requireBranchContext, adminUpdateOrderDetails);
 router.put("/:id/status", authenticate, authorize("admin", "manager", "staff"), requirePermissions("orders:view", "orders:update"), requireBranchContext, adminUpdateOrder);

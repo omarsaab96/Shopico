@@ -18,6 +18,12 @@ export const createOrderSchema = z.object({
   items: z.array(orderItemSchema).optional(),
 });
 
+export const deliveryEstimateSchema = z.object({
+  addressId: z.string().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+});
+
 export const updateOrderStatusSchema = z.object({
   status: z.enum(["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"]),
   paymentStatus: z.enum(["PENDING", "CONFIRMED"]).optional(),

@@ -2,6 +2,7 @@ import { catchAsync } from "../utils/catchAsync";
 import {
   assignDriverSchema,
   createOrderSchema,
+  deliveryEstimateSchema,
   driverLocationSchema,
   driverStatusSchema,
   rateDriverSchema,
@@ -11,6 +12,7 @@ import {
 import {
   assignDriverToOrder,
   createOrder,
+  estimateOrderDelivery,
   getAllOrders,
   getOrderById,
   getOrdersForUser,
@@ -67,6 +69,13 @@ export const createOrderHandler = catchAsync(async (req: AuthRequest, res) => {
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const order = await createOrder(req.user!._id, req.branchId, payload);
   sendSuccess(res, order, "Order created", 201);
+});
+
+export const estimateDelivery = catchAsync(async (req: AuthRequest, res) => {
+  const payload = deliveryEstimateSchema.parse(req.body);
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const estimate = await estimateOrderDelivery(req.user!._id, req.branchId, payload);
+  sendSuccess(res, estimate);
 });
 
 export const adminUpdateOrder = catchAsync(async (req, res) => {

@@ -3,11 +3,16 @@ import { useMemo } from "react";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { View } from "react-native";
 import { useCart } from "../../lib/cart";
 import Feather from "@expo/vector-icons/Feather";
-import Text from "../../components/Text";
 import { useAuth } from "../../lib/auth";
+
+type TabScreen = {
+  name: string;
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  badge?: number;
+};
 
 export default function TabsLayout() {
   const { palette } = useTheme();
@@ -18,6 +23,7 @@ export default function TabsLayout() {
   const canDeliver = user?.role === "driver";
   // const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
   const itemCount = items.length;
+
   const tabIcons: Record<string, keyof typeof Feather.glyphMap> = {
     store: "home",
     cart: "shopping-cart",
@@ -25,6 +31,7 @@ export default function TabsLayout() {
     profile: "user",
     driver: "truck",
   };
+
   const screenOptions = useMemo(
     () => ({
       headerShown: false,
@@ -35,28 +42,45 @@ export default function TabsLayout() {
         paddingTop: 6,
         paddingBottom: Math.max(insets.bottom + 6, 14),
         height: 64 + insets.bottom,
-        direction: "ltr",
-        writingDirection: "ltr",
+        direction: "ltr" as const,
+        writingDirection: "ltr" as const,
       },
-      tabBarItemStyle: { flexDirection: isRTL ? "row-reverse" : "row", writingDirection: isRTL ? "rtl" : "ltr" },
-      tabBarLabelStyle: { writingDirection: isRTL ? "rtl" : "ltr", textAlign: isRTL ? "right" : "left" },
+      tabBarItemStyle: {
+        flexDirection: isRTL ? "row-reverse" as const : "row" as const,
+        writingDirection: isRTL ? "rtl" as const : "ltr" as const,
+      },
+      tabBarLabelStyle: {
+        writingDirection: isRTL ? "rtl" as const : "ltr" as const,
+        textAlign: isRTL ? "right" as const : "left" as const,
+      },
       tabBarActiveTintColor: palette.accent,
       tabBarInactiveTintColor: palette.muted,
     }),
     [palette, insets.bottom, t, isRTL]
   );
+
   if (loading) return null;
+
   if (!user) return <Redirect href="/auth/login" />;
-  const screens = [
+
+  const customerScreens: TabScreen[] = [
     { name: "store", label: t("store"), icon: tabIcons.store },
     { name: "cart", label: t("cart"), icon: tabIcons.cart, badge: itemCount > 0 ? itemCount : undefined },
     { name: "orders", label: t("orders"), icon: tabIcons.orders },
     { name: "profile", label: t("profile"), icon: tabIcons.profile },
   ];
-  if (canDeliver) {
-    screens.push({ name: "driver", label: t("driver") ?? "Driver", icon: tabIcons.driver });
-  }
+
+  const driverScreens: TabScreen[] = [
+    { name: "store", label: t("home") ?? "Home", icon: tabIcons.store },
+    { name: "driver", label: t("orders"), icon: tabIcons.driver },
+    { name: "profile", label: t("profile"), icon: tabIcons.profile },
+  ];
+
+  const screens = canDeliver ? driverScreens : customerScreens;
+  const hiddenScreens = canDeliver ? ["cart", "orders"] : ["driver"];
+
   const orderedScreens = isRTL ? [...screens].reverse() : screens;
+
   return (
     <Tabs key={lang} screenOptions={screenOptions}>
       {orderedScreens.map((scr) => (
@@ -72,14 +96,15 @@ export default function TabsLayout() {
           }}
         />
       ))}
-      {!canDeliver && (
+      {hiddenScreens.map((name) => (
         <Tabs.Screen
-          name="driver"
+          key={name}
+          name={name}
           options={{
             href: null,
           }}
         />
-      )}
+      ))}
     </Tabs>
   );
 }

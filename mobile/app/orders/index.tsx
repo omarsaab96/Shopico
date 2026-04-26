@@ -52,7 +52,7 @@ export default function Orders() {
 
   const load = useCallback(async () => {
     if (!user) return;
-
+    console.log('start')
     setRefreshing(true);
     try {
       const res = await api.get("/orders");
@@ -71,6 +71,7 @@ export default function Orders() {
   const loadSilently = useCallback(async () => {
     if (!user) return;
 
+    console.log('start2')
     try {
       const res = await api.get("/orders");
       const list = res.data.data || [];

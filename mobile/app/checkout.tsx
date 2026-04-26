@@ -12,15 +12,6 @@ import { useI18n } from "../lib/i18n";
 
 type SavedAddress = { _id: string; address: string; lat: number; lng: number; label: string; updatedAt?: string; createdAt?: string };
 
-const toRad = (deg: number) => (deg * Math.PI) / 180;
-const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 100) / 100;
-};
-
 export default function Checkout() {
   const { items, clear } = useCart();
   const router = useRouter();
@@ -37,6 +28,7 @@ export default function Checkout() {
   const [autoApplyDisabled, setAutoApplyDisabled] = useState(false);
   const [couponError, setCouponError] = useState("");
   const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [deliveryEstimate, setDeliveryEstimate] = useState<{ distanceKm: number; deliveryFee: number } | null>(null);
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
@@ -95,13 +87,26 @@ export default function Checkout() {
   }, [user, router]);
 
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const lat = selected?.lat ?? 0;
-  const lng = selected?.lng ?? 0;
-  const distanceKm = settings && selected && selectedBranch ? haversine(selectedBranch.lat, selectedBranch.lng, lat, lng) : 0;
-  const deliveryFee =
-    settings && selected && distanceKm > settings.deliveryFreeKm
-      ? Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm
-      : 0;
+  useEffect(() => {
+    if (!user || !selected || !selectedBranch) {
+      setDeliveryEstimate(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .post("/orders/delivery-estimate", { addressId: selected._id })
+      .then((res) => {
+        if (!cancelled) setDeliveryEstimate(res.data.data || null);
+      })
+      .catch(() => {
+        if (!cancelled) setDeliveryEstimate(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, selected?._id, selectedBranch?._id]);
+  const distanceKm = deliveryEstimate?.distanceKm ?? 0;
+  const deliveryFee = deliveryEstimate?.deliveryFee ?? 0;
   const effectiveDeliveryFee = couponFreeDelivery ? 0 : deliveryFee;
   const total = Math.max(0, subtotal + effectiveDeliveryFee - couponDiscount);
   const toOld = (value: number) => value * 100;
@@ -295,7 +300,7 @@ export default function Checkout() {
       </View>
       <View style={styles.card}>
         <Text style={styles.muted}>
-          {t("distance")}: {distanceKm} km
+          {t("distance")}: {distanceKm.toLocaleString()} {t("km")}
         </Text>
         <Text style={styles.muted}>
           {t("subtotal")}: {subtotal.toLocaleString()} SYP

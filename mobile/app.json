@@ -23,6 +23,10 @@
         "NSCameraUsageDescription": "Allow access to your camera to take profile pictures",
         "NSPhotoLibraryUsageDescription": "Allow access to your photos to choose a profile picture",
         "NSLocationWhenInUseUsageDescription": "Shopico uses your location to provide location-based features such as free delivery and rewards.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Shopico uses your location in the background so customers can track active deliveries.",
+        "UIBackgroundModes": [
+          "location"
+        ],
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -48,6 +52,11 @@
       },
       "permissions": [
         "CAMERA",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ]

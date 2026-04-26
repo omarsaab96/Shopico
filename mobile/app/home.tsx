@@ -67,6 +67,12 @@ type Announcement = {
   endsAt?: string;
   isEnabled?: boolean;
 };
+type DriverDashboardOrder = {
+  _id: string;
+  status: string;
+  paymentMethod?: string;
+  total?: number;
+};
 
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
@@ -110,6 +116,8 @@ export default function Home() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [promoIndex, setPromoIndex] = useState(0);
+  const [driverOrders, setDriverOrders] = useState<DriverDashboardOrder[]>([]);
+  const [driverDashboardLoading, setDriverDashboardLoading] = useState(false);
 
   const membershipLoadingRef = useRef(false);
   const addressLoadingRef = useRef(false);
@@ -128,6 +136,7 @@ export default function Home() {
   const { palette, isDark } = useTheme();
   const { items, addItem, setQuantity, clear } = useCart();
   const { t, isRTL } = useI18n();
+  const isDriver = user?.role === "driver";
 
   const styles = useMemo(() => createStyles(palette, isRTL, isDark, insets), [palette, isRTL, isDark, insets]);
   const updateSelectedBranch = useCallback((branch?: Branch | null) => {
@@ -447,6 +456,23 @@ export default function Home() {
     }
   }, []);
 
+  const loadDriverDashboard = useCallback(async () => {
+    if (!isDriver) {
+      setDriverOrders([]);
+      return;
+    }
+
+    setDriverDashboardLoading(true);
+    try {
+      const res = await api.get("/orders/driver");
+      setDriverOrders(res.data.data || []);
+    } catch {
+      setDriverOrders([]);
+    } finally {
+      setDriverDashboardLoading(false);
+    }
+  }, [isDriver]);
+
   const lastCategoriesBranchRef = useRef<string | null>(null);
   useEffect(() => {
     if (authLoading || !user || !selectedBranch) return;
@@ -531,7 +557,8 @@ export default function Home() {
   useFocusEffect(
     useCallback(() => {
       loadLatestAddress();
-    }, [loadLatestAddress])
+      loadDriverDashboard();
+    }, [loadLatestAddress, loadDriverDashboard])
   );
 
   const SEARCH_DEBOUNCE_MS = 600;
@@ -578,6 +605,22 @@ export default function Home() {
     }
     return result;
   }, [products, priceFilter, sortOption]);
+
+  const driverDashboard = useMemo(() => {
+    const deliveredOrders = driverOrders.filter((order) => order.status === "DELIVERED");
+    const pendingOrders = driverOrders.filter((order) => ["PENDING", "PROCESSING", "SHIPPING"].includes(order.status));
+    const cashCollected = deliveredOrders
+      .filter((order) => order.paymentMethod === "CASH_ON_DELIVERY")
+      .reduce((sum, order) => sum + Number(order.total || 0), 0);
+
+    return {
+      deliveredCount: deliveredOrders.length,
+      pendingCount: pendingOrders.length,
+      cashCollected,
+      ratingAverage: Number(profile?.ratingAverage ?? user?.ratingAverage ?? 0),
+      ratingCount: Number(profile?.ratingCount ?? user?.ratingCount ?? 0),
+    };
+  }, [driverOrders, profile, user]);
 
   const skeletonProducts = useMemo(
     () => Array.from({ length: 6 }, (_, i) => ({ _id: `skeleton-${i}`, __skeleton: true })),
@@ -944,6 +987,151 @@ export default function Home() {
     </Animated.View>
   );
 
+  const renderDriverHero = () => (
+    <Animated.View
+      style={[
+        styles.heroBlock,
+        {
+          // borderWidth: 1,
+          opacity: scrollY.interpolate({ inputRange: [0, 70, 120], outputRange: [1, 0.35, 0], extrapolate: "clamp" }),
+          height: scrollY.interpolate({ inputRange: [0, 150], outputRange: [50, 0], extrapolate: "clamp" }),
+          // marginBottom: scrollY.interpolate({ inputRange: [0, 1], outputRange: [0, 16] }),
+          transform: [
+            {
+              translateY: scrollY.interpolate({ inputRange: [0, 150], outputRange: [0, -10], extrapolate: "clamp" }),
+            },
+          ],
+        },
+      ]}
+    >
+      {/* {renderTopBar()} */}
+      {/* {renderWalletCard()} */}
+      <View style={styles.greetingWrap}>
+        <View style={styles.greetingCol}>
+          {/* <Text style={styles.helloText}>
+            {user ? `${t("hello") ?? "Hello"}, ${user.name}` : (t("helloShopper") ?? "Hello shopper")}
+          </Text> */}
+
+          {user ? (
+            <View style={styles.locationRow}>
+              <TouchableOpacity onPress={openBranchSheet} activeOpacity={0.9} style={[styles.branchRow]}>
+                <Ionicons name="storefront-outline" size={18} color={'white'} />
+
+                <View style={styles.locationTextWrap}>
+                  <Text style={styles.addressLabel} numberOfLines={1}>
+                    {t("fromBranch") ?? "From branch"}
+                  </Text>
+                  {branchLoading ? (
+                    <Skeleton width={100} height={14} colorScheme={isDark ? "dark" : "light"} />
+                  ) : selectedBranch ? (
+                    <Text style={[styles.addressValue]} numberOfLines={1}>
+                      {selectedBranch.name}
+                      {/* <Entypo name="chevron-down" size={12} color="black" /> */}
+                    </Text>
+                  ) : (
+                    <Text style={styles.addressValue} numberOfLines={1}>
+                      {locationFallback
+                        ? (t("usingLocation") ?? "Using current location")
+                        : (t("selectBranch") ?? "Select branch")}
+                    </Text>
+                  )}
+                </View>
+
+
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={() => {
+                router.push("/auth/login");
+              }}
+              activeOpacity={0.9}
+              style={styles.addressRow}
+            >
+              <Feather name="log-in" size={14} color={palette.muted} />
+              <Text style={styles.addressValue} numberOfLines={1}>
+                {t("loginToLoadLocation") ?? "Login to load your location"} · {t("login") ?? "Login"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </Animated.View>
+  );
+
+  const renderDriverStatCard = (
+    label: string,
+    value: string,
+    icon: keyof typeof Feather.glyphMap,
+    tone: string,
+    sublabel?: string
+  ) => (
+    <View style={styles.driverStatCard}>
+      <View style={[styles.driverStatIcon, { backgroundColor: `${tone}1A` }]}>
+        <Feather name={icon} size={20} color={tone} />
+      </View>
+      <Text style={styles.driverStatLabel}>{label}</Text>
+      <Text style={styles.driverStatValue} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+      {sublabel ? <Text style={styles.driverStatSub}>{sublabel}</Text> : null}
+    </View>
+  );
+
+  const renderDriverDashboard = () => (
+    <ScrollView
+      style={styles.driverDashboardScroll}
+      contentContainerStyle={styles.driverDashboardContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.driverDashboardHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.driverDashboardTitle}>
+            {user?.name ? `${t("hello") ?? "Hello"}, ${user.name}` : t("driver") ?? "Driver"}
+          </Text>
+          <Text style={styles.driverDashboardSubtitle}>
+            {t("driverDashboardSubtitle") ?? "Delivery overview"}
+          </Text>
+        </View>
+        <TouchableOpacity style={styles.driverRefreshBtn} onPress={loadDriverDashboard} disabled={driverDashboardLoading}>
+          {driverDashboardLoading ? (
+            <ActivityIndicator size="small" color={palette.accent} />
+          ) : (
+            <Feather name="refresh-cw" size={18} color={palette.accent} />
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.driverStatsGrid}>
+        {renderDriverStatCard(
+          t("deliveredOrders") ?? "Delivered",
+          driverDashboard.deliveredCount.toLocaleString(),
+          "check-circle",
+          "#16a34a"
+        )}
+        {renderDriverStatCard(
+          t("pendingOrders") ?? "Pending",
+          driverDashboard.pendingCount.toLocaleString(),
+          "clock",
+          "#2563eb"
+        )}
+        {renderDriverStatCard(
+          `${t("driverRating") ?? "Rating"} (${driverDashboard.ratingCount})`,
+          driverDashboard.ratingCount > 0 ? driverDashboard.ratingAverage.toFixed(1) : "-",
+          "star",
+          "#f59e0b",
+          // driverDashboard.ratingCount > 0 ? ` ${t("ratings") ?? "ratings"}` : t("noRatingsYet") ?? "No ratings yet"
+        )}
+        {renderDriverStatCard(
+          t("cashCollected") ?? "Cash collected",
+          `${driverDashboard.cashCollected.toLocaleString()} ${t("syp")}`,
+          "dollar-sign",
+          palette.accent
+        )}
+      </View>
+    </ScrollView>
+  );
+
   return (
     <BottomSheetModalProvider>
       <Modal visible={showAnnouncements && hasAnnouncements} transparent animationType="fade">
@@ -1002,426 +1190,429 @@ export default function Home() {
       </Modal>
 
       <View style={styles.safe}>
-        <View style={styles.container}>
-          {/* <LottieView
+        {user.role == 'customer' ? (
+          <View style={styles.container}>
+            {/* <LottieView
               autoPlay
               loop
               style={{ width: 220, height: 220 }}
               source={{ uri: "https://assets10.lottiefiles.com/packages/lf20_usmfx6bp.json" }}
             /> */}
 
-          <View style={styles.stickyHeroWrap}>
-            {renderHero()}
+            <View style={styles.stickyHeroWrap}>
+              {renderHero()}
 
-            <View style={styles.stickySearchWrap}>
-              {renderSearchAndFilters()}
+              <View style={styles.stickySearchWrap}>
+                {renderSearchAndFilters()}
+              </View>
             </View>
-          </View>
 
-          <View style={{ flex: 1, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: palette.background, borderWidth: 1, borderColor: palette.background }}>
-            <FlatList
-              data={(refreshing || (loadingProducts && filteredAndSorted.length === 0)) ? skeletonProducts : filteredAndSorted}
-              numColumns={2}
-              showsVerticalScrollIndicator={false}
-              showsHorizontalScrollIndicator={false}
-              decelerationRate="fast"
-              keyboardShouldPersistTaps="handled"
-              keyExtractor={(p, idx) => `${p._id}-${idx}`}
-              contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 16 }}
-              columnWrapperStyle={styles.productRow}
-              ListHeaderComponent={renderHeader()}
-              onScroll={Animated.event(
-                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                { useNativeDriver: false }
-              )}
-              scrollEventThrottle={16}
-              refreshing={refreshing}
-              onRefresh={() => {
-                fetchProducts(1, false);
-                fetchMembershipMeta();
-                setCategoriesLoading(true);
-                api
-                  .get("/categories")
-                  .then((res) => setCategories(res.data.data || []))
-                  .catch(() => setCategories([]))
-                  .finally(() => setCategoriesLoading(false));
-              }}
-              onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.4}
-              renderItem={({ item, index }) => {
-                if ((item as any).__skeleton) {
+            <View style={{ flex: 1, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: palette.background, borderWidth: 1, borderColor: palette.background }}>
+
+              <FlatList
+                data={(refreshing || (loadingProducts && filteredAndSorted.length === 0)) ? skeletonProducts : filteredAndSorted}
+                numColumns={2}
+                showsVerticalScrollIndicator={false}
+                showsHorizontalScrollIndicator={false}
+                decelerationRate="fast"
+                keyboardShouldPersistTaps="handled"
+                keyExtractor={(p, idx) => `${p._id}-${idx}`}
+                contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 16 }}
+                columnWrapperStyle={styles.productRow}
+                ListHeaderComponent={renderHeader()}
+                onScroll={Animated.event(
+                  [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                  { useNativeDriver: false }
+                )}
+                scrollEventThrottle={16}
+                refreshing={refreshing}
+                onRefresh={() => {
+                  fetchProducts(1, false);
+                  fetchMembershipMeta();
+                  setCategoriesLoading(true);
+                  api
+                    .get("/categories")
+                    .then((res) => setCategories(res.data.data || []))
+                    .catch(() => setCategories([]))
+                    .finally(() => setCategoriesLoading(false));
+                }}
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={0.4}
+                renderItem={({ item, index }) => {
+                  if ((item as any).__skeleton) {
+                    return (
+                      <View style={{ width: "48%" }}>
+                        <View style={styles.productCard}>
+                          <View style={styles.prodImgBox}>
+                            <Skeleton width={300} height={120} colorScheme={isDark ? "dark" : "light"} />
+                          </View>
+                          <View style={{ paddingHorizontal: 8, paddingVertical: 10, gap: 6 }}>
+                            <Skeleton width={120} height={12} colorScheme={isDark ? "dark" : "light"} />
+                            <Skeleton width={80} height={12} colorScheme={isDark ? "dark" : "light"} />
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  }
+                  const isLeft = index % 2 === 0;
+
                   return (
-                    <View style={{ width: "48%" }}>
+                    <View
+                      style={{
+                        width: "48%",
+                      }}
+                    >
                       <View style={styles.productCard}>
-                        <View style={styles.prodImgBox}>
-                          <Skeleton width={300} height={120} colorScheme={isDark ? "dark" : "light"} />
-                        </View>
-                        <View style={{ paddingHorizontal: 8, paddingVertical: 10, gap: 6 }}>
-                          <Skeleton width={120} height={12} colorScheme={isDark ? "dark" : "light"} />
-                          <Skeleton width={80} height={12} colorScheme={isDark ? "dark" : "light"} />
-                        </View>
+                        <Link href={`/products/${item._id}`} asChild>
+                          <TouchableOpacity
+                            style={styles.productPressable}
+                            activeOpacity={0.92}
+                          >
+                            <View style={styles.prodImgBox}>
+                              <Image
+                                source={
+                                  item.images?.[0]?.url
+                                    ? { uri: item.images?.[0]?.url }
+                                    : fallbackLogo
+                                }
+                                style={[
+                                  styles.productImg,
+                                  !item.images?.[0]?.url && { tintColor: '#dedede' },
+                                ]}
+                              />
+                            </View>
+
+                            <View style={{ flexDirection: 'row', justifyContent: 'center', position: 'relative' }}>
+                              {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
+                                <Text style={[styles.promoBadge,]}>
+                                  {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
+                                </Text>
+                              ) : null}
+                            </View>
+
+                            <Text style={styles.productName} numberOfLines={1}>
+                              {item.name}
+                            </Text>
+
+                            <Text style={styles.productDesc} numberOfLines={2}>
+                              {item.description ? item.description : '-'}
+                            </Text>
+
+                            <View style={styles.priceRow}>
+                              <Text style={[styles.productOldPrice]} numberOfLines={1}>
+                                {item.isPromoted && item.promoPrice !== undefined
+                                  && `${item.price.toLocaleString()} ${t("syp")}`
+                                }
+                              </Text>
+                              <Text style={[styles.productPrice]}>
+                                {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} {t("syp")}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        </Link>
+
+                        {(() => {
+                          const existing = items.find(
+                            (i) => i.productId === item._id
+                          );
+
+                          if (existing) {
+                            return (
+                              <View style={styles.qtyRow}>
+                                <TouchableOpacity
+                                  style={styles.qtyBtn}
+                                  onPress={() =>
+                                    setQuantity(existing.productId, existing.quantity - 1)
+                                  }
+                                >
+                                  <Text style={styles.qtySym}>-</Text>
+                                </TouchableOpacity>
+
+                                <Text style={styles.qtyVal}>{existing.quantity}</Text>
+
+                                <TouchableOpacity
+                                  style={styles.qtyBtn}
+                                  onPress={() =>
+                                    addItem({
+                                      productId: item._id,
+                                      name: item.name,
+                                      price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
+                                      image: item.images?.[0]?.url,
+                                      quantity: 1,
+                                    })
+                                  }
+                                >
+                                  <Text style={styles.qtySym}>+</Text>
+                                </TouchableOpacity>
+                              </View>
+                            );
+                          }
+
+                          return (
+                            <TouchableOpacity
+                              style={styles.addBtn}
+                              onPress={() =>
+                                addItem({
+                                  productId: item._id,
+                                  name: item.name,
+                                  price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
+                                  image: item.images?.[0]?.url,
+                                  quantity: 1,
+                                })
+                              }
+                            >
+                              <Text style={styles.addBtnText}>
+                                {t("addToCart") ?? "Add to cart"}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })()}
                       </View>
                     </View>
                   );
+                }}
+                ListFooterComponent={
+                  <View style={{ paddingBottom: 0 }}>
+                    {loadingMore ? (
+                      <View style={{ paddingVertical: 10 }}>
+                        <ActivityIndicator color={palette.accent} />
+                      </View>
+                    ) : null}
+                    {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
+                  </View>
                 }
-                const isLeft = index % 2 === 0;
+              />
+            </View>
 
-                return (
-                  <View
-                    style={{
-                      width: "48%",
-                    }}
-                  >
-                    <View style={styles.productCard}>
-                      <Link href={`/products/${item._id}`} asChild>
-                        <TouchableOpacity
-                          style={styles.productPressable}
-                          activeOpacity={0.92}
-                        >
-                          <View style={styles.prodImgBox}>
-                            <Image
-                              source={
-                                item.images?.[0]?.url
-                                  ? { uri: item.images?.[0]?.url }
-                                  : fallbackLogo
-                              }
-                              style={[
-                                styles.productImg,
-                                !item.images?.[0]?.url && { tintColor: '#dedede' },
-                              ]}
-                            />
-                          </View>
+            {/* Filters */}
+            <BottomSheetModal
+              ref={sheetRef}
+              snapPoints={snapPoints}
+              enablePanDownToClose
+              backdropComponent={renderBackdrop}
+              footerComponent={customFooter}
+              backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+              handleIndicatorStyle={{ backgroundColor: palette.muted }}
+            >
+              <BottomSheetView style={styles.sheetContainer}>
+                <View style={styles.sheetContent}>
+                  <Text style={styles.sheetTitle}>{t("filters") ?? "Filters & Sort"}</Text>
 
-                          <View style={{ flexDirection: 'row', justifyContent: 'center', position: 'relative' }}>
-                            {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
-                              <Text style={[styles.promoBadge,]}>
-                                {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
-                              </Text>
-                            ) : null}
-                          </View>
+                  <Text style={styles.sheetLabel}>{t("sortBy") ?? "Sort by"}</Text>
+                  <View style={styles.sheetPills}>
+                    {[
+                      { id: "relevance", label: t("relevance") ?? "Relevance" },
+                      { id: "priceAsc", label: t("priceLowHigh") ?? "Price: Low to High" },
+                      { id: "priceDesc", label: t("priceHighLow") ?? "Price: High to Low" },
+                    ].map((opt) => (
+                      <TouchableOpacity
+                        key={opt.id}
+                        style={[styles.pill, sortOption === opt.id && styles.pillActive]}
+                        onPress={() => setSortOption(opt.id as SortOption)}
+                        activeOpacity={0.9}
+                      >
+                        <Text style={[styles.pillText, sortOption === opt.id && styles.pillTextActive]}>{opt.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
 
-                          <Text style={styles.productName} numberOfLines={1}>
-                            {item.name}
-                          </Text>
+                  <Text style={styles.sheetLabel}>{t("price") ?? "Price"}</Text>
+                  <View style={styles.sheetPills}>
+                    {[
+                      { id: "all", label: t("all") ?? "All" },
+                      { id: "lt50k", label: t("under50k") ?? "Under 50K" },
+                      { id: "lt100k", label: t("under100k") ?? "Under 100K" },
+                      { id: "gte100k", label: t("over100k") ?? "100K +" },
+                    ].map((opt) => (
+                      <TouchableOpacity
+                        key={opt.id}
+                        style={[styles.pill, priceFilter === opt.id && styles.pillActive]}
+                        onPress={() => setPriceFilter(opt.id as PriceFilter)}
+                        activeOpacity={0.9}
+                      >
+                        <Text style={[styles.pillText, priceFilter === opt.id && styles.pillTextActive]}>{opt.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </BottomSheetView>
+            </BottomSheetModal>
 
-                          <Text style={styles.productDesc} numberOfLines={2}>
-                            {item.description ? item.description : '-'}
-                          </Text>
-
-                          <View style={styles.priceRow}>
-                            <Text style={[styles.productOldPrice]} numberOfLines={1}>
-                              {item.isPromoted && item.promoPrice !== undefined
-                                && `${item.price.toLocaleString()} ${t("syp")}`
-                              }
-                            </Text>
-                            <Text style={[styles.productPrice]}>
-                              {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} {t("syp")}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      </Link>
-
-                      {(() => {
-                        const existing = items.find(
-                          (i) => i.productId === item._id
-                        );
-
-                        if (existing) {
-                          return (
-                            <View style={styles.qtyRow}>
-                              <TouchableOpacity
-                                style={styles.qtyBtn}
-                                onPress={() =>
-                                  setQuantity(existing.productId, existing.quantity - 1)
-                                }
-                              >
-                                <Text style={styles.qtySym}>-</Text>
-                              </TouchableOpacity>
-
-                              <Text style={styles.qtyVal}>{existing.quantity}</Text>
-
-                              <TouchableOpacity
-                                style={styles.qtyBtn}
-                                onPress={() =>
-                                  addItem({
-                                    productId: item._id,
-                                    name: item.name,
-                                    price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
-                                    image: item.images?.[0]?.url,
-                                    quantity: 1,
-                                  })
-                                }
-                              >
-                                <Text style={styles.qtySym}>+</Text>
-                              </TouchableOpacity>
-                            </View>
-                          );
-                        }
-
-                        return (
-                          <TouchableOpacity
-                            style={styles.addBtn}
-                            onPress={() =>
-                              addItem({
-                                productId: item._id,
-                                name: item.name,
-                                price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
-                                image: item.images?.[0]?.url,
-                                quantity: 1,
-                              })
-                            }
-                          >
-                            <Text style={styles.addBtnText}>
-                              {t("addToCart") ?? "Add to cart"}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })()}
+            {/* Addresses */}
+            <BottomSheetModal
+              ref={addressSheetRef}
+              enablePanDownToClose
+              backdropComponent={renderBackdrop}
+              backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+            >
+              <BottomSheetView style={[styles.sheetContainer, { paddingBottom: 0 }]}>
+                {addressLoading ? (
+                  <View style={{ paddingTop: 20, gap: 12 }}>
+                    <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
+                    {Array.from({ length: 3 }).map((_, index) => (
+                      <View key={`address-skeleton-${index}`} style={styles.addressItem}>
+                        <Skeleton width={140} height={16} colorScheme={isDark ? "dark" : "light"} />
+                        <Skeleton width={"100%"} height={14} colorScheme={isDark ? "dark" : "light"} />
+                      </View>
+                    ))}
+                  </View>
+                ) : addresses.length === 0 ? (
+                  <View style={{ alignItems: "center", paddingTop: 20 }}>
+                    <LottieView
+                      key={`address-lottie-${lottieKey}`}
+                      ref={lottieRef}
+                      autoPlay
+                      loop
+                      renderMode="SOFTWARE"
+                      style={{ width: 100, height: 100 }}
+                      source={require("../assets/address.json")}
+                    />
+                    <Text style={[styles.sheetText, { fontWeight: '400', marginVertical: 20 }]}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
+                    <View style={styles.sheetFooterWrap}>
+                      <TouchableOpacity style={styles.sheetBtn} onPress={() => router.push("/addresses")} activeOpacity={0.9}>
+                        <Text style={styles.sheetBtnText}>{t("Add") ?? "Add"}</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
-                );
-              }}
-              ListFooterComponent={
-                <View style={{ paddingBottom: 0 }}>
-                  {loadingMore ? (
-                    <View style={{ paddingVertical: 10 }}>
+                ) : (
+                  <>
+                    <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
+                    {addresses.map((addr) => (
+                      <TouchableOpacity
+                        key={addr._id}
+                        style={[styles.addressItem, selectedAddress?._id === addr._id && styles.addressItemActive]}
+                        onPress={() => {
+                          setSelectedAddress((prev) => (prev?._id === addr._id ? prev : addr));
+                          addressSheetRef.current?.dismiss();
+                        }}
+                        activeOpacity={0.9}
+                      >
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                          <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
+                          {selectedAddress?._id === addr._id ? <Feather name="check" size={18} color={palette.accent} /> : null}
+                        </View>
+                        <Text style={styles.sheetText}>{addr.address}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                )}
+              </BottomSheetView>
+            </BottomSheetModal>
+
+            {/* Branch prompt */}
+            <Modal visible={showBranchPrompt} transparent animationType="fade">
+              <View style={styles.branchPromptBackdrop}>
+                <View style={styles.branchPromptCard}>
+                  <Text style={styles.branchPromptTitle}>{t("selectBranch") ?? "Select branch"}</Text>
+                  <Text style={styles.branchPromptCopy}>
+                    {t("selectBranchCopy") ?? "No saved address or location access. Please choose a branch to browse products."}
+                  </Text>
+                  {branchPromptLoading ? (
+                    <View style={{ paddingVertical: 12 }}>
                       <ActivityIndicator color={palette.accent} />
                     </View>
-                  ) : null}
-                  {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
-                </View>
-              }
-            />
-          </View>
-          {/* Filters */}
-          <BottomSheetModal
-            ref={sheetRef}
-            snapPoints={snapPoints}
-            enablePanDownToClose
-            backdropComponent={renderBackdrop}
-            footerComponent={customFooter}
-            backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
-            handleIndicatorStyle={{ backgroundColor: palette.muted }}
-          >
-            <BottomSheetView style={styles.sheetContainer}>
-              <View style={styles.sheetContent}>
-                <Text style={styles.sheetTitle}>{t("filters") ?? "Filters & Sort"}</Text>
-
-                <Text style={styles.sheetLabel}>{t("sortBy") ?? "Sort by"}</Text>
-                <View style={styles.sheetPills}>
-                  {[
-                    { id: "relevance", label: t("relevance") ?? "Relevance" },
-                    { id: "priceAsc", label: t("priceLowHigh") ?? "Price: Low to High" },
-                    { id: "priceDesc", label: t("priceHighLow") ?? "Price: High to Low" },
-                  ].map((opt) => (
-                    <TouchableOpacity
-                      key={opt.id}
-                      style={[styles.pill, sortOption === opt.id && styles.pillActive]}
-                      onPress={() => setSortOption(opt.id as SortOption)}
-                      activeOpacity={0.9}
-                    >
-                      <Text style={[styles.pillText, sortOption === opt.id && styles.pillTextActive]}>{opt.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={styles.sheetLabel}>{t("price") ?? "Price"}</Text>
-                <View style={styles.sheetPills}>
-                  {[
-                    { id: "all", label: t("all") ?? "All" },
-                    { id: "lt50k", label: t("under50k") ?? "Under 50K" },
-                    { id: "lt100k", label: t("under100k") ?? "Under 100K" },
-                    { id: "gte100k", label: t("over100k") ?? "100K +" },
-                  ].map((opt) => (
-                    <TouchableOpacity
-                      key={opt.id}
-                      style={[styles.pill, priceFilter === opt.id && styles.pillActive]}
-                      onPress={() => setPriceFilter(opt.id as PriceFilter)}
-                      activeOpacity={0.9}
-                    >
-                      <Text style={[styles.pillText, priceFilter === opt.id && styles.pillTextActive]}>{opt.label}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  ) : (
+                    <ScrollView style={{ maxHeight: 260 }}>
+                      {branchOptions.map((branch) => (
+                        <TouchableOpacity
+                          key={branch._id}
+                          style={styles.branchOption}
+                          onPress={async () => {
+                            updateSelectedBranch(branch);
+                            await setBranchId(branch._id);
+                            await setBranchLock(true);
+                            setBranchLocked(true);
+                            setShowBranchPrompt(false);
+                          }}
+                          activeOpacity={0.9}
+                        >
+                          <Text style={styles.branchOptionTitle}>{branch.name}</Text>
+                          <Text style={styles.branchOptionSub}>{branch.address}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )}
                 </View>
               </View>
-            </BottomSheetView>
-          </BottomSheetModal>
+            </Modal>
 
-          {/* Addresses */}
-          <BottomSheetModal
-            ref={addressSheetRef}
-            enablePanDownToClose
-            backdropComponent={renderBackdrop}
-            backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
-          >
-            <BottomSheetView style={[styles.sheetContainer, { paddingBottom: 0 }]}>
-              {addressLoading ? (
-                <View style={{ paddingTop: 20, gap: 12 }}>
-                  <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <View key={`address-skeleton-${index}`} style={styles.addressItem}>
-                      <Skeleton width={140} height={16} colorScheme={isDark ? "dark" : "light"} />
-                      <Skeleton width={"100%"} height={14} colorScheme={isDark ? "dark" : "light"} />
-                    </View>
-                  ))}
-                </View>
-              ) : addresses.length === 0 ? (
-                <View style={{ alignItems: "center", paddingTop: 20 }}>
-                  <LottieView
-                    key={`address-lottie-${lottieKey}`}
-                    ref={lottieRef}
-                    autoPlay
-                    loop
-                    renderMode="SOFTWARE"
-                    style={{ width: 100, height: 100 }}
-                    source={require("../assets/address.json")}
-                  />
-                  <Text style={[styles.sheetText, { fontWeight: '400', marginVertical: 20 }]}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
-                  <View style={styles.sheetFooterWrap}>
-                    <TouchableOpacity style={styles.sheetBtn} onPress={() => router.push("/addresses")} activeOpacity={0.9}>
-                      <Text style={styles.sheetBtnText}>{t("Add") ?? "Add"}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <>
-                  <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
-                  {addresses.map((addr) => (
-                    <TouchableOpacity
-                      key={addr._id}
-                      style={[styles.addressItem, selectedAddress?._id === addr._id && styles.addressItemActive]}
-                      onPress={() => {
-                        setSelectedAddress((prev) => (prev?._id === addr._id ? prev : addr));
-                        addressSheetRef.current?.dismiss();
-                      }}
-                      activeOpacity={0.9}
-                    >
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                        <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
-                        {selectedAddress?._id === addr._id ? <Feather name="check" size={18} color={palette.accent} /> : null}
-                      </View>
-                      <Text style={styles.sheetText}>{addr.address}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </>
-              )}
-            </BottomSheetView>
-          </BottomSheetModal>
-
-          {/* Branch prompt */}
-          <Modal visible={showBranchPrompt} transparent animationType="fade">
-            <View style={styles.branchPromptBackdrop}>
-              <View style={styles.branchPromptCard}>
-                <Text style={styles.branchPromptTitle}>{t("selectBranch") ?? "Select branch"}</Text>
-                <Text style={styles.branchPromptCopy}>
-                  {t("selectBranchCopy") ?? "No saved address or location access. Please choose a branch to browse products."}
-                </Text>
+            {/* Branches */}
+            <BottomSheetModal
+              ref={branchSheetRef}
+              enablePanDownToClose
+              backdropComponent={renderBackdrop}
+              backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+            >
+              <BottomSheetView style={[styles.sheetContainer, { paddingBottom: 0 }]}>
+                <Text style={styles.sheetTitle}>{t("fromBranch") ?? "From branch"}</Text>
+                {items.length > 0 && (
+                  <Text style={styles.sheetText}>
+                    {t("branchChangeNote") ?? "Changing branch will clear your cart."}
+                  </Text>
+                )}
                 {branchPromptLoading ? (
                   <View style={{ paddingVertical: 12 }}>
                     <ActivityIndicator color={palette.accent} />
                   </View>
+                ) : branchOptions.length === 0 ? (
+                  <Text style={styles.sheetText}>
+                    {t("noBranches") ?? "No branches available."}
+                  </Text>
                 ) : (
-                  <ScrollView style={{ maxHeight: 260 }}>
-                    {branchOptions.map((branch) => (
+                  branchOptions.map((branch) => {
+                    const active = selectedBranch?._id === branch._id;
+                    return (
                       <TouchableOpacity
                         key={branch._id}
-                        style={styles.branchOption}
+                        style={[styles.addressItem, active && styles.addressItemActive]}
                         onPress={async () => {
-                          updateSelectedBranch(branch);
-                          await setBranchId(branch._id);
-                          await setBranchLock(true);
-                          setBranchLocked(true);
-                          setShowBranchPrompt(false);
+                          if (active) {
+                            branchSheetRef.current?.dismiss();
+                            return;
+                          }
+                          const proceed = async () => {
+                            if (items.length > 0) {
+                              clear();
+                            }
+                            updateSelectedBranch(branch);
+                            await setBranchId(branch._id);
+                            await setBranchLock(true);
+                            setBranchLocked(true);
+                            branchSheetRef.current?.dismiss();
+                          };
+                          if (items.length > 0) {
+                            Alert.alert(
+                              t("confirmBranchChange") ?? "Change branch?",
+                              t("branchChangeConfirm") ?? "Changing branch will clear your cart. Continue?",
+                              [
+                                { text: t("cancel") ?? "Cancel", style: "cancel" },
+                                { text: t("confirm") ?? "Confirm", style: "destructive", onPress: proceed },
+                              ]
+                            );
+                            return;
+                          }
+                          proceed();
                         }}
                         activeOpacity={0.9}
                       >
-                        <Text style={styles.branchOptionTitle}>{branch.name}</Text>
-                        <Text style={styles.branchOptionSub}>{branch.address}</Text>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                          <Text style={styles.addressTitle}>{branch.name}</Text>
+                          {active ? <Feather name="check" size={18} color={palette.accent} /> : null}
+                        </View>
+                        {/* <Text style={styles.sheetText}>{branch.address}</Text> */}
                       </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                    );
+                  })
                 )}
-              </View>
-            </View>
-          </Modal>
 
-          {/* Branches */}
-          <BottomSheetModal
-            ref={branchSheetRef}
-            enablePanDownToClose
-            backdropComponent={renderBackdrop}
-            backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
-          >
-            <BottomSheetView style={[styles.sheetContainer, { paddingBottom: 0 }]}>
-              <Text style={styles.sheetTitle}>{t("fromBranch") ?? "From branch"}</Text>
-              {items.length > 0 && (
-                <Text style={styles.sheetText}>
-                  {t("branchChangeNote") ?? "Changing branch will clear your cart."}
-                </Text>
-              )}
-              {branchPromptLoading ? (
-                <View style={{ paddingVertical: 12 }}>
-                  <ActivityIndicator color={palette.accent} />
-                </View>
-              ) : branchOptions.length === 0 ? (
-                <Text style={styles.sheetText}>
-                  {t("noBranches") ?? "No branches available."}
-                </Text>
-              ) : (
-                branchOptions.map((branch) => {
-                  const active = selectedBranch?._id === branch._id;
-                  return (
-                    <TouchableOpacity
-                      key={branch._id}
-                      style={[styles.addressItem, active && styles.addressItemActive]}
-                      onPress={async () => {
-                        if (active) {
-                          branchSheetRef.current?.dismiss();
-                          return;
-                        }
-                        const proceed = async () => {
-                          if (items.length > 0) {
-                            clear();
-                          }
-                          updateSelectedBranch(branch);
-                          await setBranchId(branch._id);
-                          await setBranchLock(true);
-                          setBranchLocked(true);
-                          branchSheetRef.current?.dismiss();
-                        };
-                        if (items.length > 0) {
-                          Alert.alert(
-                            t("confirmBranchChange") ?? "Change branch?",
-                            t("branchChangeConfirm") ?? "Changing branch will clear your cart. Continue?",
-                            [
-                              { text: t("cancel") ?? "Cancel", style: "cancel" },
-                              { text: t("confirm") ?? "Confirm", style: "destructive", onPress: proceed },
-                            ]
-                          );
-                          return;
-                        }
-                        proceed();
-                      }}
-                      activeOpacity={0.9}
-                    >
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                        <Text style={styles.addressTitle}>{branch.name}</Text>
-                        {active ? <Feather name="check" size={18} color={palette.accent} /> : null}
-                      </View>
-                      {/* <Text style={styles.sheetText}>{branch.address}</Text> */}
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-
-              {/* <TouchableOpacity style={styles.closeBtn} onPress={() => branchSheetRef.current?.dismiss()} activeOpacity={0.9}>
+                {/* <TouchableOpacity style={styles.closeBtn} onPress={() => branchSheetRef.current?.dismiss()} activeOpacity={0.9}>
                 <Text style={styles.closeBtnText}>{t("close") ?? "Close"}</Text>
               </TouchableOpacity> */}
-            </BottomSheetView>
-          </BottomSheetModal>
+              </BottomSheetView>
+            </BottomSheetModal>
 
-          {/* Membership */}
-          {/* <BottomSheetModal
+            {/* Membership */}
+            {/* <BottomSheetModal
             ref={membershipSheetRef}
             snapPoints={membershipSnapPoints}
             enablePanDownToClose
@@ -1481,7 +1672,18 @@ export default function Home() {
               )}
             </BottomSheetView>
           </BottomSheetModal> */}
-        </View>
+          </View>
+        ) : (
+          <View style={styles.container}>
+            <View style={styles.stickyHeroWrap}>
+              {renderDriverHero()}
+            </View>
+
+            <View style={styles.driverDashboardPanel}>
+              {renderDriverDashboard()}
+            </View>
+          </View>
+        )}
       </View>
     </BottomSheetModalProvider >
   );
@@ -1544,6 +1746,94 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       // borderBottomWidth: 1,
       // borderBottomColor: hairline,
       // borderWidth: 1
+    },
+    driverDashboardPanel: {
+      flex: 1,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      backgroundColor: palette.background,
+      borderWidth: 1,
+      borderColor: palette.background,
+      overflow: "hidden",
+    },
+    driverDashboardScroll: {
+      flex: 1,
+    },
+    driverDashboardContent: {
+      padding: 16,
+      paddingBottom: 24 + insets.bottom,
+      gap: 16,
+    },
+    driverDashboardHeader: {
+      flexDirection: row,
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    driverDashboardTitle: {
+      color: palette.text,
+      fontSize: 22,
+      fontWeight: "900",
+      textAlign: align,
+    },
+    driverDashboardSubtitle: {
+      color: palette.muted,
+      fontSize: 13,
+      fontWeight: "700",
+      marginTop: 4,
+      textAlign: align,
+    },
+    driverRefreshBtn: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      backgroundColor: palette.card,
+      borderWidth: 1,
+      borderColor: hairline,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    driverStatsGrid: {
+      flexDirection: row,
+      flexWrap: "wrap",
+      gap: 12,
+    },
+    driverStatCard: {
+      flexBasis: "47%",
+      flexGrow: 1,
+      minHeight: 150,
+      backgroundColor: palette.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: hairline,
+      padding: 14,
+      gap: 8,
+      ...cardShadow,
+    },
+    driverStatIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    driverStatLabel: {
+      color: palette.muted,
+      fontSize: 12,
+      fontWeight: "800",
+      textAlign: align,
+    },
+    driverStatValue: {
+      color: palette.text,
+      fontSize: 24,
+      fontWeight: "900",
+      textAlign: align,
+    },
+    driverStatSub: {
+      color: palette.muted,
+      fontSize: 11,
+      fontWeight: "700",
+      textAlign: align,
     },
 
     topBar: {
