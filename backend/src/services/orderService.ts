@@ -569,7 +569,11 @@ export const updateOrderDriverLocation = async (
 };
 
 export const getOrdersForDriver = async (driverId: Types.ObjectId) => {
-  const orders = await Order.find({ driverId }).sort({ createdAt: -1 }).populate("items.product").populate("addressRef");
+  const orders = await Order.find({ driverId })
+    .sort({ createdAt: -1 })
+    .populate("user", "name phone email")
+    .populate("items.product")
+    .populate("addressRef");
   return orders.map((order) => {
     const addressRef = order.addressRef as { lat?: number; lng?: number } | null;
     if ((order.lat === undefined || order.lng === undefined) && addressRef && typeof addressRef === "object") {

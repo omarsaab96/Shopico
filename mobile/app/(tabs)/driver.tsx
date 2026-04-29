@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from "react-native";
 import * as Location from "expo-location";
+import Constants from "expo-constants";
 import Screen from "../../components/Screen";
 import Text from "../../components/Text";
 import api from "../../lib/api";
@@ -10,11 +11,21 @@ import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
 import { startDriverBackgroundTracking, stopDriverBackgroundTracking } from "../../lib/driverTracking";
 
+const appJson = require("../../app.json");
+const expoCfg: any = Constants.expoConfig || (Constants as any).manifest || {};
+const GOOGLE_MAPS_KEY =
+  expoCfg?.android?.config?.googleMaps?.apiKey ||
+  expoCfg?.ios?.config?.googleMapsApiKey ||
+  appJson?.expo?.android?.config?.googleMaps?.apiKey ||
+  appJson?.expo?.ios?.config?.googleMapsApiKey ||
+  "";
+
 type DriverOrder = {
   _id: string;
   status: string;
   address: string;
   total: number;
+  user?: { name?: string; phone?: string; email?: string } | string | null;
   createdAt?: string;
   statusHistory?: { status: string; at?: string }[];
   deliveryDistanceKm?: number;
@@ -34,25 +45,11 @@ type DriverOrder = {
       coordinates?: Array<number | string>;
     };
     coordinates?: Array<number | string>;
+    phone?: string;
   } | string | null;
 };
 
 type Coordinate = { latitude: number; longitude: number };
-
-const toRad = (value: number) => (value * Math.PI) / 180;
-
-const distanceKm = (from: Coordinate, to: Coordinate) => {
-  const earthRadiusKm = 6371;
-  const dLat = toRad(to.latitude - from.latitude);
-  const dLng = toRad(to.longitude - from.longitude);
-  const lat1 = toRad(from.latitude);
-  const lat2 = toRad(to.latitude);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-
-  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-};
 
 const formatDistanceKm = (distance: number) => {
   if (!Number.isFinite(distance)) return "-";
@@ -73,6 +70,8 @@ export default function DriverOrders() {
   const [orders, setOrders] = useState<DriverOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [distanceLoading, setDistanceLoading] = useState(false);
+  const [routeDistanceLoading, setRouteDistanceLoading] = useState(false);
+  const [routeDistances, setRouteDistances] = useState<Record<string, number | null>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState<Record<string, boolean>>({});
   const trackingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -235,6 +234,19 @@ export default function DriverOrders() {
     return formatDuration(startedAt, order.status === "DELIVERED" ? deliveredAt : undefined);
   }, [formatDuration, getStatusTime]);
 
+  const getCustomerName = (order: DriverOrder) => {
+    if (typeof order.user === "object" && order.user) {
+      return order.user.name || order.user.email || "-";
+    }
+    return "-";
+  };
+
+  const getCustomerPhone = (order: DriverOrder) => {
+    if (typeof order.user === "object" && order.user?.phone) return order.user.phone;
+    if (typeof order.addressRef === "object" && order.addressRef?.phone) return order.addressRef.phone;
+    return "-";
+  };
+
   const pushLocation = async (orderId: string) => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
@@ -320,10 +332,81 @@ export default function DriverOrders() {
     return lat !== undefined && lng !== undefined ? { latitude: lat, longitude: lng } : null;
   };
 
-  const getDriverDistanceKm = (order: DriverOrder) => {
+  const getRouteOrigin = (order: DriverOrder): Coordinate | null => {
+    return driverLocation ?? getStoredDriverCoordinate(order);
+  };
+
+  const getRouteDistanceKm = useCallback(async (origin: Coordinate, destination: Coordinate) => {
+    if (!GOOGLE_MAPS_KEY) return null;
+    const originParam = `${origin.latitude},${origin.longitude}`;
+    const destinationParam = `${destination.latitude},${destination.longitude}`;
+    const url =
+      `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(originParam)}` +
+      `&destination=${encodeURIComponent(destinationParam)}&mode=driving&key=${encodeURIComponent(GOOGLE_MAPS_KEY)}`;
+
+    const response = await fetch(url);
+    const json = await response.json();
+    if (json?.status !== "OK" || !json?.routes?.[0]?.legs?.length) return null;
+
+    const meters = json.routes[0].legs.reduce((sum: number, leg: any) => sum + Number(leg?.distance?.value || 0), 0);
+    return meters > 0 ? meters / 1000 : null;
+  }, []);
+
+  useEffect(() => {
+    if (!visibleOrders.length) {
+      setRouteDistances({});
+      return;
+    }
+    if (!GOOGLE_MAPS_KEY) {
+      setRouteDistances({});
+      return;
+    }
+
+    const routeInputs = visibleOrders
+      .map((order) => ({
+        order,
+        origin: getRouteOrigin(order),
+        destination: getCustomerCoordinate(order),
+      }))
+      .filter((item): item is { order: DriverOrder; origin: Coordinate; destination: Coordinate } =>
+        Boolean(item.origin && item.destination)
+      );
+
+    if (!routeInputs.length) {
+      setRouteDistances({});
+      return;
+    }
+
+    let cancelled = false;
+    setRouteDistanceLoading(true);
+    Promise.all(
+      routeInputs.map(async ({ order, origin, destination }) => {
+        try {
+          const distance = await getRouteDistanceKm(origin, destination);
+          return [order._id, distance] as const;
+        } catch {
+          return [order._id, null] as const;
+        }
+      })
+    )
+      .then((entries) => {
+        if (cancelled) return;
+        setRouteDistances(Object.fromEntries(entries));
+      })
+      .finally(() => {
+        if (!cancelled) setRouteDistanceLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [driverLocation, getRouteDistanceKm, visibleOrders]);
+
+  const getDriverRouteDistanceKm = (order: DriverOrder) => {
     const customerCoordinate = getCustomerCoordinate(order);
     const origin = driverLocation ?? getStoredDriverCoordinate(order);
-    return origin && customerCoordinate ? distanceKm(origin, customerCoordinate) : null;
+    if (!origin || !customerCoordinate) return null;
+    return routeDistances[order._id] ?? null;
   };
 
   const openDirections = (order: DriverOrder) => {
@@ -387,18 +470,18 @@ export default function DriverOrders() {
         renderItem={({ item }) => {
           const isShipping = item.status === "SHIPPING";
           const isTracking = trackingOrderId === item._id;
-          const driverDistanceKm = getDriverDistanceKm(item);
+          const driverRouteDistanceKm = getDriverRouteDistanceKm(item);
           return (
             <View style={styles.card}>
               <View style={styles.cardRow}>
                 <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
                   <Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text>
                   <Text style={styles.cardDistance}>
-                    {distanceLoading ? (
+                    {distanceLoading || routeDistanceLoading ? (
                       <ActivityIndicator size="small" color="#000" />
                     ) : (
                       <>
-                        {driverDistanceKm !== null ? formatDistanceKm(driverDistanceKm) : "-"}{' '}
+                        {driverRouteDistanceKm !== null ? formatDistanceKm(driverRouteDistanceKm) : "-"}{' '}
                         {t('km')}
                       </>
                     )}
@@ -413,7 +496,11 @@ export default function DriverOrders() {
                 </View>
               </View>
 
-              <Text style={styles.cardSub}>{item.address}{item.address}{item.address}</Text>
+              <Text style={styles.cardSub}>{item.address}</Text>
+              <View style={styles.customerBox}>
+                <Text style={styles.customerName}>{getCustomerName(item)}</Text>
+                <Text style={styles.customerPhone}>{getCustomerPhone(item)}</Text>
+              </View>
 
               <View style={styles.btnRow}>
                 {item.status === "PROCESSING" || item.status === "PENDING" ? (
@@ -557,6 +644,22 @@ const createStyles = (palette: any, isRTL: boolean) =>
       fontWeight: "500",
       letterSpacing: 0.5,
 
+    },
+    customerBox: {
+      gap: 3,
+    },
+    customerName: {
+      color: palette.text,
+      fontSize: 13,
+      fontWeight: "800",
+      textAlign: "left",
+    },
+    customerPhone: {
+      color: palette.muted,
+      fontSize: 12,
+      fontWeight: "700",
+      textAlign: "left",
+      writingDirection: "ltr",
     },
     infoLabel: {
       color: palette.muted,
