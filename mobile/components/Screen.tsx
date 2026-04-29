@@ -21,7 +21,7 @@ const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps)
         safe: {
           flex: 1,
           backgroundColor: palette.background,
-          paddingTop: insets.top,
+          paddingTop: insets.top + 15,
           writingDirection: isRTL ? "rtl" : "ltr",
           direction: isRTL ? "rtl" : "ltr",
         },
@@ -32,7 +32,7 @@ const Screen = ({ children, showBack = false, backLabel = "Back" }: ScreenProps)
           writingDirection: isRTL ? "rtl" : "ltr",
           direction: isRTL ? "rtl" : "ltr",
         },
-        backRow: { flexDirection:'row', alignItems: "center", gap: 5, marginBottom: 10 },
+        backRow: { flexDirection: 'row', alignItems: "center", gap: 5, marginBottom: 10 },
         backText: { color: palette.text },
       }),
     [palette, insets.top, isRTL]

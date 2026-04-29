@@ -1708,7 +1708,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     safe: {
       flex: 1,
       backgroundColor: palette.accent,
-      paddingTop: insets.top,
+      paddingTop: insets.top+15,
       writingDirection: isRTL ? "rtl" : "ltr",
       direction: isRTL ? "rtl" : "ltr",
     },

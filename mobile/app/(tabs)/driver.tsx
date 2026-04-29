@@ -18,9 +18,50 @@ type DriverOrder = {
   createdAt?: string;
   statusHistory?: { status: string; at?: string }[];
   deliveryDistanceKm?: number;
-  lat?: number;
-  lng?: number;
-  addressRef?: { lat?: number | string; lng?: number | string } | string | null;
+  lat?: number | string;
+  lng?: number | string;
+  driverLocation?: { lat?: number | string; lng?: number | string } | null;
+  addressRef?: {
+    lat?: number | string;
+    lng?: number | string;
+    latitude?: number | string;
+    longitude?: number | string;
+    location?: {
+      lat?: number | string;
+      lng?: number | string;
+      latitude?: number | string;
+      longitude?: number | string;
+      coordinates?: Array<number | string>;
+    };
+    coordinates?: Array<number | string>;
+  } | string | null;
+};
+
+type Coordinate = { latitude: number; longitude: number };
+
+const toRad = (value: number) => (value * Math.PI) / 180;
+
+const distanceKm = (from: Coordinate, to: Coordinate) => {
+  const earthRadiusKm = 6371;
+  const dLat = toRad(to.latitude - from.latitude);
+  const dLng = toRad(to.longitude - from.longitude);
+  const lat1 = toRad(from.latitude);
+  const lat2 = toRad(to.latitude);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const formatDistanceKm = (distance: number) => {
+  if (!Number.isFinite(distance)) return "-";
+  return distance < 10 ? distance.toFixed(1) : Math.round(distance).toString();
+};
+
+const toFiniteNumber = (value: number | string | undefined) => {
+  const parsed = typeof value === "string" ? Number(value) : value;
+  return Number.isFinite(parsed) ? parsed : undefined;
 };
 
 export default function DriverOrders() {
@@ -31,13 +72,51 @@ export default function DriverOrders() {
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
   const [orders, setOrders] = useState<DriverOrder[]>([]);
   const [loading, setLoading] = useState(false);
+  const [distanceLoading, setDistanceLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState<Record<string, boolean>>({});
   const trackingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const locationWatcherRef = useRef<Location.LocationSubscription | null>(null);
+  const [driverLocation, setDriverLocation] = useState<Coordinate | null>(null);
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   const canDeliver = user?.role === "driver";
+
+  const loadDriverLocation = useCallback(async () => {
+    if (!canDeliver) return;
+    setDistanceLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setDriverLocation(null);
+        return;
+      }
+
+      const lastKnown = await Location.getLastKnownPositionAsync({});
+      if (lastKnown) {
+        setDriverLocation({
+          latitude: lastKnown.coords.latitude,
+          longitude: lastKnown.coords.longitude,
+        });
+      }
+
+      const pos = await Promise.race([
+        Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+      ]);
+      if (!pos) return;
+      setDriverLocation({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      });
+    } catch {
+    } finally {
+      setDistanceLoading(false);
+    }
+  }, [canDeliver]);
 
   const load = useCallback(async (showSpinner = true) => {
     if (!canDeliver) return;
@@ -53,20 +132,63 @@ export default function DriverOrders() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await load(false);
+      await Promise.all([load(false), loadDriverLocation()]);
     } finally {
       setRefreshing(false);
     }
-  }, [load]);
+  }, [load, loadDriverLocation]);
 
   useEffect(() => {
     load();
+    loadDriverLocation();
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       clearInterval(timer);
       if (trackingRef.current) clearInterval(trackingRef.current);
     };
-  }, [load]);
+  }, [load, loadDriverLocation]);
+
+  useEffect(() => {
+    if (!canDeliver) return;
+
+    let mounted = true;
+    Location.requestForegroundPermissionsAsync()
+      .then(({ status }) => {
+        if (!mounted || status !== "granted") return;
+        Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 30000,
+            distanceInterval: 25,
+          },
+          (position) => {
+            setDriverLocation({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+          }
+        )
+          .then((subscription) => {
+            if (mounted) {
+              locationWatcherRef.current = subscription;
+            } else {
+              subscription.remove();
+            }
+          })
+          .catch(() => {
+            if (mounted) setDriverLocation(null);
+          });
+      })
+      .catch(() => {
+        if (mounted) setDriverLocation(null);
+      });
+
+    return () => {
+      mounted = false;
+      locationWatcherRef.current?.remove();
+      locationWatcherRef.current = null;
+    };
+  }, [canDeliver]);
 
   const visibleOrders = useMemo(
     () => orders.filter((order) => ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED"].includes(order.status)),
@@ -165,11 +287,43 @@ export default function DriverOrders() {
   };
 
   const getOrderCoordinate = (order: DriverOrder, key: "lat" | "lng") => {
-    const direct = order[key];
-    if (Number.isFinite(direct)) return direct;
-    const addressValue = typeof order.addressRef === "object" && order.addressRef ? order.addressRef[key] : undefined;
-    const parsed = typeof addressValue === "string" ? Number(addressValue) : addressValue;
-    return Number.isFinite(parsed) ? parsed : undefined;
+    const direct = toFiniteNumber(order[key]);
+    if (direct !== undefined) return direct;
+    if (typeof order.addressRef !== "object" || !order.addressRef) return undefined;
+
+    const addressValue = order.addressRef[key];
+    if (toFiniteNumber(addressValue) !== undefined) return toFiniteNumber(addressValue);
+
+    const alternateKey = key === "lat" ? "latitude" : "longitude";
+    const alternateValue = order.addressRef[alternateKey];
+    if (toFiniteNumber(alternateValue) !== undefined) return toFiniteNumber(alternateValue);
+
+    const locationValue = order.addressRef.location?.[key] ?? order.addressRef.location?.[alternateKey];
+    if (toFiniteNumber(locationValue) !== undefined) return toFiniteNumber(locationValue);
+
+    const coordinates = order.addressRef.location?.coordinates ?? order.addressRef.coordinates;
+    const coordinateValue = coordinates?.[key === "lat" ? 1 : 0];
+    return toFiniteNumber(coordinateValue);
+  };
+
+  const getCustomerCoordinate = (order: DriverOrder): Coordinate | null => {
+    const lat = getOrderCoordinate(order, "lat");
+    const lng = getOrderCoordinate(order, "lng");
+
+    return lat !== undefined && lng !== undefined ? { latitude: lat, longitude: lng } : null;
+  };
+
+  const getStoredDriverCoordinate = (order: DriverOrder): Coordinate | null => {
+    const lat = toFiniteNumber(order.driverLocation?.lat);
+    const lng = toFiniteNumber(order.driverLocation?.lng);
+
+    return lat !== undefined && lng !== undefined ? { latitude: lat, longitude: lng } : null;
+  };
+
+  const getDriverDistanceKm = (order: DriverOrder) => {
+    const customerCoordinate = getCustomerCoordinate(order);
+    const origin = driverLocation ?? getStoredDriverCoordinate(order);
+    return origin && customerCoordinate ? distanceKm(origin, customerCoordinate) : null;
   };
 
   const openDirections = (order: DriverOrder) => {
@@ -233,10 +387,24 @@ export default function DriverOrders() {
         renderItem={({ item }) => {
           const isShipping = item.status === "SHIPPING";
           const isTracking = trackingOrderId === item._id;
+          const driverDistanceKm = getDriverDistanceKm(item);
           return (
             <View style={styles.card}>
               <View style={styles.cardRow}>
-                <Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text>
+                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                  <Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text>
+                  <Text style={styles.cardDistance}>
+                    {distanceLoading ? (
+                      <ActivityIndicator size="small" color="#000" />
+                    ) : (
+                      <>
+                        {driverDistanceKm !== null ? formatDistanceKm(driverDistanceKm) : "-"}{' '}
+                        {t('km')}
+                      </>
+                    )}
+                  </Text>
+                </View>
+
                 <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
                   <Text style={[styles.status, item.status === "DELIVERED" && styles.doneStatus]}>{t(item.status) ?? item.status}</Text>
                   <Text style={[styles.cardMeta, item.status !== "DELIVERED" && styles.elapsedValue]}>
@@ -245,32 +413,7 @@ export default function DriverOrders() {
                 </View>
               </View>
 
-              <View style={styles.metricsRow}>
-                {/* <View style={styles.metricBox}>
-                  <Text style={styles.infoLabel}>{t("address") ?? "Address"}</Text>
-                  <Text style={styles.cardSub} numberOfLines={1}>{item.address}</Text>
-                </View> */}
-                {/* <View style={styles.metricBox}>
-                  <Text style={styles.infoLabel}>{t("distance") ?? "Distance"}</Text>
-                  <Text style={styles.cardSub}>
-                    {item.deliveryDistanceKm !== undefined ? `${item.deliveryDistanceKm} ${t("km")}` : "-"}
-                  </Text>
-                </View> */}
-                {/* <View style={styles.metricBox}>
-                  <Text style={styles.infoLabel}>{t("deliveryTimer") ?? "Delivery time"}</Text>
-                  <Text style={[styles.cardSub, item.status !== "DELIVERED" && styles.elapsedValue]}>
-                    {getDeliveryDuration(item)}
-                  </Text>
-                </View> */}
-                <View style={styles.metricBox}>
-                  <Text style={styles.infoLabel}>{t("destination") ?? "Destination"}</Text>
-                  <Text style={styles.cardSub} numberOfLines={1}>{item.address}</Text>
-                </View>
-                <View style={styles.metricBox}>
-                  <Text style={styles.infoLabel}>{t("distance") ?? "Distance"}</Text>
-                  <Text style={styles.cardSub}>{item.deliveryDistanceKm !== undefined ? `${item.deliveryDistanceKm} ${t("km")}` : "-"}</Text>
-                </View>
-              </View>
+              <Text style={styles.cardSub}>{item.address}{item.address}{item.address}</Text>
 
               <View style={styles.btnRow}>
                 {item.status === "PROCESSING" || item.status === "PENDING" ? (
@@ -392,14 +535,28 @@ const createStyles = (palette: any, isRTL: boolean) =>
     cardTitle: { color: palette.text, fontWeight: "800" },
     status: { color: palette.accent, fontWeight: "700" },
     doneStatus: { color: "#16a34a" },
-    cardSub: { 
-      color: palette.text,
-      fontSize: 12,
-      fontWeight: "700",
-     },
-    cardMeta: { color: palette.text, fontWeight: "600" },
+
+    cardMeta: { color: palette.muted, fontWeight: "600", fontSize: 12 },
     infoBlock: {
       gap: 3,
+    },
+
+    metricsRow: {
+      // gap: 5,
+    },
+    metricBox: {
+      gap: 4,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "baseline",
+      flexWrap: 'wrap'
+    },
+    cardSub: {
+      color: palette.text,
+      fontSize: 12,
+      fontWeight: "500",
+      letterSpacing: 0.5,
+
     },
     infoLabel: {
       color: palette.muted,
@@ -408,14 +565,17 @@ const createStyles = (palette: any, isRTL: boolean) =>
       textAlign: "left",
       textTransform: "uppercase",
     },
-    metricsRow: {
-      gap: 5,
-    },
-    metricBox: {
-      gap: 4,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
+    cardDistance: {
+      fontSize: 12,
+      color: palette.text,
+      fontWeight: "600",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
+      paddingHorizontal: 5,
+      paddingVertical: 3,
+      borderRadius: 10,
+      backgroundColor: palette.surface,
+      lineHeight: 14,
     },
     elapsedValue: {
       color: palette.accent,
