@@ -337,7 +337,7 @@ export default function OrderDetail() {
                 origin={effectiveOrigin}
                 destination={destination}
                 apikey={GOOGLE_MAPS_KEY}
-                strokeWidth={4}
+                strokeWidth={5}
                 strokeColor={palette.accent}
                 onReady={(result) => {
                   setRouteDistance(result.distance);
@@ -357,7 +357,7 @@ export default function OrderDetail() {
             {shouldDrawFallbackLine ? (
               <Polyline
                 coordinates={[effectiveOrigin, destination]}
-                strokeWidth={4}
+                strokeWidth={5}
                 strokeColor={palette.accent}
               />
             ) : null}

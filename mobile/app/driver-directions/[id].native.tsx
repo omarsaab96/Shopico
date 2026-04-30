@@ -10,7 +10,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Text from "../../components/Text";
 import api from "../../lib/api";
-import { pushDriverLocationOnce, stopDriverBackgroundTracking } from "../../lib/driverTracking";
+import { pushDriverLocationOnce, startDriverBackgroundTracking, stopDriverBackgroundTracking } from "../../lib/driverTracking";
 import { useI18n } from "../../lib/i18n";
 import { useTheme } from "../../lib/theme";
 
@@ -39,6 +39,7 @@ const GOOGLE_MAPS_KEY =
 type Coordinate = { latitude: number; longitude: number };
 type DriverOrder = {
   _id: string;
+  status?: string;
   address?: string;
   lat?: number | string;
   lng?: number | string;
@@ -88,6 +89,7 @@ export default function DriverDirections() {
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [locationDenied, setLocationDenied] = useState(false);
   const [delivering, setDelivering] = useState(false);
+  const [startingDelivery, setStartingDelivery] = useState(false);
   const lastRouteOriginRef = useRef<Coordinate | null>(null);
   const lastRouteRefreshRef = useRef(0);
 
@@ -114,7 +116,7 @@ export default function DriverDirections() {
 
   const syncDriverLocation = useCallback((coords: Coordinate) => {
     if (!id) return;
-    pushDriverLocationOnce(id, coords).catch(() => {});
+    pushDriverLocationOnce(id, coords).catch(() => { });
   }, [id]);
 
   const fitRoute = useCallback((nextOrigin?: Coordinate | null) => {
@@ -207,6 +209,23 @@ export default function DriverDirections() {
 
   const canUseDirections = Boolean(routeOrigin && destination && GOOGLE_MAPS_KEY && !routeError);
   const shouldDrawFallbackLine = Boolean(routeOrigin && destination && (!GOOGLE_MAPS_KEY || routeError));
+  const isProcessing = order?.status === "PROCESSING" || order?.status === "PENDING";
+  const isShipping = order?.status === "SHIPPING";
+
+  const startDelivery = useCallback(async () => {
+    if (!id || startingDelivery) return;
+    setStartingDelivery(true);
+    try {
+      await api.put(`/orders/${id}/driver-status`, { status: "SHIPPING" });
+      await startDriverBackgroundTracking(id);
+      if (origin) {
+        syncDriverLocation(origin);
+      }
+      setOrder((current) => current ? { ...current, status: "SHIPPING" } : current);
+    } finally {
+      setStartingDelivery(false);
+    }
+  }, [id, origin, startingDelivery, syncDriverLocation]);
 
   const markDelivered = useCallback(async () => {
     if (!id || delivering) return;
@@ -227,7 +246,7 @@ export default function DriverDirections() {
       Platform.OS === "ios"
         ? `http://maps.apple.com/?daddr=${destinationParam}`
         : `https://www.google.com/maps/dir/?api=1&destination=${destinationParam}`;
-    Linking.openURL(url).catch(() => {});
+    Linking.openURL(url).catch(() => { });
   }, [destination]);
 
   return (
@@ -236,7 +255,7 @@ export default function DriverDirections() {
         ref={mapRef}
         style={styles.map}
         customMapStyle={MAP_STYLE}
-        
+
         followsUserLocation
         initialRegion={{
           latitude: origin?.latitude ?? destination?.latitude ?? MAP_FALLBACK.latitude,
@@ -262,8 +281,8 @@ export default function DriverDirections() {
         {canUseDirections ? (
           <MapViewDirections
             key={`${routeOrigin?.latitude},${routeOrigin?.longitude}-${destination?.latitude},${destination?.longitude}`}
-            origin={routeOrigin}
-            destination={destination}
+            origin={routeOrigin!}
+            destination={destination!}
             apikey={GOOGLE_MAPS_KEY}
             mode="DRIVING"
             strokeWidth={5}
@@ -298,9 +317,9 @@ export default function DriverDirections() {
 
       <View style={styles.panel}>
         <View style={styles.panelHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>{t("directions") ?? "Directions"}</Text>
-            <Text style={styles.subtitle}>#{String(id || "").slice(-6)}</Text>
+          <View style={{ }}>
+            {/* <Text style={styles.title}>{t("directions") ?? "Directions"}</Text> */}
+            <Text style={styles.title}>#{String(id || "").slice(-6)}</Text>
           </View>
           {loadingLocation ? <ActivityIndicator color={palette.accent} /> : null}
         </View>
@@ -311,7 +330,7 @@ export default function DriverDirections() {
         <View style={styles.routeRow}>
           <View style={styles.routeMetric}>
             <Text style={styles.metricLabel}>{t("destination") ?? "Destination"}</Text>
-            <Text style={styles.metricValue} numberOfLines={1}>{destinationAddress}</Text>
+            <Text style={styles.metricValue} numberOfLines={1}>{destinationAddress}{destinationAddress}{destinationAddress}</Text>
           </View>
           <View style={styles.routeMetric}>
             <Text style={styles.metricLabel}>{t("distance") ?? "Distance"}</Text>
@@ -340,11 +359,19 @@ export default function DriverDirections() {
           <TouchableOpacity style={styles.secondaryBtn} onPress={openInMaps} disabled={!destination}>
             <Text style={styles.secondaryBtnText}>{t("openInMaps") ?? "Open in Maps"}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.deliveredBtn} onPress={markDelivered} disabled={delivering}>
-            <Text style={styles.deliveredBtnText}>
-              {delivering ? (t("saving") ?? "Saving...") : (t("markDelivered") ?? "Mark delivered")}
-            </Text>
-          </TouchableOpacity>
+          {isProcessing ? (
+            <TouchableOpacity style={styles.startBtn} onPress={startDelivery} disabled={startingDelivery}>
+              <Text style={styles.startBtnText}>
+                {startingDelivery ? (t("starting") ?? "Starting...") : (t("startDelivery") ?? "Start delivery")}
+              </Text>
+            </TouchableOpacity>
+          ) : isShipping ? (
+            <TouchableOpacity style={styles.deliveredBtn} onPress={markDelivered} disabled={delivering}>
+              <Text style={styles.deliveredBtnText}>
+                {delivering ? (t("saving") ?? "Saving...") : (t("markDelivered") ?? "Mark delivered")}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     </View>
@@ -356,7 +383,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
     root: {
       flex: 1,
       backgroundColor: palette.background,
-      paddingBottom:insets.bottom
+      paddingBottom: insets.bottom
     },
     map: {
       flex: 1,
@@ -420,12 +447,13 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       borderRadius: 18,
       borderWidth: 1,
       borderColor: palette.border,
-      padding: 16,
+      padding: 10,
       gap: 10,
     },
     panelHeader: {
       flexDirection: "row",
       alignItems: "center",
+      justifyContent:'space-between',
       gap: 10,
     },
     title: {
@@ -433,6 +461,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       fontSize: 20,
       fontWeight: "900",
       textAlign: "left",
+      lineHeight:24
     },
     subtitle: {
       color: palette.muted,
@@ -455,7 +484,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       gap: 5,
     },
     routeMetric: {
-      gap: 4,
+      gap: 10,
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
@@ -471,6 +500,8 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       color: palette.text,
       fontSize: 12,
       fontWeight: "700",
+      flex: 1,
+      textAlign: 'right'
     },
     error: {
       color: "#ef4444",
@@ -488,28 +519,37 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       gap: 10,
     },
     secondaryBtn: {
+      // backgroundColor: "#ef4444",
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+      borderRadius: 10,
       flex: 1,
       borderWidth: 1,
       borderColor: palette.border,
-      borderRadius: 14,
-      paddingVertical: 13,
-      alignItems: "center",
-      justifyContent: "center",
     },
-    secondaryBtnText: {
-      color: palette.text,
+    secondaryBtnText: { color: palette.text, fontWeight: "700", textAlign: 'center' },
+    startBtn: {
+      backgroundColor: palette.accent,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      flex: 1,
+    },
+    startBtnText: {
+      color: "#fff",
       fontWeight: "900",
+      textAlign: 'center'
     },
     deliveredBtn: {
-      flex: 1,
       backgroundColor: "#16a34a",
-      borderRadius: 14,
-      paddingVertical: 13,
-      alignItems: "center",
-      justifyContent: "center",
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      flex: 1,
     },
     deliveredBtnText: {
       color: "#fff",
       fontWeight: "900",
+      textAlign: 'center'
     },
   });

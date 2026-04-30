@@ -10,6 +10,13 @@ import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
 import { startDriverBackgroundTracking, stopDriverBackgroundTracking } from "../../lib/driverTracking";
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Feather from '@expo/vector-icons/Feather';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Entypo from "@expo/vector-icons/Entypo";
+import { Skeleton } from "../../components/Skeleton";
+import Octicons from '@expo/vector-icons/Octicons';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const appJson = require("../../app.json");
 const expoCfg: any = Constants.expoConfig || (Constants as any).manifest || {};
@@ -64,7 +71,7 @@ const toFiniteNumber = (value: number | string | undefined) => {
 export default function DriverOrders() {
   const router = useRouter();
   const { user } = useAuth();
-  const { palette } = useTheme();
+  const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
   const [orders, setOrders] = useState<DriverOrder[]>([]);
@@ -137,6 +144,23 @@ export default function DriverOrders() {
     }
   }, [load, loadDriverLocation]);
 
+  const formatOrderDate = useCallback((value?: string) => {
+    if (!value) return "";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+
+    return date.toLocaleString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }, []);
+
   useEffect(() => {
     load();
     loadDriverLocation();
@@ -205,7 +229,7 @@ export default function DriverOrders() {
   );
 
   const formatDuration = useCallback((startAt?: string, endAt?: string) => {
-    if (!startAt) return "-";
+    if (!startAt) return "";
 
     const start = new Date(startAt).getTime();
     const end = endAt ? new Date(endAt).getTime() : now;
@@ -219,9 +243,9 @@ export default function DriverOrders() {
     const minutes = totalMinutes % 60;
     const seconds = totalSeconds % 60;
 
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-    return `${minutes}m ${seconds}s`;
+    if (days > 0) return isRTL ? `${days}ي ${hours}س` : `${days}d ${hours}h`;
+    if (hours > 0) return isRTL ? `${hours}س ${minutes}د ${seconds}ث` : `${hours}h ${minutes}m ${seconds}s`;
+    return isRTL ? `${minutes}د ${seconds}ث` : `${minutes}m ${seconds}s`;
   }, [now]);
 
   const getStatusTime = useCallback((order: DriverOrder, status: string) => {
@@ -474,11 +498,79 @@ export default function DriverOrders() {
           return (
             <View style={styles.card}>
               <View style={styles.cardRow}>
-                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                {/* <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
                   <Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text>
+                </View> */}
+
+                <View style={{ flexDirection: 'row', gap: 15, marginBottom: 10, alignItems: 'center' }}>
+                  <View style={[{
+                    borderWidth: 2,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderColor: palette.border
+                  },
+                  item.status && item.status === "PENDING" && { borderColor: '#ff7a1f', backgroundColor: 'rgba(255, 122, 31, 0.1)' },
+                  item.status && item.status === "PROCESSING" && { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
+                  item.status && item.status === "SHIPPING" && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' },
+                  item.status && item.status === "DELIVERED" && { borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' },
+                  item.status && item.status === "CANCELLED" && { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+                  ]}>
+                    {item.status && item.status === "PENDING" && <Entypo name="dots-three-horizontal" size={16} color="#ff7a1f" />}
+                    {item.status && item.status === "PROCESSING" && <Feather name="loader" size={20} color="#2563eb" />}
+                    {item.status && item.status === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
+                    {item.status && item.status === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
+                    {item.status && item.status === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
+                  </View>
+
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
+                      <Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text>
+                      <View style={styles.textSeperator}></View>
+                      <Text style={[
+                        styles.status,
+                        // item.status && item.status === "PENDING" && { color: '#ff7a1f' },
+                        // item.status && item.status === "PROCESSING" && { color: '#2563eb' },
+                        // item.status && item.status === "SHIPPING" && { color: '#4f46e5' },
+                        // item.status && item.status === "DELIVERED" && { color: '#16a34a' },
+                        // item.status && item.status === "CANCELLED" && { color: '#ef4444' },
+                      ]}>
+                        {t(item.status) ?? item.status}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
+                      <Text style={styles.meta}>{formatOrderDate(item.createdAt)}</Text>
+
+                    </View>
+                  </View>
+
+                  {/* <View style={styles.arrow}>
+                    <Entypo
+                      name={isRTL ? "chevron-left" : "chevron-right"}
+                      size={24}
+                      color={palette.accent}
+                    />
+                  </View> */}
+                  <Text style={[styles.cardMeta, item.status !== "DELIVERED" && styles.elapsedValue]}>
+                    {getDeliveryDuration(item)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+                <Octicons name="location" size={24} color={palette.muted} style={{opacity:0.4}} />
+                <View style={{ gap: isRTL? 0 : 2, flex: 1 }}>
+                  <View style={{}}>
+                    <Text style={[styles.address]}>
+                      {item.address}
+                    </Text>
+                  </View>
+
                   <Text style={styles.cardDistance}>
                     {distanceLoading || routeDistanceLoading ? (
-                      <ActivityIndicator size="small" color="#000" />
+                      <Skeleton width={50} height={15} colorScheme={isDark ? "dark" : "light"} />
                     ) : (
                       <>
                         {driverRouteDistanceKm !== null ? formatDistanceKm(driverRouteDistanceKm) : "-"}{' '}
@@ -487,64 +579,52 @@ export default function DriverOrders() {
                     )}
                   </Text>
                 </View>
+              </View>
 
-                <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
-                  <Text style={[styles.status, item.status === "DELIVERED" && styles.doneStatus]}>{t(item.status) ?? item.status}</Text>
-                  <Text style={[styles.cardMeta, item.status !== "DELIVERED" && styles.elapsedValue]}>
-                    {getDeliveryDuration(item)}
-                  </Text>
+              <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+                <FontAwesome name="user-circle-o" size={24} color={palette.muted} style={{opacity:0.4}}/>
+
+                <View style={{ gap: 2 }}>
+                  <Text style={styles.addressLabel}>{getCustomerName(item)}</Text>
+                  <Text style={styles.addressLabel}>{getCustomerPhone(item)}</Text>
                 </View>
               </View>
-
-              <Text style={styles.cardSub}>{item.address}</Text>
+              {/* 
               <View style={styles.customerBox}>
-                <Text style={styles.customerName}>{getCustomerName(item)}</Text>
-                <Text style={styles.customerPhone}>{getCustomerPhone(item)}</Text>
-              </View>
 
-              <View style={styles.btnRow}>
-                {item.status === "PROCESSING" || item.status === "PENDING" ? (
-                  <>
+                <Text style={styles.customerName}></Text>
+                <Text style={styles.customerPhone}>{getCustomerPhone(item)}</Text>
+              </View> */}
+
+              {
+                ((item.status !== "DELIVERED" && getOrderCoordinate(item, "lat") !== undefined && getOrderCoordinate(item, "lng") !== undefined) ||
+                  (item.status === "PROCESSING") ||
+                  (isShipping)) &&
+
+                <View style={styles.btnRow}>
+                  {item.status !== "DELIVERED" && getOrderCoordinate(item, "lat") !== undefined && getOrderCoordinate(item, "lng") !== undefined ? (
                     <TouchableOpacity
                       style={styles.primaryBtn}
+                      onPress={() => openDirections(item)}
+                      disabled={updating[item._id]}
+                    >
+                      <Text style={styles.primaryBtnText}>{t("directions") ?? "Directions"}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  {item.status === "PROCESSING" &&
+                    <TouchableOpacity
+                      style={[styles.primaryBtn, { backgroundColor: palette.accent, borderColor: palette.accent }]}
                       onPress={() => startTracking(item)}
                       disabled={updating[item._id]}
                     >
-                      <Text style={styles.primaryBtnText}>
+                      <Text style={[styles.primaryBtnText, { color: 'white' }]}>
                         {updating[item._id] ? (t("starting") ?? "Starting...") : (t("startDelivery") ?? "Start delivery")}
                       </Text>
                     </TouchableOpacity>
-                    {getOrderCoordinate(item, "lat") !== undefined && getOrderCoordinate(item, "lng") !== undefined ? (
-                      <TouchableOpacity
-                        style={styles.directionsBtn}
-                        onPress={() => openDirections(item)}
-                        disabled={updating[item._id]}
-                      >
-                        <Text style={styles.directionsBtnText}>{t("directions") ?? "Directions"}</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </>
-                ) : null}
-                {isShipping ? (
-                  <>
-                    {/* <TouchableOpacity
-                      style={styles.ghostBtn}
-                      onPress={() => pushLocation(item._id)}
-                      disabled={updating[item._id]}
-                    >
-                      <Text style={styles.ghostBtnText}>
-                        {isTracking ? (t("trackingOn") ?? "Tracking") : (t("updateLocation") ?? "Update location")}
-                      </Text>
-                    </TouchableOpacity> */}
-                    {getOrderCoordinate(item, "lat") !== undefined && getOrderCoordinate(item, "lng") !== undefined ? (
-                      <TouchableOpacity
-                        style={styles.directionsBtn}
-                        onPress={() => openDirections(item)}
-                        disabled={updating[item._id]}
-                      >
-                        <Text style={styles.directionsBtnText}>{t("directions") ?? "Directions"}</Text>
-                      </TouchableOpacity>
-                    ) : null}
+                  }
+
+                  {isShipping &&
                     <TouchableOpacity
                       style={styles.dangerBtn}
                       onPress={() => markDelivered(item._id)}
@@ -554,9 +634,10 @@ export default function DriverOrders() {
                         {updating[item._id] ? (t("saving") ?? "Saving...") : (t("markDelivered") ?? "Mark delivered")}
                       </Text>
                     </TouchableOpacity>
-                  </>
-                ) : null}
-              </View>
+                  }
+                </View>
+              }
+
             </View>
           );
         }}
@@ -620,7 +701,8 @@ const createStyles = (palette: any, isRTL: boolean) =>
       alignItems: "center",
     },
     cardTitle: { color: palette.text, fontWeight: "800" },
-    status: { color: palette.accent, fontWeight: "700" },
+    textSeperator: { width: 3, height: 3, borderRadius: 20, backgroundColor: palette.text },
+    status: { color: palette.text, fontWeight: "700" },
     doneStatus: { color: "#16a34a" },
 
     cardMeta: { color: palette.muted, fontWeight: "600", fontSize: 12 },
@@ -643,10 +725,35 @@ const createStyles = (palette: any, isRTL: boolean) =>
       fontSize: 12,
       fontWeight: "500",
       letterSpacing: 0.5,
-
     },
+    address: {
+      color: palette.text,
+      fontSize: 12,
+      fontWeight: "600",
+      letterSpacing: 0.5,
+      lineHeight:22
+    },
+    arrow: {
+      // position: "absolute",
+      // top: 8,
+      // right: isRTL ? "auto" : 12,
+      // left: isRTL ? 12 : "auto",
+      height: 40,
+      width: 40,
+      justifyContent: 'center',
+      alignItems: 'flex-end',
+    },
+    meta: { color: palette.muted, fontSize: 12, lineHeight: 16, fontWeight: '500', opacity: 0.6 },
     customerBox: {
-      gap: 3,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10
+    },
+    addressLabel: {
+      color: palette.text,
+      fontWeight: "600",
+      fontSize: 14,
+      lineHeight: 18,
     },
     customerName: {
       color: palette.text,
@@ -670,27 +777,30 @@ const createStyles = (palette: any, isRTL: boolean) =>
     },
     cardDistance: {
       fontSize: 12,
-      color: palette.text,
-      fontWeight: "600",
-      textAlign: isRTL ? "right" : "left",
-      writingDirection: isRTL ? "rtl" : "ltr",
-      paddingHorizontal: 5,
-      paddingVertical: 3,
-      borderRadius: 10,
-      backgroundColor: palette.surface,
+      color: palette.accent,
+      fontWeight: "700",
+      // textAlign: isRTL ? "right" : "left",
+      // writingDirection: isRTL ? "rtl" : "ltr",
+      // paddingHorizontal: 5,
+      // paddingVertical: 3,
+      // borderRadius: 10,
+      // backgroundColor: palette.surface,
       lineHeight: 14,
     },
     elapsedValue: {
       color: palette.accent,
+      writingDirection: isRTL?'rtl':'ltr'
     },
-    btnRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
+    btnRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     primaryBtn: {
-      backgroundColor: palette.accent,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
       borderRadius: 10,
+      flex: 1,
+      borderWidth: 1,
+      borderColor: palette.border,
     },
-    primaryBtnText: { color: "#fff", fontWeight: "700" },
+    primaryBtnText: { color: palette.text, fontWeight: "700", textAlign: 'center' },
     ghostBtn: {
       borderWidth: 1,
       borderColor: palette.border,
@@ -700,17 +810,23 @@ const createStyles = (palette: any, isRTL: boolean) =>
     },
     ghostBtnText: { color: palette.text, fontWeight: "700" },
     directionsBtn: {
-      backgroundColor: "#2563eb",
-      paddingVertical: 10,
-      paddingHorizontal: 14,
+      backgroundColor: palette.accent,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
       borderRadius: 10,
+      flex: 1,
     },
-    directionsBtnText: { color: "#fff", fontWeight: "700" },
+    directionsBtnText: {
+      color: "#fff",
+      fontWeight: "700",
+      textAlign: 'center'
+    },
     dangerBtn: {
-      backgroundColor: "#ef4444",
-      paddingVertical: 10,
-      paddingHorizontal: 14,
+      backgroundColor: "#16a34a",
+      paddingVertical: 5,
+      paddingHorizontal: 10,
       borderRadius: 10,
+      flex: 1,
     },
-    dangerBtnText: { color: "#fff", fontWeight: "700" },
+    dangerBtnText: { color: "#fff", fontWeight: "700", textAlign: 'center' },
   });

@@ -252,7 +252,7 @@ const createStyles = (palette: any, isDark: any, isRTL: boolean) =>
       borderColor: palette.border,
       textAlign: isRTL ? "right" : "left"
     },
-    toggle: { position: "absolute", alignSelf: "flex-end", top: 12, right: isRTL ? undefined : 10, left: isRTL ? 10 : undefined },
+    toggle: { position: "absolute", alignSelf: "flex-end", top: 12, right: 10 },
     error: { color: "#f87171" },
     row: { flexDirection: "row", justifyContent: "space-between" },
     link: { color: palette.accent },

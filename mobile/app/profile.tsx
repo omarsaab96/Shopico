@@ -138,11 +138,11 @@ export default function Profile() {
                   </View>
                   <Text style={[styles.muted,{textAlign:'left'}]}>{user?.email}</Text>
                 </View>
-                <View>
+                {/* <View>
                   <TouchableOpacity style={styles.btn} onPress={() => { handleEdit() }}>
                     <Feather name="edit-3" size={20} color="#fff" />
                   </TouchableOpacity>
-                </View>
+                </View> */}
               </View>
 
               {/* <Text style={styles.muted}>
@@ -150,7 +150,7 @@ export default function Profile() {
               </Text> */}
 
               <View style={{ borderTopWidth: 1, borderColor: palette.border, flexDirection:'row' }}>
-                <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBox, isRTL ? styles.borderLeft :styles.borderRight]}>
+                <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBox, styles.borderRight]}>
                   <Text style={[styles.muted]}>
                     {t("pointsBalance")}
                     {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
@@ -268,7 +268,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     profileLinks: {
       borderWidth: 1,
       borderColor: palette.border,
-      borderRadius: 20
+      borderRadius: 20,
+      backgroundColor:palette.card
     },
     profileLink: {
       paddingVertical: 10,

@@ -1067,10 +1067,12 @@ export default function Home() {
     sublabel?: string
   ) => (
     <View style={styles.driverStatCard}>
-      <View style={[styles.driverStatIcon, { backgroundColor: `${tone}1A` }]}>
-        <Feather name={icon} size={20} color={tone} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap:10 }}>
+        <View style={[styles.driverStatIcon, { backgroundColor: `${tone}1A` }]}>
+          <Feather name={icon} size={20} color={tone} />
+        </View>
+        <Text style={[styles.driverStatLabel,{color:tone}]}>{label}</Text>
       </View>
-      <Text style={styles.driverStatLabel}>{label}</Text>
       <Text style={styles.driverStatValue} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
@@ -1124,9 +1126,10 @@ export default function Home() {
         )}
         {renderDriverStatCard(
           t("cashCollected") ?? "Cash collected",
-          `${driverDashboard.cashCollected.toLocaleString()} ${t("syp")}`,
+          `${driverDashboard.cashCollected.toLocaleString()}`,
           "dollar-sign",
-          palette.accent
+          palette.accent,
+          `${t("syp")}`
         )}
       </View>
     </ScrollView>
@@ -1708,7 +1711,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     safe: {
       flex: 1,
       backgroundColor: palette.accent,
-      paddingTop: insets.top+15,
+      paddingTop: insets.top + 15,
       writingDirection: isRTL ? "rtl" : "ltr",
       direction: isRTL ? "rtl" : "ltr",
     },
@@ -1734,7 +1737,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     stickyHeroWrap: {
       backgroundColor: palette.accent,
-      zIndex: 2,
+      // zIndex: 1,
       // marginHorizontal: -16,
       paddingHorizontal: 16,
       paddingBottom: 10,
@@ -1763,9 +1766,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       padding: 16,
       paddingBottom: 24 + insets.bottom,
       gap: 16,
+
     },
     driverDashboardHeader: {
-      flexDirection: row,
+      flexDirection: 'row',
       alignItems: "center",
       justifyContent: "space-between",
       gap: 12,
@@ -1774,14 +1778,15 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       color: palette.text,
       fontSize: 22,
       fontWeight: "900",
-      textAlign: align,
+      lineHeight: 40,
+      // textAlign: align,
     },
     driverDashboardSubtitle: {
       color: palette.muted,
       fontSize: 13,
       fontWeight: "700",
-      marginTop: 4,
-      textAlign: align,
+      lineHeight: 18,
+      // textAlign: align,
     },
     driverRefreshBtn: {
       width: 42,
@@ -1794,7 +1799,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "center",
     },
     driverStatsGrid: {
-      flexDirection: row,
+      flexDirection: 'row',
       flexWrap: "wrap",
       gap: 12,
     },
@@ -1807,7 +1812,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       borderWidth: 1,
       borderColor: hairline,
       padding: 14,
-      gap: 8,
       ...cardShadow,
     },
     driverStatIcon: {
@@ -1821,19 +1825,18 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       color: palette.muted,
       fontSize: 12,
       fontWeight: "800",
-      textAlign: align,
+      // textAlign: align,
     },
     driverStatValue: {
       color: palette.text,
       fontSize: 24,
       fontWeight: "900",
-      textAlign: align,
+      // textAlign: align,
     },
     driverStatSub: {
       color: palette.muted,
       fontSize: 11,
       fontWeight: "700",
-      textAlign: align,
     },
 
     topBar: {
@@ -1890,8 +1893,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       gap: 10,
       flex: 1,
       minWidth: 0,
-      paddingLeft: isRTL ? 0 : 10,
-      paddingRight: isRTL ? 10 : 0
+      paddingLeft: 10,
     },
     locationTextWrap: {
       flex: 1,
@@ -1905,8 +1907,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       width: 1,
       backgroundColor: 'white',
       top: 5,
-      right: isRTL ? 'auto' : -11,
-      left: isRTL ? -11 : 'auto',
+      right: -11,
       opacity: 0.5
     },
     branchPromptBackdrop: {
@@ -2179,7 +2180,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       position: 'absolute',
       bottom: 0
     },
-    productPrice: { color: palette.accent, fontWeight: "900", fontSize: 18, lineHeight: 16 },
+    productPrice: { color: palette.accent, fontWeight: "900", fontSize: 18, lineHeight: 22 },
 
     addBtn: {
       backgroundColor: palette.accent,
@@ -2319,7 +2320,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       padding: 12,
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: hairline,
+      borderColor: 'hairline',
       backgroundColor: palette.surface,
       marginBottom: 10,
       gap: 6,

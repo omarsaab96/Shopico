@@ -180,7 +180,6 @@ export default function Orders() {
             <Link href={`/orders/${item._id}`} asChild>
               <TouchableOpacity style={styles.row}>
                 <View style={{ flexDirection: 'row', gap: 15, marginBottom: 10, alignItems: 'center' }}>
-
                   <View style={[{
                     borderWidth: 2,
                     width: 40,
@@ -286,6 +285,10 @@ const createStyles = (palette: any, isRTL: boolean) =>
       // gap: 0,
     },
 
+
+
+    name: { color: palette.text, fontWeight: "700", lineHeight: 14, fontSize: 14 },
+    muted: { color: palette.muted },
     arrow: {
       // position: "absolute",
       // top: 8,
@@ -296,9 +299,6 @@ const createStyles = (palette: any, isRTL: boolean) =>
       justifyContent: 'center',
       alignItems: 'flex-end',
     },
-
-    name: { color: palette.text, fontWeight: "700", lineHeight: 14, fontSize: 14 },
-    muted: { color: palette.muted },
     meta: { color: palette.muted, fontSize: 12, lineHeight: 16, fontWeight: '500', opacity: 0.6 },
     textSeperator: { width: 3, height: 3, borderRadius: 20, backgroundColor: palette.text },
     status: { color: palette.muted, fontSize: 12, lineHeight: 16, fontWeight: '600' },
