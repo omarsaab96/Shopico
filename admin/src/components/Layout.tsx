@@ -87,11 +87,12 @@ const Layout = () => {
                 {selectedBranch ? ` • ` : ""}
               </div>
               {/* <div className="brand-sub">Admin</div> */}
-              {branches.length > 1 && selectedBranchId && (
+              {selectedBranchId && (
                 <select
                   className="filter-select branchselector"
                   value={selectedBranchId}
                   onChange={(e) => setSelectedBranchId(e.target.value)}
+                  disabled={branches.length <= 1}
                 >
                   {branches.map((branch) => (
                     <option key={branch._id} value={branch._id}>

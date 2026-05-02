@@ -6,6 +6,7 @@ import { deleteBranch, fetchBranches, saveBranch } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useAuth } from "../context/AuthContext";
+import { useBranch } from "../context/BranchContext";
 
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 const DEFAULT_CENTER = { lat: 33.5138, lng: 36.2765 };
@@ -179,11 +180,11 @@ const BranchLocationPicker = ({
         <button
           className="ghost-btn flex"
           type="button"
-          style={{ margin: 0, minWidth: 170 }}
+          style={{ margin: 0, gap: 5, alignItems: 'center' }}
           onClick={useCurrentLocation}
           disabled={locationLoading}
         >
-          {locationLoading && <div className="spinner small" />} {t("branches.useCurrentLocation")}
+          {locationLoading ? <div className="spinner small" /> : <div className="currentLocIcon" />} {t("branches.useCurrentLocation")}
         </button>
       </div>
 
@@ -237,6 +238,7 @@ const BranchesPage = () => {
   const { t } = useI18n();
   const { can } = usePermissions();
   const { refreshProfile } = useAuth();
+  const { refreshBranches } = useBranch();
   const canManage = can("branches:manage");
   const canView = can("branches:view") || canManage;
   const [mapsReady, setMapsReady] = useState(false);
@@ -275,6 +277,7 @@ const BranchesPage = () => {
       const saved = await saveBranch(draft);
       setBranches((prev) => [saved, ...prev]);
       await refreshProfile();
+      await refreshBranches();
       setDraft({ isActive: true, deliveryRadiusKm: 5 });
       setShowNewModal(false);
       load(getFilterParams());
@@ -307,6 +310,7 @@ const BranchesPage = () => {
       });
       const normalized = { ...saved, isActive: normalizeBoolean(saved.isActive, true) };
       setBranches((prev) => prev.map((b) => (b._id === saved._id ? normalized : b)));
+      await refreshBranches();
       setEditingId(null);
       setEditDraft({});
       load(getFilterParams());
@@ -337,6 +341,12 @@ const BranchesPage = () => {
   const resetFilters = () => {
     setSearchTerm("");
     load();
+  };
+
+  const removeBranch = async (id: string) => {
+    await deleteBranch(id);
+    await refreshBranches();
+    load(getFilterParams());
   };
 
   useEffect(() => {
@@ -488,7 +498,7 @@ const BranchesPage = () => {
                         <button className="ghost-btn" onClick={cancelEdit}>
                           {t("cancel")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deleteBranch(branch._id).then(() => load(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={() => removeBranch(branch._id)}>
                           {t("delete")}
                         </button>
                         {editError && <div className="error">{editError}</div>}
@@ -498,7 +508,7 @@ const BranchesPage = () => {
                         <button className="ghost-btn mr-10" onClick={() => startEdit(branch)}>
                           {t("edit")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deleteBranch(branch._id).then(() => load(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={() => removeBranch(branch._id)}>
                           {t("delete")}
                         </button>
                       </div>
@@ -524,15 +534,15 @@ const BranchesPage = () => {
             </div>
             <form className="form" onSubmit={submit}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <label style={{ flex:1 }}>
+                <label style={{ flex: 1 }}>
                   {t("name")}
                   <input value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
                 </label>
-                <label style={{ flex:1 }}>
+                <label style={{ flex: 1 }}>
                   {t("phone")}
                   <input value={draft.phone || ""} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
                 </label>
-                <label style={{ flex:1 }}>
+                <label style={{ flex: 1 }}>
                   {t("deliveryRadiusKm")}
                   <input
                     type="number"

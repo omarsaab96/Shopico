@@ -1234,6 +1234,26 @@ nav::-webkit-scrollbar {
   margin-bottom: 6px;
 }
 
+.branch-required {
+  max-width: 560px;
+  margin: 56px auto;
+}
+
+.branch-required .empty-title {
+  font-size: 20px;
+}
+
+.branch-required p {
+  margin: 0 0 18px;
+  line-height: 1.5;
+}
+
+.branch-required-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .pagination {
   display: flex;
   justify-content: space-between;
@@ -1885,8 +1905,10 @@ nav::-webkit-scrollbar {
 }
 
 .spinner.small {
-  height: 20px;
-  width: 20px;
+  height: 18px;
+  width: 18px;
+  border: 2px solid transparent;
+  border-top: 2px solid black;
 }
 
 .loaderText {
@@ -1976,4 +1998,13 @@ html[dir="rtl"] .onHoverEdit::after {
 html[dir="rtl"] .unassignLabel {
   direction: rtl;
   text-align: right;
+}
+
+.currentLocIcon{
+  width:18px;
+  height:18px;
+  background-image: url(../public/locate.png);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
 }

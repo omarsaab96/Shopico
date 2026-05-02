@@ -4,6 +4,7 @@ import Layout from "./components/Layout";
 import { useAuth } from "./context/AuthContext";
 import { useI18n } from "./context/I18nContext";
 import RequirePermission from "./components/RequirePermission";
+import RequireBranch from "./components/RequireBranch";
 
 const LoginPage = lazy(() => import("./pages/Login"));
 const DashboardPage = lazy(() => import("./pages/Dashboard"));
@@ -37,6 +38,10 @@ const RouteLoader = () => {
   );
 };
 
+const BranchScoped = ({ children }: { children: ReactElement }) => (
+  <RequireBranch>{children}</RequireBranch>
+);
+
 const App = () => {
   return (
     <BrowserRouter>
@@ -55,7 +60,9 @@ const App = () => {
               index
               element={
                 <RequirePermission anyOf={["dashboard:view"]}>
-                  <DashboardPage />
+                  <BranchScoped>
+                    <DashboardPage />
+                  </BranchScoped>
                 </RequirePermission>
               }
             />
@@ -63,7 +70,9 @@ const App = () => {
               path="products"
               element={
                 <RequirePermission anyOf={["products:view"]}>
-                  <ProductsPage />
+                  <BranchScoped>
+                    <ProductsPage />
+                  </BranchScoped>
                 </RequirePermission>
               }
             />
@@ -71,7 +80,9 @@ const App = () => {
               path="categories"
               element={
                 <RequirePermission anyOf={["categories:view"]}>
-                  <CategoriesPage />
+                  <BranchScoped>
+                    <CategoriesPage />
+                  </BranchScoped>
                 </RequirePermission>
               }
             />
@@ -79,7 +90,9 @@ const App = () => {
               path="orders"
               element={
                 <RequirePermission anyOf={["orders:view"]}>
-                  <OrdersPage />
+                  <BranchScoped>
+                    <OrdersPage />
+                  </BranchScoped>
                 </RequirePermission>
               }
             />
@@ -87,7 +100,9 @@ const App = () => {
               path="orders/:id"
               element={
                 <RequirePermission anyOf={["orders:view"]}>
-                  <OrderDetailsPage />
+                  <BranchScoped>
+                    <OrderDetailsPage />
+                  </BranchScoped>
                 </RequirePermission>
               }
             />
@@ -95,7 +110,9 @@ const App = () => {
               path="users"
               element={
                 <RequirePermission anyOf={["users:view"]}>
-                  <UsersPage />
+                  <BranchScoped>
+                    <UsersPage />
+                  </BranchScoped>
                 </RequirePermission>
               }
             />
@@ -103,7 +120,9 @@ const App = () => {
               path="wallet"
               element={
                 <RequirePermission anyOf={["wallet:topups:view"]}>
-                  <WalletPage />
+                  <BranchScoped>
+                    <WalletPage />
+                  </BranchScoped>
                 </RequirePermission>
               }
             />
@@ -111,7 +130,9 @@ const App = () => {
               path="announcements"
               element={
                 <RequirePermission anyOf={["announcements:view"]}>
-                  <AnnouncementsPage />
+                  <BranchScoped>
+                    <AnnouncementsPage />
+                  </BranchScoped>
                 </RequirePermission>
               }
             />
@@ -119,7 +140,9 @@ const App = () => {
               path="coupons"
               element={
                 <RequirePermission anyOf={["coupons:view"]}>
-                  <CouponsPage />
+                  <BranchScoped>
+                    <CouponsPage />
+                  </BranchScoped>
                 </RequirePermission>
               }
             />
@@ -127,7 +150,9 @@ const App = () => {
               path="settings"
               element={
                 <RequirePermission anyOf={["settings:view"]}>
-                  <SettingsPage />
+                  <BranchScoped>
+                    <SettingsPage />
+                  </BranchScoped>
                 </RequirePermission>
               }
             />

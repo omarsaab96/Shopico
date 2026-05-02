@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { Branch } from "../types/api";
 import { fetchMyBranches } from "../api/client";
 import { useAuth } from "./AuthContext";
@@ -8,6 +8,7 @@ interface BranchContextValue {
   selectedBranchId: string | null;
   selectedBranch: Branch | null;
   setSelectedBranchId: (id: string) => void;
+  refreshBranches: () => Promise<void>;
   loading: boolean;
 }
 
@@ -21,6 +22,32 @@ export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
   );
   const [loading, setLoading] = useState(false);
 
+  const refreshBranches = useCallback(async () => {
+    if (authLoading || !user) {
+      setBranches([]);
+      setSelectedBranchIdState(null);
+      localStorage.removeItem("branchId");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const list = await fetchMyBranches();
+      setBranches(list);
+      const allowedIds = list.map((b) => b._id);
+      const stored = localStorage.getItem("branchId");
+      const next =
+        (stored && allowedIds.includes(stored) ? stored : null) ||
+        allowedIds[0] ||
+        null;
+      setSelectedBranchIdState(next);
+      if (next) localStorage.setItem("branchId", next);
+      else localStorage.removeItem("branchId");
+    } finally {
+      setLoading(false);
+    }
+  }, [authLoading, user]);
+
   useEffect(() => {
     if (authLoading) {
       return;
@@ -32,24 +59,8 @@ export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    setLoading(true);
-    fetchMyBranches()
-      .then((list) => {
-        setBranches(list);
-        const allowedIds = list.map((b) => b._id);
-        const stored = localStorage.getItem("branchId");
-        const current = selectedBranchId;
-        const next =
-          (stored && allowedIds.includes(stored) ? stored : null) ||
-          (current && allowedIds.includes(current) ? current : null) ||
-          allowedIds[0] ||
-          null;
-        setSelectedBranchIdState(next);
-        if (next) localStorage.setItem("branchId", next);
-        else localStorage.removeItem("branchId");
-      })
-      .finally(() => setLoading(false));
-  }, [authLoading, user?._id]);
+    refreshBranches();
+  }, [authLoading, refreshBranches, user]);
 
   const setSelectedBranchId = (id: string) => {
     setSelectedBranchIdState(id);
@@ -62,7 +73,7 @@ export const BranchProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   return (
-    <BranchContext.Provider value={{ branches, selectedBranchId, selectedBranch, setSelectedBranchId, loading }}>
+    <BranchContext.Provider value={{ branches, selectedBranchId, selectedBranch, setSelectedBranchId, refreshBranches, loading }}>
       {children}
     </BranchContext.Provider>
   );
