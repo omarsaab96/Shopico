@@ -8,17 +8,35 @@ import { Address } from "../models/Address";
 import { sendSuccess } from "../utils/response";
 import { createUserSchema, updateUserBranchesSchema, updateUserPermissionsSchema, updateUserSchema } from "../validators/userValidators";
 import { AuditLog } from "../models/AuditLog";
+import { UserRole } from "../types";
+
+const getVisibleUserRoles = (role?: UserRole): UserRole[] => {
+  if (role === "admin") return ["admin", "manager", "staff", "driver", "customer"];
+  if (role === "manager") return ["staff", "driver", "customer"];
+  if (role === "staff") return ["driver", "customer"];
+  if (role === "driver") return ["driver"];
+  return ["customer"];
+};
 
 const getScopedUserFilter = (req: any, baseFilter: Record<string, unknown> = {}) => {
+  const visibleRoles = getVisibleUserRoles(req.user?.role);
   if (req.user?.role === "admin") return baseFilter;
-  return { ...baseFilter, role: { $ne: "admin" } };
+  return { ...baseFilter, role: { $in: visibleRoles } };
+};
+
+const canUseRole = (req: any, role?: UserRole) => {
+  if (!role) return true;
+  return getVisibleUserRoles(req.user?.role).includes(role);
 };
 
 export const listUsers = catchAsync(async (req, res) => {
   const { q, role } = req.query as { q?: string; role?: string };
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const filter: Record<string, unknown> = getScopedUserFilter(req, { branchIds: req.branchId });
-  if (role) filter.role = role;
+  if (role) {
+    if (!canUseRole(req, role as UserRole)) return sendSuccess(res, []);
+    filter.role = role;
+  }
   if (q) {
     filter.$or = [
       { name: { $regex: q, $options: "i" } },
@@ -46,6 +64,9 @@ export const getUserDetails = catchAsync(async (req, res) => {
 
 export const createUser = catchAsync(async (req, res) => {
   const payload = createUserSchema.parse(req.body);
+  if (!canUseRole(req, payload.role)) {
+    return res.status(403).json({ success: false, message: "Cannot create this type of user" });
+  }
   const existing = await User.findOne({ email: payload.email.toLowerCase() });
   if (existing) return res.status(400).json({ success: false, message: "Email already registered" });
   if (!req.branchId && (!payload.branchIds || payload.branchIds.length === 0)) {
@@ -108,6 +129,9 @@ export const updateUserBranches = catchAsync(async (req, res) => {
 export const updateUser = catchAsync(async (req, res) => {
   const payload = updateUserSchema.parse(req.body);
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  if (!canUseRole(req, payload.role)) {
+    return res.status(403).json({ success: false, message: "Cannot assign this user role" });
+  }
 
   if (payload.email) {
     const exists = await User.findOne({ email: payload.email.toLowerCase(), _id: { $ne: req.params.id } });

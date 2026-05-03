@@ -19,6 +19,16 @@ interface UserDetails {
 const USER_ABOUT_VIEW_PERMISSIONS = ["users:about:view"] as const;
 const USER_BRANCHES_VIEW_PERMISSIONS = ["users:branches:view"] as const;
 const USER_PERMISSIONS_VIEW_PERMISSIONS = ["users:permissions:view"] as const;
+const ROLE_ORDER: ApiUser["role"][] = ["customer", "staff", "manager", "driver", "admin"];
+const CREATE_ROLE_ORDER: ApiUser["role"][] = ["customer", "staff", "manager", "driver"];
+
+const getVisibleUserRoles = (role?: ApiUser["role"]): ApiUser["role"][] => {
+  if (role === "admin") return ["admin", "manager", "staff", "driver", "customer"];
+  if (role === "manager") return ["staff", "driver", "customer"];
+  if (role === "staff") return ["driver", "customer"];
+  if (role === "driver") return ["driver"];
+  return ["customer"];
+};
 
 const UsersPage = () => {
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -75,6 +85,10 @@ const UsersPage = () => {
   const canCreateAuditPermission = createDraft.role === "admin";
   const selectedSupportsPermissions = selected?.user?.role !== "customer";
   const createRoleSupportsPermissions = createDraft.role !== "customer";
+  const visibleRoleOptions = getVisibleUserRoles(currentUser?.role);
+  const filterRoleOptions = ROLE_ORDER.filter((role) => visibleRoleOptions.includes(role));
+  const createRoleOptions = CREATE_ROLE_ORDER.filter((role) => visibleRoleOptions.includes(role));
+  const defaultCreateRole = createRoleOptions[0] || "customer";
 
   const getDefaultDetailTab = (): "about" | "ledger" | "branches" | "permissions" => {
     if (canViewUserAbout) return "about";
@@ -192,7 +206,7 @@ const UsersPage = () => {
     setCreateDraft({
       name: "",
       email: "",
-      role: "staff",
+      role: defaultCreateRole,
       phone: "",
       permissions: [],
       branchIds: selectedBranchId ? [selectedBranchId] : [],
@@ -375,10 +389,9 @@ const UsersPage = () => {
             />
             <select className="filter-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
               <option value="">{t("role")}</option>
-              <option value="customer">{t("role.customer")}</option>
-              <option value="staff">{t("role.staff")}</option>
-              <option value="manager">{t("role.manager")}</option>
-              <option value="driver">{t("role.driver") ?? "Driver"}</option>
+              {filterRoleOptions.map((role) => (
+                <option value={role} key={role}>{t(`role.${role}`) || role}</option>
+              ))}
             </select>
             <button className="ghost-btn" type="button" onClick={loadUsers}>
               {t("filter")}
@@ -546,10 +559,9 @@ const UsersPage = () => {
                           value={editDraft.role}
                           onChange={(e) => setEditDraft((prev) => ({ ...prev, role: e.target.value as ApiUser["role"] }))}
                         >
-                          <option value="customer">{t("role.customer")}</option>
-                          <option value="staff">{t("role.staff")}</option>
-                          <option value="manager">{t("role.manager")}</option>
-                          <option value="driver">{t("role.driver") ?? "Driver"}</option>
+                          {filterRoleOptions.map((role) => (
+                            <option value={role} key={role}>{t(`role.${role}`) || role}</option>
+                          ))}
                         </select>
                       ) : (
                         selected.user.role
@@ -843,10 +855,9 @@ const UsersPage = () => {
                   <label>
                     {t("role")}
                     <select value={createDraft.role} onChange={(e) => setCreateDraft({ ...createDraft, role: e.target.value })}>
-                      <option value="customer">{t("role.customer")}</option>
-                      <option value="staff">{t("role.staff")}</option>
-                      <option value="manager">{t("role.manager")}</option>
-                      <option value="driver">{t("role.driver") ?? "Driver"}</option>
+                      {createRoleOptions.map((role) => (
+                        <option value={role} key={role}>{t(`role.${role}`) || role}</option>
+                      ))}
                     </select>
                   </label>
                   <label>
