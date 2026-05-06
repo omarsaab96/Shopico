@@ -470,6 +470,11 @@ const extraBaseStrings: Record<string, string> = {
   simulating: "Simulating",
   usingLocation: "Using your location",
   confirmCouponSelection: "Coupon already selected",
+  cartUpdated: "Cart updated",
+  unavailable: "Unavailable",
+  cartItemUnavailable: "This item is no longer available.",
+  removeUnavailableItemsBeforeCheckout: "Remove or replace unavailable items before checkout.",
+  replace: "Replace",
 };
 
 const extraArStrings: Record<string, string> = {
@@ -507,6 +512,11 @@ const extraArStrings: Record<string, string> = {
   simulating: "جارٍ المحاكاة",
   usingLocation: "يتم استخدام موقعك",
   confirmCouponSelection: "تم اختيار هذا الكوبون بالفعل",
+  cartUpdated: "\u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u0633\u0644\u0629",
+  unavailable: "\u063a\u064a\u0631 \u0645\u062a\u0648\u0641\u0631",
+  cartItemUnavailable: "\u0647\u0630\u0627 \u0627\u0644\u0645\u0646\u062a\u062c \u0644\u0645 \u064a\u0639\u062f \u0645\u062a\u0648\u0641\u0631\u0627.",
+  removeUnavailableItemsBeforeCheckout: "\u064a\u0631\u062c\u0649 \u0625\u0632\u0627\u0644\u0629 \u0623\u0648 \u0627\u0633\u062a\u0628\u062f\u0627\u0644 \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a \u063a\u064a\u0631 \u0627\u0644\u0645\u062a\u0648\u0641\u0631\u0629 \u0642\u0628\u0644 \u0625\u062a\u0645\u0627\u0645 \u0627\u0644\u0637\u0644\u0628.",
+  replace: "\u0627\u0633\u062a\u0628\u062f\u0627\u0644",
   driver: "السائق",
   off: "خصم",
   orderPlaced: "تم إنشاء الطلب",

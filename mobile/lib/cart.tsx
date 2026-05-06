@@ -7,6 +7,7 @@ export interface CartItem {
   price: number;
   image?: string;
   quantity: number;
+  unavailable?: boolean;
 }
 
 interface CartContextValue {
@@ -45,7 +46,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const addItem = (item: CartItem) => {
     const existing = items.find((i) => i.productId === item.productId);
     if (existing) {
-      const next = items.map((i) => (i.productId === item.productId ? { ...i, quantity: i.quantity + item.quantity } : i));
+      const next = items.map((i) => (i.productId === item.productId ? { ...item, quantity: i.unavailable ? item.quantity : i.quantity + item.quantity } : i));
       return persist(next);
     }
     persist([...items, item]);

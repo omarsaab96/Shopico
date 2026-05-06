@@ -9,7 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
 import Text from "../components/Text";
-import { useCart } from "../lib/cart";
+import { CartItem, useCart } from "../lib/cart";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
@@ -66,10 +66,12 @@ export default function CartScreen() {
   const [showSuccessContent, setShowSuccessContent] = useState(false);
   const [hideFooter, setHideFooter] = useState(false);
   const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
-  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const unavailableItems = items.filter((item) => item.unavailable);
+  const hasUnavailableItems = unavailableItems.length > 0;
+  const subtotal = items.reduce((sum, i) => (i.unavailable ? sum : sum + i.price * i.quantity), 0);
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
-  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL]);
+  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
   const renderBackdrop = useMemo(() => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
   const addressRefreshOnVisit = useRef(false);
   const contentAnim = useRef(new Animated.Value(1)).current;
@@ -100,41 +102,33 @@ export default function CartScreen() {
   const syncCartWithServer = useCallback(async () => {
     if (!user || !items.length) return { ok: true, changed: false };
     const before = items
-      .map((item) => `${item.productId}:${item.quantity}:${item.price}`)
+      .map((item) => `${item.productId}:${item.quantity}:${item.price}:${item.unavailable ? "off" : "on"}`)
       .sort()
       .join("|");
     setCartSyncLoading(true);
     try {
       const res = await api.post("/cart/sync", {
-        items: items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        items: items
+          .filter((item) => !item.unavailable)
+          .map((item) => ({ productId: item.productId, quantity: item.quantity })),
       });
       const data = res.data.data || {};
-      const syncedItems = Array.isArray(data.items) ? data.items : [];
-      const after = syncedItems
-        .map((item: any) => `${item.productId}:${item.quantity}:${item.price}`)
+      const syncedItems: CartItem[] = Array.isArray(data.items)
+        ? data.items.map((item: CartItem) => ({ ...item, unavailable: false }))
+        : [];
+      const removedIds = new Set((Array.isArray(data.removedItems) ? data.removedItems : []).map((item: any) => item.productId));
+      const syncedIds = new Set(syncedItems.map((item) => item.productId));
+      const unavailableLocalItems = items
+        .filter((item) => item.unavailable || removedIds.has(item.productId))
+        .filter((item) => !syncedIds.has(item.productId))
+        .map((item) => ({ ...item, unavailable: true }));
+      const nextItems = [...syncedItems, ...unavailableLocalItems];
+      const after = nextItems
+        .map((item) => `${item.productId}:${item.quantity}:${item.price}:${item.unavailable ? "off" : "on"}`)
         .sort()
         .join("|");
-      const changed = before !== after || (Array.isArray(data.removedItems) && data.removedItems.length > 0);
-      replaceItems(syncedItems);
-      if (Array.isArray(data.removedItems) && data.removedItems.length > 0) {
-        const removedNames = data.removedItems
-          .map((item: any) => item.name)
-          .filter(Boolean)
-          .join(", ");
-        Alert.alert(
-          t("cartUpdated") ?? "Cart updated",
-          removedNames
-            ? `${removedNames} ${t("cartItemNoLongerAvailable") ?? "is no longer available and was removed from your cart."}`
-            : t("cartUnavailableItemsRemoved") ?? "Some items were removed because they are no longer available."
-        );
-      }
-      if (syncedItems.length === 0) {
-        Alert.alert(
-          t("emptyCartTitle") ?? "Your cart is empty",
-          t("cartNoAvailableItems") ?? "The products in your cart are no longer available."
-        );
-        return { ok: false, changed: true };
-      }
+      const changed = before !== after;
+      if (changed) replaceItems(nextItems);
       return { ok: true, changed };
     } catch (err: any) {
       Alert.alert(t("checkout") ?? "Checkout", err?.response?.data?.message || err?.message || "Could not refresh cart");
@@ -143,6 +137,16 @@ export default function CartScreen() {
       setCartSyncLoading(false);
     }
   }, [items, replaceItems, t, user]);
+  const syncCartWithServerRef = useRef(syncCartWithServer);
+  const cartItemsLengthRef = useRef(items.length);
+
+  useEffect(() => {
+    syncCartWithServerRef.current = syncCartWithServer;
+  }, [syncCartWithServer]);
+
+  useEffect(() => {
+    cartItemsLengthRef.current = items.length;
+  }, [items.length]);
 
   useEffect(() => {
     if (!checkoutSuccess) {
@@ -349,11 +353,14 @@ export default function CartScreen() {
   useFocusEffect(
     useCallback(() => {
       addressRefreshOnVisit.current = false;
+      if (user && cartItemsLengthRef.current) {
+        syncCartWithServerRef.current();
+      }
       return () => {
         addressRefreshOnVisit.current = false;
         checkoutSheetRef.current?.dismiss();
       };
-    }, [])
+    }, [user])
   );
 
   const confirmRemove = (productId: string) => {
@@ -397,8 +404,13 @@ export default function CartScreen() {
       return;
     }
     if (!items.length || cartSyncLoading) return;
-    const cartSync = await syncCartWithServer();
-    if (!cartSync.ok) return;
+    if (hasUnavailableItems) {
+      Alert.alert(
+        t("cartUpdated") ?? "Cart updated",
+        t("removeUnavailableItemsBeforeCheckout") ?? "Remove or replace unavailable items before checkout."
+      );
+      return;
+    }
     setPaymentMethod("WALLET");
     setCheckoutSuccess(false);
     setShowSuccessContent(false);
@@ -471,11 +483,12 @@ export default function CartScreen() {
   const allowMultipleCoupons = settings?.allowMultipleCoupons ?? false;
 
   const fetchAvailableCoupons = useCallback(() => {
-    if (!user || !items.length) return;
+    const availableCartItems = items.filter((item) => !item.unavailable);
+    if (!user || !availableCartItems.length) return;
     setCouponsLoading(true);
     api
       .post("/coupons/available", {
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: availableCartItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         subtotal,
         deliveryFee,
       })
@@ -578,11 +591,12 @@ export default function CartScreen() {
     setApplyingCoupon(true);
     setCouponError("");
     try {
+      const availableCartItems = items.filter((item) => !item.unavailable);
       const res = await api.post("/coupons/validate", {
         code: normalized,
         subtotal,
         deliveryFee,
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: availableCartItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       });
       const freeDelivery = Boolean(res.data.data?.freeDelivery);
       const discount = freeDelivery ? 0 : res.data.data?.discount || 0;
@@ -654,17 +668,13 @@ export default function CartScreen() {
 
   const placeOrder = async () => {
     if (!user || !selectedAddress) return;
+    if (hasUnavailableItems) {
+      setCheckoutError(t("removeUnavailableItemsBeforeCheckout") ?? "Remove or replace unavailable items before checkout.");
+      return;
+    }
     setSubmitting(true);
     setCheckoutError(null);
     try {
-      const cartSync = await syncCartWithServer();
-      if (!cartSync.ok) return;
-      if (cartSync.changed) {
-        setSelectedCoupons([]);
-        setAvailableCoupons([]);
-        setCheckoutError(t("cartUpdatedReviewTotal") ?? "Cart prices or availability changed. Please review the updated total before placing the order.");
-        return;
-      }
       const [settingsRes, estimateRes] = await Promise.all([
         api.get("/settings"),
         api.post("/orders/delivery-estimate", { addressId: selectedAddress._id }),
@@ -691,7 +701,7 @@ export default function CartScreen() {
         addressId: selectedAddress._id,
         paymentMethod,
         couponCodes: selectedCoupons.length ? selectedCoupons.map((c) => c.code) : undefined,
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: items.filter((i) => !i.unavailable).map((i) => ({ productId: i.productId, quantity: i.quantity })),
       });
       const created = res?.data?.data;
       setSuccessOrderId(created?._id || created?.id || null);
@@ -825,21 +835,35 @@ export default function CartScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <>
-            <FlatList
-              data={items}
-              keyExtractor={(i) => i.productId}
-              ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} />}
-              renderItem={({ item }) => (
-                <View style={styles.row}>
-                  <View style={{ flex: 1 }}>
-                    <Text weight="bold" style={styles.name}>{item.name}</Text>
-                    <Text style={styles.muted}>
-                      {item.price.toLocaleString()} {t("syp").toUpperCase()}
-                    </Text>
+          <FlatList
+            data={items}
+            keyExtractor={(i) => i.productId}
+            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} />}
+            renderItem={({ item }) => (
+              <View style={[styles.cartItem, item.unavailable && styles.cartItemUnavailable]}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.itemTitleRow}>
+                    <Text weight="bold" style={[styles.name, item.unavailable && { color: isDark ? "#fecaca" : "#991b1b" }]}>{item.name}</Text>
+                    {/* {item.unavailable ? (
+                      <View style={styles.unavailableBadge}>
+                        <Text weight="bold" style={styles.unavailableBadgeText}>
+                          {t("unavailable") ?? "Unavailable"}
+                        </Text>
+                      </View>
+                    ) : null} */}
                   </View>
-                  <View style={styles.qtyRow}>
+                  {!item.unavailable && <Text style={styles.muted}>
+                    {item.price.toLocaleString()} {t("syp").toUpperCase()}
+                  </Text>}
+                  {item.unavailable &&
+                    <Text style={styles.unavailableText}>
+                      {t("cartItemUnavailable") ?? "This item is no longer available."}
+                    </Text>
+                  }
+                </View>
+                <View style={styles.qtyRow}>
+                  {!item.unavailable ? (
                     <View style={styles.qtyRow}>
                       <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity - 1)}>
                         <Text weight="bold" style={styles.qtySymbol}>-</Text>
@@ -849,25 +873,44 @@ export default function CartScreen() {
                         <Text weight="bold" style={styles.qtySymbol}>+</Text>
                       </TouchableOpacity>
                     </View>
-                    <TouchableOpacity onPress={() => confirmRemove(item.productId)} style={styles.removeFromCartBtn}>
-                      <MaterialIcons name="delete" size={20} color="#fff" />
+                  ) : (
+                    <TouchableOpacity style={styles.replaceBtn} onPress={() => router.replace("/(tabs)/store")}>
+                      <Text weight="bold" style={styles.replaceBtnText}>{t("replace") ?? "Replace"}</Text>
                     </TouchableOpacity>
-                  </View>
+                  )}
+                  <TouchableOpacity onPress={() => confirmRemove(item.productId)} style={styles.removeFromCartBtn}>
+                    <MaterialIcons name="delete" size={20} color="#fff" />
+                  </TouchableOpacity>
                 </View>
-              )}
-            />
-          </>
+              </View>
+            )}
+          />
         )}
 
         {items.length > 0 && <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>{t("subtotal")}</Text>
           <Text weight="bold" style={styles.totalValue}>{subtotal.toLocaleString()} SYP</Text>
         </View>}
+        {hasUnavailableItems ? (
+          <Text style={styles.cartWarning}>
+            {t("removeUnavailableItemsBeforeCheckout") ?? "Remove or replace unavailable items before checkout."}
+          </Text>
+        ) : null}
 
         {items.length > 0 && <View style={{ gap: 8, paddingBottom: 16 }}>
           <Button title={t("clearCart")} onPress={confirmClear} secondary />
           {user ? (
-            <Button title={cartSyncLoading ? (t("loading") ?? "Loading") : t("checkout")} onPress={openCheckout} />
+            cartSyncLoading ? (
+              <TouchableOpacity style={styles.buttonCta} onPress={openCheckout}>
+                <Text style={styles.buttonCtaText}>
+                  <ActivityIndicator size='small' color='#fff'/>
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.buttonCta} onPress={openCheckout}>
+                <Text style={styles.buttonCtaText}>{t("checkout")}</Text>
+              </TouchableOpacity>
+            )
           ) : (
             <Button title={t("loginToCheckout") ?? "Login to checkout"} onPress={() => router.push("/auth/login")} />
           )}
@@ -1301,12 +1344,12 @@ export default function CartScreen() {
                             gap: 8
                           }}>
 
-                            <View style={[styles.couponPill, styles.couponInputPill, { paddingTop:8, paddingLeft:8 }]}>
+                            <View style={[styles.couponPill, styles.couponInputPill, { paddingTop: 8, paddingLeft: 8 }]}>
                               {couponError &&
                                 <FontAwesome6 name="circle-exclamation" size={16} color="#ff5555" />
                               }
                               <TextInput
-                                style={[styles.couponInput, {flex:1,},couponError && { borderWidth: 1, borderColor: '#ff5555' }]}
+                                style={[styles.couponInput, { flex: 1, }, couponError && { borderWidth: 1, borderColor: '#ff5555' }]}
                                 placeholder={t("couponCode") ?? "Code"}
                                 placeholderTextColor={palette.muted}
                                 value={inputCouponCode}
@@ -1426,8 +1469,52 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       flexDirection: "row",
       justifyContent: "space-between",
     },
+    cartItem: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingBottom: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: '#dedede'
+    },
+    cartItemUnavailable: {
+      // opacity: 0.72,
+    },
+    itemTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexWrap: "wrap",
+    },
     name: { color: palette.text, textAlign: 'left' },
     muted: { color: palette.muted, textAlign: 'left' },
+    unavailableBadge: {
+      backgroundColor: isDark ? "#4a1f1f" : "#fee2e2",
+      borderColor: isDark ? "#7f1d1d" : "#fecaca",
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    unavailableBadgeText: {
+      color: isDark ? "#fecaca" : "#991b1b",
+      fontSize: 11,
+    },
+    unavailableText: {
+      color: isDark ? "#fecaca" : "#991b1b",
+      fontSize: 12,
+      marginTop: 4,
+      textAlign: "left",
+    },
+    cartWarning: {
+      color: isDark ? "#fecaca" : "#991b1b",
+      backgroundColor: isDark ? "#4a1f1f" : "#fee2e2",
+      borderColor: isDark ? "#7f1d1d" : "#fecaca",
+      borderWidth: 1,
+      borderRadius: 10,
+      padding: 10,
+      marginBottom: 12,
+      textAlign: "left",
+    },
     link: { color: palette.accent },
     totalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: 'center', marginVertical: 12 },
     totalLabel: { color: palette.muted },
@@ -1452,6 +1539,20 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       backgroundColor: palette.accent,
       alignItems: "center",
       justifyContent: "center",
+    },
+    replaceBtn: {
+      minHeight: 36,
+      borderRadius: 10,
+      backgroundColor: palette.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: palette.border,
+      paddingHorizontal: 10,
+    },
+    replaceBtnText: {
+      color: palette.text,
+      fontSize: 12,
     },
     removeFromCartIcon: {
       width: 20,
@@ -1480,6 +1581,17 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     section: {
       fontSize: 14,
     },
+    buttonCta: {
+      paddingVertical: 14,
+      borderRadius: 14,
+      alignItems: "center",
+      backgroundColor: palette.accent,
+      shadowColor: palette.accent,
+      shadowOpacity: isDark ? 0.3 : 0.15,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+    },
+    buttonCtaText: { color: "#fff", fontSize: 16 },
     sheetText: { color: palette.muted, textAlign: 'left' },
     sheetActions: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
     sheetButton: {
@@ -1539,8 +1651,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       // height: 30,
       color: palette.text,
       padding: 10,
-      borderRadius:15,
-      backgroundColor:palette.background
+      borderRadius: 15,
+      backgroundColor: palette.background
     },
     couponInputPill: {
       flexDirection: "row",
