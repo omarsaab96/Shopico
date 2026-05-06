@@ -89,6 +89,7 @@ export default function Home() {
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshSkeleton, setRefreshSkeleton] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [sortOption, setSortOption] = useState<SortOption>("relevance");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
@@ -97,7 +98,9 @@ export default function Home() {
   const [selectedAddress, setSelectedAddress] = useState<SavedAddress | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [addressLoading, setAddressLoading] = useState(false);
+  const [addressesReady, setAddressesReady] = useState(false);
   const [branchLoading, setBranchLoading] = useState(false);
+  const [savedBranchReady, setSavedBranchReady] = useState(false);
   const [locationFallback, setLocationFallback] = useState(false);
   const [branchLocked, setBranchLocked] = useState(false);
   const [branchLockReady, setBranchLockReady] = useState(false);
@@ -137,6 +140,17 @@ export default function Home() {
   const { items, addItem, setQuantity, clear } = useCart();
   const { t, isRTL } = useI18n();
   const isDriver = user?.role === "driver";
+  const customerSetupChecking = Boolean(user && !isDriver && (!branchLockReady || !savedBranchReady || !addressesReady || addressLoading || branchLoading));
+  const customerNeedsSetup = Boolean(
+    user &&
+    !isDriver &&
+    branchLockReady &&
+    savedBranchReady &&
+    addressesReady &&
+    !addressLoading &&
+    !branchLoading &&
+    (!selectedBranch || addresses.length === 0)
+  );
 
   const styles = useMemo(() => createStyles(palette, isRTL, isDark, insets), [palette, isRTL, isDark, insets]);
   const updateSelectedBranch = useCallback((branch?: Branch | null) => {
@@ -201,6 +215,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!user) return;
+    setSavedBranchReady(false);
     getBranchLock()
       .then((locked) => {
         setBranchLocked(locked);
@@ -213,18 +228,33 @@ export default function Home() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-    if (!branchLocked || selectedBranch) return;
+    if (!user) {
+      setSavedBranchReady(true);
+      return;
+    }
+    if (selectedBranch) {
+      setSavedBranchReady(true);
+      return;
+    }
     (async () => {
       const currentId = await getBranchId();
-      if (!currentId) return;
+      if (!currentId) {
+        setSavedBranchReady(true);
+        return;
+      }
+      setBranchLoading(true);
       const res = await api.get("/branches/public");
       const list: Branch[] = res.data.data || [];
       const match = list.find((b) => b._id === currentId);
       if (match) {
         updateSelectedBranch(match);
       }
-    })().catch(() => { });
+    })()
+      .catch(() => { })
+      .finally(() => {
+        setBranchLoading(false);
+        setSavedBranchReady(true);
+      });
   }, [user, branchLocked, selectedBranch]);
 
   const membershipLevel = profile?.membershipLevel || "None";
@@ -303,14 +333,12 @@ export default function Home() {
       if (append) {
         setLoadingMore(true);
       } else if (nextPage === 1 && debouncedSearch.length === 0) {
-        // Only show pull-to-refresh spinner for explicit refresh, not search.
-        setRefreshing(true);
         setLoadingProducts(true);
       } else {
         setLoadingProducts(true);
       }
 
-      api
+      return api
         .get("/products", { params })
         .then((res) => {
           const payload = res.data.data;
@@ -329,7 +357,6 @@ export default function Home() {
           if (append) {
             setLoadingMore(false);
           } else if (nextPage === 1 && debouncedSearch.length === 0) {
-            setRefreshing(false);
             setLoadingProducts(false);
           } else {
             setLoadingProducts(false);
@@ -342,6 +369,7 @@ export default function Home() {
   const loadLatestAddress = useCallback(() => {
     if (!user) {
       setAddressLoading(false);
+      setAddressesReady(true);
       setLatestAddress(null);
       setAddresses([]);
       setSelectedAddress(null);
@@ -356,6 +384,7 @@ export default function Home() {
     }
     if (addressLoadingRef.current) return;
     addressLoadingRef.current = true;
+    setAddressesReady(false);
     setAddressLoading(true);
     api
       .get("/addresses")
@@ -380,6 +409,7 @@ export default function Home() {
       .finally(() => {
         addressLoadingRef.current = false;
         setAddressLoading(false);
+        setAddressesReady(true);
       });
   }, [user, updateSelectedBranch]);
 
@@ -513,14 +543,6 @@ export default function Home() {
   }, [authLoading, user, selectedBranch?._id, fetchMembershipMeta]);
 
   useEffect(() => {
-    if (!user) return;
-    if (!branchLockReady) return;
-    if (!selectedAddress) return;
-    if (branchLocked) return;
-    fetchNearestBranch(selectedAddress);
-  }, [user, selectedAddress, branchLockReady, branchLocked, fetchNearestBranch]);
-
-  useEffect(() => {
     const nextLatestAddress = selectedAddress?.label || selectedAddress?.address || null;
     setLatestAddress((prev) => (prev === nextLatestAddress ? prev : nextLatestAddress));
   }, [selectedAddress]);
@@ -538,6 +560,11 @@ export default function Home() {
     }
   }, [showBranchPrompt, loadBranchOptions]);
 
+  useEffect(() => {
+    if (!customerNeedsSetup) return;
+    router.replace("/setup");
+  }, [customerNeedsSetup, router]);
+
 
   // useEffect(() => {
   //   if (!addressSheetOpen) return;
@@ -550,9 +577,28 @@ export default function Home() {
   // }, [addressSheetOpen, addresses.length]);
 
   useEffect(() => {
+    if (user && !isDriver && (!branchLockReady || addressLoading || branchLoading)) return;
+    if (user && !isDriver && (!selectedBranch || addresses.length === 0)) {
+      setProducts([]);
+      setHasMore(false);
+      setLoadingProducts(false);
+      setRefreshing(false);
+      return;
+    }
     if (user && locationFallback && !selectedBranch) return;
     fetchProducts(1, false);
-  }, [debouncedSearch, fetchProducts, selectedBranch?._id, user, locationFallback]);
+  }, [
+    debouncedSearch,
+    fetchProducts,
+    selectedBranch?._id,
+    user,
+    locationFallback,
+    isDriver,
+    branchLockReady,
+    addressLoading,
+    branchLoading,
+    addresses.length,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -819,7 +865,8 @@ export default function Home() {
 
   const renderCategoriesGrid = () => {
     if (hasQuery) return null;
-    if (!categoriesLoading && categories.length == 0) return null;
+    const showCategorySkeleton = categoriesLoading || refreshSkeleton;
+    if (!showCategorySkeleton && categories.length == 0) return null;
 
     return (
       <View style={{ gap: 10 }}>
@@ -833,15 +880,15 @@ export default function Home() {
         </View>
 
         <FlatList
-          data={categoriesLoading ? Array.from({ length: 5 }, (_, i) => ({ _id: `skeleton-${i}` })) : categories.slice(0, 6)}
+          data={showCategorySkeleton ? Array.from({ length: 5 }, (_, i) => ({ _id: `skeleton-${i}` })) : categories.slice(0, 6)}
           key={isRTL ? "rtl-cats" : "ltr-cats"}
           scrollEnabled={false}
           numColumns={5}
           columnWrapperStyle={styles.catRow}
-          contentContainerStyle={{ gap: 12 }}
+          contentContainerStyle={{ gap: 12,  }}
           keyExtractor={(c) => c._id}
           renderItem={({ item }) =>
-            categoriesLoading ? (
+            showCategorySkeleton ? (
               <View style={styles.catCard} pointerEvents="none">
                 <View style={styles.catImgBox}>
                   <Skeleton width={46} height={46} colorScheme={isDark ? "dark" : "light"} />
@@ -866,7 +913,7 @@ export default function Home() {
                       </>
                     )}
                   </View>
-                  <Text style={styles.catName} numberOfLines={1}>
+                  <Text style={styles.catName} numberOfLines={2}>
                     {item.name}
                   </Text>
                 </TouchableOpacity>
@@ -1067,11 +1114,11 @@ export default function Home() {
     sublabel?: string
   ) => (
     <View style={styles.driverStatCard}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap:10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <View style={[styles.driverStatIcon, { backgroundColor: `${tone}1A` }]}>
           <Feather name={icon} size={20} color={tone} />
         </View>
-        <Text style={[styles.driverStatLabel,{color:tone}]}>{label}</Text>
+        <Text style={[styles.driverStatLabel, { color: tone }]}>{label}</Text>
       </View>
       <Text style={styles.driverStatValue} numberOfLines={1} adjustsFontSizeToFit>
         {value}
@@ -1194,428 +1241,443 @@ export default function Home() {
 
       <View style={styles.safe}>
         {user.role == 'customer' ? (
-          <View style={styles.container}>
-            {/* <LottieView
+          customerNeedsSetup || customerSetupChecking ? null : (
+            <View style={styles.container}>
+              {/* <LottieView
               autoPlay
               loop
               style={{ width: 220, height: 220 }}
               source={{ uri: "https://assets10.lottiefiles.com/packages/lf20_usmfx6bp.json" }}
             /> */}
 
-            <View style={styles.stickyHeroWrap}>
-              {renderHero()}
+              <View style={styles.stickyHeroWrap}>
+                {renderHero()}
 
-              <View style={styles.stickySearchWrap}>
-                {renderSearchAndFilters()}
+                <View style={styles.stickySearchWrap}>
+                  {renderSearchAndFilters()}
+                </View>
               </View>
-            </View>
 
-            <View style={{ flex: 1, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: palette.background, borderWidth: 1, borderColor: palette.background }}>
+              <View style={{ flex: 1, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: palette.background, borderWidth: 1, borderColor: palette.background }}>
 
-              <FlatList
-                data={(refreshing || (loadingProducts && filteredAndSorted.length === 0)) ? skeletonProducts : filteredAndSorted}
-                numColumns={2}
-                showsVerticalScrollIndicator={false}
-                showsHorizontalScrollIndicator={false}
-                decelerationRate="fast"
-                keyboardShouldPersistTaps="handled"
-                keyExtractor={(p, idx) => `${p._id}-${idx}`}
-                contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 16 }}
-                columnWrapperStyle={styles.productRow}
-                ListHeaderComponent={renderHeader()}
-                onScroll={Animated.event(
-                  [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                  { useNativeDriver: false }
-                )}
-                scrollEventThrottle={16}
-                refreshing={refreshing}
-                onRefresh={() => {
-                  fetchProducts(1, false);
-                  fetchMembershipMeta();
-                  setCategoriesLoading(true);
-                  api
-                    .get("/categories")
-                    .then((res) => setCategories(res.data.data || []))
-                    .catch(() => setCategories([]))
-                    .finally(() => setCategoriesLoading(false));
-                }}
-                onEndReached={handleLoadMore}
-                onEndReachedThreshold={0.4}
-                renderItem={({ item, index }) => {
-                  if ((item as any).__skeleton) {
+                <FlatList
+                  data={(refreshSkeleton || (loadingProducts && filteredAndSorted.length === 0)) ? skeletonProducts : filteredAndSorted}
+                  numColumns={2}
+                  showsVerticalScrollIndicator={false}
+                  showsHorizontalScrollIndicator={false}
+                  decelerationRate="fast"
+                  keyboardShouldPersistTaps="handled"
+                  keyExtractor={(p, idx) => `${p._id}-${idx}`}
+                  contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 16 }}
+                  columnWrapperStyle={styles.productRow}
+                  ListHeaderComponent={renderHeader()}
+                  onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                    { useNativeDriver: false }
+                  )}
+                  scrollEventThrottle={16}
+                  refreshing={false}
+                  onRefresh={async () => {
+                    setRefreshSkeleton(true);
+                    setRefreshing(true);
+                    fetchMembershipMeta();
+                    setCategoriesLoading(true);
+                    try {
+                      await Promise.all([
+                        fetchProducts(1, false),
+                        api
+                          .get("/categories")
+                          .then((res) => setCategories(res.data.data || []))
+                          .catch(() => setCategories([])),
+                      ]);
+                    } finally {
+                      setCategoriesLoading(false);
+                      setRefreshing(false);
+                      setRefreshSkeleton(false);
+                    }
+                  }}
+                  onEndReached={handleLoadMore}
+                  onEndReachedThreshold={0.4}
+                  renderItem={({ item, index }) => {
+                    if ((item as any).__skeleton) {
+                      return (
+                        <View style={{ width: "48%" }}>
+                          <View style={styles.productCard}>
+                            <View style={styles.prodImgBox}>
+                              <Skeleton width={300} height={120} colorScheme={isDark ? "dark" : "light"} />
+                            </View>
+                            <View style={{ paddingHorizontal: 8, paddingVertical: 10, gap: 6 }}>
+                              <Skeleton width={120} height={12} colorScheme={isDark ? "dark" : "light"} />
+                              <Skeleton width={80} height={12} colorScheme={isDark ? "dark" : "light"} />
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    }
+                    const isLeft = index % 2 === 0;
+
                     return (
-                      <View style={{ width: "48%" }}>
+                      <View
+                        style={{
+                          width: "48%",
+                        }}
+                      >
                         <View style={styles.productCard}>
-                          <View style={styles.prodImgBox}>
-                            <Skeleton width={300} height={120} colorScheme={isDark ? "dark" : "light"} />
-                          </View>
-                          <View style={{ paddingHorizontal: 8, paddingVertical: 10, gap: 6 }}>
-                            <Skeleton width={120} height={12} colorScheme={isDark ? "dark" : "light"} />
-                            <Skeleton width={80} height={12} colorScheme={isDark ? "dark" : "light"} />
-                          </View>
+                          <Link href={`/products/${item._id}`} asChild>
+                            <TouchableOpacity
+                              style={styles.productPressable}
+                              activeOpacity={0.92}
+                            >
+                              <View style={[
+                                styles.prodImgBox,
+                                !item.images?.[0]?.url && {
+                                  backgroundColor: '#f0f0f0'
+                                }
+                              ]}>
+                                <Image
+                                  source={
+                                    item.images?.[0]?.url
+                                      ? { uri: item.images?.[0]?.url }
+                                      : fallbackLogo
+                                  }
+                                  style={[
+                                    styles.productImg,
+                                    !item.images?.[0]?.url && { tintColor: '#dedede' },
+                                  ]}
+                                />
+                              </View>
+
+                              <View style={{ flexDirection: 'row', justifyContent: 'center', position: 'relative' }}>
+                                {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
+                                  <Text style={[styles.promoBadge,]}>
+                                    {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
+                                  </Text>
+                                ) : null}
+                              </View>
+
+                              <Text style={styles.productName} numberOfLines={1}>
+                                {item.name}
+                              </Text>
+
+                              <Text style={styles.productDesc} numberOfLines={2}>
+                                {item.description ? item.description : '-'}
+                              </Text>
+
+                              <View style={styles.priceRow}>
+                                <Text style={[styles.productOldPrice]} numberOfLines={1}>
+                                  {item.isPromoted && item.promoPrice !== undefined
+                                    && `${item.price.toLocaleString()} ${t("syp")}`
+                                  }
+                                </Text>
+                                <Text style={[styles.productPrice]}>
+                                  {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} {t("syp")}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          </Link>
+
+                          {(() => {
+                            const existing = items.find(
+                              (i) => i.productId === item._id
+                            );
+
+                            if (existing) {
+                              return (
+                                <View style={styles.qtyRow}>
+                                  <TouchableOpacity
+                                    style={styles.qtyBtn}
+                                    onPress={() =>
+                                      setQuantity(existing.productId, existing.quantity - 1)
+                                    }
+                                  >
+                                    <Text style={styles.qtySym}>-</Text>
+                                  </TouchableOpacity>
+
+                                  <Text style={styles.qtyVal}>{existing.quantity}</Text>
+
+                                  <TouchableOpacity
+                                    style={styles.qtyBtn}
+                                    onPress={() =>
+                                      addItem({
+                                        productId: item._id,
+                                        name: item.name,
+                                        price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
+                                        image: item.images?.[0]?.url,
+                                        quantity: 1,
+                                      })
+                                    }
+                                  >
+                                    <Text style={styles.qtySym}>+</Text>
+                                  </TouchableOpacity>
+                                </View>
+                              );
+                            }
+
+                            return (
+                              <TouchableOpacity
+                                style={styles.addBtn}
+                                onPress={() =>
+                                  addItem({
+                                    productId: item._id,
+                                    name: item.name,
+                                    price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
+                                    image: item.images?.[0]?.url,
+                                    quantity: 1,
+                                  })
+                                }
+                              >
+                                <Text style={styles.addBtnText}>
+                                  {t("addToCart") ?? "Add to cart"}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })()}
                         </View>
                       </View>
                     );
+                  }}
+                  ListFooterComponent={
+                    <View style={{ paddingBottom: 0 }}>
+                      {loadingMore ? (
+                        <View style={{ paddingVertical: 10 }}>
+                          <ActivityIndicator color={palette.accent} />
+                        </View>
+                      ) : null}
+                      {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
+                    </View>
                   }
-                  const isLeft = index % 2 === 0;
+                />
+              </View>
 
-                  return (
-                    <View
-                      style={{
-                        width: "48%",
-                      }}
-                    >
-                      <View style={styles.productCard}>
-                        <Link href={`/products/${item._id}`} asChild>
-                          <TouchableOpacity
-                            style={styles.productPressable}
-                            activeOpacity={0.92}
-                          >
-                            <View style={styles.prodImgBox}>
-                              <Image
-                                source={
-                                  item.images?.[0]?.url
-                                    ? { uri: item.images?.[0]?.url }
-                                    : fallbackLogo
-                                }
-                                style={[
-                                  styles.productImg,
-                                  !item.images?.[0]?.url && { tintColor: '#dedede' },
-                                ]}
-                              />
-                            </View>
+              {/* Filters */}
+              <BottomSheetModal
+                ref={sheetRef}
+                snapPoints={snapPoints}
+                enablePanDownToClose
+                backdropComponent={renderBackdrop}
+                footerComponent={customFooter}
+                backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+                handleIndicatorStyle={{ backgroundColor: palette.muted }}
+              >
+                <BottomSheetView style={styles.sheetContainer}>
+                  <View style={styles.sheetContent}>
+                    <Text style={styles.sheetTitle}>{t("filters") ?? "Filters & Sort"}</Text>
 
-                            <View style={{ flexDirection: 'row', justifyContent: 'center', position: 'relative' }}>
-                              {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
-                                <Text style={[styles.promoBadge,]}>
-                                  {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
-                                </Text>
-                              ) : null}
-                            </View>
+                    <Text style={styles.sheetLabel}>{t("sortBy") ?? "Sort by"}</Text>
+                    <View style={styles.sheetPills}>
+                      {[
+                        { id: "relevance", label: t("relevance") ?? "Relevance" },
+                        { id: "priceAsc", label: t("priceLowHigh") ?? "Price: Low to High" },
+                        { id: "priceDesc", label: t("priceHighLow") ?? "Price: High to Low" },
+                      ].map((opt) => (
+                        <TouchableOpacity
+                          key={opt.id}
+                          style={[styles.pill, sortOption === opt.id && styles.pillActive]}
+                          onPress={() => setSortOption(opt.id as SortOption)}
+                          activeOpacity={0.9}
+                        >
+                          <Text style={[styles.pillText, sortOption === opt.id && styles.pillTextActive]}>{opt.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
 
-                            <Text style={styles.productName} numberOfLines={1}>
-                              {item.name}
-                            </Text>
+                    <Text style={styles.sheetLabel}>{t("price") ?? "Price"}</Text>
+                    <View style={styles.sheetPills}>
+                      {[
+                        { id: "all", label: t("all") ?? "All" },
+                        { id: "lt50k", label: t("under50k") ?? "Under 50K" },
+                        { id: "lt100k", label: t("under100k") ?? "Under 100K" },
+                        { id: "gte100k", label: t("over100k") ?? "100K +" },
+                      ].map((opt) => (
+                        <TouchableOpacity
+                          key={opt.id}
+                          style={[styles.pill, priceFilter === opt.id && styles.pillActive]}
+                          onPress={() => setPriceFilter(opt.id as PriceFilter)}
+                          activeOpacity={0.9}
+                        >
+                          <Text style={[styles.pillText, priceFilter === opt.id && styles.pillTextActive]}>{opt.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </BottomSheetView>
+              </BottomSheetModal>
 
-                            <Text style={styles.productDesc} numberOfLines={2}>
-                              {item.description ? item.description : '-'}
-                            </Text>
-
-                            <View style={styles.priceRow}>
-                              <Text style={[styles.productOldPrice]} numberOfLines={1}>
-                                {item.isPromoted && item.promoPrice !== undefined
-                                  && `${item.price.toLocaleString()} ${t("syp")}`
-                                }
-                              </Text>
-                              <Text style={[styles.productPrice]}>
-                                {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} {t("syp")}
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
-                        </Link>
-
-                        {(() => {
-                          const existing = items.find(
-                            (i) => i.productId === item._id
-                          );
-
-                          if (existing) {
-                            return (
-                              <View style={styles.qtyRow}>
-                                <TouchableOpacity
-                                  style={styles.qtyBtn}
-                                  onPress={() =>
-                                    setQuantity(existing.productId, existing.quantity - 1)
-                                  }
-                                >
-                                  <Text style={styles.qtySym}>-</Text>
-                                </TouchableOpacity>
-
-                                <Text style={styles.qtyVal}>{existing.quantity}</Text>
-
-                                <TouchableOpacity
-                                  style={styles.qtyBtn}
-                                  onPress={() =>
-                                    addItem({
-                                      productId: item._id,
-                                      name: item.name,
-                                      price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
-                                      image: item.images?.[0]?.url,
-                                      quantity: 1,
-                                    })
-                                  }
-                                >
-                                  <Text style={styles.qtySym}>+</Text>
-                                </TouchableOpacity>
-                              </View>
-                            );
-                          }
-
-                          return (
-                            <TouchableOpacity
-                              style={styles.addBtn}
-                              onPress={() =>
-                                addItem({
-                                  productId: item._id,
-                                  name: item.name,
-                                  price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
-                                  image: item.images?.[0]?.url,
-                                  quantity: 1,
-                                })
-                              }
-                            >
-                              <Text style={styles.addBtnText}>
-                                {t("addToCart") ?? "Add to cart"}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })()}
+              {/* Addresses */}
+              <BottomSheetModal
+                ref={addressSheetRef}
+                enablePanDownToClose
+                backdropComponent={renderBackdrop}
+                backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+              >
+                <BottomSheetView style={[styles.sheetContainer, { paddingBottom: 0 }]}>
+                  {addressLoading ? (
+                    <View style={{ paddingTop: 20, gap: 12 }}>
+                      <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
+                      {Array.from({ length: 3 }).map((_, index) => (
+                        <View key={`address-skeleton-${index}`} style={styles.addressItem}>
+                          <Skeleton width={140} height={16} colorScheme={isDark ? "dark" : "light"} />
+                          <Skeleton width={"100%"} height={14} colorScheme={isDark ? "dark" : "light"} />
+                        </View>
+                      ))}
+                    </View>
+                  ) : addresses.length === 0 ? (
+                    <View style={{ alignItems: "center", paddingTop: 20 }}>
+                      <LottieView
+                        key={`address-lottie-${lottieKey}`}
+                        ref={lottieRef}
+                        autoPlay
+                        loop
+                        renderMode="SOFTWARE"
+                        style={{ width: 100, height: 100 }}
+                        source={require("../assets/address.json")}
+                      />
+                      <Text style={[styles.sheetText, { fontWeight: '400', marginVertical: 20 }]}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
+                      <View style={styles.sheetFooterWrap}>
+                        <TouchableOpacity style={styles.sheetBtn} onPress={() => router.push("/addresses")} activeOpacity={0.9}>
+                          <Text style={styles.sheetBtnText}>{t("Add") ?? "Add"}</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-                  );
-                }}
-                ListFooterComponent={
-                  <View style={{ paddingBottom: 0 }}>
-                    {loadingMore ? (
-                      <View style={{ paddingVertical: 10 }}>
+                  ) : (
+                    <>
+                      <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
+                      {addresses.map((addr) => (
+                        <TouchableOpacity
+                          key={addr._id}
+                          style={[styles.addressItem, selectedAddress?._id === addr._id && styles.addressItemActive]}
+                          onPress={() => {
+                            setSelectedAddress((prev) => (prev?._id === addr._id ? prev : addr));
+                            addressSheetRef.current?.dismiss();
+                          }}
+                          activeOpacity={0.9}
+                        >
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                            <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
+                            {selectedAddress?._id === addr._id ? <Feather name="check" size={18} color={palette.accent} /> : null}
+                          </View>
+                          <Text style={styles.sheetText}>{addr.address}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  )}
+                </BottomSheetView>
+              </BottomSheetModal>
+
+              {/* Branch prompt */}
+              <Modal visible={showBranchPrompt} transparent animationType="fade">
+                <View style={styles.branchPromptBackdrop}>
+                  <View style={styles.branchPromptCard}>
+                    <Text style={styles.branchPromptTitle}>{t("selectBranch") ?? "Select branch"}</Text>
+                    <Text style={styles.branchPromptCopy}>
+                      {t("selectBranchCopy") ?? "No saved address or location access. Please choose a branch to browse products."}
+                    </Text>
+                    {branchPromptLoading ? (
+                      <View style={{ paddingVertical: 12 }}>
                         <ActivityIndicator color={palette.accent} />
                       </View>
-                    ) : null}
-                    {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
-                  </View>
-                }
-              />
-            </View>
-
-            {/* Filters */}
-            <BottomSheetModal
-              ref={sheetRef}
-              snapPoints={snapPoints}
-              enablePanDownToClose
-              backdropComponent={renderBackdrop}
-              footerComponent={customFooter}
-              backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
-              handleIndicatorStyle={{ backgroundColor: palette.muted }}
-            >
-              <BottomSheetView style={styles.sheetContainer}>
-                <View style={styles.sheetContent}>
-                  <Text style={styles.sheetTitle}>{t("filters") ?? "Filters & Sort"}</Text>
-
-                  <Text style={styles.sheetLabel}>{t("sortBy") ?? "Sort by"}</Text>
-                  <View style={styles.sheetPills}>
-                    {[
-                      { id: "relevance", label: t("relevance") ?? "Relevance" },
-                      { id: "priceAsc", label: t("priceLowHigh") ?? "Price: Low to High" },
-                      { id: "priceDesc", label: t("priceHighLow") ?? "Price: High to Low" },
-                    ].map((opt) => (
-                      <TouchableOpacity
-                        key={opt.id}
-                        style={[styles.pill, sortOption === opt.id && styles.pillActive]}
-                        onPress={() => setSortOption(opt.id as SortOption)}
-                        activeOpacity={0.9}
-                      >
-                        <Text style={[styles.pillText, sortOption === opt.id && styles.pillTextActive]}>{opt.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
-                  <Text style={styles.sheetLabel}>{t("price") ?? "Price"}</Text>
-                  <View style={styles.sheetPills}>
-                    {[
-                      { id: "all", label: t("all") ?? "All" },
-                      { id: "lt50k", label: t("under50k") ?? "Under 50K" },
-                      { id: "lt100k", label: t("under100k") ?? "Under 100K" },
-                      { id: "gte100k", label: t("over100k") ?? "100K +" },
-                    ].map((opt) => (
-                      <TouchableOpacity
-                        key={opt.id}
-                        style={[styles.pill, priceFilter === opt.id && styles.pillActive]}
-                        onPress={() => setPriceFilter(opt.id as PriceFilter)}
-                        activeOpacity={0.9}
-                      >
-                        <Text style={[styles.pillText, priceFilter === opt.id && styles.pillTextActive]}>{opt.label}</Text>
-                      </TouchableOpacity>
-                    ))}
+                    ) : (
+                      <ScrollView style={{ maxHeight: 260 }}>
+                        {branchOptions.map((branch) => (
+                          <TouchableOpacity
+                            key={branch._id}
+                            style={styles.branchOption}
+                            onPress={async () => {
+                              updateSelectedBranch(branch);
+                              await setBranchId(branch._id);
+                              await setBranchLock(true);
+                              setBranchLocked(true);
+                              setShowBranchPrompt(false);
+                            }}
+                            activeOpacity={0.9}
+                          >
+                            <Text style={styles.branchOptionTitle}>{branch.name}</Text>
+                            <Text style={styles.branchOptionSub}>{branch.address}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    )}
                   </View>
                 </View>
-              </BottomSheetView>
-            </BottomSheetModal>
+              </Modal>
 
-            {/* Addresses */}
-            <BottomSheetModal
-              ref={addressSheetRef}
-              enablePanDownToClose
-              backdropComponent={renderBackdrop}
-              backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
-            >
-              <BottomSheetView style={[styles.sheetContainer, { paddingBottom: 0 }]}>
-                {addressLoading ? (
-                  <View style={{ paddingTop: 20, gap: 12 }}>
-                    <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
-                    {Array.from({ length: 3 }).map((_, index) => (
-                      <View key={`address-skeleton-${index}`} style={styles.addressItem}>
-                        <Skeleton width={140} height={16} colorScheme={isDark ? "dark" : "light"} />
-                        <Skeleton width={"100%"} height={14} colorScheme={isDark ? "dark" : "light"} />
-                      </View>
-                    ))}
-                  </View>
-                ) : addresses.length === 0 ? (
-                  <View style={{ alignItems: "center", paddingTop: 20 }}>
-                    <LottieView
-                      key={`address-lottie-${lottieKey}`}
-                      ref={lottieRef}
-                      autoPlay
-                      loop
-                      renderMode="SOFTWARE"
-                      style={{ width: 100, height: 100 }}
-                      source={require("../assets/address.json")}
-                    />
-                    <Text style={[styles.sheetText, { fontWeight: '400', marginVertical: 20 }]}>{t("noAddresses") ?? "No addresses saved yet."}</Text>
-                    <View style={styles.sheetFooterWrap}>
-                      <TouchableOpacity style={styles.sheetBtn} onPress={() => router.push("/addresses")} activeOpacity={0.9}>
-                        <Text style={styles.sheetBtnText}>{t("Add") ?? "Add"}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ) : (
-                  <>
-                    <Text style={styles.sheetTitle}>{t("deliveryTo") ?? "Delivery to"}</Text>
-                    {addresses.map((addr) => (
-                      <TouchableOpacity
-                        key={addr._id}
-                        style={[styles.addressItem, selectedAddress?._id === addr._id && styles.addressItemActive]}
-                        onPress={() => {
-                          setSelectedAddress((prev) => (prev?._id === addr._id ? prev : addr));
-                          addressSheetRef.current?.dismiss();
-                        }}
-                        activeOpacity={0.9}
-                      >
-                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                          <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
-                          {selectedAddress?._id === addr._id ? <Feather name="check" size={18} color={palette.accent} /> : null}
-                        </View>
-                        <Text style={styles.sheetText}>{addr.address}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </>
-                )}
-              </BottomSheetView>
-            </BottomSheetModal>
-
-            {/* Branch prompt */}
-            <Modal visible={showBranchPrompt} transparent animationType="fade">
-              <View style={styles.branchPromptBackdrop}>
-                <View style={styles.branchPromptCard}>
-                  <Text style={styles.branchPromptTitle}>{t("selectBranch") ?? "Select branch"}</Text>
-                  <Text style={styles.branchPromptCopy}>
-                    {t("selectBranchCopy") ?? "No saved address or location access. Please choose a branch to browse products."}
-                  </Text>
+              {/* Branches */}
+              <BottomSheetModal
+                ref={branchSheetRef}
+                enablePanDownToClose
+                backdropComponent={renderBackdrop}
+                backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+              >
+                <BottomSheetView style={[styles.sheetContainer, { paddingBottom: 0 }]}>
+                  <Text style={styles.sheetTitle}>{t("fromBranch") ?? "From branch"}</Text>
+                  {items.length > 0 && (
+                    <Text style={styles.sheetText}>
+                      {t("branchChangeNote") ?? "Changing branch will clear your cart."}
+                    </Text>
+                  )}
                   {branchPromptLoading ? (
                     <View style={{ paddingVertical: 12 }}>
                       <ActivityIndicator color={palette.accent} />
                     </View>
+                  ) : branchOptions.length === 0 ? (
+                    <Text style={styles.sheetText}>
+                      {t("noBranches") ?? "No branches available."}
+                    </Text>
                   ) : (
-                    <ScrollView style={{ maxHeight: 260 }}>
-                      {branchOptions.map((branch) => (
+                    branchOptions.map((branch) => {
+                      const active = selectedBranch?._id === branch._id;
+                      return (
                         <TouchableOpacity
                           key={branch._id}
-                          style={styles.branchOption}
+                          style={[styles.addressItem, active && styles.addressItemActive]}
                           onPress={async () => {
-                            updateSelectedBranch(branch);
-                            await setBranchId(branch._id);
-                            await setBranchLock(true);
-                            setBranchLocked(true);
-                            setShowBranchPrompt(false);
+                            if (active) {
+                              branchSheetRef.current?.dismiss();
+                              return;
+                            }
+                            const proceed = async () => {
+                              if (items.length > 0) {
+                                clear();
+                              }
+                              updateSelectedBranch(branch);
+                              await setBranchId(branch._id);
+                              await setBranchLock(true);
+                              setBranchLocked(true);
+                              branchSheetRef.current?.dismiss();
+                            };
+                            if (items.length > 0) {
+                              Alert.alert(
+                                t("confirmBranchChange") ?? "Change branch?",
+                                t("branchChangeConfirm") ?? "Changing branch will clear your cart. Continue?",
+                                [
+                                  { text: t("cancel") ?? "Cancel", style: "cancel" },
+                                  { text: t("confirm") ?? "Confirm", style: "destructive", onPress: proceed },
+                                ]
+                              );
+                              return;
+                            }
+                            proceed();
                           }}
                           activeOpacity={0.9}
                         >
-                          <Text style={styles.branchOptionTitle}>{branch.name}</Text>
-                          <Text style={styles.branchOptionSub}>{branch.address}</Text>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                            <Text style={styles.addressTitle}>{branch.name}</Text>
+                            {active ? <Feather name="check" size={18} color={palette.accent} /> : null}
+                          </View>
+                          {/* <Text style={styles.sheetText}>{branch.address}</Text> */}
                         </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                      );
+                    })
                   )}
-                </View>
-              </View>
-            </Modal>
 
-            {/* Branches */}
-            <BottomSheetModal
-              ref={branchSheetRef}
-              enablePanDownToClose
-              backdropComponent={renderBackdrop}
-              backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
-            >
-              <BottomSheetView style={[styles.sheetContainer, { paddingBottom: 0 }]}>
-                <Text style={styles.sheetTitle}>{t("fromBranch") ?? "From branch"}</Text>
-                {items.length > 0 && (
-                  <Text style={styles.sheetText}>
-                    {t("branchChangeNote") ?? "Changing branch will clear your cart."}
-                  </Text>
-                )}
-                {branchPromptLoading ? (
-                  <View style={{ paddingVertical: 12 }}>
-                    <ActivityIndicator color={palette.accent} />
-                  </View>
-                ) : branchOptions.length === 0 ? (
-                  <Text style={styles.sheetText}>
-                    {t("noBranches") ?? "No branches available."}
-                  </Text>
-                ) : (
-                  branchOptions.map((branch) => {
-                    const active = selectedBranch?._id === branch._id;
-                    return (
-                      <TouchableOpacity
-                        key={branch._id}
-                        style={[styles.addressItem, active && styles.addressItemActive]}
-                        onPress={async () => {
-                          if (active) {
-                            branchSheetRef.current?.dismiss();
-                            return;
-                          }
-                          const proceed = async () => {
-                            if (items.length > 0) {
-                              clear();
-                            }
-                            updateSelectedBranch(branch);
-                            await setBranchId(branch._id);
-                            await setBranchLock(true);
-                            setBranchLocked(true);
-                            branchSheetRef.current?.dismiss();
-                          };
-                          if (items.length > 0) {
-                            Alert.alert(
-                              t("confirmBranchChange") ?? "Change branch?",
-                              t("branchChangeConfirm") ?? "Changing branch will clear your cart. Continue?",
-                              [
-                                { text: t("cancel") ?? "Cancel", style: "cancel" },
-                                { text: t("confirm") ?? "Confirm", style: "destructive", onPress: proceed },
-                              ]
-                            );
-                            return;
-                          }
-                          proceed();
-                        }}
-                        activeOpacity={0.9}
-                      >
-                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                          <Text style={styles.addressTitle}>{branch.name}</Text>
-                          {active ? <Feather name="check" size={18} color={palette.accent} /> : null}
-                        </View>
-                        {/* <Text style={styles.sheetText}>{branch.address}</Text> */}
-                      </TouchableOpacity>
-                    );
-                  })
-                )}
-
-                {/* <TouchableOpacity style={styles.closeBtn} onPress={() => branchSheetRef.current?.dismiss()} activeOpacity={0.9}>
+                  {/* <TouchableOpacity style={styles.closeBtn} onPress={() => branchSheetRef.current?.dismiss()} activeOpacity={0.9}>
                 <Text style={styles.closeBtnText}>{t("close") ?? "Close"}</Text>
               </TouchableOpacity> */}
-              </BottomSheetView>
-            </BottomSheetModal>
+                </BottomSheetView>
+              </BottomSheetModal>
 
-            {/* Membership */}
-            {/* <BottomSheetModal
+              {/* Membership */}
+              {/* <BottomSheetModal
             ref={membershipSheetRef}
             snapPoints={membershipSnapPoints}
             enablePanDownToClose
@@ -1675,7 +1737,8 @@ export default function Home() {
               )}
             </BottomSheetView>
           </BottomSheetModal> */}
-          </View>
+            </View>
+          )
         ) : (
           <View style={styles.container}>
             <View style={styles.stickyHeroWrap}>
@@ -2077,21 +2140,22 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     sectionTitle: { color: palette.text, fontSize: 16, textAlign: 'left' },
     sectionAction: { color: palette.accent, fontWeight: "900", textAlign: 'left' },
 
-    catRow: { gap: 12 },
+    catRow: { gap: 12},
     catCard: {
-      flex: 1,
+      // flex: 1,
       // backgroundColor: palette.card,
       // borderRadius: 18,
-      // padding: 10,
+      paddingHorizontal: 10,
       // borderWidth: 1,
       // borderColor: hairline,
       alignItems: "center",
       gap: 5,
       // ...cardShadow,
+      maxWidth:100
     },
     catImgBox: {
       width: "100%",
-      height: 72,
+      // height: 72,
       borderRadius: 16,
       overflow: "hidden",
       // backgroundColor: palette.surface,
@@ -2118,7 +2182,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       height: 44,
       resizeMode: "contain",
     },
-    catName: { color: palette.text, fontSize: 10, textAlign: "center", fontWeight: '700' },
+    catName: { color: palette.text, fontSize: 12, textAlign: "center", fontWeight: '700' },
 
     productRow: {
       gap: 12,
@@ -2142,7 +2206,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       width: "100%",
       height: 110,
       borderRadius: 16,
-      backgroundColor: '#f0f0f0',
       overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",

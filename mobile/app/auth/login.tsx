@@ -1,6 +1,6 @@
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { TextInput, View, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
+import { TextInput, View, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from "react-native";
 import Screen from "../../components/Screen";
 import Text from "../../components/Text";
 import { useAuth } from "../../lib/auth";
@@ -8,9 +8,11 @@ import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import api from "../../lib/api";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Login() {
   const { login } = useAuth();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [loggingIn, setLoggingIn] = useState(false);
   const [email, setEmail] = useState("");
@@ -57,6 +59,10 @@ export default function Login() {
     }
   };
 
+  const goToRegister = () => {
+    router.push("/auth/register")
+  }
+
   const submit = async () => {
     setLoggingIn(true);
     try {
@@ -101,16 +107,23 @@ export default function Login() {
       setLoggingIn(false);
     }
   };
+  const goToForgotPass = () => {
+    router.push("/auth/forgot");
+  }
 
   return (
     <Screen>
-      <View style={{ flex: 1, paddingTop: 50 }}>
-        <View>
+      <View style={{ flex: 1, paddingBottom: insets.bottom + 30, justifyContent: 'space-between', position: 'relative' }}>
+        <View style={{ zIndex: 1 }}>
+          <View style={{ alignItems: 'center' }}>
+            <Image source={require('../../assets/shopico_logo-black.png')} style={styles.logo} />
+          </View>
           <View style={styles.hero}>
             <Text weight="bold" style={styles.title}>{t("login")}</Text>
           </View>
+
           <View style={styles.card}>
-            {step === "email" && (
+            {step === "email" ? (
               <TextInput
                 style={styles.input}
                 value={email}
@@ -121,20 +134,25 @@ export default function Login() {
                 autoCorrect={false}
                 keyboardType="email-address"
               />
+            ) : (
+              <View style={styles.row}>
+                <Text>{email}</Text>
+                <TouchableOpacity
+                  style={styles.backLink}
+                  onPress={() => {
+                    setStep("email");
+                    setPassword("");
+                    setConfirmPassword("");
+                    setError("");
+                  }}
+                >
+                  <Text style={styles.link}>{t("changeEmail") ?? "Change email"}</Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             {(step === "password" || step === "setPassword") && (
               <>
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder={t("email")}
-                  placeholderTextColor={palette.muted}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                />
                 <View style={{ position: "relative" }}>
                   <TextInput
                     style={styles.input}
@@ -170,57 +188,53 @@ export default function Login() {
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            {step === "email" && (
-              <TouchableOpacity style={styles.cta} onPress={checkEmail}>
-                <Text style={styles.ctaText}>
-                  {loggingIn ? t("loggingIn") : (t("continue") ?? "Continue")}
-                </Text>
-                {loggingIn && <ActivityIndicator size={"small"} color={"#fff"} />}
+            {step === "password" &&
+              <TouchableOpacity onPress={goToForgotPass}>
+                <Text style={styles.link}>{t("forgotPassword")}</Text>
               </TouchableOpacity>
-            )}
+            }
+          </View>
+        </View>
 
-            {step === "password" && (
-              <TouchableOpacity style={styles.cta} onPress={submit}>
-                <Text style={styles.ctaText}>
-                  {loggingIn ? t("loggingIn") : t("login")}
-                </Text>
-                {loggingIn && <ActivityIndicator size={"small"} color={"#fff"} />}
+        <View style={{ gap: 10, zIndex: 1 }}>
+          {step === "email" && (
+            <TouchableOpacity style={styles.cta} onPress={checkEmail}>
+              <Text style={styles.ctaText}>
+                {loggingIn ? t("loggingIn") : (t("continue") ?? "Continue")}
+              </Text>
+              {loggingIn && <ActivityIndicator size={"small"} color={"#fff"} />}
+            </TouchableOpacity>
+          )}
+          {step === "password" && (
+            <TouchableOpacity style={styles.cta} onPress={submit}>
+              <Text style={styles.ctaText}>
+                {loggingIn ? t("loggingIn") : t("login")}
+              </Text>
+              {loggingIn && <ActivityIndicator size={"small"} color={"#fff"} />}
+            </TouchableOpacity>
+          )}
+
+          {step === "setPassword" && (
+            <TouchableOpacity style={styles.cta} onPress={setInitialPassword}>
+              <Text style={styles.ctaText}>
+                {loggingIn ? t("loggingIn") : (t("setPassword") ?? "Set password")}
+              </Text>
+              {loggingIn && <ActivityIndicator size={"small"} color={"#fff"} />}
+            </TouchableOpacity>
+          )}
+
+          <View style={[styles.row, { justifyContent: 'center' }]}>
+            <View style={{ flexDirection: 'row', gap: 5, alignItems: 'baseline' }}>
+              <Text>{t("donthaveAnAccount")}</Text>
+              <TouchableOpacity onPress={goToRegister} >
+                <Text style={styles.link}>{t("register")}</Text>
               </TouchableOpacity>
-            )}
-
-            {step === "setPassword" && (
-              <TouchableOpacity style={styles.cta} onPress={setInitialPassword}>
-                <Text style={styles.ctaText}>
-                  {loggingIn ? t("loggingIn") : (t("setPassword") ?? "Set password")}
-                </Text>
-                {loggingIn && <ActivityIndicator size={"small"} color={"#fff"} />}
-              </TouchableOpacity>
-            )}
-
-            {step !== "email" && (
-              <TouchableOpacity
-                style={styles.backLink}
-                onPress={() => {
-                  setStep("email");
-                  setPassword("");
-                  setConfirmPassword("");
-                  setError("");
-                }}
-              >
-                <Text style={styles.link}>{t("back") ?? "Back"}</Text>
-              </TouchableOpacity>
-            )}
-
-            <View style={styles.row}>
-              <Link href="/auth/forgot" style={styles.link}>
-                {t("forgotPassword")}
-              </Link>
-              <Link href="/auth/register" style={styles.link}>
-                {t("register")}
-              </Link>
             </View>
           </View>
         </View>
+
+        <Image source={require('../../assets/watermark4.png')} style={styles.watermark} />
+
       </View>
     </Screen>
   );
@@ -228,16 +242,31 @@ export default function Login() {
 
 const createStyles = (palette: any, isDark: any, isRTL: boolean) =>
   StyleSheet.create({
+    logo: {
+      width: 100,
+      height: 100,
+      objectFit: 'contain'
+    },
     hero: { gap: 6, marginBottom: 18 },
     kicker: { color: palette.accent, textAlign: "left" },
     title: {
-      color: palette.text, fontSize: 28,
-      textAlign: "left"
+      color: palette.text, fontSize: 22,
     },
     subtitle: {
       color: palette.muted,
       fontSize: 14,
       textAlign: "left"
+    },
+    watermark: {
+      position: 'absolute',
+      top: 0,
+      right: -20,
+      width: '100%',
+      height: '100%',
+      objectFit: 'contain',
+      // borderWidth:3
+      opacity: 0.4,
+      pointerEvents: 'none',
     },
     card: {
       gap: 12,

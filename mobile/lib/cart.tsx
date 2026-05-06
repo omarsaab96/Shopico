@@ -12,6 +12,7 @@ export interface CartItem {
 interface CartContextValue {
   items: CartItem[];
   addItem: (item: CartItem) => void;
+  replaceItems: (items: CartItem[]) => void;
   setQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
   reload: () => Promise<void>;
@@ -59,9 +60,10 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const removeItem = (productId: string) => persist(items.filter((i) => i.productId !== productId));
+  const replaceItems = (next: CartItem[]) => persist(next);
   const clear = () => persist([]);
 
-  return <CartContext.Provider value={{ items, addItem, setQuantity, removeItem, clear, reload: loadFromStorage }}>{children}</CartContext.Provider>;
+  return <CartContext.Provider value={{ items, addItem, replaceItems, setQuantity, removeItem, clear, reload: loadFromStorage }}>{children}</CartContext.Provider>;
 };
 
 export const useCart = () => {

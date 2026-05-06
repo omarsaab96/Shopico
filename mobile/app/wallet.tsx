@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { View, StyleSheet, FlatList } from "react-native";
+import { View, StyleSheet, TouchableOpacity, FlatList } from "react-native";
 import Screen from "../components/Screen";
 import api from "../lib/api";
 import { useTheme } from "../lib/theme";
@@ -9,10 +9,14 @@ import ProgressBar from "../components/ProgressBar";
 import Feather from "@expo/vector-icons/Feather";
 import { useAuth } from "../lib/auth";
 import Text from "../components/Text";
+import { Skeleton } from "../components/Skeleton";
+import { goBack } from "expo-router/build/global-state/routing";
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
   const [wallet, setWallet] = useState<any>();
+  const [settings, setSettings] = useState<any>();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { palette, isDark } = useTheme();
@@ -22,14 +26,15 @@ export default function WalletScreen() {
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   const load = () =>
-    api
-      .get("/wallet")
-      .then((res) => {
-        setWallet(res.data.data.wallet || res.data.data || { balance: 0 });
-        setTransactions(res.data.data.transactions || res.data.data?.walletTx || []);
+    Promise.all([api.get("/wallet"), api.get("/settings")])
+      .then(([walletRes, settingsRes]) => {
+        setWallet(walletRes.data.data.wallet || walletRes.data.data || { balance: 0 });
+        setTransactions(walletRes.data.data.transactions || walletRes.data.data?.walletTx || []);
+        setSettings(settingsRes.data.data);
       })
       .catch(() => {
         setWallet({ balance: 0 });
+        setSettings(undefined);
         setTransactions([]);
       })
       .finally(() => setLoading(false));
@@ -47,22 +52,16 @@ export default function WalletScreen() {
 
   const balance = wallet?.balance || wallet?.wallet?.balance || 0;
   const membershipLevel = profile?.membershipLevel || "None";
-  const thresholds =
-    wallet?.membershipThresholds ||
-    wallet?.settings?.membershipThresholds || {
-      silver: 1000000,
-      gold: 2000000,
-      platinum: 4000000,
-      diamond: 6000000,
-    };
+  const thresholds = settings?.membershipThresholds;
+  const hasThresholds = Boolean(thresholds);
   const graceUntil = profile?.membershipGraceUntil ? new Date(profile.membershipGraceUntil) : null;
   const inGrace = !!(graceUntil && graceUntil.getTime() > Date.now() && membershipLevel !== "None");
   const currentThreshold = useMemo(() => {
     const map: Record<string, number> = {
-      Silver: thresholds.silver,
-      Gold: thresholds.gold,
-      Platinum: thresholds.platinum,
-      Diamond: thresholds.diamond,
+      Silver: thresholds?.silver ?? 0,
+      Gold: thresholds?.gold ?? 0,
+      Platinum: thresholds?.platinum ?? 0,
+      Diamond: thresholds?.diamond ?? 0,
     };
     return map[membershipLevel] || 0;
   }, [membershipLevel, thresholds]);
@@ -89,6 +88,7 @@ export default function WalletScreen() {
   }, [membershipLevel, palette, isDark]);
 
   const { nextLabel, remaining, progress } = useMemo(() => {
+    if (!thresholds) return { nextLabel: "", remaining: 0, progress: 0 };
     const levels = [
       { name: "None", min: 0 },
       { name: "Silver", min: thresholds.silver },
@@ -108,65 +108,78 @@ export default function WalletScreen() {
 
   if (loading) {
     return (
-      <Screen showBack backLabel={t("back") ?? "Back"}>
-        <Text style={styles.title}>{t("wallet")}</Text>
-        <Text style={styles.muted}>{t("loading") ?? "Loading"}...</Text>
+      <Screen>
+        <View style={{ gap: 10 }}>
+          <TouchableOpacity onPress={goBack} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <FontAwesome6 name="chevron-left" size={18} color="black" style={{}} />
+            <Text style={[styles.title, { marginBottom: 0, lineHeight: 28 }]}>{t("wallet")}</Text>
+          </TouchableOpacity>
+          {/* <Text style={styles.muted}>{t("loading") ?? "Loading"}...</Text> */}
+          <Skeleton width={320} height={200} style={{ marginBottom: 20 }} />
+          <Skeleton width={100} height={20} />
+          <Skeleton width={320} height={30} />
+          <Skeleton width={320} height={30} />
+        </View>
       </Screen>
     );
   }
 
   return (
-    <Screen showBack backLabel={t("back") ?? "Back"}>
-      <Text style={styles.title}>{t("wallet")}</Text>
+    <Screen>
+      <TouchableOpacity onPress={goBack} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, }}>
+            <FontAwesome6 name="chevron-left" size={18} color="black" style={{}} />
+            <Text style={[styles.title, { marginBottom: 0, lineHeight: 28 }]}>{t("wallet")}</Text>
+          </TouchableOpacity>
+      {/* <Text style={styles.title}>{t("wallet")}</Text> */}
 
-        <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg }]}>
-          <View style={[styles.walletGlowA, { backgroundColor: membershipTone.accent }]} />
-          <View style={[styles.walletGlowB, { backgroundColor: membershipTone.accent }]} />
-          <View style={styles.walletRow}>
-            <View style={styles.walletTextCol}>
-              <View style={styles.walletHeader}>
-                <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-                  <Text style={styles.walletLabel}>{t("balance")}</Text>
-                  {/* <Entypo name="info-with-circle" size={18} color={palette.muted} /> */}
-                </View>
-                <View style={[styles.levelPill, { backgroundColor: membershipTone.badgeBg, borderColor: membershipTone.ring }]}>
-                  <Feather name="award" size={14} color={membershipTone.badgeText} />
-                  <Text style={[styles.levelPillText, { color: membershipTone.badgeText }]}>
-                    {membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}
-                  </Text>
-                </View>
+      <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg }]}>
+        <View style={[styles.walletGlowA, { backgroundColor: membershipTone.accent }]} />
+        <View style={[styles.walletGlowB, { backgroundColor: membershipTone.accent }]} />
+        <View style={styles.walletRow}>
+          <View style={styles.walletTextCol}>
+            <View style={styles.walletHeader}>
+              <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+                <Text style={styles.walletLabel}>{t("balance")}</Text>
+                {/* <Entypo name="info-with-circle" size={18} color={palette.muted} /> */}
               </View>
-              <Text style={styles.walletValue}>{balance.toLocaleString()} <Text style={{ fontWeight: "400", fontSize: 18 }}>SYP</Text></Text>
-            </View>
-          </View>
-          <View style={{ marginTop: 10 }}>
-            <ProgressBar progress={progress} />
-            <View style={styles.walletFooterRow}>
-              {/* <View>
-                <Text style={styles.walletMiniLabel}>{t("balance")}</Text>
-                <Text style={styles.walletMiniValue}>{balance.toLocaleString()} SYP</Text>
-              </View> */}
-              {/* <View style={{ }}> */}
-              {remaining > 0 && <Text style={styles.walletMiniLabel}>{t("remainingToNext") ?? "Remaining to"}{nextLabel}</Text>}
-              <Text style={styles.walletMiniValue}>
-                {remaining > 0 ? `${remaining.toLocaleString()} SYP` : t("congrats") ?? "Top level"}
-              </Text>
-              {/* </View> */}
-            </View>
-
-            {inGrace && (
-              <View style={[styles.graceBox, { borderColor: membershipTone.ring, backgroundColor: isDark ? palette.surface : "#fffaf0" }]}>
-                <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
-                <Text style={styles.graceCopy}>
-                  {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} SYP
-                </Text>
-                <Text style={[styles.graceCopy, { color: palette.muted }]}>
-                  {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
+              <View style={[styles.levelPill, { backgroundColor: membershipTone.badgeBg, borderColor: membershipTone.ring }]}>
+                <Feather name="award" size={14} color={membershipTone.badgeText} />
+                <Text style={[styles.levelPillText, { color: membershipTone.badgeText }]}>
+                  {membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}
                 </Text>
               </View>
-            )}
+            </View>
+            <Text style={styles.walletValue}>{balance.toLocaleString()} <Text style={{ fontWeight: "400", fontSize: 18 }}>SYP</Text></Text>
           </View>
         </View>
+          <View style={{ marginTop: 10 }}>
+          {hasThresholds ? (
+            <>
+              <ProgressBar progress={progress} />
+              <View style={styles.walletFooterRow}>
+                {remaining > 0 && <Text style={styles.walletMiniLabel}>{t("remainingToNext") ?? "Remaining to"}{nextLabel}</Text>}
+                <Text style={styles.walletMiniValue}>
+                  {remaining > 0 ? `${remaining.toLocaleString()} SYP` : t("congrats") ?? "Top level"}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.walletMiniLabel}>{t("membershipLoadError") ?? "Could not load membership details."}</Text>
+          )}
+
+          {inGrace && (
+            <View style={[styles.graceBox, { borderColor: membershipTone.ring, backgroundColor: isDark ? palette.surface : "#fffaf0" }]}>
+              <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
+              <Text style={styles.graceCopy}>
+                {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} SYP
+              </Text>
+              <Text style={[styles.graceCopy, { color: palette.muted }]}>
+                {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
 
       <Text style={[styles.cardTitle, { marginBottom: 8 }]}>{t("walletLedger") ?? "Wallet ledger"}</Text>
 
@@ -178,7 +191,7 @@ export default function WalletScreen() {
           renderItem={({ item }: any) => (
             <View style={styles.txRow}>
               <View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: isRTL?0:5 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: isRTL ? 0 : 5 }}>
                   {item.type == "CREDIT" && <Feather name="arrow-down-circle" size={18} color={'#009933'} />}
                   {item.type == "DEBIT" && <Feather name="arrow-up-circle" size={18} color={'#f00000'} />}
                   <Text style={styles.txAmount}>{(item.amount || 0).toLocaleString()} SYP</Text>
@@ -214,9 +227,9 @@ const createStyles = (palette: any, isRTL: boolean) =>
       marginBottom: 12,
       gap: 8,
     },
-    balance: { color: palette.text, fontSize: 32, fontWeight: "800", textAlign:'left' },
-    muted: { color: palette.muted, textAlign:'left' },
-    cardTitle: { color: palette.text, fontSize: 18, fontWeight: "700", textAlign:'left' },
+    balance: { color: palette.text, fontSize: 32, fontWeight: "800", textAlign: 'left' },
+    muted: { color: palette.muted, textAlign: 'left' },
+    cardTitle: { color: palette.text, fontSize: 18, fontWeight: "700", textAlign: 'left' },
     rowCard: { backgroundColor: palette.card, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: palette.border },
     value: { color: palette.text, fontWeight: "700" },
     walletCard: {
@@ -232,8 +245,8 @@ const createStyles = (palette: any, isRTL: boolean) =>
     walletRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
     walletTextCol: { flex: 1, gap: 8 },
     walletHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    walletLabel: { color: palette.text, fontSize: 18, fontWeight: "700", textAlign:  "left" },
-    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign:  "left" },
+    walletLabel: { color: palette.text, fontSize: 18, fontWeight: "700", textAlign: "left" },
+    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign: "left" },
     walletFooterRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 5 },
     walletMiniLabel: { color: palette.muted, fontWeight: "700", fontSize: 12 },
     walletMiniValue: { color: palette.text, fontWeight: "800", fontSize: 14 },

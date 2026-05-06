@@ -1,6 +1,6 @@
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { TextInput, View, StyleSheet, TouchableOpacity } from "react-native";
+import { TextInput, View, Image, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../../components/Button";
 import Screen from "../../components/Screen";
 import Text from "../../components/Text";
@@ -8,9 +8,11 @@ import api, { storeTokens } from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import AntDesign from '@expo/vector-icons/AntDesign';
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Register() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,6 +23,10 @@ export default function Register() {
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   const submit = async () => {
+    if (name.trim() == "" || email.trim() == "" || password.trim() == "") {
+      setError(t("invalidForm"));
+      return;
+    }
     try {
       const res = await api.post("/auth/register", { name, email, password });
       const { accessToken, refreshToken } = res.data.data;
@@ -32,53 +38,81 @@ export default function Register() {
     }
   };
 
+  const goToLogin = () => {
+    router.push("/auth/login")
+  }
+
   return (
     <Screen>
-      <View style={{ flex: 1, paddingTop: 50 }}>
-        <View style={styles.card}>
-          <Text weight="bold" style={styles.cardTitle}>{t("register")}</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder={t("name")}
-            placeholderTextColor={palette.muted}
-          />
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder={t("email")}
-            placeholderTextColor={palette.muted}
-            autoCapitalize="none"
-          />
-          <View style={{ position: 'relative' }}>
+      <View style={{ flex: 1, paddingBottom: insets.bottom + 30, justifyContent: 'space-between', position: 'relative' }}>
+        <View style={{ zIndex: 1 }}>
+          <View style={{ alignItems: 'center' }}>
+            <Image source={require('../../assets/shopico_logo-black.png')} style={styles.logo} />
+          </View>
+          <View style={styles.hero}>
+            <Text weight="bold" style={styles.title}>{t("register")}</Text>
+          </View>
+
+          {/* <Text weight="bold" style={styles.cardTitle}>{t("register")}</Text> */}
+          <View style={styles.card}>
             <TextInput
               style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder={t("password")}
-              secureTextEntry={!showPassword}
+              value={name}
+              onChangeText={setName}
+              placeholder={t("name")}
               placeholderTextColor={palette.muted}
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.toggle}>
-              {showPassword ?
-                <AntDesign name="eye-invisible" size={20} color="black" />
-                :
-                <AntDesign name="eye" size={20} color="black" />
-              }
-            </TouchableOpacity>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder={t("email")}
+              placeholderTextColor={palette.muted}
+              autoCapitalize="none"
+            />
+            <View style={{ position: 'relative' }}>
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder={t("password")}
+                secureTextEntry={!showPassword}
+                placeholderTextColor={palette.muted}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.toggle}>
+                {showPassword ?
+                  <AntDesign name="eye-invisible" size={20} color="black" />
+                  :
+                  <AntDesign name="eye" size={20} color="black" />
+                }
+              </TouchableOpacity>
+            </View>
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Button title={t("register")} onPress={submit} />
-          <View style={[styles.row,{alignItems:'center'}]}>
+
+          {/* <View style={[styles.row, { justifyContent: 'center' }]}>
             <Text>{t("alreadyHaveAnAccount")}</Text>
             <Link href="/auth/login" style={styles.link}>
               {t("login")}
             </Link>
+          </View> */}
+        </View>
+
+        <View style={{ gap: 10, zIndex: 1 }}>
+          <Button title={t("register")} onPress={submit} />
+
+          <View style={[styles.row, { justifyContent: 'center' }]}>
+            <View style={{ flexDirection: 'row', gap: 5, alignItems: 'baseline' }}>
+              <Text>{t("alreadyHaveAnAccount")}</Text>
+              <TouchableOpacity onPress={goToLogin} >
+                <Text style={styles.link}>{t("login")}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
+
+        <Image source={require('../../assets/watermark4.png')} style={styles.watermark} />
       </View>
     </Screen>
   );
@@ -86,12 +120,31 @@ export default function Register() {
 
 const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
-    row: { flexDirection: "row", justifyContent: "flex-start", gap:5 },
-
-    card: { gap: 12, },
+    watermark: {
+      position: 'absolute',
+      top: 0,
+      right: -20,
+      width: '100%',
+      height: '100%',
+      objectFit: 'contain',
+      // borderWidth:3
+      opacity: 0.4,
+      pointerEvents: 'none',
+    },
+    logo: {
+      width: 100,
+      height: 100,
+      objectFit: 'contain'
+    },
+    row: { flexDirection: "row", justifyContent: "flex-start", gap: 5 },
+    hero: { gap: 6, marginBottom: 18 },
+    kicker: { color: palette.accent, textAlign: "left" },
+    title: {
+      color: palette.text, fontSize: 22,
+    },
+    card: { gap: 12 },
     cardTitle: {
-      color: palette.text, fontSize: 28,
-      textAlign: "left"
+      color: palette.text, fontSize: 22,
     },
     input: {
       backgroundColor: palette.surface,
@@ -100,9 +153,9 @@ const createStyles = (palette: any, isRTL: boolean) =>
       padding: 12,
       borderWidth: 1,
       borderColor: palette.border,
-      textAlign:isRTL?'right':'left'
+      textAlign: isRTL ? 'right' : 'left'
     },
-    toggle: { position: 'absolute', alignSelf: "flex-end", top: 12, right: isRTL?undefined:10,left:isRTL?10:undefined },
+    toggle: { position: 'absolute', alignSelf: "flex-end", top: 12, right: isRTL ? undefined : 10, left: isRTL ? 10 : undefined },
     link: { color: palette.accent },
     error: { color: "#f87171" },
   });
