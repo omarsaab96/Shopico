@@ -885,7 +885,7 @@ export default function Home() {
           scrollEnabled={false}
           numColumns={5}
           columnWrapperStyle={styles.catRow}
-          contentContainerStyle={{ gap: 12,  }}
+          contentContainerStyle={{ gap: 12, }}
           keyExtractor={(c) => c._id}
           renderItem={({ item }) =>
             showCategorySkeleton ? (
@@ -1956,7 +1956,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       gap: 10,
       flex: 1,
       minWidth: 0,
-      paddingLeft: 10,
+      paddingLeft: isRTL ? 0 : 10,
+      paddingRight: isRTL ? 10 : 0
     },
     locationTextWrap: {
       flex: 1,
@@ -1970,7 +1971,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       width: 1,
       backgroundColor: 'white',
       top: 5,
-      right: -11,
+      right: isRTL ? 'auto' : -11,
+      left: isRTL ? -11 : 'auto',
       opacity: 0.5
     },
     branchPromptBackdrop: {
@@ -2140,7 +2142,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     sectionTitle: { color: palette.text, fontSize: 16, textAlign: 'left' },
     sectionAction: { color: palette.accent, fontWeight: "900", textAlign: 'left' },
 
-    catRow: { gap: 12},
+    catRow: { gap: 12 },
     catCard: {
       // flex: 1,
       // backgroundColor: palette.card,
@@ -2151,7 +2153,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       alignItems: "center",
       gap: 5,
       // ...cardShadow,
-      maxWidth:100
+      maxWidth: 100
     },
     catImgBox: {
       width: "100%",
