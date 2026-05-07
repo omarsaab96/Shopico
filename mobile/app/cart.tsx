@@ -759,12 +759,17 @@ export default function CartScreen() {
               </Text>
             </View>
 
-            {couponDiscountTotal > 0 && <Text style={styles.sheetText}>
-              {t("discount") ?? "Discount"}:{" "}
-              {couponDiscountTotal > 0
-                ? `-${couponDiscountTotal.toLocaleString()} ${t("syp")}`
-                : `0 ${t("syp")}`}
-            </Text>}
+            {couponDiscountTotal > 0 && <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[styles.sheetText, { fontWeight: '700' }]}>
+                {t("discount")}
+              </Text>
+              <Text style={styles.sheetText}>
+                {couponDiscountTotal > 0
+                  ? `-${couponDiscountTotal.toLocaleString()} ${t("syp")}`
+                  : `0 ${t("syp")}`}
+              </Text>
+
+            </View>}
 
             {/* {walletInsufficient && (
                 <Text style={[styles.sheetText, { color: "red" }]}>
@@ -897,17 +902,24 @@ export default function CartScreen() {
           </Text>
         ) : null}
 
-        {items.length > 0 && <View style={{ gap: 8, paddingBottom: 16 }}>
+        {items.length > 0 && <View style={{ paddingBottom: 16, flexDirection: 'row', gap: 5 }}>
           <Button title={t("clearCart")} onPress={confirmClear} secondary />
           {user ? (
             cartSyncLoading ? (
-              <TouchableOpacity style={styles.buttonCta} onPress={openCheckout}>
+              <TouchableOpacity
+                style={[styles.buttonCta, { flex: 1, opacity: 0.6 }]}
+                disabled={true}
+                onPress={openCheckout}
+              >
                 <Text style={styles.buttonCtaText}>
-                  <ActivityIndicator size='small' color='#fff'/>
+                  <ActivityIndicator size='small' color='#fff' />
                 </Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={styles.buttonCta} onPress={openCheckout}>
+              <TouchableOpacity
+                style={[styles.buttonCta, { flex: 1 }, hasUnavailableItems && { opacity: 0.6 }]}
+                onPress={openCheckout} disabled={hasUnavailableItems}
+              >
                 <Text style={styles.buttonCtaText}>{t("checkout")}</Text>
               </TouchableOpacity>
             )
@@ -1591,7 +1603,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       shadowRadius: 8,
       shadowOffset: { width: 0, height: 4 },
     },
-    buttonCtaText: { color: "#fff", fontSize: 16 },
+    buttonCtaText: { color: "#fff", fontSize: 16, fontWeight: "900" },
     sheetText: { color: palette.muted, textAlign: 'left' },
     sheetActions: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
     sheetButton: {

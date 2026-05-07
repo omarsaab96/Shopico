@@ -475,6 +475,12 @@ const extraBaseStrings: Record<string, string> = {
   cartItemUnavailable: "This item is no longer available.",
   removeUnavailableItemsBeforeCheckout: "Remove or replace unavailable items before checkout.",
   replace: "Replace",
+  editProfile: "Edit profile",
+  deleteProfile: "Delete profile",
+  deleteProfileCopy: "Delete your account and sign out from this device.",
+  deleteProfileConfirm: "This will permanently delete your account.",
+  profileUpdateFailed: "Could not update profile",
+  profileDeleteFailed: "Could not delete profile",
 };
 
 const extraArStrings: Record<string, string> = {
@@ -517,6 +523,12 @@ const extraArStrings: Record<string, string> = {
   cartItemUnavailable: "\u0647\u0630\u0627 \u0627\u0644\u0645\u0646\u062a\u062c \u0644\u0645 \u064a\u0639\u062f \u0645\u062a\u0648\u0641\u0631\u0627.",
   removeUnavailableItemsBeforeCheckout: "\u064a\u0631\u062c\u0649 \u0625\u0632\u0627\u0644\u0629 \u0623\u0648 \u0627\u0633\u062a\u0628\u062f\u0627\u0644 \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a \u063a\u064a\u0631 \u0627\u0644\u0645\u062a\u0648\u0641\u0631\u0629 \u0642\u0628\u0644 \u0625\u062a\u0645\u0627\u0645 \u0627\u0644\u0637\u0644\u0628.",
   replace: "\u0627\u0633\u062a\u0628\u062f\u0627\u0644",
+  editProfile: "\u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0645\u0644\u0641",
+  deleteProfile: "\u062d\u0630\u0641 \u0627\u0644\u0645\u0644\u0641",
+  deleteProfileCopy: "\u062d\u0630\u0641 \u062d\u0633\u0627\u0628\u0643 \u0648\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c \u0645\u0646 \u0647\u0630\u0627 \u0627\u0644\u062c\u0647\u0627\u0632.",
+  deleteProfileConfirm: "\u0633\u064a\u062a\u0645 \u062d\u0630\u0641 \u062d\u0633\u0627\u0628\u0643 \u0646\u0647\u0627\u0626\u064a\u0627.",
+  profileUpdateFailed: "\u062a\u0639\u0630\u0631 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u0645\u0644\u0641",
+  profileDeleteFailed: "\u062a\u0639\u0630\u0631 \u062d\u0630\u0641 \u0627\u0644\u0645\u0644\u0641",
   driver: "السائق",
   off: "خصم",
   orderPlaced: "تم إنشاء الطلب",

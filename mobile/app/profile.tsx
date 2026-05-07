@@ -20,7 +20,7 @@ export default function Profile() {
   const { t, isRTL, lang, setLang } = useI18n();
   const [pointsData, setPointsData] = useState<any>();
   const [settings, setSettings] = useState<any>();
-  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL]);
+  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
   const [wallet, setWallet] = useState<any>();
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export default function Profile() {
     : undefined;
 
   const handleEdit = () => {
-    console.log('edit profile clicked')
+    router.push("/edit-profile");
   }
   const balance = wallet?.balance || 0;
   const membershipLevel = user?.membershipLevel || "None";
@@ -124,7 +124,7 @@ export default function Profile() {
             <View style={styles.card}>
               <View style={{ padding: 18, flexDirection : 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{justifyContent:'flex-start',}}>
-                  <View style={{ flexDirection: 'row',  alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                  <View style={{ flexDirection: 'row',  alignItems: 'baseline', gap: 5, marginBottom: 5 }}>
                     <Text style={styles.username}>{user?.name}</Text>
 
                     <View style={styles.walletBadgeRow}>
@@ -138,11 +138,11 @@ export default function Profile() {
                   </View>
                   <Text style={[styles.muted,{textAlign:'left'}]}>{user?.email}</Text>
                 </View>
-                {/* <View>
+                <View>
                   <TouchableOpacity style={styles.btn} onPress={() => { handleEdit() }}>
                     <Feather name="edit-3" size={20} color="#fff" />
                   </TouchableOpacity>
-                </View> */}
+                </View>
               </View>
 
               {/* <Text style={styles.muted}>
@@ -166,11 +166,11 @@ export default function Profile() {
 
                 <TouchableOpacity onPress={() => { router.push("/wallet") }} style={[styles.pointsBox]}>
                   <Text style={styles.muted}>
-                    {t("WalletBalance")}
+                    {t("WalletBalance")} ({t("syp")})
                     {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
                   </Text>
                   <Text style={styles.pointsValue}>
-                    {balance.toLocaleString()}<Text style={{ fontWeight: '400', fontSize: 14 }}> {t("syp")}</Text>
+                    {balance.toLocaleString()}<Text style={{ fontWeight: '400', fontSize: 14 }}></Text>
                   </Text>
                   {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
                   <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/wallet") }}>
@@ -460,9 +460,9 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
       borderRadius: 999,
       backgroundColor: palette.surface,
       paddingVertical: 5,
-      paddingHorizontal: 10
+      paddingHorizontal: 6
     },
-    levelPillText: { fontWeight: "800", fontSize: 12 },
+    levelPillText: { fontWeight: "800", fontSize: 12,lineHeight:12 },
 
     walletMini: {
       paddingTop: 5

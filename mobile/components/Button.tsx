@@ -29,6 +29,7 @@ const Button = ({
         primaryText: { color: "#fff", fontSize: 16 },
         secondary: {
           paddingVertical: 14,
+          paddingHorizontal: 10,
           borderRadius: 14,
           alignItems: "center",
           borderWidth: 1,

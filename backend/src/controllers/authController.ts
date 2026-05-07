@@ -1,11 +1,13 @@
 import { Response } from "express";
 import { catchAsync } from "../utils/catchAsync";
-import { loginSchema, passwordStatusSchema, registerSchema, setPasswordSchema } from "../validators/authValidators";
+import { loginSchema, passwordStatusSchema, registerSchema, setPasswordSchema, updateProfileSchema } from "../validators/authValidators";
 import { getPasswordStatus, loginUser, refreshTokens, registerUser, setPasswordForUser } from "../services/authService";
 import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
 import { Wallet } from "../models/Wallet";
 import { updateMembershipOnBalanceChange } from "../utils/membership";
+import { User } from "../models/User";
+import { AuditLog } from "../models/AuditLog";
 
 const setRefreshCookie = (res: Response, token: string) => {
   res.cookie("refreshToken", token, {
@@ -63,5 +65,33 @@ export const me = catchAsync(async (req: AuthRequest, res) => {
   } catch (e) {
     // best-effort; we still return the user even if this fails
   }
-  sendSuccess(res, { user: req.user });
+  const user = await User.findById(req.user!._id).select("-password");
+  sendSuccess(res, { user });
+});
+
+export const updateMe = catchAsync(async (req: AuthRequest, res) => {
+  const payload = updateProfileSchema.parse(req.body);
+  if (!req.user) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+  const update: { name?: string; email?: string; phone?: string } = {};
+  if (payload.name !== undefined) update.name = payload.name.trim();
+  if (payload.phone !== undefined) update.phone = payload.phone.trim();
+  if (payload.email !== undefined) {
+    const email = payload.email.toLowerCase().trim();
+    const exists = await User.findOne({ email, _id: { $ne: req.user._id } });
+    if (exists) return res.status(400).json({ success: false, message: "Email already registered" });
+    update.email = email;
+  }
+
+  const user = await User.findByIdAndUpdate(req.user._id, update, { new: true }).select("-password");
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  await AuditLog.create({ user: user._id, action: "USER_UPDATE_PROFILE" });
+  sendSuccess(res, { user }, "Profile updated");
+});
+
+export const deleteMe = catchAsync(async (req: AuthRequest, res) => {
+  if (!req.user) return res.status(401).json({ success: false, message: "Unauthorized" });
+  await User.findByIdAndDelete(req.user._id);
+  await AuditLog.create({ user: req.user._id, action: "USER_DELETE_PROFILE" });
+  sendSuccess(res, { _id: req.user._id }, "Profile deleted");
 });

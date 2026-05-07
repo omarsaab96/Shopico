@@ -6,6 +6,8 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<any>;
+  setUserProfile: (user: any) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -14,10 +16,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>();
   const [loading, setLoading] = useState(true);
 
+  const refreshUser = async () => {
+    const res = await api.get("/auth/me");
+    const profile = res.data.data.user;
+    setUser(profile);
+    return profile;
+  };
+
   useEffect(() => {
-    api
-      .get("/auth/me")
-      .then((res) => setUser(res.data.data.user))
+    refreshUser()
       .catch(() => setUser(undefined))
       .finally(() => setLoading(false));
   }, []);
@@ -34,7 +41,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(undefined);
   };
 
-  return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, setUserProfile: setUser }}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
