@@ -26,3 +26,12 @@ export const updateProfileSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
 });
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(6),
+  newPassword: z.string().min(6),
+});
+
+export const deleteProfileSchema = z.object({
+  password: z.string().min(6),
+});

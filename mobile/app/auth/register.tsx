@@ -9,10 +9,12 @@ import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../../lib/auth";
 
 export default function Register() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { setUserProfile } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,8 +31,9 @@ export default function Register() {
     }
     try {
       const res = await api.post("/auth/register", { name, email, password });
-      const { accessToken, refreshToken } = res.data.data;
+      const { accessToken, refreshToken, user } = res.data.data;
       await storeTokens(accessToken, refreshToken);
+      setUserProfile(user);
       router.replace("/(tabs)/store");
     } catch (err) {
       console.error(err);

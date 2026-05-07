@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { catchAsync } from "../utils/catchAsync";
-import { loginSchema, passwordStatusSchema, registerSchema, setPasswordSchema, updateProfileSchema } from "../validators/authValidators";
+import { changePasswordSchema, deleteProfileSchema, loginSchema, passwordStatusSchema, registerSchema, setPasswordSchema, updateProfileSchema } from "../validators/authValidators";
 import { getPasswordStatus, loginUser, refreshTokens, registerUser, setPasswordForUser } from "../services/authService";
 import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
@@ -8,6 +8,8 @@ import { Wallet } from "../models/Wallet";
 import { updateMembershipOnBalanceChange } from "../utils/membership";
 import { User } from "../models/User";
 import { AuditLog } from "../models/AuditLog";
+import bcrypt from "bcryptjs";
+import { Cart } from "../models/Cart";
 
 const setRefreshCookie = (res: Response, token: string) => {
   res.cookie("refreshToken", token, {
@@ -89,9 +91,37 @@ export const updateMe = catchAsync(async (req: AuthRequest, res) => {
   sendSuccess(res, { user }, "Profile updated");
 });
 
-export const deleteMe = catchAsync(async (req: AuthRequest, res) => {
+export const changeMyPassword = catchAsync(async (req: AuthRequest, res) => {
+  const payload = changePasswordSchema.parse(req.body);
   if (!req.user) return res.status(401).json({ success: false, message: "Unauthorized" });
-  await User.findByIdAndDelete(req.user._id);
+
+  const user = await User.findById(req.user._id);
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  if (!user.password) return res.status(400).json({ success: false, message: "Password is not set for this account" });
+
+  const matches = await bcrypt.compare(payload.currentPassword, user.password);
+  if (!matches) return res.status(400).json({ success: false, message: "Current password is incorrect" });
+
+  user.password = await bcrypt.hash(payload.newPassword, 10);
+  await user.save();
+  await AuditLog.create({ user: user._id, action: "USER_CHANGE_PASSWORD" });
+  sendSuccess(res, null, "Password changed");
+});
+
+export const deleteMe = catchAsync(async (req: AuthRequest, res) => {
+  const payload = deleteProfileSchema.parse(req.body);
+  if (!req.user) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+  const user = await User.findById(req.user._id);
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  if (!user.password) return res.status(400).json({ success: false, message: "Password is not set for this account" });
+
+  const matches = await bcrypt.compare(payload.password, user.password);
+  if (!matches) return res.status(400).json({ success: false, message: "Password is incorrect" });
+
+  await Wallet.deleteOne({ user: user._id });
+  await Cart.deleteOne({ user: user._id });
+  await User.findByIdAndDelete(user._id);
   await AuditLog.create({ user: req.user._id, action: "USER_DELETE_PROFILE" });
   sendSuccess(res, { _id: req.user._id }, "Profile deleted");
 });
