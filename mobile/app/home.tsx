@@ -83,6 +83,7 @@ export default function Home() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -505,17 +506,28 @@ export default function Home() {
 
   const lastCategoriesBranchRef = useRef<string | null>(null);
   useEffect(() => {
-    if (authLoading || !user || !selectedBranch) return;
+    if (authLoading) return;
+    if (!user || !selectedBranch) {
+      lastCategoriesBranchRef.current = null;
+      setCategories([]);
+      setCategoriesLoading(false);
+      setCategoriesLoaded(false);
+      return;
+    }
     const branchKey = selectedBranch?._id || "default";
     if (lastCategoriesBranchRef.current === branchKey) return;
     lastCategoriesBranchRef.current = branchKey;
     setCategoriesLoading(true);
+    setCategoriesLoaded(false);
     api
       .get("/categories")
       .then((res) => setCategories(res.data.data || []))
       .catch(() => setCategories([]))
-      .finally(() => setCategoriesLoading(false));
-  }, [selectedBranch?._id, user]);
+      .finally(() => {
+        setCategoriesLoading(false);
+        setCategoriesLoaded(true);
+      });
+  }, [authLoading, selectedBranch?._id, user]);
 
   useEffect(() => {
     api
@@ -865,7 +877,7 @@ export default function Home() {
 
   const renderCategoriesGrid = () => {
     if (hasQuery) return null;
-    const showCategorySkeleton = categoriesLoading || refreshSkeleton;
+    const showCategorySkeleton = categoriesLoading || refreshSkeleton || (!categoriesLoaded && Boolean(selectedBranch) && categories.length === 0);
     if (!showCategorySkeleton && categories.length == 0) return null;
 
     return (
@@ -2101,8 +2113,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     searchIcon: {
       position: "absolute",
       top: 14,
-      left: isRTL ? undefined : 14,
-      right: isRTL ? 14 : undefined,
+      left: 14,
       opacity: 0.9,
     },
     searchInput: {
@@ -2115,8 +2126,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     searchRight: {
       position: "absolute",
       top: 14,
-      right: isRTL ? undefined : 14,
-      left: isRTL ? 14 : undefined
+      right: 14,
     },
 
     filterBtn: {
@@ -2345,9 +2355,9 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     // Sheets
     sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },
     sheetContent: { flex: 1, gap: 6 },
-    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10,textAlign:isRTL?'right':'left' },
-    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6,textAlign:isRTL?'right':'left'  },
-    sheetPills: { flexDirection: isRTL?'row-reverse':'row', flexWrap: "wrap", gap: 10 },
+    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10 },
+    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6 },
+    sheetPills: { flexDirection: 'row', flexWrap: "wrap", gap: 10 },
 
     pill: {
       paddingHorizontal: 12,
