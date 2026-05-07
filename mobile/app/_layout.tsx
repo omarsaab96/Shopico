@@ -16,16 +16,21 @@ import {
   Manrope_800ExtraBold,
 } from "@expo-google-fonts/manrope";
 import {
-  NotoSansArabic_100Thin,
-  NotoSansArabic_200ExtraLight,
-  NotoSansArabic_300Light,
   NotoSansArabic_400Regular,
   NotoSansArabic_500Medium,
   NotoSansArabic_600SemiBold,
   NotoSansArabic_700Bold,
-  NotoSansArabic_800ExtraBold,
   NotoSansArabic_900Black,
 } from "@expo-google-fonts/noto-sans-arabic";
+import {
+  Tajawal_200ExtraLight,
+  Tajawal_300Light,
+  Tajawal_400Regular,
+  Tajawal_500Medium,
+  Tajawal_700Bold,
+  Tajawal_800ExtraBold,
+  Tajawal_900Black,
+} from "@expo-google-fonts/tajawal";
 import { AuthProvider } from "../lib/auth";
 import { CartProvider } from "../lib/cart";
 import { ThemeProvider, useTheme } from "../lib/theme";
@@ -42,21 +47,24 @@ const FontGate = ({ children }: { children: React.ReactNode }) => {
     Manrope_600SemiBold,
     Manrope_700Bold,
     Manrope_800ExtraBold,
-    NotoSansArabic_100Thin,
-    NotoSansArabic_200ExtraLight,
-    NotoSansArabic_300Light,
     NotoSansArabic_400Regular,
     NotoSansArabic_500Medium,
     NotoSansArabic_600SemiBold,
     NotoSansArabic_700Bold,
-    NotoSansArabic_800ExtraBold,
     NotoSansArabic_900Black,
+    Tajawal_200ExtraLight,
+    Tajawal_300Light,
+    Tajawal_400Regular,
+    Tajawal_500Medium,
+    Tajawal_700Bold,
+    Tajawal_800ExtraBold,
+    Tajawal_900Black,
   });
 
   useEffect(() => {
     if (!fontsLoaded) return;
     const baseStyle = {
-      fontFamily: isRTL ? "NotoSansArabic_400Regular" : "Manrope_400Regular",
+      fontFamily: isRTL ? "Tajawal_400Regular" : "Manrope_400Regular",
       writingDirection: isRTL ? "rtl" : "ltr",
       textAlign: isRTL ? "right" : "left",
     };

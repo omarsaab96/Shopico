@@ -127,9 +127,9 @@ export default function WalletScreen() {
   return (
     <Screen>
       <TouchableOpacity onPress={goBack} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, }}>
-            <FontAwesome6 name="chevron-left" size={18} color="black" style={{}} />
-            <Text style={[styles.title, { marginBottom: 0, lineHeight: 28 }]}>{t("wallet")}</Text>
-          </TouchableOpacity>
+        <FontAwesome6 name={isRTL ? "chevron-right" : "chevron-left"} size={18} color="black" style={{}} />
+        <Text style={[styles.title, { marginBottom: 0, lineHeight: 28 }]}>{t("wallet")}</Text>
+      </TouchableOpacity>
       {/* <Text style={styles.title}>{t("wallet")}</Text> */}
 
       <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg }]}>
@@ -152,7 +152,7 @@ export default function WalletScreen() {
             <Text style={styles.walletValue}>{balance.toLocaleString()} <Text style={{ fontWeight: "400", fontSize: 18 }}>SYP</Text></Text>
           </View>
         </View>
-          <View style={{ marginTop: 10 }}>
+        <View style={{ marginTop: 10 }}>
           {hasThresholds ? (
             <>
               <ProgressBar progress={progress} />

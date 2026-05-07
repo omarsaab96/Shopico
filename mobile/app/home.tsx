@@ -985,11 +985,12 @@ export default function Home() {
                     </Text>
                   )}
 
-                  <View style={styles.locationSeperator}></View>
+                  {!isRTL && <View style={styles.locationSeperator}></View>}
                 </View>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={openBranchSheet} activeOpacity={0.9} style={[styles.branchRow]}>
+                {isRTL && <View style={styles.branchSeperator}></View>}
                 <Ionicons name="storefront-outline" size={18} color={'white'} />
 
                 <View style={styles.locationTextWrap}>
@@ -1956,8 +1957,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       gap: 10,
       flex: 1,
       minWidth: 0,
-      paddingLeft: isRTL ? 0 : 10,
-      paddingRight: isRTL ? 10 : 0
+      paddingHorizontal: 10,
     },
     locationTextWrap: {
       flex: 1,
@@ -1973,6 +1973,16 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       top: 5,
       right: isRTL ? 'auto' : -11,
       left: isRTL ? -11 : 'auto',
+      opacity: 0.5
+    },
+    branchSeperator: {
+      position: "absolute",
+      height: 25,
+      width: 1,
+      backgroundColor: 'white',
+      top: 5,
+      left: 0,
+      right: 0,
       opacity: 0.5
     },
     branchPromptBackdrop: {
@@ -2335,9 +2345,9 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     // Sheets
     sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },
     sheetContent: { flex: 1, gap: 6 },
-    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: 'left' },
-    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign: 'left' },
-    sheetPills: { flexDirection: 'row', flexWrap: "wrap", gap: 10 },
+    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10,textAlign:isRTL?'right':'left' },
+    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6,textAlign:isRTL?'right':'left'  },
+    sheetPills: { flexDirection: isRTL?'row-reverse':'row', flexWrap: "wrap", gap: 10 },
 
     pill: {
       paddingHorizontal: 12,
@@ -2354,7 +2364,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     pillText: { color: palette.text, fontWeight: "800" },
     pillTextActive: { color: palette.text, fontWeight: "900" },
 
-    sheetText: { color: palette.muted, fontWeight: "700", textAlign: 'left' },
+    sheetText: { color: palette.muted, fontWeight: "700" },
 
     sheetFooterWrap: {
       flexDirection: row,
@@ -2413,7 +2423,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "space-between",
       gap: 10,
     },
-    kvLabel: { color: palette.muted, textAlign: 'left' },
-    kvValue: { color: palette.text, fontWeight: "900", textAlign: 'left' },
+    kvLabel: { color: palette.muted },
+    kvValue: { color: palette.text, fontWeight: "900" },
   });
 };

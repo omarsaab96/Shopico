@@ -255,7 +255,7 @@ export default function AddressesScreen() {
 
             {(editing || adding) && <View style={styles.card}>
               <TouchableOpacity onPress={resetForm} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <FontAwesome6 name="chevron-left" size={18} color="black" style={{}} />
+                <FontAwesome6 name={isRTL ? "chevron-right" : "chevron-left"} size={18} color="black" style={{}} />
                 <Text weight="bold" style={[styles.title, { marginBottom: 0, lineHeight: 28 }]}>
                   {editing ? t("editAddress") : t("addAddress")}
                 </Text>

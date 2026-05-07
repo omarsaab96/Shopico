@@ -263,12 +263,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
     },
     searchIcon: {
       position: "absolute",
-      left: isRTL ? 0 : 14,
-      right: isRTL ? 14 : 0,
-      top: 15,
+      left: 14,
+      top: 13,
     },
     searchInput: {
-      paddingHorizontal: 34,
+      paddingHorizontal: 44,
       color: palette.text,
       textAlign: align
     },

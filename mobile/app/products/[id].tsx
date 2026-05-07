@@ -44,9 +44,12 @@ export default function ProductDetail() {
         {product.isPromoted && product.promoPrice !== undefined ? (
           <Text style={styles.oldPrice}>{product.price?.toLocaleString()} SYP</Text>
         ) : null}
-        <Text style={styles.price}>
-          {(product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price)?.toLocaleString()} SYP
-        </Text>
+        <View style={{ flexDirection: 'row', justifyContent:'flex-start', alignItems: 'center', gap: 5, flex:1 }}>
+          <Text style={[styles.price]}>
+            {(product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price)?.toLocaleString()}
+          </Text>
+          <Text style={[styles.price, { fontSize: 18, lineHeight: 18 }]}>{t('syp')}</Text>
+        </View>
         {product.isPromoted && product.promoPrice !== undefined && product.price > 0 ? (
           <Text style={styles.promoBadge}>
             {Math.round((1 - product.promoPrice / product.price) * 100)}% {t("off") ?? "off"}
@@ -114,7 +117,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
     defaultImage: {
       tintColor: '#dedede'
     },
-    name: { color: palette.text, fontSize: 24, fontWeight: "800", textAlign: isRTL ? "right" : "left" },
+    name: { color: palette.text, fontSize: 24, fontWeight: "800" },
     priceRow: {
       flexDirection: isRTL ? "row-reverse" : "row",
       alignItems: "center",
@@ -131,8 +134,8 @@ const createStyles = (palette: any, isRTL: boolean) =>
       paddingVertical: 3,
       borderRadius: 10,
     },
-    price: { color: palette.accent, fontSize: 18, textAlign: isRTL ? "right" : "left" },
-    desc: { color: palette.muted, marginBottom: 12, textAlign: isRTL ? "right" : "left" },
+    price: { color: palette.accent, fontSize: 22, lineHeight: 24, fontWeight: '900' },
+    desc: { color: palette.muted, marginBottom: 12 },
     qtyRow: {
       flexDirection: "row",
       alignItems: "center",

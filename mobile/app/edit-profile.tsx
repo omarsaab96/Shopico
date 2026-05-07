@@ -153,11 +153,11 @@ export default function EditProfile() {
     <BottomSheetModalProvider>
       <Screen>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <TouchableOpacity style={{flexDirection:'row',alignItems:'center',gap:10}} onPress={() => router.back()} activeOpacity={0.85}>
                 {/* <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} color={palette.text} /> */}
-                <FontAwesome6 name="chevron-left" size={18} color="black" style={{}} />
+                <FontAwesome6 name={isRTL? "chevron-right":"chevron-left"} size={18} color="black" style={{}} />
 
                 <Text weight="bold" style={styles.title}>{t("editProfile") ?? "Edit profile"}</Text>
               </TouchableOpacity>
@@ -403,12 +403,10 @@ const createStyles = (palette: any, insets: any, isRTL: boolean, isDark: boolean
     label: {
       color: palette.text,
       fontSize: 13,
-      textAlign: isRTL ? "right" : "left",
     },
     formTitle: {
       color: palette.text,
       fontSize: 16,
-      textAlign: isRTL ? "right" : "left",
     },
     input: {
       backgroundColor: palette.surface,
@@ -418,21 +416,19 @@ const createStyles = (palette: any, insets: any, isRTL: boolean, isDark: boolean
       color: palette.text,
       paddingHorizontal: 12,
       paddingVertical: 12,
-      textAlign: isRTL ? "right" : "left",
+      textAlign:isRTL?'right':'left'
     },
     passwordInputWrap: {
       position: "relative",
     },
     passwordInput: {
-      paddingRight: isRTL ? 12 : 46,
-      paddingLeft: isRTL ? 46 : 12,
+      paddingRight: 46,
     },
     passwordToggle: {
       position: "absolute",
       top: 0,
       bottom: 0,
-      right: isRTL ? undefined : 12,
-      left: isRTL ? 12 : undefined,
+      right: 12,
       width: 28,
       alignItems: "center",
       justifyContent: "center",
@@ -468,11 +464,9 @@ const createStyles = (palette: any, insets: any, isRTL: boolean, isDark: boolean
     },
     error: {
       color: "#ef4444",
-      textAlign: isRTL ? "right" : "left",
     },
     success: {
       color: "#16a34a",
-      textAlign: isRTL ? "right" : "left",
     },
     dangerBox: {
       borderRadius: 18,
@@ -486,12 +480,10 @@ const createStyles = (palette: any, insets: any, isRTL: boolean, isDark: boolean
     },
     dangerTitle: {
       color: isDark ? "#fecaca" : "#991b1b",
-      textAlign: isRTL ? "right" : "left",
     },
     dangerText: {
       color: isDark ? "#fecaca" : "#991b1b",
       marginTop: 4,
-      textAlign: isRTL ? "right" : "left",
     },
     deleteBtn: {
       width: 44,
@@ -519,12 +511,10 @@ const createStyles = (palette: any, insets: any, isRTL: boolean, isDark: boolean
     sheetTitle: {
       color: palette.text,
       fontSize: 18,
-      textAlign: isRTL ? "right" : "left",
     },
     sheetText: {
       color: isDark ? "#fecaca" : "#dc2626",
       lineHeight: 20,
-      textAlign: isRTL ? "right" : "left",
       fontWeight: '700'
     },
     sheetField: {
