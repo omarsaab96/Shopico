@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import Card from "../components/Card";
 import api from "../api/client";
 import { useI18n } from "../context/I18nContext";
@@ -17,21 +19,32 @@ interface AuditLog {
 
 const AuditLogsPage = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [typeFilter, setTypeFilter] = useState("");
+  const [actorFilter, setActorFilter] = useState("");
+  const [resultFilter, setResultFilter] = useState("");
+  const [fromDate, setFromDate] = useState<Date | null>(null);
+  const [toDate, setToDate] = useState<Date | null>(null);
   const { t } = useI18n();
 
+  const getFilterParams = () => ({
+    type: typeFilter.trim() || undefined,
+    actor: actorFilter.trim() || undefined,
+    result: resultFilter || undefined,
+    from: fromDate?.toISOString(),
+    to: toDate?.toISOString(),
+  });
+
+  const load = () => {
+    api.get<{ data: AuditLog[] }>("/audit", { params: getFilterParams() }).then((res) => setLogs(res.data.data));
+  };
+
   useEffect(() => {
-    api.get<{ data: AuditLog[] }>("/audit").then((res) => setLogs(res.data.data));
+    load();
   }, []);
 
   const getActor = (log: AuditLog) => log.user?.email || log.user?.name || t("unknownUser") || "Unknown user";
 
   const renderAction = (log: AuditLog) => {
-    const actor = log.user?.email || t("unknownUser") || "Unknown user";
-    const target =
-      typeof log.metadata?.targetUserId === "object"
-        ? log.metadata.targetUserId.email || log.metadata.targetUserId.name || String((log.metadata.targetUserId as any)._id || "-")
-        : log.metadata?.targetUserId;
-
     // if (log.action === "ADMIN_TOPUP_REQUEST") {
     //   return `${t("audit.adminTopupRequest") || "Admin created top-up request"} ${t("audit.for") || "for"} ${target || "-"} ${t("audit.by")} ${actor}`;
     // }
@@ -49,6 +62,72 @@ const AuditLogsPage = () => {
 
   return (
     <Card title={t("auditTrail")} subTitle="">
+      <div className="page-header" style={{ padding: 0, marginBottom: 12 }}>
+        <form
+          className="filters"
+          onSubmit={(e) => {
+            e.preventDefault();
+            load();
+          }}
+        >
+          <input
+            className="filter-input"
+            placeholder={t("audit.type") || "Type"}
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+          />
+          <input
+            className="filter-input"
+            placeholder={t("audit.actor") || "Actor"}
+            value={actorFilter}
+            onChange={(e) => setActorFilter(e.target.value)}
+          />
+          <select className="filter-select" value={resultFilter} onChange={(e) => setResultFilter(e.target.value)}>
+            <option value="">{t("audit.result") || "Result"}</option>
+            <option value="SUCCESS">{t("audit.result.success") || "Success"}</option>
+            <option value="FAILURE">{t("audit.result.failure") || "Failure"}</option>
+          </select>
+          <DatePicker
+            className="filter-input date-picker"
+            selected={fromDate}
+            onChange={(date: Date | null) => setFromDate(date)}
+            placeholderText={t("from") || "From"}
+            showTimeInput
+            timeFormat="HH:mm"
+            timeIntervals={15}
+            dateFormat="yyyy-MM-dd HH:mm"
+            isClearable
+          />
+          <DatePicker
+            className="filter-input date-picker"
+            selected={toDate}
+            onChange={(date: Date | null) => setToDate(date)}
+            placeholderText={t("till") || "Till"}
+            showTimeInput
+            timeFormat="HH:mm"
+            timeIntervals={15}
+            dateFormat="yyyy-MM-dd HH:mm"
+            isClearable
+          />
+          <button className="ghost-btn" type="submit">
+            {t("filter")}
+          </button>
+          <button
+            className="ghost-btn"
+            type="button"
+            onClick={() => {
+              setTypeFilter("");
+              setActorFilter("");
+              setResultFilter("");
+              setFromDate(null);
+              setToDate(null);
+              api.get<{ data: AuditLog[] }>("/audit").then((res) => setLogs(res.data.data));
+            }}
+          >
+            {t("clear")}
+          </button>
+        </form>
+      </div>
       <table className="table">
         <thead>
           <tr>
