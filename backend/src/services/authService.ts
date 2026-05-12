@@ -22,7 +22,7 @@ export const registerUser = async (name: string, email: string, password: string
     branchIds: defaultBranchId ? [defaultBranchId] : [],
   });
   await Wallet.create({ user: user._id, balance: 0 });
-  await AuditLog.create({ user: user._id, action: "USER_REGISTER" });
+  await AuditLog.create({ user: user._id, type: "auth", action: "USER_REGISTER", result: "SUCCESS" });
   const accessToken = signAccessToken(user);
   const refreshToken = signRefreshToken(user);
   return { user, accessToken, refreshToken };
@@ -42,7 +42,7 @@ export const loginUser = async (email: string, password: string) => {
   }
   const accessToken = signAccessToken(user);
   const refreshToken = signRefreshToken(user);
-  await AuditLog.create({ user: user._id, action: "USER_LOGIN" });
+  await AuditLog.create({ user: user._id, type: "auth", action: "USER_LOGIN", result: "SUCCESS" });
   return { user, accessToken, refreshToken };
 };
 
@@ -63,7 +63,7 @@ export const setPasswordForUser = async (email: string, password: string) => {
   const hashed = await bcrypt.hash(password, 10);
   user.password = hashed;
   await user.save();
-  await AuditLog.create({ user: user._id, action: "USER_SET_PASSWORD" });
+  await AuditLog.create({ user: user._id, type: "auth", action: "USER_SET_PASSWORD", result: "SUCCESS" });
   const accessToken = signAccessToken(user);
   const refreshToken = signRefreshToken(user);
   return { user, accessToken, refreshToken };

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Card from "../components/Card";
 import api, { createUser, deleteUser, updateUser, updateUserBranches, updateUserPermissions } from "../api/client";
-import type { ApiUser } from "../types/api";
+import type { ApiUser, Currency } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useAuth } from "../context/AuthContext";
@@ -10,8 +10,8 @@ import { useBranch } from "../context/BranchContext";
 
 interface UserDetails {
   user: ApiUser;
-  wallet?: { balance: number };
-  walletTx: { amount: number; type: string; source: string; createdAt: string }[];
+  wallet?: { balance: number; balances?: { currency: Currency | string; amount: number }[] };
+  walletTx: { amount: number; currency?: Currency | string; type: string; source: string; createdAt: string }[];
   pointTx: { points: number; type: string; createdAt: string }[];
   addresses: { _id: string; label: string; address: string; phone?: string }[];
 }
@@ -68,7 +68,7 @@ const UsersPage = () => {
   const [createError, setCreateError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { can, canAny } = usePermissions();
   const { user: currentUser, refreshProfile } = useAuth();
   const { selectedBranchId, branches } = useBranch();
@@ -89,6 +89,20 @@ const UsersPage = () => {
   const filterRoleOptions = ROLE_ORDER.filter((role) => visibleRoleOptions.includes(role));
   const createRoleOptions = CREATE_ROLE_ORDER.filter((role) => visibleRoleOptions.includes(role));
   const defaultCreateRole = createRoleOptions[0] || "customer";
+
+  const getCurrencySymbol = (currency?: Currency | string) => {
+    if (!currency || typeof currency === "string") return "SYP";
+    const en = currency.symbol.en;
+    const localized = currency.symbol[lang] || "";
+    if (lang === "ar" && (!localized || localized.toLowerCase() === en.toLowerCase())) {
+      const key = `currencySymbol.${en.toUpperCase()}`;
+      const translated = t(key);
+      if (translated !== key) return translated;
+    }
+    return localized || en;
+  };
+
+  const formatMoney = (amount: number, currency?: Currency | string) => `${Number(amount || 0).toLocaleString()} ${getCurrencySymbol(currency)}`;
 
   const getDefaultDetailTab = (): "about" | "ledger" | "branches" | "permissions" => {
     if (canViewUserAbout) return "about";
@@ -580,7 +594,15 @@ const UsersPage = () => {
                   </div>
                   <div className="detailsRow">
                     <div className="detailsLabel">{t("walletBalance")}</div>
-                    <div className="detailsValue">{selected.wallet?.balance?.toLocaleString() || 0} SYP</div>
+                    <div className="detailsValue">
+                      {selected.wallet?.balances?.length ? (
+                        selected.wallet.balances.map((item, idx) => (
+                          <div key={idx}>{formatMoney(item.amount, item.currency)}</div>
+                        ))
+                      ) : (
+                        formatMoney(selected.wallet?.balance || 0)
+                      )}
+                    </div>
                   </div>
                   <div className="detailsRow">
                     <div className="detailsLabel">{t("points")}</div>
@@ -646,7 +668,7 @@ const UsersPage = () => {
                             )}
                             <span>{formatDateTime(tx.createdAt)}</span>
                           </div>
-                          {tx.amount} - {tx.source}
+                          {formatMoney(tx.amount, tx.currency)} - {tx.source}
                         </li>
                       ))}
                     </ul>

@@ -3,8 +3,8 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Card from "../components/Card";
 import StatusPill from "../components/StatusPill";
-import { createTopUpRequestAdmin, fetchTopUps, updateTopUp } from "../api/client";
-import type { WalletTopUp } from "../types/api";
+import { createTopUpRequestAdmin, fetchCurrencies, fetchTopUps, updateTopUp } from "../api/client";
+import type { Currency, WalletTopUp } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
@@ -17,13 +17,14 @@ const WalletPage = () => {
   const [fromDate, setFromDate] = useState<Date | null>(null);
   const [toDate, setToDate] = useState<Date | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createDraft, setCreateDraft] = useState({ email: "", amount: "", note: "" });
+  const [createDraft, setCreateDraft] = useState({ email: "", amount: "", currencyId: "", note: "" });
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState("");
   const [actionLoadingStatus, setActionLoadingStatus] = useState<"" | "APPROVED" | "REJECTED">("");
   const [loading, setLoading] = useState(false);
-  const { t, tStatus } = useI18n();
+  const { t, tStatus, lang } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
   const canManageWallet = can("wallet:manage");
@@ -61,6 +62,8 @@ const WalletPage = () => {
     try {
       const data = await fetchTopUps(getFilterParams());
       setTopups(data);
+      const currencyData = await fetchCurrencies();
+      setCurrencies(currencyData.filter((currency) => currency.isActive));
     } finally {
       setLoading(false);
     }
@@ -83,11 +86,12 @@ const WalletPage = () => {
       await createTopUpRequestAdmin({
         email: createDraft.email.trim(),
         amount: amountValue,
+        currencyId: createDraft.currencyId || currencies.find((currency) => currency.isPrimary)?._id,
         method: "CASH_STORE",
         note: createDraft.note.trim() || undefined,
       });
       setShowCreateModal(false);
-      setCreateDraft({ email: "", amount: "", note: "" });
+      setCreateDraft({ email: "", amount: "", currencyId: "", note: "" });
       load();
     } catch (err: any) {
       const message = err?.response?.data?.message || "Failed to create request";
@@ -95,6 +99,23 @@ const WalletPage = () => {
     } finally {
       setCreateSaving(false);
     }
+  };
+
+  const getCurrencySymbol = (currency?: Currency | string) => {
+    if (!currency || typeof currency === "string") return "";
+    const en = currency.symbol.en;
+    const localized = currency.symbol[lang] || "";
+    if (lang === "ar" && (!localized || localized.toLowerCase() === en.toLowerCase())) {
+      const key = `currencySymbol.${en.toUpperCase()}`;
+      const translated = t(key);
+      if (translated !== key) return translated;
+    }
+    return localized || en;
+  };
+
+  const formatAmount = (amount: number, currency?: Currency | string) => {
+    const symbol = getCurrencySymbol(currency);
+    return `${amount.toLocaleString()}${symbol ? ` ${symbol}` : ""}`;
   };
 
   const handleUpdateTopUp = async (id: string, status: "APPROVED" | "REJECTED") => {
@@ -225,7 +246,7 @@ const WalletPage = () => {
                 return (
                   <tr key={topup._id}>
                     <td>{customerLabel}</td>
-                    <td>{topup.amount.toLocaleString()}</td>
+                    <td>{formatAmount(topup.amount, topup.currency)}</td>
                     <td>{topup.method}</td>
                     <td>{topup.createdAt ? new Date(topup.createdAt).toLocaleString() : "-"}</td>
                     <td>
@@ -283,6 +304,19 @@ const WalletPage = () => {
                   value={createDraft.amount}
                   onChange={(e) => setCreateDraft({ ...createDraft, amount: e.target.value })}
                 />
+              </label>
+              <label>
+                {t("currency") || "Currency"}
+                <select
+                  value={createDraft.currencyId || currencies.find((currency) => currency.isPrimary)?._id || ""}
+                  onChange={(e) => setCreateDraft({ ...createDraft, currencyId: e.target.value })}
+                >
+                  {currencies.map((currency) => (
+                    <option key={currency._id} value={currency._id}>
+                      {getCurrencySymbol(currency)}
+                    </option>
+                  ))}
+                </select>
               </label>
               {/* <label>
                 {t("method")}

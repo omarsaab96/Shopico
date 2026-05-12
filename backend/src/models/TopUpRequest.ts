@@ -5,6 +5,7 @@ export interface ITopUpRequest extends Document {
   user: Types.ObjectId | string;
   method: TopUpMethod;
   amount: number;
+  currency: Types.ObjectId | string;
   status: TopUpStatus;
   note?: string;
   adminNote?: string;
@@ -18,6 +19,7 @@ const TopUpRequestSchema = new Schema<ITopUpRequest>(
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     method: { type: String, enum: ["CASH_STORE", "SHAM_CASH", "BANK_TRANSFER"], required: true },
     amount: { type: Number, required: true },
+    currency: { type: Schema.Types.ObjectId, ref: "Currency", required: true },
     status: { type: String, enum: ["PENDING", "APPROVED", "REJECTED"], default: "PENDING" },
     note: { type: String },
     adminNote: { type: String },

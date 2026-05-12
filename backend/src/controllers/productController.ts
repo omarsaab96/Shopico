@@ -428,7 +428,9 @@ export const importProductsFromExcel = catchAsync(async (req: AuthRequest, res) 
   await Product.bulkWrite(ops, { ordered: false });
   await AuditLog.create({
     user: req.user?._id,
+    type: "products",
     action: "PRODUCTS_IMPORT",
+    result: "SUCCESS",
     metadata: { created, updated, skipped, total: entries.length },
   });
   sendSuccess(res, { created, updated, skipped, total: entries.length }, "Products imported");

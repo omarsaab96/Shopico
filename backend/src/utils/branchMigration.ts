@@ -8,6 +8,8 @@ import { Settings } from "../models/Settings";
 import { TopUpRequest } from "../models/TopUpRequest";
 import { User } from "../models/User";
 import { Currency } from "../models/Currency";
+import { Wallet } from "../models/Wallet";
+import { WalletTransaction } from "../models/WalletTransaction";
 
 export const ensureDefaultBranchSetup = async () => {
   let defaultBranch = await Branch.findOne().sort({ createdAt: 1 });
@@ -68,6 +70,26 @@ export const ensureDefaultBranchSetup = async () => {
           isPrimary: true,
           isActive: true,
         });
+      }
+      const primary = await Currency.findOne({ branchId: branch._id, isPrimary: true });
+      if (primary) {
+        const users = await User.find({ branchIds: branch._id }).select("_id");
+        const userIds = users.map((user) => user._id);
+        const wallets = await Wallet.find({ user: { $in: userIds }, $or: [{ balances: { $exists: false } }, { balances: { $size: 0 } }] });
+        await Promise.all(
+          wallets.map((wallet) => {
+            wallet.balances = [{ currency: primary._id, amount: wallet.balance || 0 }];
+            return wallet.save();
+          })
+        );
+        await TopUpRequest.updateMany(
+          { branchId: branch._id, currency: { $exists: false } },
+          { $set: { currency: primary._id } }
+        );
+        await WalletTransaction.updateMany(
+          { user: { $in: userIds }, currency: { $exists: false } },
+          { $set: { currency: primary._id } }
+        );
       }
     })
   );

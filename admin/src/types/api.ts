@@ -85,6 +85,7 @@ export interface WalletTopUp {
   _id: string;
   user: ApiUser | string | null;
   amount: number;
+  currency?: Currency | string;
   method: string;
   status: string;
   note?: string;

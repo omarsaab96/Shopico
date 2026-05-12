@@ -87,7 +87,7 @@ export const updateMe = catchAsync(async (req: AuthRequest, res) => {
 
   const user = await User.findByIdAndUpdate(req.user._id, update, { new: true }).select("-password");
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
-  await AuditLog.create({ user: user._id, action: "USER_UPDATE_PROFILE" });
+  await AuditLog.create({ user: user._id, type: "auth", action: "USER_UPDATE_PROFILE", result: "SUCCESS" });
   sendSuccess(res, { user }, "Profile updated");
 });
 
@@ -104,7 +104,7 @@ export const changeMyPassword = catchAsync(async (req: AuthRequest, res) => {
 
   user.password = await bcrypt.hash(payload.newPassword, 10);
   await user.save();
-  await AuditLog.create({ user: user._id, action: "USER_CHANGE_PASSWORD" });
+  await AuditLog.create({ user: user._id, type: "auth", action: "USER_CHANGE_PASSWORD", result: "SUCCESS" });
   sendSuccess(res, null, "Password changed");
 });
 
@@ -122,6 +122,6 @@ export const deleteMe = catchAsync(async (req: AuthRequest, res) => {
   await Wallet.deleteOne({ user: user._id });
   await Cart.deleteOne({ user: user._id });
   await User.findByIdAndDelete(user._id);
-  await AuditLog.create({ user: req.user._id, action: "USER_DELETE_PROFILE" });
+  await AuditLog.create({ user: req.user._id, type: "auth", action: "USER_DELETE_PROFILE", result: "SUCCESS" });
   sendSuccess(res, { _id: req.user._id }, "Profile deleted");
 });

@@ -6,6 +6,7 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import { env } from "./config/env";
 import { errorHandler } from "./middleware/errorHandler";
+import { auditRequests } from "./middleware/audit";
 import router from "./routes";
 
 const app = express();
@@ -28,6 +29,7 @@ app.use(
   })
 );
 app.use(morgan("dev"));
+app.use(auditRequests);
 
 app.use("/api", router);
 app.use((_req, res) => res.status(404).json({ success: false, message: "Not found" }));

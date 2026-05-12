@@ -13,6 +13,7 @@ import { CouponRedemption } from "../models/CouponRedemption";
 import { calculatePointsEarned } from "../utils/pricing";
 import { getRouteDistanceKm } from "../utils/routeDistance";
 import { Branch } from "../models/Branch";
+import { ensureWalletBalances, getPrimaryCurrency, getWalletCurrencyBalance } from "./walletService";
 import { DriverStatus, OrderStatus, PaymentMethod } from "../types";
 import { AuditLog } from "../models/AuditLog";
 import { updateMembershipOnBalanceChange } from "../utils/membership";
@@ -184,16 +185,25 @@ const getSettingsSnapshot = async (branchId: string) => {
 const handleWalletDebit = async (userId: Types.ObjectId, branchId: string, amount: number, reference: string) => {
   const wallet = await Wallet.findOne({ user: userId });
   if (!wallet) throw { status: 404, message: "Wallet not found" };
-  if (wallet.balance < amount) throw { status: 400, message: "Insufficient wallet balance" };
-  wallet.balance -= amount;
+  const primary = await getPrimaryCurrency(branchId);
+  await ensureWalletBalances(wallet, branchId);
+  const currencyId = primary._id.toString();
+  const balance = getWalletCurrencyBalance(wallet, currencyId);
+  if (balance < amount) throw { status: 400, message: "Insufficient wallet balance" };
+  const nextBalance = balance - amount;
+  const item = (wallet.balances || []).find((entry: any) => entry.currency?.toString() === currencyId);
+  if (item) item.amount = nextBalance;
+  else wallet.balances.push({ currency: primary._id, amount: nextBalance });
+  wallet.balance = nextBalance;
   await wallet.save();
   await WalletTransaction.create({
     user: userId,
     amount,
+    currency: primary._id,
     type: "DEBIT",
     source: "ORDER",
     reference,
-    balanceAfter: wallet.balance,
+    balanceAfter: nextBalance,
   });
   const user = await User.findById(userId);
   if (user) await updateMembershipOnBalanceChange(user, wallet.balance, branchId);
@@ -418,7 +428,7 @@ export const createOrder = async (
   }
 
   await Cart.findOneAndUpdate({ user: userId }, { items: [] });
-  await AuditLog.create({ user: userId, action: "ORDER_CREATED", metadata: { orderId: order._id } });
+  await AuditLog.create({ user: userId, type: "orders", action: "ORDER_CREATED", result: "SUCCESS", metadata: { orderId: order._id } });
   return order;
 };
 
@@ -480,7 +490,7 @@ export const updateOrderStatus = async (
     await maybeGenerateReward(order.user as Types.ObjectId, earned, order.branchId.toString());
   }
 
-  await AuditLog.create({ user: order.user, action: "ORDER_STATUS_UPDATE", metadata: { orderId: orderId, status } });
+  await AuditLog.create({ user: order.user, type: "orders", action: "ORDER_STATUS_UPDATE", result: "SUCCESS", metadata: { orderId: orderId, status } });
   return order;
 };
 

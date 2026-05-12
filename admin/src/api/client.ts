@@ -239,6 +239,7 @@ export const createTopUpRequestAdmin = async (payload: {
   userId?: string;
   email?: string;
   amount: number;
+  currencyId?: string;
   method: "CASH_STORE" | "SHAM_CASH" | "BANK_TRANSFER";
   note?: string;
 }) => {
@@ -246,10 +247,11 @@ export const createTopUpRequestAdmin = async (payload: {
   return res.data.data;
 };
 
-export const adminTopUpUser = async (userId: string, amount: number, note?: string) => {
+export const adminTopUpUser = async (userId: string, amount: number, note?: string, currencyId?: string) => {
   const res = await api.post<{ data: { wallet: { balance: number } } }>("/wallet/topups/admin/manual", {
     userId,
     amount,
+    currencyId,
     note,
   });
   return res.data.data;

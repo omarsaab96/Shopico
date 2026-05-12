@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface IWalletTransaction extends Document {
   user: mongoose.Types.ObjectId;
   amount: number;
+  currency: mongoose.Types.ObjectId;
   type: "CREDIT" | "DEBIT";
   source: string;
   reference?: string;
@@ -15,6 +16,7 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     amount: { type: Number, required: true },
+    currency: { type: Schema.Types.ObjectId, ref: "Currency", required: true },
     type: { type: String, enum: ["CREDIT", "DEBIT"], required: true },
     source: { type: String, required: true },
     reference: { type: String },

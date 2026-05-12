@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { authenticate, authorize, requirePermissions } from "../middleware/auth";
 import { adminCreateTopUpRequest, adminListTopUps, adminTopUp, adminUpdateTopUp, createTopUp, getWallet } from "../controllers/walletController";
-import { requireBranchContext } from "../middleware/branch";
+import { attachBranchContext, requireBranchContext } from "../middleware/branch";
 
 const router = Router();
 
-router.get("/", authenticate, getWallet);
+router.get("/", authenticate, attachBranchContext, getWallet);
 router.post("/topups", authenticate, requireBranchContext, createTopUp);
 router.get(
   "/topups/admin",

@@ -9,6 +9,7 @@ import { sendSuccess } from "../utils/response";
 import { createUserSchema, updateUserBranchesSchema, updateUserPermissionsSchema, updateUserSchema } from "../validators/userValidators";
 import { AuditLog } from "../models/AuditLog";
 import { UserRole } from "../types";
+import { ensureWalletBalances } from "../services/walletService";
 
 const getVisibleUserRoles = (role?: UserRole): UserRole[] => {
   if (role === "admin") return ["admin", "manager", "staff", "driver", "customer"];
@@ -51,8 +52,9 @@ export const getUserDetails = catchAsync(async (req, res) => {
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const user = await User.findOne(getScopedUserFilter(req, { _id: req.params.id, branchIds: req.branchId })).select("-password");
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
-  const wallet = await Wallet.findOne({ user: user._id });
-  const walletTx = await WalletTransaction.find({ user: user._id }).sort({ createdAt: -1 }).limit(20);
+  let wallet = await Wallet.findOne({ user: user._id }).populate("balances.currency");
+  if (wallet) wallet = await ensureWalletBalances(wallet, req.branchId).then((w) => w.populate("balances.currency"));
+  const walletTx = await WalletTransaction.find({ user: user._id }).sort({ createdAt: -1 }).limit(20).populate("currency");
   const pointTx = await PointsTransaction.find({ user: user._id }).sort({ createdAt: -1 }).limit(20);
   const userId = user._id;
   const addresses = await Address.collection
@@ -92,7 +94,7 @@ export const createUser = catchAsync(async (req, res) => {
     branchIds,
   });
   await Wallet.create({ user: user._id, balance: 0 });
-  await AuditLog.create({ user: req.user?._id, action: "ADMIN_CREATE_USER", metadata: { userId: user._id } });
+  await AuditLog.create({ user: req.user?._id, type: "users", action: "ADMIN_CREATE_USER", result: "SUCCESS", metadata: { userId: user._id } });
   const safeUser = await User.findById(user._id).select("-password");
   sendSuccess(res, safeUser, "User created", 201);
 });
