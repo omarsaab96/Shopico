@@ -4,3 +4,14 @@
 ✔ create order details page @done(26-05-06 11:26)
 ✔ add a new address for omar and then check if it shows in order details, it should not @done(26-05-06 11:26)
 ✔ order list should show order details and user with current delivery address, then on user click we see its details @done(26-05-06 11:27)
+
+
+✔ photos persist @done(26-05-12 11:32)
+✔ add block that does not change with the excel update @done(26-05-12 11:32)
+✔ add usd currency. base is syd @done(26-05-12 16:13)
+☐ multi currency wallet
+✔ add enter on search result in admin @done(26-05-12 18:25)
+☐ add view user type permission in users
+
+
+// "EXPO_PUBLIC_API_BASE": "https://api.shopico-sy.com/api",

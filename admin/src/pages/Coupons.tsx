@@ -499,7 +499,13 @@ const CouponsPage = () => {
 
       <Card title={t("nav.coupons") || "Coupons"} subTitle={`(${coupons.length})`}>
         <div className="page-header">
-          <div className="filters">
+          <form
+            className="filters"
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyFilters();
+            }}
+          >
             <input
               className="filter-input"
               placeholder={t("searchCoupons") || "Search code/title/description/user"}
@@ -538,13 +544,13 @@ const CouponsPage = () => {
               dateFormat="yyyy-MM-dd HH:mm"
               isClearable
             />
-            <button className="ghost-btn" type="button" onClick={applyFilters}>
+            <button className="ghost-btn" type="submit">
               {t("filter")}
             </button>
           <button className="ghost-btn" type="button" onClick={resetFilters}>
             {t("clear")}
           </button>
-        </div>
+        </form>
           {canManage && (
             <button className="primary" onClick={openNewModal}>
               {t("addCoupon") || "Add coupon"}

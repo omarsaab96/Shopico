@@ -380,7 +380,13 @@ const UsersPage = () => {
     <div className="grid">
       <Card title={t("titles.users")} subTitle={`(${users.length})`}>
         <div className="page-header" style={{ padding: 0, marginBottom: 12 }}>
-          <div className="filters">
+          <form
+            className="filters"
+            onSubmit={(e) => {
+              e.preventDefault();
+              loadUsers();
+            }}
+          >
             <input
               className="filter-input"
               placeholder={t("searchNameEmail")}
@@ -393,7 +399,7 @@ const UsersPage = () => {
                 <option value={role} key={role}>{t(`role.${role}`) || role}</option>
               ))}
             </select>
-            <button className="ghost-btn" type="button" onClick={loadUsers}>
+            <button className="ghost-btn" type="submit">
               {t("filter")}
             </button>
             <button
@@ -407,7 +413,7 @@ const UsersPage = () => {
             >
               {t("clear")}
             </button>
-          </div>
+          </form>
           {canManageUserAbout && (
             <button className="primary" type="button" onClick={openCreateModal}>
               {t("addUser")}

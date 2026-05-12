@@ -7,6 +7,7 @@ import { Coupon } from "../models/Coupon";
 import { Settings } from "../models/Settings";
 import { TopUpRequest } from "../models/TopUpRequest";
 import { User } from "../models/User";
+import { Currency } from "../models/Currency";
 
 export const ensureDefaultBranchSetup = async () => {
   let defaultBranch = await Branch.findOne().sort({ createdAt: 1 });
@@ -34,7 +35,42 @@ export const ensureDefaultBranchSetup = async () => {
       { $or: [{ branchIds: { $exists: false } }, { branchIds: { $size: 0 } }] },
       { $set: { branchIds: [branchId] } }
     ),
+    User.updateMany(
+      { role: "admin" },
+      { $addToSet: { permissions: { $each: ["currencies:view", "currencies:manage"] } } }
+    ),
   ]);
+
+  try {
+    const indexes = await Currency.collection.indexes();
+    const legacyCodeIndex = indexes.find((idx) => idx.name === "branchId_1_code_1");
+    const legacySymbolIndex = indexes.find((idx) => idx.name === "branchId_1_symbol_1");
+    if (legacyCodeIndex) await Currency.collection.dropIndex("branchId_1_code_1");
+    if (legacySymbolIndex) await Currency.collection.dropIndex("branchId_1_symbol_1");
+  } catch {
+    // ignore
+  }
+
+  await Currency.collection.updateMany(
+    { symbol: { $type: "string" } },
+    [{ $set: { symbol: { en: "$symbol", ar: "$symbol" } } }] as any
+  );
+
+  const branches = await Branch.find().select("_id");
+  await Promise.all(
+    branches.map(async (branch) => {
+      const count = await Currency.countDocuments({ branchId: branch._id });
+      if (count === 0) {
+        await Currency.create({
+          branchId: branch._id,
+          symbol: { en: "SYP", ar: "ل.س" },
+          exchangeRate: 1,
+          isPrimary: true,
+          isActive: true,
+        });
+      }
+    })
+  );
 };
 
 export const ensureCategoryIndexes = async () => {

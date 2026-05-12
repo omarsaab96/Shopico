@@ -26,6 +26,8 @@ export const PERMISSIONS = [
   "coupons:manage",
   "settings:view",
   "settings:manage",
+  "currencies:view",
+  "currencies:manage",
   "branches:view",
   "branches:manage",
   "audit:view",

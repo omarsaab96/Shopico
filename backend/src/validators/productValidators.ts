@@ -18,6 +18,7 @@ export const productSchema = z.object({
     .optional()
     .default([]),
   isAvailable: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
 });
 

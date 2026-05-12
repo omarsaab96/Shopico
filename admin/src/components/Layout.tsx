@@ -20,6 +20,7 @@ const navItems = [
   { to: "/announcements", key: "announcements", label: "Announcements", permissions: ["announcements:view"] },
   { to: "/coupons", key: "coupons", label: "Coupons", permissions: ["coupons:view"] },
   { to: "/branches", key: "branches", label: "Branches", permissions: ["branches:view"] },
+  { to: "/currencies", key: "currencies", label: "Currencies", permissions: ["currencies:view"] },
   { to: "/settings", key: "settings", label: "Settings", permissions: ["settings:view"] },
   { to: "/audit", key: "audit", label: "Audit Logs", permissions: ["audit:view"] },
 ];

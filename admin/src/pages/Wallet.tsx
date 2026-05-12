@@ -114,7 +114,13 @@ const WalletPage = () => {
     <>
       <Card title={t("titles.wallet")} subTitle={`(${topups.length})`}>
         <div className="page-header" style={{ padding: 0, marginBottom: 12 }}>
-          <div className="filters">
+          <form
+            className="filters"
+            onSubmit={(e) => {
+              e.preventDefault();
+              load();
+            }}
+          >
             <input
               className="filter-input"
               placeholder={t("searchTopup")}
@@ -155,7 +161,7 @@ const WalletPage = () => {
               dateFormat="yyyy-MM-dd HH:mm"
               isClearable
             />
-            <button className="ghost-btn" type="button" onClick={load}>
+            <button className="ghost-btn" type="submit">
               {t("filter")}
             </button>
             <button
@@ -172,8 +178,7 @@ const WalletPage = () => {
             >
               {t("clear")}
             </button>
-
-          </div>
+          </form>
 
           {canCreateTopups && (
             <button className="primary" type="button" onClick={() => setShowCreateModal(true)}>

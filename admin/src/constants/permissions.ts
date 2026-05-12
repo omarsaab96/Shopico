@@ -60,6 +60,8 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { key: "settings:view", labelKey: "perm.settings.view" },
       { key: "settings:manage", labelKey: "perm.settings.manage" },
+      { key: "currencies:view", labelKey: "perm.currencies.view" },
+      { key: "currencies:manage", labelKey: "perm.currencies.manage" },
     ],
   },
   {

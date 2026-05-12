@@ -15,6 +15,7 @@ export interface IProduct extends Document {
   categories: Types.ObjectId[] | string[];
   images: IProductImage[];
   isAvailable: boolean;
+  isPublic: boolean;
   isFeatured: boolean;
   branchId: Types.ObjectId | string;
   createdAt: Date;
@@ -40,6 +41,7 @@ const ProductSchema = new Schema<IProduct>(
     categories: { type: [Schema.Types.ObjectId], ref: "Category", default: [] },
     images: { type: [ProductImageSchema], default: [] },
     isAvailable: { type: Boolean, default: true },
+    isPublic: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
     branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
   },

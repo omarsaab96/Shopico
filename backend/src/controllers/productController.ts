@@ -17,7 +17,7 @@ export const listProducts = catchAsync(async (req, res) => {
   } = req.query as { q?: string; category?: string; page?: string; limit?: string; includeUnavailable?: string };
   const branchId = req.branchId || (await getDefaultBranchId());
   if (!branchId) return res.status(400).json({ success: false, message: "Branch not configured" });
-  const filter: Record<string, unknown> = { branchId };
+  const filter: Record<string, unknown> = { branchId, isPublic: { $ne: false } };
   if (q) filter.name = { $regex: q, $options: "i" };
   if (category) filter.categories = category;
   if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
@@ -84,7 +84,7 @@ export const listProductsAdminPaginated = catchAsync(async (req, res) => {
 export const getProduct = catchAsync(async (req, res) => {
   const branchId = req.branchId || (await getDefaultBranchId());
   if (!branchId) return res.status(400).json({ success: false, message: "Branch not configured" });
-  const product = await Product.findOne({ _id: req.params.id, branchId }).populate("categories");
+  const product = await Product.findOne({ _id: req.params.id, branchId, isPublic: { $ne: false } }).populate("categories");
   if (!product) return res.status(404).json({ success: false, message: "Product not found" });
   sendSuccess(res, product);
 });
@@ -102,6 +102,7 @@ export const createProduct = catchAsync(async (req, res) => {
     categories: payload.categories,
     images: payload.images,
     isAvailable: payload.isAvailable ?? true,
+    isPublic: payload.isPublic ?? true,
     isFeatured: payload.isFeatured ?? false,
     branchId: req.branchId,
   });
@@ -408,6 +409,7 @@ export const importProductsFromExcel = catchAsync(async (req: AuthRequest, res) 
             description: undefined,
             promoPrice: undefined,
             isPromoted: false,
+            isPublic: true,
             isFeatured: false,
             categories: [],
             images: [],

@@ -5,7 +5,7 @@ import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
 
 export const getCart = catchAsync(async (req: AuthRequest, res) => {
-  const cart = await getUserCart(req.user!._id);
+  const cart = await getUserCart(req.user!._id, req.branchId);
   sendSuccess(res, cart);
 });
 

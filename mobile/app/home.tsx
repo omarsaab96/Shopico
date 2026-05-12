@@ -2354,10 +2354,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
 
     // Sheets
     sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },
-    sheetContent: { flex: 1, gap: 6 },
-    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10 },
-    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6 },
-    sheetPills: { flexDirection: 'row', flexWrap: "wrap", gap: 10 },
+    sheetContent: { flex: 1, gap: 6, alignItems: isRTL ? "flex-end" : "flex-start" },
+    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: align, alignSelf: "stretch" },
+    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign: align, alignSelf: "stretch" },
+    sheetPills: { flexDirection: row, flexWrap: "wrap", gap: 10, alignSelf: "stretch", justifyContent: isRTL ? "flex-start" : "flex-start" },
 
     pill: {
       paddingHorizontal: 12,
@@ -2371,10 +2371,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       borderColor: palette.accent,
       backgroundColor: isDark ? palette.surface : "rgba(249,115,22,0.14)",
     },
-    pillText: { color: palette.text, fontWeight: "800" },
+    pillText: { color: palette.text, fontWeight: "800", textAlign: align },
     pillTextActive: { color: palette.text, fontWeight: "900" },
 
-    sheetText: { color: palette.muted, fontWeight: "700" },
+    sheetText: { color: palette.muted, fontWeight: "700", textAlign: align },
 
     sheetFooterWrap: {
       flexDirection: row,

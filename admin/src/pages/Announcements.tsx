@@ -202,7 +202,13 @@ const AnnouncementsPage = () => {
     <>
       <Card title={t("nav.announcements") || "Announcements"} subTitle={`(${announcements.length})`}>
         <div className="page-header">
-          <div className="filters">
+          <form
+            className="filters"
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyFilters();
+            }}
+          >
             <input
               className="filter-input"
               placeholder={t("searchAnnouncements") || "Search announcements"}
@@ -231,13 +237,13 @@ const AnnouncementsPage = () => {
               dateFormat="MM/dd/yyyy h:mm aa"
               isClearable
             />
-            <button className="ghost-btn" type="button" onClick={applyFilters}>
+            <button className="ghost-btn" type="submit">
               {t("filter")}
             </button>
           <button className="ghost-btn" type="button" onClick={resetFilters}>
             {t("clear")}
           </button>
-        </div>
+        </form>
           {canManage && (
             <button className="primary" onClick={openNewModal}>
               {t("addAnnouncement") || "Add announcement"}

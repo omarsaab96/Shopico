@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { ApiUser, Branch, Category, Product, Order, WalletTopUp, Settings, Announcement, Coupon } from "../types/api";
+import type { ApiUser, Branch, Category, Product, Order, WalletTopUp, Settings, Announcement, Coupon, Currency } from "../types/api";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || "http://localhost:4000/api",
@@ -318,6 +318,22 @@ export const saveBranch = async (payload: Partial<Branch>) => {
 };
 
 export const deleteBranch = async (id: string) => api.delete(`/branches/${id}`);
+
+export const fetchCurrencies = async (params?: { q?: string }) => {
+  const res = await api.get<{ data: Currency[] }>("/currencies", { params });
+  return res.data.data;
+};
+
+export const saveCurrency = async (payload: Partial<Currency>) => {
+  if (payload._id) {
+    const res = await api.put<{ data: Currency }>(`/currencies/${payload._id}`, payload);
+    return res.data.data;
+  }
+  const res = await api.post<{ data: Currency }>("/currencies", payload);
+  return res.data.data;
+};
+
+export const deleteCurrency = async (id: string) => api.delete(`/currencies/${id}`);
 
 export const getImageKitAuth = async () => {
   const res = await api.get<{ data: { token: string; expire: number; signature: string; publicKey: string } }>(

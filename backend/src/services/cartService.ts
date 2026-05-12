@@ -14,14 +14,32 @@ interface RemovedCartItem extends UpdateCartItem {
 const getDisplayPrice = (product: IProduct) =>
   product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price;
 
-export const getUserCart = async (userId: Types.ObjectId) => {
-  const cart = await Cart.findOne({ user: userId }).populate("items.product");
-  return cart || (await Cart.create({ user: userId, items: [] }));
+export const getUserCart = async (userId: Types.ObjectId, branchId?: string) => {
+  const cart = await Cart.findOne({ user: userId });
+  if (!cart) return (await Cart.create({ user: userId, items: [] })).populate("items.product");
+
+  if (branchId && cart.items.length > 0) {
+    const productIds = cart.items.map((item) => item.product);
+    const products = await Product.find({
+      _id: { $in: productIds },
+      branchId,
+      isAvailable: true,
+      isPublic: { $ne: false },
+    }).select("_id");
+    const allowedIds = new Set(products.map((product) => product._id.toString()));
+    const visibleItems = cart.items.filter((item) => allowedIds.has(item.product.toString()));
+    if (visibleItems.length !== cart.items.length) {
+      cart.items = visibleItems;
+      await cart.save();
+    }
+  }
+
+  return cart.populate("items.product");
 };
 
 export const updateCart = async (userId: Types.ObjectId, branchId: string, items: UpdateCartItem[]) => {
   const productIds = items.map((i) => i.productId);
-  const products = await Product.find({ _id: { $in: productIds }, branchId, isAvailable: true });
+  const products = await Product.find({ _id: { $in: productIds }, branchId, isAvailable: true, isPublic: { $ne: false } });
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
 
   const cartItems = items.map((item) => {
@@ -49,7 +67,7 @@ export const syncCart = async (userId: Types.ObjectId, branchId: string, items: 
 
   const cartItems = items.flatMap((item) => {
     const product = productMap.get(item.productId);
-    if (!product || !product.isAvailable) {
+    if (!product || !product.isAvailable || product.isPublic === false) {
       removedItems.push({ ...item, name: product?.name });
       return [];
     }

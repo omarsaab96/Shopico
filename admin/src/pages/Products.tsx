@@ -1,17 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import type { DragEvent, FormEvent } from "react";
 import Card from "../components/Card";
-import type { Category, Product, ProductImage } from "../types/api";
-import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
+import type { Category, Currency, Product, ProductImage } from "../types/api";
+import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchCurrencies, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
 
+const getCurrencySymbol = (currency: Currency, lang: "en" | "ar", t: (key: string) => string) => {
+  const symbol = currency.symbol as Currency["symbol"] | string;
+  const en = typeof symbol === "string" ? symbol : symbol.en;
+  const localized = typeof symbol === "string" ? "" : symbol[lang];
+  if (lang === "ar" && (!localized || localized.toLowerCase() === en.toLowerCase())) {
+    const key = `currencySymbol.${en.toUpperCase()}`;
+    const translated = t(key);
+    if (translated !== key) return translated;
+  }
+  return localized || en;
+};
+
+const formatCurrencyAmount = (amount: number, currency: Currency, lang: "en" | "ar", t: (key: string) => string) => {
+  return `${amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${getCurrencySymbol(currency, lang, t)}`;
+};
+
 const ProductsPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [draft, setDraft] = useState<Partial<Product>>({ images: [] });
   const [uploadingNew, setUploadingNew] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -71,7 +88,7 @@ const ProductsPage = () => {
   const [importPreviewStage, setImportPreviewStage] = useState<"upload" | "processing" | null>(null);
   const importPreviewAbortRef = useRef<AbortController | null>(null);
   const importPreviewTimerRef = useRef<number | null>(null);
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { selectedBranchId } = useBranch();
   const { can } = usePermissions();
   const canManage = can("products:manage");
@@ -105,6 +122,7 @@ const ProductsPage = () => {
   const load = () => {
     loadProducts(getFilterParams(), 1, limit);
     fetchCategories().then(setCategories).catch(console.error);
+    fetchCurrencies().then(setCurrencies).catch(() => setCurrencies([]));
   };
 
   useEffect(() => {
@@ -124,7 +142,7 @@ const ProductsPage = () => {
 
   const openNewModal = () => {
     if (!canManage) return;
-    setDraft({ images: [], categories: [], isAvailable: true });
+    setDraft({ images: [], categories: [], isAvailable: true, isPublic: true });
     setFormError("");
     setCategorySearch("");
     setShowNewModal(true);
@@ -486,6 +504,7 @@ const ProductsPage = () => {
       barcode: p.barcode,
       price: p.price,
       isAvailable: p.isAvailable,
+      isPublic: p.isPublic !== false,
       images: p.images || [],
       categories: Array.isArray(p.categories) ? p.categories.map((c) => (typeof c === "string" ? c : c._id)) : [],
     });
@@ -708,11 +727,44 @@ const ProductsPage = () => {
     return `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
   };
 
+  const renderCurrencyAmounts = (amount: number) => {
+    const activeCurrencies = currencies
+      .filter((currency) => currency.isActive)
+      .sort(
+        (a, b) =>
+          Number(b.isPrimary) - Number(a.isPrimary) ||
+          getCurrencySymbol(a, lang, t).localeCompare(getCurrencySymbol(b, lang, t))
+      );
+
+    if (activeCurrencies.length === 0) {
+      return amount.toLocaleString();
+    }
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        {activeCurrencies.map((currency) => {
+          const converted = currency.isPrimary ? amount : amount / currency.exchangeRate;
+          return (
+            <span key={currency._id} className={currency.isPrimary ? "" : "muted"} style={{ whiteSpace: "nowrap" }}>
+              {formatCurrencyAmount(converted, currency, lang, t)}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <>
       <Card title={t("nav.products")} subTitle={`(${total})`}>
         <div className="page-header">
-          <div className="filters">
+          <form
+            className="filters"
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyFilters();
+            }}
+          >
             <input
               className="filter-input"
               placeholder={t("searchName")}
@@ -727,13 +779,13 @@ const ProductsPage = () => {
                 </option>
               ))}
             </select>
-            <button className="ghost-btn" type="button" onClick={applyFilters}>
+            <button className="ghost-btn" type="submit">
               {t("filter")}
             </button>
             <button className="ghost-btn" type="button" onClick={resetFilters}>
               {t("clear")}
             </button>
-          </div>
+          </form>
           <div className="flex" style={{ gap: 10 }}>
             {canManage && (
               <button className="ghost-btn" type="button" onClick={openPriceModal}>
@@ -816,6 +868,7 @@ const ProductsPage = () => {
               <th>{t("price")}</th>
               <th>{t("promoStatus") || "Promo"}</th>
               <th>{t("available") || "Available"}</th>
+              <th>{t("isPublic") || "Public"}</th>
               <th></th>
             </tr>
           </thead>
@@ -834,11 +887,13 @@ const ProductsPage = () => {
                   <td><span className="skeleton-line w-80" /></td>
                   <td><span className="skeleton-line w-60" /></td>
                   <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
                 </tr>
               ))
             ) : products.length == 0 ? (
               <tr>
-                <td colSpan={8} className="muted">No products</td>
+                <td colSpan={10} className="muted">No products</td>
               </tr>
             ) : (
               products.map((product) => (
@@ -965,12 +1020,14 @@ const ProductsPage = () => {
                         onChange={(e) => setEditDraft({ ...editDraft, price: Number(e.target.value) })}
                       />
                     ) : (
-                      product.price.toLocaleString()
+                      renderCurrencyAmounts(product.price)
                     )}
                   </td>
                   <td>
                     {product.isPromoted ? (t("yes") || "Yes") : (t("no") || "No")}
-                    {product.isPromoted && ` (${product.promoPrice?.toLocaleString()})`}
+                    {product.isPromoted && product.promoPrice !== undefined && (
+                      <div style={{ marginTop: 4 }}>{renderCurrencyAmounts(product.promoPrice)}</div>
+                    )}
                   </td>
                   <td>
                     {editingId === product._id ? (
@@ -986,6 +1043,22 @@ const ProductsPage = () => {
 
                     ) : (
                       product.isAvailable ? (t("yes") || "Yes") : (t("no") || "No")
+                    )}
+                  </td>
+
+                  <td>
+                    {editingId === product._id ? (
+                      <div className="checkboxContainer">
+                        <input
+                          id={`productEditIsPublic${product._id}`}
+                          type="checkbox"
+                          checked={editDraft.isPublic !== false}
+                          onChange={(e) => setEditDraft({ ...editDraft, isPublic: e.target.checked })}
+                        />
+                        <label htmlFor={`productEditIsPublic${product._id}`}></label>
+                      </div>
+                    ) : (
+                      product.isPublic !== false ? (t("yes") || "Yes") : (t("no") || "No")
                     )}
                   </td>
 
@@ -1216,6 +1289,18 @@ const ProductsPage = () => {
 
                 <label htmlFor="newProductIsAvailable">
                   {t("isAvailable") || "Is available"}
+                </label>
+              </div>
+              <div className="checkboxContainer">
+                <input
+                  id="newProductIsPublic"
+                  type="checkbox"
+                  checked={draft.isPublic !== false}
+                  onChange={(e) => setDraft({ ...draft, isPublic: e.target.checked })}
+                />
+
+                <label htmlFor="newProductIsPublic">
+                  {t("isPublic") || "Public"}
                 </label>
               </div>
               <label>

@@ -19,6 +19,7 @@ const CouponsPage = lazy(() => import("./pages/Coupons"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const AuditLogsPage = lazy(() => import("./pages/AuditLogs"));
 const BranchesPage = lazy(() => import("./pages/Branches"));
+const CurrenciesPage = lazy(() => import("./pages/Currencies"));
 
 const Protected = ({ children }: { children: ReactElement }) => {
   const { user, loading } = useAuth();
@@ -142,6 +143,16 @@ const App = () => {
                 <RequirePermission anyOf={["coupons:view"]}>
                   <BranchScoped>
                     <CouponsPage />
+                  </BranchScoped>
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="currencies"
+              element={
+                <RequirePermission anyOf={["currencies:view"]}>
+                  <BranchScoped>
+                    <CurrenciesPage />
                   </BranchScoped>
                 </RequirePermission>
               }

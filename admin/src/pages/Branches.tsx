@@ -366,20 +366,26 @@ const BranchesPage = () => {
     <>
       <Card title={t("branches")} subTitle={`(${branches.length})`}>
         <div className="page-header">
-          <div className="filters">
+          <form
+            className="filters"
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyFilters();
+            }}
+          >
             <input
               className="filter-input"
               placeholder={t("searchBranch")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button className="ghost-btn" type="button" onClick={applyFilters}>
+            <button className="ghost-btn" type="submit">
               {t("filter")}
             </button>
             <button className="ghost-btn" type="button" onClick={resetFilters}>
               {t("clear")}
             </button>
-          </div>
+          </form>
           {canManage && (
             <button className="primary" onClick={openNewModal}>
               {t("addBranch")}

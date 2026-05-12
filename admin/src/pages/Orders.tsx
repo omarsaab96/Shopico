@@ -255,7 +255,13 @@ const OrdersPage = () => {
   return (
     <Card title={t("titles.orders")} subTitle={`(${orders.length})`}>
       <div className="page-header" style={{ padding: 0, marginBottom: 12 }}>
-        <div className="filters">
+        <form
+          className="filters"
+          onSubmit={(e) => {
+            e.preventDefault();
+            load();
+          }}
+        >
           <input
             className="filter-input"
             placeholder={t("searchUser")}
@@ -297,7 +303,7 @@ const OrdersPage = () => {
             dateFormat="MM/dd/yyyy h:mm aa"
             isClearable
           />
-          <button className="ghost-btn" type="button" onClick={() => load()}>
+          <button className="ghost-btn" type="submit">
             {t("filter")}
           </button>
           <button
@@ -314,7 +320,7 @@ const OrdersPage = () => {
           >
             {t("clear")}
           </button>
-        </div>
+        </form>
       </div>
       <table className="table">
         <thead>

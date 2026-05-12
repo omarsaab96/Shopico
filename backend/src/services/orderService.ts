@@ -152,7 +152,7 @@ const syncDriverRatingAggregate = async (driverId: Types.ObjectId | string) => {
 const buildOrderItems = async (itemsInput?: CheckoutItemInput[], userId?: Types.ObjectId, branchId?: string) => {
   if (itemsInput && itemsInput.length > 0) {
     const ids = itemsInput.map((i) => i.productId);
-    const products = await Product.find({ _id: { $in: ids }, ...(branchId ? { branchId } : {}), isAvailable: true });
+    const products = await Product.find({ _id: { $in: ids }, ...(branchId ? { branchId } : {}), isAvailable: true, isPublic: { $ne: false } });
     const productMap = new Map(products.map((p) => [p._id.toString(), p]));
     return itemsInput.map((item) => {
       const product = productMap.get(item.productId);
@@ -165,7 +165,7 @@ const buildOrderItems = async (itemsInput?: CheckoutItemInput[], userId?: Types.
   const cart = await Cart.findOne({ user: userId });
   if (!cart || cart.items.length === 0) throw { status: 400, message: "Cart is empty" };
   const cartIds = cart.items.map((item) => item.product);
-  const products = await Product.find({ _id: { $in: cartIds }, ...(branchId ? { branchId } : {}), isAvailable: true });
+  const products = await Product.find({ _id: { $in: cartIds }, ...(branchId ? { branchId } : {}), isAvailable: true, isPublic: { $ne: false } });
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
   const filtered = cart.items.filter((item) => productMap.has(item.product.toString()));
   if (filtered.length === 0) throw { status: 400, message: "Cart items not available for this branch" };

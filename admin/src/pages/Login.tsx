@@ -13,7 +13,7 @@ const LoginPage = () => {
   const [theme, setTheme] = useStateReact<"light" | "dark">(
     (localStorage.getItem("theme") as "light" | "dark") || "light"
   );
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("admin@shopico-sy.com");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");

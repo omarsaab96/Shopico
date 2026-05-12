@@ -35,6 +35,7 @@ export interface Product {
   promoPrice?: number;
   isPromoted?: boolean;
   isAvailable: boolean;
+  isPublic?: boolean;
   images: ProductImage[];
   categories: Category[] | string[];
 }
@@ -112,6 +113,19 @@ export interface Branch {
   lng: number;
   openHours?: string;
   deliveryRadiusKm: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Currency {
+  _id: string;
+  symbol: {
+    en: string;
+    ar?: string;
+  };
+  exchangeRate: number;
+  isPrimary: boolean;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;

@@ -14,6 +14,7 @@ import addressRoutes from "./address.routes";
 import announcementRoutes from "./announcement.routes";
 import couponRoutes from "./coupon.routes";
 import branchRoutes from "./branch.routes";
+import currencyRoutes from "./currency.routes";
 
 const router = Router();
 
@@ -33,5 +34,6 @@ router.use("/addresses", addressRoutes);
 router.use("/announcements", announcementRoutes);
 router.use("/coupons", couponRoutes);
 router.use("/branches", branchRoutes);
+router.use("/currencies", currencyRoutes);
 
 export default router;

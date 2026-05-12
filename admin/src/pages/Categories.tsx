@@ -155,20 +155,26 @@ const CategoriesPage = () => {
     <>
       <Card title={t("nav.categories")} subTitle={`(${categories.length})`}>
         <div className="page-header">
-          <div className="filters">
+          <form
+            className="filters"
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyFilters();
+            }}
+          >
             <input
               className="filter-input"
               placeholder={t("searchCategory")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button className="ghost-btn" type="button" onClick={applyFilters}>
+            <button className="ghost-btn" type="submit">
               {t("filter")}
             </button>
           <button className="ghost-btn" type="button" onClick={clearFilters}>
             {t("clear")}
           </button>
-        </div>
+        </form>
           {canManage && (
             <button className="primary" onClick={openNewModal}>
               {t("addCategory")}
