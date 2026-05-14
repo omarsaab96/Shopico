@@ -27,8 +27,21 @@ interface CheckoutItemInput {
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-export const getOrdersForUser = async (userId: Types.ObjectId, branchId?: string) => {
-  return Order.find({ user: userId, ...(branchId ? { branchId } : {}) })
+const getOrderCurrencyFilter = async (currencyId?: string, branchId?: string) => {
+  if (!currencyId) return {};
+  const filter: Record<string, unknown>[] = [{ currency: currencyId }];
+  if (branchId) {
+    const primary = await getPrimaryCurrency(branchId);
+    if (primary._id.toString() === currencyId) {
+      filter.push({ currency: { $exists: false } }, { currency: null });
+    }
+  }
+  return { $or: filter };
+};
+
+export const getOrdersForUser = async (userId: Types.ObjectId, branchId?: string, currencyId?: string, currencyBranchId?: string) => {
+  const currencyFilter = await getOrderCurrencyFilter(currencyId, currencyBranchId || branchId);
+  return Order.find({ user: userId, ...(branchId ? { branchId } : {}), ...currencyFilter })
     .sort({ createdAt: -1 })
     .populate("currency")
     .populate("items.product")
@@ -56,9 +69,12 @@ export const getAllOrders = async (opts?: {
   from?: string;
   to?: string;
   branchId?: string;
+  currencyId?: string;
 }) => {
   const filter: Record<string, unknown> = {};
   if (opts?.branchId) filter.branchId = opts.branchId;
+  const currencyFilter = await getOrderCurrencyFilter(opts?.currencyId, opts?.branchId);
+  if ((currencyFilter as any).$or) filter.$and = [currencyFilter];
   if (opts?.status) filter.status = opts.status;
   if (opts?.paymentStatus) filter.paymentStatus = opts.paymentStatus;
   if (opts?.from || opts?.to) {
@@ -97,7 +113,10 @@ export const getAllOrders = async (opts?: {
       { $expr: { $regexMatch: { input: { $toString: "$_id" }, regex: escapedQuery, options: "i" } } },
       { address: { $regex: normalizedQuery, $options: "i" } },
     ].filter(Boolean) as Record<string, unknown>[];
-    if (orClauses.length) filter.$or = orClauses;
+    if (orClauses.length) {
+      if (filter.$and) (filter.$and as Record<string, unknown>[]).push({ $or: orClauses });
+      else filter.$or = orClauses;
+    }
   }
 
   return Order.find(filter)

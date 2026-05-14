@@ -193,6 +193,7 @@ export const fetchOrders = async (params?: {
   q?: string;
   status?: string;
   paymentStatus?: string;
+  currencyId?: string;
   from?: string;
   to?: string;
 }) => {

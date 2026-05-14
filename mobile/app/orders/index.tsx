@@ -32,7 +32,7 @@ export default function Orders() {
   const { user } = useAuth();
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
-  const { formatMoney } = useCurrency();
+  const { selectedCurrency, formatMoney } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   const formatOrderDate = useCallback((value?: string) => {
@@ -57,7 +57,7 @@ export default function Orders() {
     console.log('start')
     setRefreshing(true);
     try {
-      const res = await api.get("/orders");
+      const res = await api.get("/orders", { params: { currencyId: selectedCurrency?._id } });
       const list = res.data.data || [];
       const sorted = [...list].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -68,14 +68,14 @@ export default function Orders() {
     } finally {
       setRefreshing(false);
     }
-  }, [user]);
+  }, [selectedCurrency?._id, user]);
 
   const loadSilently = useCallback(async () => {
     if (!user) return;
 
     console.log('start2')
     try {
-      const res = await api.get("/orders");
+      const res = await api.get("/orders", { params: { currencyId: selectedCurrency?._id } });
       const list = res.data.data || [];
       const sorted = [...list].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -84,7 +84,7 @@ export default function Orders() {
     } catch {
       setOrders([]);
     }
-  }, [user]);
+  }, [selectedCurrency?._id, user]);
 
   useEffect(() => {
     load();

@@ -28,10 +28,11 @@ import { AuthRequest } from "../types/auth";
 
 export const listOrders = catchAsync(async (req: AuthRequest, res) => {
   const branchId = req.user?.role === "customer" ? undefined : req.branchId;
+  const { currencyId } = req.query as { currencyId?: string };
   if (req.user?.role !== "customer" && !branchId) {
     return res.status(400).json({ success: false, message: "Branch access required" });
   }
-  const orders = await getOrdersForUser(req.user!._id, branchId);
+  const orders = await getOrdersForUser(req.user!._id, branchId, currencyId, req.branchId);
   sendSuccess(res, orders);
 });
 
@@ -41,15 +42,16 @@ export const listDriverOrders = catchAsync(async (req: AuthRequest, res) => {
 });
 
 export const listOrdersAdmin = catchAsync(async (req, res) => {
-  const { q, status, paymentStatus, from, to } = req.query as {
+  const { q, status, paymentStatus, from, to, currencyId } = req.query as {
     q?: string;
     status?: string;
     paymentStatus?: string;
     from?: string;
     to?: string;
+    currencyId?: string;
   };
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
-  const orders = await getAllOrders({ q, status, paymentStatus, from, to, branchId: req.branchId });
+  const orders = await getAllOrders({ q, status, paymentStatus, from, to, currencyId, branchId: req.branchId });
   sendSuccess(res, orders);
 });
 

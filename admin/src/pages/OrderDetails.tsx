@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Card from "../components/Card";
 import StatusPill from "../components/StatusPill";
 import api, { fetchCoupons, fetchDrivers, fetchOrderById, updateOrderDetails, updateOrderStatus } from "../api/client";
-import type { ApiUser, Coupon, Order, Product } from "../types/api";
+import type { ApiUser, Coupon, Currency, Order, Product } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 
@@ -34,8 +34,6 @@ const formatDateTime = (value?: string) => {
   return orderDateTimeFormatter.format(parsed);
 };
 
-const formatMoney = (value?: number) => (typeof value === "number" ? value.toLocaleString() : "0");
-
 const getOrderAddressLabel = (order: Order) =>
   order.addressRef && typeof order.addressRef !== "string" ? order.addressRef.label : "";
 
@@ -49,7 +47,7 @@ type PickerType = "status" | "driver" | null;
 const OrderDetailsPage = () => {
   const { id = "" } = useParams();
   const navigate = useNavigate();
-  const { t, tStatus } = useI18n();
+  const { t, tStatus, lang } = useI18n();
   const { can, canAny } = usePermissions();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,6 +75,22 @@ const OrderDetailsPage = () => {
   const canViewUserBranches = canAny(...USER_BRANCHES_VIEW_PERMISSIONS);
   const canOpenUserDetails =
     canViewUsersPage && (canViewUserAbout || canViewUserLedger || canViewUserBranches);
+  const getCurrencySymbol = (currency?: Currency | string) => {
+    if (!currency || typeof currency === "string") return t("syp").toUpperCase();
+    const localized = currency.symbol?.[lang] || currency.symbol?.en || currency.symbol?.ar || "";
+    if (lang === "ar" && localized.toLowerCase?.() === currency.symbol?.en?.toLowerCase?.()) {
+      const translated = t(`currencySymbol.${currency.symbol.en.toUpperCase()}`);
+      if (translated !== `currencySymbol.${currency.symbol.en.toUpperCase()}`) return translated;
+    }
+    return localized;
+  };
+  const formatOrderMoney = (value?: number, currency = order?.currency) => {
+    const amount = typeof value === "number" ? value : 0;
+    if (!currency || typeof currency === "string") return `${amount.toLocaleString()} ${t("syp").toUpperCase()}`;
+    const rate = Number(currency.exchangeRate || 1);
+    const converted = currency.isPrimary ? amount : amount / (rate > 0 ? rate : 1);
+    return `${converted.toLocaleString(undefined, { maximumFractionDigits: currency.isPrimary ? 0 : 2 })} ${getCurrencySymbol(currency)}`;
+  };
 
   useEffect(() => {
     if (!id) {
@@ -313,7 +327,7 @@ const OrderDetailsPage = () => {
           </div>
           <div className="stat">
             <div className="stat-label">{t("total")}</div>
-            <div className="stat-value">{formatMoney(order.total)} {t("syp").toUpperCase()}</div>
+            <div className="stat-value">{formatOrderMoney(order.total)}</div>
           </div>
           <div className="stat">
             <div className="stat-label">{t("orders.dateTime")}</div>
@@ -397,15 +411,15 @@ const OrderDetailsPage = () => {
             <div className="detailsTable">
               <div className="detailsRow">
                 <div className="detailsLabel">{t("orders.subtotal")}</div>
-                <div className="detailsValue">{formatMoney(order.subtotal)} {t("syp").toUpperCase()}</div>
+                <div className="detailsValue">{formatOrderMoney(order.subtotal)}</div>
               </div>
               <div className="detailsRow">
                 <div className="detailsLabel">{t("orders.deliveryFee")}</div>
-                <div className="detailsValue">{formatMoney(order.deliveryFee)} {t("syp").toUpperCase()}</div>
+                <div className="detailsValue">{formatOrderMoney(order.deliveryFee)}</div>
               </div>
               <div className="detailsRow">
                 <div className="detailsLabel">{t("discount")}</div>
-                <div className="detailsValue">{formatMoney(order.discount)} {t("syp").toUpperCase()}</div>
+                <div className="detailsValue">{formatOrderMoney(order.discount)}</div>
               </div>
               <div className="detailsRow">
                 <div className="detailsLabel">{t("orders.couponCodes")}</div>
@@ -445,7 +459,7 @@ const OrderDetailsPage = () => {
               </div>
               <div className="detailsRow">
                 <div className="detailsLabel">{t("total")}</div>
-                <div className="detailsValue"><strong>{formatMoney(order.total)} {t("syp").toUpperCase()}</strong></div>
+                <div className="detailsValue"><strong>{formatOrderMoney(order.total)}</strong></div>
               </div>
             </div>
           </div>
@@ -466,9 +480,9 @@ const OrderDetailsPage = () => {
             {order.items.map((item, index) => (
               <tr key={`${getProductName(item.product, unknownProductLabel)}-${index}`}>
                 <td>{getProductName(item.product, unknownProductLabel)}</td>
-                <td>{formatMoney(item.price)}</td>
+                <td>{formatOrderMoney(item.price)}</td>
                 <td>{item.quantity}</td>
-                <td>{formatMoney(item.price * item.quantity)}</td>
+                <td>{formatOrderMoney(item.price * item.quantity)}</td>
               </tr>
             ))}
           </tbody>

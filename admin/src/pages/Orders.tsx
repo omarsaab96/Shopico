@@ -4,8 +4,8 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Card from "../components/Card";
 import StatusPill from "../components/StatusPill";
-import api, { fetchDrivers, fetchOrders, updateOrderDetails, updateOrderStatus } from "../api/client";
-import type { ApiUser, Order } from "../types/api";
+import api, { fetchCurrencies, fetchDrivers, fetchOrders, updateOrderDetails, updateOrderStatus } from "../api/client";
+import type { ApiUser, Currency, Order } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
@@ -45,6 +45,8 @@ const OrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
+  const [currencyFilter, setCurrencyFilter] = useState("");
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [fromDate, setFromDate] = useState<Date | null>(null);
   const [toDate, setToDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,7 +58,7 @@ const OrdersPage = () => {
   const [userDetailsLoading, setUserDetailsLoading] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
   const mutatingRef = useRef(false);
-  const { t, tStatus } = useI18n();
+  const { t, tStatus, lang } = useI18n();
   const { can, canAny } = usePermissions();
   const { selectedBranchId } = useBranch();
   const navigate = useNavigate();
@@ -82,6 +84,21 @@ const OrdersPage = () => {
   };
 
   const getOrderUserLabel = (order: Order) => (typeof order.user === "string" ? order.user : order.user.email);
+  const getCurrencySymbol = (currency?: Currency | string) => {
+    if (!currency || typeof currency === "string") return t("syp").toUpperCase();
+    const localized = currency.symbol?.[lang] || currency.symbol?.en || currency.symbol?.ar || "";
+    if (lang === "ar" && localized.toLowerCase?.() === currency.symbol?.en?.toLowerCase?.()) {
+      const translated = t(`currencySymbol.${currency.symbol.en.toUpperCase()}`);
+      if (translated !== `currencySymbol.${currency.symbol.en.toUpperCase()}`) return translated;
+    }
+    return localized;
+  };
+  const formatOrderMoney = (value: number, currency?: Currency | string) => {
+    if (!currency || typeof currency === "string") return `${value.toLocaleString()} ${t("syp").toUpperCase()}`;
+    const rate = Number(currency.exchangeRate || 1);
+    const converted = currency.isPrimary ? value : value / (rate > 0 ? rate : 1);
+    return `${converted.toLocaleString(undefined, { maximumFractionDigits: currency.isPrimary ? 0 : 2 })} ${getCurrencySymbol(currency)}`;
+  };
 
   const getDriverIdValue = (driverId?: ApiUser | string | null) =>
     typeof driverId === "string" ? driverId : driverId?._id || "";
@@ -139,6 +156,7 @@ const OrdersPage = () => {
     q: searchTerm.trim() || undefined,
     status: statusFilter || undefined,
     paymentStatus: paymentFilter || undefined,
+    currencyId: currencyFilter || undefined,
     from: toIso(fromDate),
     to: toIso(toDate),
   });
@@ -159,6 +177,8 @@ const OrdersPage = () => {
       } else {
         setDrivers([]);
       }
+      const currencyData = await fetchCurrencies();
+      setCurrencies(currencyData.filter((currency) => currency.isActive));
     } finally {
       if (!silent) setLoading(false);
     }
@@ -175,7 +195,7 @@ const OrdersPage = () => {
       if (!mutatingRef.current && !loading) load(true);
     }, 5000);
     return () => clearInterval(interval);
-  }, [selectedBranchId, searchTerm, statusFilter, paymentFilter, fromDate, toDate, loading]);
+  }, [selectedBranchId, searchTerm, statusFilter, paymentFilter, currencyFilter, fromDate, toDate, loading]);
 
   const update = async (order: Order, status: string, paymentStatus?: string) => {
     mutatingRef.current = true;
@@ -281,6 +301,14 @@ const OrdersPage = () => {
             <option value="PENDING">{tStatus("PENDING")}</option>
             <option value="CONFIRMED">{tStatus("CONFIRMED")}</option>
           </select>
+          <select className="filter-select" value={currencyFilter} onChange={(e) => setCurrencyFilter(e.target.value)}>
+            <option value="">{t("currency") || "Currency"}</option>
+            {currencies.map((currency) => (
+              <option key={currency._id} value={currency._id}>
+                {getCurrencySymbol(currency)}
+              </option>
+            ))}
+          </select>
           <DatePicker
             className="filter-input date-picker"
             selected={fromDate}
@@ -313,6 +341,7 @@ const OrdersPage = () => {
               setSearchTerm("");
               setStatusFilter("");
               setPaymentFilter("");
+              setCurrencyFilter("");
               setFromDate(null);
               setToDate(null);
               fetchOrders().then(setOrders);
@@ -406,7 +435,7 @@ const OrdersPage = () => {
                     </div>
                   )}
                 </td>
-                <td>{order.total.toLocaleString()} {t('syp').toUpperCase()}</td>
+                <td>{formatOrderMoney(order.total, order.currency)}</td>
                 <td>
                   {editingId === order._id && editDraft ? (
                     drivers.length === 0 ? (
