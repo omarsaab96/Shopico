@@ -30,6 +30,7 @@ const WalletPage = () => {
   const canManageWallet = can("wallet:manage");
   const canCreateTopups = can("wallet:topups:create");
   const canViewTopups = can("wallet:topups:view") || canManageWallet;
+  const canAddTopup = canCreateTopups || canManageWallet;
 
   const toQueryDateTime = (value?: Date | null) => {
     if (!value) return undefined;
@@ -74,7 +75,7 @@ const WalletPage = () => {
   }, [canViewTopups, selectedBranchId]);
 
   const submitCreate = async () => {
-    if (!canCreateTopups) return;
+    if (!canAddTopup) return;
     const amountValue = Number(createDraft.amount);
     if (!createDraft.email.trim() || !amountValue || amountValue <= 0) {
       setCreateError(t("invalidForm"));
@@ -201,9 +202,9 @@ const WalletPage = () => {
             </button>
           </form>
 
-          {canCreateTopups && (
+          {canAddTopup && (
             <button className="primary" type="button" onClick={() => setShowCreateModal(true)}>
-              {t("topUpRequest") || "Top-up request"}
+              {canManageWallet ? (t("topUpWallet") || "Top up wallet") : (t("topUpRequest") || "Top-up request")}
             </button>
           )}
         </div>
@@ -280,11 +281,13 @@ const WalletPage = () => {
         </table>
       </Card>
 
-      {showCreateModal && canCreateTopups && (
+      {showCreateModal && canAddTopup && (
         <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{t("topUpRequest") || "Top-up request"}</div>
+              <div className="modal-title">
+                {canManageWallet ? (t("topUpWallet") || "Top up wallet") : (t("topUpRequest") || "Top-up request")}
+              </div>
               <button className="ghost-btn" type="button" onClick={() => setShowCreateModal(false)}>
                 {t("close")}
               </button>

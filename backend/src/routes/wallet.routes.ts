@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, authorize, requirePermissions } from "../middleware/auth";
+import { authenticate, authorize, requireAnyPermissions, requirePermissions } from "../middleware/auth";
 import { adminCreateTopUpRequest, adminListTopUps, adminTopUp, adminUpdateTopUp, createTopUp, getWallet } from "../controllers/walletController";
 import { attachBranchContext, requireBranchContext } from "../middleware/branch";
 
@@ -11,7 +11,7 @@ router.get(
   "/topups/admin",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requirePermissions("wallet:topups:view"),
+  requireAnyPermissions("wallet:topups:view", "wallet:manage"),
   requireBranchContext,
   adminListTopUps
 );
@@ -19,11 +19,11 @@ router.post(
   "/topups/admin/request",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requirePermissions("wallet:topups:view", "wallet:topups:create"),
+  requireAnyPermissions("wallet:topups:create", "wallet:manage"),
   requireBranchContext,
   adminCreateTopUpRequest
 );
-router.put("/topups/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("wallet:topups:view", "wallet:manage"), requireBranchContext, adminUpdateTopUp);
-router.post("/topups/admin/manual", authenticate, authorize("admin", "manager", "staff"), requirePermissions("wallet:topups:view", "wallet:manage"), requireBranchContext, adminTopUp);
+router.put("/topups/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("wallet:manage"), requireBranchContext, adminUpdateTopUp);
+router.post("/topups/admin/manual", authenticate, authorize("admin", "manager", "staff"), requirePermissions("wallet:manage"), requireBranchContext, adminTopUp);
 
 export default router;

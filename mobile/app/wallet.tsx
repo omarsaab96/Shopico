@@ -115,10 +115,10 @@ export default function WalletScreen() {
             <Text style={[styles.title, { marginBottom: 0, lineHeight: 28 }]}>{t("wallet")}</Text>
           </TouchableOpacity>
           {/* <Text style={styles.muted}>{t("loading") ?? "Loading"}...</Text> */}
-          <Skeleton width={320} height={200} style={{ marginBottom: 20 }} />
-          <Skeleton width={100} height={20} />
-          <Skeleton width={320} height={30} />
-          <Skeleton width={320} height={30} />
+          <Skeleton width={'100%'} height={200} style={{ marginBottom: 20 }} />
+          <Skeleton width={320} height={20} />
+          <Skeleton width={220} height={30} />
+          <Skeleton width={250} height={30} />
         </View>
       </Screen>
     );

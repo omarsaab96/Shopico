@@ -41,6 +41,7 @@ export const adminTopUp = catchAsync(async (req: AuthRequest, res) => {
 export const adminCreateTopUpRequest = catchAsync(async (req: AuthRequest, res) => {
   const payload = adminTopUpRequestSchema.parse(req.body);
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const canApprove = Boolean(req.user?.permissions?.includes("wallet:manage"));
   const user = payload.userId
     ? await User.findById(payload.userId)
     : await User.findOne({ email: payload.email });
@@ -58,5 +59,16 @@ export const adminCreateTopUpRequest = catchAsync(async (req: AuthRequest, res) 
     req.user!._id,
     "ADMIN_TOPUP_REQUEST"
   );
+  if (canApprove) {
+    const approvedTopUp = await updateTopUpStatus(
+      topUp._id.toString(),
+      "APPROVED",
+      payload.note,
+      req.branchId,
+      req.user!._id
+    );
+    sendSuccess(res, approvedTopUp, "Wallet topped up", 201);
+    return;
+  }
   sendSuccess(res, topUp, "Top-up request created", 201);
 });
