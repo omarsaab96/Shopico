@@ -72,7 +72,7 @@ export default function CartScreen() {
   const subtotal = items.reduce((sum, i) => (i.unavailable ? sum : sum + i.price * i.quantity), 0);
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
-  const { getWalletBalance, primaryCurrency, formatMoney } = useCurrency();
+  const { selectedCurrency, getWalletBalance, getCurrencySymbol, convertFromPrimary, formatMoney } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
   const renderBackdrop = useMemo(() => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
   const addressRefreshOnVisit = useRef(false);
@@ -205,7 +205,7 @@ export default function CartScreen() {
     setWalletLoading(true);
     api
       .get("/wallet")
-      .then((res) => setWalletBalance(getWalletBalance(res.data.data.wallet, primaryCurrency)))
+      .then((res) => setWalletBalance(getWalletBalance(res.data.data.wallet, selectedCurrency)))
       .catch(() => setWalletBalance(0))
       .finally(() => setWalletLoading(false));
   };
@@ -268,7 +268,7 @@ export default function CartScreen() {
     loadAddresses();
     loadWallet();
     loadBranch();
-  }, [user]);
+  }, [user, selectedCurrency?._id]);
 
   useEffect(() => {
     if (showSuccessContent) {
@@ -480,7 +480,10 @@ export default function CartScreen() {
   const couponDiscountTotal = selectedCoupons.reduce((sum, c) => sum + (c.freeDelivery ? 0 : c.discount || 0), 0);
   const effectiveDeliveryFee = hasFreeDeliveryCoupon ? 0 : deliveryFee;
   const orderTotal = Math.max(0, subtotal + effectiveDeliveryFee - couponDiscountTotal);
-  const walletInsufficient = paymentMethod === "WALLET" && walletBalance < orderTotal;
+  const selectedCurrencyTotal = convertFromPrimary(orderTotal, selectedCurrency);
+  const walletInsufficient = paymentMethod === "WALLET" && walletBalance < selectedCurrencyTotal;
+  const formatSelectedWalletBalance = (amount: number) =>
+    `${Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })} ${getCurrencySymbol(selectedCurrency)}`;
   const checkoutLoading = cartSyncLoading || addressesLoading || walletLoading || settingsLoading || branchLoading || deliveryEstimateLoading;
   const allowMultipleCoupons = settings?.allowMultipleCoupons ?? false;
 
@@ -531,13 +534,13 @@ export default function CartScreen() {
   const renderCouponMetaDb = (coupon: { freeDelivery: boolean; discountType?: string; discountValue?: number; discount?: number }) => {
     if (coupon.freeDelivery) return t("freeDelivery") ?? "Free delivery";
     if (coupon.discountType === "PERCENT") return `${Number(coupon.discountValue || 0)}`;
-    if (coupon.discountValue !== undefined) return `-${Number(coupon.discountValue || 0).toLocaleString()}`;
-    return `-${Number(coupon.discount || 0).toLocaleString()}`;
+    if (coupon.discountValue !== undefined) return `-${formatMoney(Number(coupon.discountValue || 0), selectedCurrency)}`;
+    return `-${formatMoney(Number(coupon.discount || 0), selectedCurrency)}`;
   };
 
   const renderCouponMetaApplied = (coupon: { freeDelivery: boolean; discount?: number }) => {
     if (coupon.freeDelivery) return t("freeDelivery") ?? "Free delivery";
-    return `-${Number(coupon.discount || 0).toLocaleString()} ${t("syp")}`;
+    return `-${formatMoney(Number(coupon.discount || 0), selectedCurrency)}`;
   };
 
   const renderCouponUsesLeft = (coupon: {
@@ -702,6 +705,7 @@ export default function CartScreen() {
       const res = await api.post("/orders", {
         addressId: selectedAddress._id,
         paymentMethod,
+        currencyId: paymentMethod === "WALLET" ? selectedCurrency?._id : undefined,
         couponCodes: selectedCoupons.length ? selectedCoupons.map((c) => c.code) : undefined,
         items: items.filter((i) => !i.unavailable).map((i) => ({ productId: i.productId, quantity: i.quantity })),
       });
@@ -757,7 +761,7 @@ export default function CartScreen() {
                 {t("subtotal")}
               </Text>
               <Text style={styles.sheetText}>
-                {subtotal.toLocaleString()}  {t("syp")}
+                {formatMoney(subtotal, selectedCurrency)}
               </Text>
             </View>
 
@@ -767,15 +771,15 @@ export default function CartScreen() {
               </Text>
               <Text style={styles.sheetText}>
                 {couponDiscountTotal > 0
-                  ? `-${couponDiscountTotal.toLocaleString()} ${t("syp")}`
-                  : `0 ${t("syp")}`}
+                  ? `-${formatMoney(couponDiscountTotal, selectedCurrency)}`
+                  : formatMoney(0, selectedCurrency)}
               </Text>
 
             </View>}
 
             {/* {walletInsufficient && (
                 <Text style={[styles.sheetText, { color: "red" }]}>
-                  {t("balance")}: {formatMoney(walletBalance, primaryCurrency)}
+                  {t("balance")}: {formatSelectedWalletBalance(walletBalance)}
                 </Text>
               )} */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -783,7 +787,7 @@ export default function CartScreen() {
                 {t("deliveryFee")}
               </Text>
               <Text style={styles.sheetText}>
-                {hasFreeDeliveryCoupon ? (t("freeDelivery") ?? "Free delivery") : formatMoney(effectiveDeliveryFee || 0, primaryCurrency)}
+                {hasFreeDeliveryCoupon ? (t("freeDelivery") ?? "Free delivery") : formatMoney(effectiveDeliveryFee || 0, selectedCurrency)}
               </Text>
             </View>
             {checkoutError ? <Text style={styles.errorText}>{checkoutError}</Text> : null}
@@ -801,11 +805,11 @@ export default function CartScreen() {
               </Text>
               {/* <View style={{ gap: 2 }}> */}
               <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
-                {!submitting && formatMoney(orderTotal, primaryCurrency)}
+                {!submitting && formatMoney(orderTotal, selectedCurrency)}
               </Text>
 
               {!submitting && <Text style={[styles.primaryBtnText, { fontSize: 14, textAlign: 'center', opacity: 0.6, textDecorationLine: "line-through", lineHeight: 14 }]}>
-                {formatMoney(orderTotal * 100, primaryCurrency)}
+                {formatMoney(orderTotal * 100, selectedCurrency)}
               </Text>}
             </View>
             {/* </View> */}
@@ -861,7 +865,7 @@ export default function CartScreen() {
                     ) : null} */}
                   </View>
                   {!item.unavailable && <Text style={styles.muted}>
-                    {item.price.toLocaleString()} {t("syp").toUpperCase()}
+                    {formatMoney(item.price, selectedCurrency)}
                   </Text>}
                   {item.unavailable &&
                     <Text style={styles.unavailableText}>
@@ -896,7 +900,7 @@ export default function CartScreen() {
 
         {items.length > 0 && <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>{t("subtotal")}</Text>
-          <Text weight="bold" style={styles.totalValue}>{formatMoney(subtotal, primaryCurrency)}</Text>
+          <Text weight="bold" style={styles.totalValue}>{formatMoney(subtotal, selectedCurrency)}</Text>
         </View>}
         {hasUnavailableItems ? (
           <Text style={styles.cartWarning}>
@@ -1251,7 +1255,7 @@ export default function CartScreen() {
                                 <ActivityIndicator color={palette.accent} size="small" />
                               ) : (
                                 <Text style={[{ fontWeight: '700' }, !walletLoading && walletInsufficient && { color: '#ff5555' }]}>
-                                  {t("balance")}: {formatMoney(walletBalance, primaryCurrency)}
+                                  {t("balance")}: {formatSelectedWalletBalance(walletBalance)}
                                 </Text>
                               )}
                             </View>
@@ -1407,7 +1411,7 @@ export default function CartScreen() {
                                           ? renderCouponUsesLeft(c)
                                           : c.discountType === "FIXED"
                                             ? (() => {
-                                              const parts = formatFixedParts(c.discountValue ?? c.discount ?? 0);
+                                              const parts = formatFixedParts(convertFromPrimary(c.discountValue ?? c.discount ?? 0, selectedCurrency));
                                               return (
                                                 <>
                                                   {parts.main}
@@ -1422,7 +1426,7 @@ export default function CartScreen() {
                                         <Text style={styles.off}>{t("off") ?? "OFF"}</Text>
                                       </View>}
                                       {!c.freeDelivery && c.discountType == "FIXED" && <View style={{ gap: 0 }}>
-                                        <Text style={styles.percentSign}>{primaryCurrency ? formatMoney(1, primaryCurrency).replace(/[0-9.,\s]/g, "") : t('syp')}</Text>
+                                        <Text style={styles.percentSign}>{selectedCurrency ? formatMoney(1, selectedCurrency).replace(/[0-9.,\s]/g, "") : t('syp')}</Text>
                                       </View>}
                                     </View>
                                     <Text style={styles.subtitle} numberOfLines={1}>

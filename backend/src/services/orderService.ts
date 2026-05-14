@@ -18,6 +18,7 @@ import { DriverStatus, OrderStatus, PaymentMethod } from "../types";
 import { AuditLog } from "../models/AuditLog";
 import { updateMembershipOnBalanceChange } from "../utils/membership";
 import { Address } from "../models/Address";
+import { Currency } from "../models/Currency";
 
 interface CheckoutItemInput {
   productId: string;
@@ -182,31 +183,43 @@ const getSettingsSnapshot = async (branchId: string) => {
   return settings;
 };
 
-const handleWalletDebit = async (userId: Types.ObjectId, branchId: string, amount: number, reference: string) => {
+const getCurrencyId = (currency: any) => {
+  if (!currency) return "";
+  if (typeof currency === "string") return currency;
+  return currency._id?.toString?.() || currency.toString?.() || "";
+};
+
+const handleWalletDebit = async (userId: Types.ObjectId, branchId: string, amount: number, reference: string, currencyId?: string) => {
   const wallet = await Wallet.findOne({ user: userId });
   if (!wallet) throw { status: 404, message: "Wallet not found" };
   const primary = await getPrimaryCurrency(branchId);
+  const currency = currencyId
+    ? await Currency.findOne({ _id: currencyId, branchId, isActive: true })
+    : primary;
+  if (!currency) throw { status: 404, message: "Currency not found" };
   await ensureWalletBalances(wallet, branchId);
-  const currencyId = primary._id.toString();
-  const balance = getWalletCurrencyBalance(wallet, currencyId);
-  if (balance < amount) throw { status: 400, message: "Insufficient wallet balance" };
-  const nextBalance = balance - amount;
-  const item = (wallet.balances || []).find((entry: any) => entry.currency?.toString() === currencyId);
+  const debitCurrencyId = currency._id.toString();
+  const exchangeRate = Number(currency.exchangeRate || 1);
+  const debitAmount = currency.isPrimary ? amount : amount / (exchangeRate > 0 ? exchangeRate : 1);
+  const balance = getWalletCurrencyBalance(wallet, debitCurrencyId);
+  if (balance < debitAmount) throw { status: 400, message: "Insufficient wallet balance" };
+  const nextBalance = balance - debitAmount;
+  const item = (wallet.balances || []).find((entry: any) => getCurrencyId(entry.currency) === debitCurrencyId);
   if (item) item.amount = nextBalance;
-  else wallet.balances.push({ currency: primary._id, amount: nextBalance });
-  wallet.balance = nextBalance;
+  else wallet.balances.push({ currency: currency._id, amount: nextBalance });
+  wallet.balance = getWalletCurrencyBalance(wallet, primary._id.toString());
   await wallet.save();
   await WalletTransaction.create({
     user: userId,
-    amount,
-    currency: primary._id,
+    amount: debitAmount,
+    currency: currency._id,
     type: "DEBIT",
     source: "ORDER",
     reference,
     balanceAfter: nextBalance,
   });
   const user = await User.findById(userId);
-  if (user) await updateMembershipOnBalanceChange(user, nextBalance, branchId, currencyId);
+  if (user) await updateMembershipOnBalanceChange(user, nextBalance, branchId, debitCurrencyId);
 };
 
 const tryConsumeRewardToken = async (userId: Types.ObjectId, rewardValue: number, apply: boolean) => {
@@ -342,6 +355,7 @@ export const createOrder = async (
     useReward?: boolean;
     couponCode?: string;
     couponCodes?: string[];
+    currencyId?: string;
     items?: CheckoutItemInput[];
   }
 ) => {
@@ -390,7 +404,7 @@ export const createOrder = async (
   const total = Math.max(0, subtotal + deliveryFee - discount);
 
   if (payload.paymentMethod === "WALLET") {
-    await handleWalletDebit(userId, branchId, total, "ORDER");
+    await handleWalletDebit(userId, branchId, total, "ORDER", payload.currencyId);
   }
 
   const order = await Order.create({
