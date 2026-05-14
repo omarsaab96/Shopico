@@ -15,7 +15,7 @@ import {
 import Card from "../components/Card";
 import { fetchAnnouncements, fetchCoupons, fetchOrders, fetchProductsAdmin, fetchTopUps, fetchUsers } from "../api/client";
 import { useI18n } from "../context/I18nContext";
-import type { Order } from "../types/api";
+import type { Currency, Order } from "../types/api";
 import StatusPill from "../components/StatusPill";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
@@ -33,7 +33,7 @@ const DashboardPage = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
-  const { t, dir } = useI18n();
+  const { t, dir, lang } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
   const canViewOrders = can("orders:view");
@@ -46,6 +46,21 @@ const DashboardPage = () => {
   const lockedMetricSub = `\uD83D\uDD12 ${t("dashboard.restrictedAccess")}`;
   const formatTooltipNumber = (value: unknown) =>
     typeof value === "number" ? value.toLocaleString() : String(value ?? "");
+  const getCurrencySymbol = (currency?: Currency | string) => {
+    if (!currency || typeof currency === "string") return t("syp").toUpperCase();
+    const localized = currency.symbol?.[lang] || currency.symbol?.en || currency.symbol?.ar || "";
+    if (lang === "ar" && localized.toLowerCase?.() === currency.symbol?.en?.toLowerCase?.()) {
+      const translated = t(`currencySymbol.${currency.symbol.en.toUpperCase()}`);
+      if (translated !== `currencySymbol.${currency.symbol.en.toUpperCase()}`) return translated;
+    }
+    return localized;
+  };
+  const formatOrderMoney = (value: number, currency?: Currency | string) => {
+    if (!currency || typeof currency === "string") return `${value.toLocaleString()} ${t("syp").toUpperCase()}`;
+    const rate = Number(currency.exchangeRate || 1);
+    const converted = currency.isPrimary ? value : value / (rate > 0 ? rate : 1);
+    return `${converted.toLocaleString(undefined, { maximumFractionDigits: currency.isPrimary ? 0 : 2 })} ${getCurrencySymbol(currency)}`;
+  };
 
   useEffect(() => {
     if (!selectedBranchId) return;
@@ -357,7 +372,7 @@ const DashboardPage = () => {
                   <td>
                     <StatusPill value={order.status} />
                   </td>
-                  <td>{order.total.toLocaleString()} SYP</td>
+                  <td>{formatOrderMoney(order.total, order.currency)}</td>
                 </tr>
               ))
             )}
