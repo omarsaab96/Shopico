@@ -28,18 +28,24 @@ const LoginPage = () => {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (step === "email") {
+      const normalizedEmail = email.trim();
+      if (!normalizedEmail) {
+        setError(t("emailRequired") || "Email is required");
+        return;
+      }
       setLoading(true);
       setError("");
       try {
-        const status = await checkPasswordStatus(email.trim());
+        const status = await checkPasswordStatus(normalizedEmail);
         if (!status.exists) {
           setError(t("accountNotFound") ?? "Account not found");
           return;
         }
         setStep(status.hasPassword ? "password" : "setPassword");
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
-        setError(t("invalidForm"));
+        const message = err?.response?.data?.message;
+        setError(message === "Validation failed" ? (t("invalidEmail") || "Enter a valid email") : message || t("accountCheckFailed") || "Could not check this account");
       } finally {
         setLoading(false);
       }
