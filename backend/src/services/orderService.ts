@@ -30,6 +30,7 @@ const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$
 export const getOrdersForUser = async (userId: Types.ObjectId, branchId?: string) => {
   return Order.find({ user: userId, ...(branchId ? { branchId } : {}) })
     .sort({ createdAt: -1 })
+    .populate("currency")
     .populate("items.product")
     .populate("addressRef");
 };
@@ -101,6 +102,7 @@ export const getAllOrders = async (opts?: {
 
   return Order.find(filter)
     .sort({ createdAt: -1 })
+    .populate("currency")
     .populate("user")
     .populate("items.product")
     .populate("addressRef");
@@ -110,6 +112,7 @@ export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId
   const filter: Record<string, unknown> = { _id: id };
   if (branchId) filter.branchId = branchId;
   const order = await Order.findOne(filter)
+    .populate("currency")
     .populate("user")
     .populate("driverId")
     .populate("branchId")
@@ -126,6 +129,7 @@ export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId
 
 const populateOrderDetail = (query: ReturnType<typeof Order.findById>) =>
   query
+    .populate("currency")
     .populate("user")
     .populate("driverId")
     .populate("branchId")
@@ -402,14 +406,20 @@ export const createOrder = async (
   const rewardResult = await tryConsumeRewardToken(userId, settings.rewardValue, payload.useReward ?? false);
   const discount = rewardResult.discount + couponResult.discount;
   const total = Math.max(0, subtotal + deliveryFee - discount);
+  const primaryCurrency = await getPrimaryCurrency(branchId);
+  const orderCurrency = payload.currencyId
+    ? await Currency.findOne({ _id: payload.currencyId, branchId, isActive: true })
+    : primaryCurrency;
+  if (!orderCurrency) throw { status: 404, message: "Currency not found" };
 
   if (payload.paymentMethod === "WALLET") {
-    await handleWalletDebit(userId, branchId, total, "ORDER", payload.currencyId);
+    await handleWalletDebit(userId, branchId, total, "ORDER", orderCurrency._id.toString());
   }
 
   const order = await Order.create({
     user: userId,
     branchId,
+    currency: orderCurrency._id,
     items,
     status: "PENDING",
     paymentMethod: payload.paymentMethod,
@@ -443,7 +453,7 @@ export const createOrder = async (
 
   await Cart.findOneAndUpdate({ user: userId }, { items: [] });
   await AuditLog.create({ user: userId, type: "orders", action: "ORDER_CREATED", result: "SUCCESS", metadata: { orderId: order._id } });
-  return order;
+  return populateOrderDetail(Order.findById(order._id));
 };
 
 export const estimateOrderDelivery = async (
@@ -599,6 +609,7 @@ export const updateOrderDriverLocation = async (
 export const getOrdersForDriver = async (driverId: Types.ObjectId) => {
   const orders = await Order.find({ driverId })
     .sort({ createdAt: -1 })
+    .populate("currency")
     .populate("user", "name phone email")
     .populate("items.product")
     .populate("addressRef");

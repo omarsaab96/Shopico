@@ -19,6 +19,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Entypo from "@expo/vector-icons/Entypo";
+import { useCurrency } from "../../lib/currency";
 
 
 export default function Orders() {
@@ -31,6 +32,7 @@ export default function Orders() {
   const { user } = useAuth();
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
+  const { formatMoney } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   const formatOrderDate = useCallback((value?: string) => {
@@ -253,7 +255,7 @@ export default function Orders() {
                 </View>
 
                 <Text style={styles.value}>
-                  {t("total")}: {item.total?.toLocaleString()} {t("SYP") ?? "SYP"}
+                  {t("total")}: {formatMoney(item.total || 0, typeof item.currency === "object" ? item.currency : undefined)}
                 </Text>
               </TouchableOpacity>
             </Link>

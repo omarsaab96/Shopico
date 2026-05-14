@@ -7,12 +7,14 @@ import Text from "../../components/Text";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
+import { useCurrency } from "../../lib/currency";
 
 export default function OrderDetailWeb() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
+  const { formatMoney } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
   const [order, setOrder] = useState<any>(null);
   const addressLabel =
@@ -35,6 +37,7 @@ export default function OrderDetailWeb() {
   }, [id]);
 
   if (!order) return null;
+  const orderCurrency = typeof order.currency === "object" ? order.currency : undefined;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -68,9 +71,13 @@ export default function OrderDetailWeb() {
               <Text style={styles.itemName}>
                 {item.quantity} x {item.product?.name || item.product}
               </Text>
-              <Text style={styles.itemPrice}>{item.price.toLocaleString()}</Text>
+              <Text style={styles.itemPrice}>{formatMoney(item.price || 0, orderCurrency)}</Text>
             </View>
           ))}
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>{t("total") ?? "Total"}</Text>
+          <Text style={styles.sectionValue}>{formatMoney(order.total || 0, orderCurrency)}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

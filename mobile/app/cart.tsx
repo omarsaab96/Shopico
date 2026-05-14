@@ -705,7 +705,7 @@ export default function CartScreen() {
       const res = await api.post("/orders", {
         addressId: selectedAddress._id,
         paymentMethod,
-        currencyId: paymentMethod === "WALLET" ? selectedCurrency?._id : undefined,
+        currencyId: selectedCurrency?._id,
         couponCodes: selectedCoupons.length ? selectedCoupons.map((c) => c.code) : undefined,
         items: items.filter((i) => !i.unavailable).map((i) => ({ productId: i.productId, quantity: i.quantity })),
       });
@@ -800,20 +800,22 @@ export default function CartScreen() {
             disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading}
           >
             <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={[styles.primaryBtnText, { opacity: 0.6, fontSize: 14, lineHeight: 14 }]}>
+              <Text style={[styles.primaryBtnText, { opacity: 0.8, fontSize: 14, lineHeight: 14 }]}>
                 {submitting ? t("placingOrder") : t("placeOrder")}
               </Text>
-              {/* <View style={{ gap: 2 }}> */}
+
               <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
                 {!submitting && formatMoney(orderTotal, selectedCurrency)}
               </Text>
 
-              {!submitting && <Text style={[styles.primaryBtnText, { fontSize: 14, textAlign: 'center', opacity: 0.6, textDecorationLine: "line-through", lineHeight: 14 }]}>
+              {!submitting && selectedCurrency?.symbol.en != "USD" && <Text style={[styles.primaryBtnText, { fontSize: 14, textAlign: 'center', opacity: 0.6, textDecorationLine: "line-through", lineHeight: 14 }]}>
                 {formatMoney(orderTotal * 100, selectedCurrency)}
               </Text>}
+
+              {submitting && <ActivityIndicator color={'#fff'} size={'small'} style={{}} />}
             </View>
+
             {/* </View> */}
-            {submitting && <ActivityIndicator color={'#fff'} size={'small'} style={{}} />}
           </TouchableOpacity>
         </Animated.View>
       </BottomSheetFooter>

@@ -22,6 +22,7 @@ export interface IOrder extends Document {
   user: Types.ObjectId | string;
   items: IOrderItem[];
   branchId: Types.ObjectId | string;
+  currency?: Types.ObjectId | string;
   addressRef?: Types.ObjectId | string | null;
   driverId?: Types.ObjectId | string;
   driverLocation?: IOrderDriverLocation | null;
@@ -79,6 +80,7 @@ const OrderSchema = new Schema<IOrder>(
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     items: { type: [OrderItemSchema], required: true },
     branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
+    currency: { type: Schema.Types.ObjectId, ref: "Currency" },
     addressRef: { type: Schema.Types.ObjectId, ref: "Address", default: null },
     driverId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     driverLocation: { type: DriverLocationSchema, default: null },

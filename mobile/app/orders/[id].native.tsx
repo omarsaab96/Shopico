@@ -31,6 +31,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Fontisto from '@expo/vector-icons/Fontisto';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import LottieView from "lottie-react-native";
+import { useCurrency } from "../../lib/currency";
 
 const MAP_FALLBACK = { latitude: 0, longitude: 0 };
 const MAP_EDGE_PADDING = { top: 120, right: 50, bottom: 120, left: 50 };
@@ -67,6 +68,7 @@ export default function OrderDetail() {
 
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
+  const { formatMoney, getCurrencySymbol } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL, insets), [palette, isRTL, insets]);
   const fallbackLogo = isDark ? require("../../assets/shopico_logo.png") : require("../../assets/shopico_logo-black.png");
 
@@ -263,6 +265,7 @@ export default function OrderDetail() {
   );
 
   if (!order) return null;
+  const orderCurrency = typeof order.currency === "object" ? order.currency : undefined;
 
   const canRateDriver =
     order.status === "DELIVERED" &&
@@ -587,7 +590,7 @@ export default function OrderDetail() {
                       <Text style={styles.itemQty}>{item.quantity}</Text>
                     </View>
                   </View>
-                  <Text style={styles.itemPrice}>{item.price.toLocaleString()}</Text>
+                  <Text style={styles.itemPrice}>{formatMoney(item.price || 0, orderCurrency)}</Text>
                 </View>
               ))}
               {order.items.map((item: any, index: number) => (
@@ -613,7 +616,7 @@ export default function OrderDetail() {
                       <Text style={styles.itemQty}>{item.quantity}</Text>
                     </View>
                   </View>
-                  <Text style={styles.itemPrice}>{item.price.toLocaleString()}</Text>
+                  <Text style={styles.itemPrice}>{formatMoney(item.price || 0, orderCurrency)}</Text>
                 </View>
               ))}
             </View>
@@ -621,15 +624,15 @@ export default function OrderDetail() {
             <View style={styles.detailsSection}>
               <View style={styles.row}>
                 <Text style={styles.label}>{t('subtotal')}</Text>
-                <Text style={styles.value}>{order.subtotal.toLocaleString()}</Text>
+                <Text style={styles.value}>{formatMoney(order.subtotal || 0, orderCurrency)}</Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>{t('deliveryFee')}</Text>
-                <Text style={styles.value}>{order.deliveryFee.toLocaleString()}</Text>
+                <Text style={styles.value}>{formatMoney(order.deliveryFee || 0, orderCurrency)}</Text>
               </View>
               <View style={styles.heroTotal}>
-                <Text style={styles.totalText}>{t('total')} <Text style={styles.totalCurrency}>({t("syp")})</Text></Text>
-                <Text style={styles.totalText}>{order.total.toLocaleString()}</Text>
+                <Text style={styles.totalText}>{t('total')} <Text style={styles.totalCurrency}>({getCurrencySymbol(orderCurrency)})</Text></Text>
+                <Text style={styles.totalText}>{formatMoney(order.total || 0, orderCurrency)}</Text>
               </View>
               <View style={[styles.row, { marginBottom: 0 }]}>
                 <Text style={styles.label}>{t('paymentMethod')}</Text>
