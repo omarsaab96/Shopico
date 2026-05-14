@@ -8,6 +8,7 @@ import { useCart } from "../../lib/cart";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import Text from "../../components/Text";
+import { useCurrency } from "../../lib/currency";
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -15,6 +16,7 @@ export default function ProductDetail() {
   const { addItem, items, setQuantity } = useCart();
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
+  const { formatMoney } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   const fallbackLogo = isDark ? require("../../assets/shopico_logo.png") : require("../../assets/shopico_logo-black.png");
@@ -42,13 +44,12 @@ export default function ProductDetail() {
       <Text style={styles.name}>{product.name}</Text>
       <View style={styles.priceRow}>
         {product.isPromoted && product.promoPrice !== undefined ? (
-          <Text style={styles.oldPrice}>{product.price?.toLocaleString()} SYP</Text>
+          <Text style={styles.oldPrice}>{formatMoney(product.price || 0)}</Text>
         ) : null}
         <View style={{ flexDirection: 'row', justifyContent:'flex-start', alignItems: 'center', gap: 5, flex:1 }}>
           <Text style={[styles.price]}>
-            {(product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price)?.toLocaleString()}
+            {formatMoney(product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price)}
           </Text>
-          <Text style={[styles.price, { fontSize: 18, lineHeight: 18 }]}>{t('syp')}</Text>
         </View>
         {product.isPromoted && product.promoPrice !== undefined && product.price > 0 ? (
           <Text style={styles.promoBadge}>

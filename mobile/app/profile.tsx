@@ -12,12 +12,22 @@ import Feather from '@expo/vector-icons/Feather';
 import { useRouter } from 'expo-router';
 import Entypo from '@expo/vector-icons/Entypo';
 import ProgressBar from "../components/ProgressBar";
+import { useCurrency } from "../lib/currency";
 
 export default function Profile() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { palette, isDark, mode, setMode } = useTheme();
   const { t, isRTL, lang, setLang } = useI18n();
+  const {
+    currencies,
+    selectedCurrency,
+    selectedCurrencyId,
+    setSelectedCurrencyId,
+    getCurrencySymbol,
+    getWalletBalance,
+    primaryCurrency,
+  } = useCurrency();
   const [pointsData, setPointsData] = useState<any>();
   const [settings, setSettings] = useState<any>();
   const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
@@ -62,7 +72,8 @@ export default function Profile() {
   const handleEdit = () => {
     router.push("/edit-profile");
   }
-  const balance = wallet?.balance || 0;
+  const balance = getWalletBalance(wallet, selectedCurrency);
+  const primaryBalance = getWalletBalance(wallet, primaryCurrency);
   const membershipLevel = user?.membershipLevel || "None";
   const thresholds = settings?.membershipThresholds || {
     silver: 1000000,
@@ -83,11 +94,11 @@ export default function Profile() {
     const next = levels[currentIdx + 1];
     if (!next) return { nextLabel: "Max", remaining: 0, progress: 1 };
 
-    const remaining = Math.max(0, next.min - balance);
+    const remaining = Math.max(0, next.min - primaryBalance);
     const range = next.min - levels[currentIdx].min || 1;
-    const progress = Math.min(1, (balance - levels[currentIdx].min) / range);
+    const progress = Math.min(1, (primaryBalance - levels[currentIdx].min) / range);
     return { nextLabel: next.name, remaining, progress };
-  }, [balance, membershipLevel, thresholds]);
+  }, [primaryBalance, membershipLevel, thresholds]);
 
   const membershipTone = useMemo(() => {
     // “Card tone” for light mode (orange-first like the reference).
@@ -166,11 +177,11 @@ export default function Profile() {
 
                 <TouchableOpacity onPress={() => { router.push("/wallet") }} style={[styles.pointsBox]}>
                   <Text style={styles.muted}>
-                    {t("WalletBalance")} ({t("syp")})
+                    {t("WalletBalance")} ({getCurrencySymbol(selectedCurrency)})
                     {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
                   </Text>
                   <Text style={styles.pointsValue}>
-                    {balance.toLocaleString()}<Text style={{ fontWeight: '400', fontSize: 14 }}></Text>
+                    {balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}
                   </Text>
                   {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
                   <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/wallet") }}>
@@ -223,6 +234,22 @@ export default function Profile() {
                       onPress={() => setMode(opt)}
                     >
                       <Text style={[styles.pillText, mode === opt && styles.pillActiveText]}>{t(opt)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <View style={[styles.profileLink, !user && styles.isLast]}>
+                <Text style={styles.profileLinkText}>{t("currency") ?? "Currency"}</Text>
+                <View style={styles.inlineRow}>
+                  {currencies.map((currency) => (
+                    <TouchableOpacity
+                      key={currency._id}
+                      style={[styles.pill, selectedCurrencyId === currency._id && styles.pillActive]}
+                      onPress={() => setSelectedCurrencyId(currency._id)}
+                    >
+                      <Text style={[styles.pillText, selectedCurrencyId === currency._id && styles.pillActiveText]}>
+                        {getCurrencySymbol(currency)}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>

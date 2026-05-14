@@ -12,6 +12,7 @@ import Text from "../components/Text";
 import { Skeleton } from "../components/Skeleton";
 import { goBack } from "expo-router/build/global-state/routing";
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import { useCurrency } from "../lib/currency";
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
@@ -21,6 +22,7 @@ export default function WalletScreen() {
   const [loading, setLoading] = useState(true);
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
+  const { selectedCurrency, primaryCurrency, getCurrencySymbol, getWalletBalance, formatMoney } = useCurrency();
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(user);
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
@@ -50,7 +52,8 @@ export default function WalletScreen() {
     setProfile(user);
   }, [user]);
 
-  const balance = wallet?.balance || wallet?.wallet?.balance || 0;
+  const balance = getWalletBalance(wallet, selectedCurrency);
+  const primaryBalance = getWalletBalance(wallet, primaryCurrency);
   const membershipLevel = profile?.membershipLevel || "None";
   const thresholds = settings?.membershipThresholds;
   const hasThresholds = Boolean(thresholds);
@@ -100,11 +103,11 @@ export default function WalletScreen() {
     const next = levels[currentIdx + 1];
     if (!next) return { nextLabel: "Max", remaining: 0, progress: 1 };
 
-    const remaining = Math.max(0, next.min - balance);
+    const remaining = Math.max(0, next.min - primaryBalance);
     const range = next.min - levels[currentIdx].min || 1;
-    const progress = Math.min(1, (balance - levels[currentIdx].min) / range);
+    const progress = Math.min(1, (primaryBalance - levels[currentIdx].min) / range);
     return { nextLabel: next.name, remaining, progress };
-  }, [balance, membershipLevel, thresholds]);
+  }, [primaryBalance, membershipLevel, thresholds]);
 
   if (loading) {
     return (
@@ -115,7 +118,7 @@ export default function WalletScreen() {
             <Text style={[styles.title, { marginBottom: 0, lineHeight: 28 }]}>{t("wallet")}</Text>
           </TouchableOpacity>
           {/* <Text style={styles.muted}>{t("loading") ?? "Loading"}...</Text> */}
-          <Skeleton width={'100%'} height={200} style={{ marginBottom: 20 }} />
+          <Skeleton width={320} height={200} style={{ marginBottom: 20 }} />
           <Skeleton width={320} height={20} />
           <Skeleton width={220} height={30} />
           <Skeleton width={250} height={30} />
@@ -149,7 +152,10 @@ export default function WalletScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={styles.walletValue}>{balance.toLocaleString()} <Text style={{ fontWeight: "400", fontSize: 18 }}>SYP</Text></Text>
+            <Text style={styles.walletValue}>
+              {balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}{" "}
+              <Text style={{ fontWeight: "400", fontSize: 18 }}>{getCurrencySymbol(selectedCurrency)}</Text>
+            </Text>
           </View>
         </View>
         <View style={{ marginTop: 10 }}>
@@ -159,7 +165,7 @@ export default function WalletScreen() {
               <View style={styles.walletFooterRow}>
                 {remaining > 0 && <Text style={styles.walletMiniLabel}>{t("remainingToNext") ?? "Remaining to"}{nextLabel}</Text>}
                 <Text style={styles.walletMiniValue}>
-                  {remaining > 0 ? `${remaining.toLocaleString()} SYP` : t("congrats") ?? "Top level"}
+                  {remaining > 0 ? formatMoney(remaining, primaryCurrency) : t("congrats") ?? "Top level"}
                 </Text>
               </View>
             </>
@@ -171,7 +177,7 @@ export default function WalletScreen() {
             <View style={[styles.graceBox, { borderColor: membershipTone.ring, backgroundColor: isDark ? palette.surface : "#fffaf0" }]}>
               <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
               <Text style={styles.graceCopy}>
-                {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} SYP
+                {(t("graceKeepLevel") ?? "Keep your balance above")} {formatMoney(currentThreshold, primaryCurrency)}
               </Text>
               <Text style={[styles.graceCopy, { color: palette.muted }]}>
                 {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
@@ -194,7 +200,9 @@ export default function WalletScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: isRTL ? 0 : 5 }}>
                   {item.type == "CREDIT" && <Feather name="arrow-down-circle" size={18} color={'#009933'} />}
                   {item.type == "DEBIT" && <Feather name="arrow-up-circle" size={18} color={'#f00000'} />}
-                  <Text style={styles.txAmount}>{(item.amount || 0).toLocaleString()} SYP</Text>
+                  <Text style={styles.txAmount}>
+                    {(item.amount || 0).toLocaleString()} {getCurrencySymbol(item.currency || primaryCurrency)}
+                  </Text>
                 </View>
 
                 {/* <Text style={styles.txMeta}>{item.type || item.source || "-"}</Text> */}
@@ -204,7 +212,9 @@ export default function WalletScreen() {
                 </Text>
               </View>
               {item.balanceAfter !== undefined && (
-                <Text style={styles.txMeta}>{item.balanceAfter.toLocaleString()} SYP</Text>
+                <Text style={styles.txMeta}>
+                  {item.balanceAfter.toLocaleString()} {getCurrencySymbol(item.currency || primaryCurrency)}
+                </Text>
               )}
             </View>
           )}

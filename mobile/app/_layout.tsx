@@ -35,6 +35,7 @@ import { AuthProvider } from "../lib/auth";
 import { CartProvider } from "../lib/cart";
 import { ThemeProvider, useTheme } from "../lib/theme";
 import { I18nProvider, useI18n } from "../lib/i18n";
+import { CurrencyProvider } from "../lib/currency";
 import "../lib/driverTracking";
 
 const FontGate = ({ children }: { children: React.ReactNode }) => {
@@ -119,16 +120,18 @@ const I18nInner = () => {
     return (
       <FontGate>
         <AuthProvider>
-          <CartProvider>
-            <Stack
-              key={lang}
-              initialRouteName="(tabs)"
-              screenOptions={{
-                headerShown: false,
-                gestureEnabled: true,
-              }}
-            />
-          </CartProvider>
+          <CurrencyProvider>
+            <CartProvider>
+              <Stack
+                key={lang}
+                initialRouteName="(tabs)"
+                screenOptions={{
+                  headerShown: false,
+                  gestureEnabled: true,
+                }}
+              />
+            </CartProvider>
+          </CurrencyProvider>
         </AuthProvider>
       </FontGate>
     );
@@ -136,9 +139,11 @@ const I18nInner = () => {
   return (
     <FontGate>
       <AuthProvider>
-        <CartProvider>
-          <ThemedStack lang={lang} />
-        </CartProvider>
+        <CurrencyProvider>
+          <CartProvider>
+            <ThemedStack lang={lang} />
+          </CartProvider>
+        </CurrencyProvider>
       </AuthProvider>
     </FontGate>
   );

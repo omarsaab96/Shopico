@@ -9,6 +9,7 @@ import { useAuth } from "../lib/auth";
 import api, { getBranchId } from "../lib/api";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
+import { useCurrency } from "../lib/currency";
 
 type SavedAddress = { _id: string; address: string; lat: number; lng: number; label: string; updatedAt?: string; createdAt?: string };
 
@@ -31,6 +32,7 @@ export default function Checkout() {
   const [deliveryEstimate, setDeliveryEstimate] = useState<{ distanceKm: number; deliveryFee: number } | null>(null);
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
+  const { formatMoney, primaryCurrency } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   useEffect(() => {
@@ -252,7 +254,7 @@ export default function Checkout() {
                 {c.freeDelivery ? (
                   <Text style={styles.couponPillMeta}>{t("freeDelivery") ?? "Free delivery"}</Text>
                 ) : (
-                  <Text style={styles.couponPillMeta}>-{Number(c.discount || 0).toLocaleString()} SYP</Text>
+                  <Text style={styles.couponPillMeta}>-{formatMoney(Number(c.discount || 0), primaryCurrency)}</Text>
                 )}
               </TouchableOpacity>
             ))}
@@ -294,7 +296,7 @@ export default function Checkout() {
         ) : null}
         {couponDiscount > 0 ? (
           <Text style={styles.muted}>
-            {t("discount") ?? "Discount"}: -{couponDiscount.toLocaleString()} SYP
+            {t("discount") ?? "Discount"}: -{formatMoney(couponDiscount, primaryCurrency)}
           </Text>
         ) : null}
       </View>
@@ -303,32 +305,32 @@ export default function Checkout() {
           {t("distance")}: {distanceKm.toLocaleString()} {t("km")}
         </Text>
         <Text style={styles.muted}>
-          {t("subtotal")}: {subtotal.toLocaleString()} SYP
+          {t("subtotal")}: {formatMoney(subtotal, primaryCurrency)}
         </Text>
         <Text style={styles.mutedSmall}>
-          {t("oldPrice")}: {toOld(subtotal).toLocaleString()} SYP
+          {t("oldPrice")}: {formatMoney(toOld(subtotal), primaryCurrency)}
         </Text>
         <Text style={styles.muted}>
-          {t("deliveryFee")}: {effectiveDeliveryFee == 0 ? (t("freeDelivery") ?? "Free") : `${effectiveDeliveryFee.toLocaleString()} SYP`}
+          {t("deliveryFee")}: {effectiveDeliveryFee == 0 ? (t("freeDelivery") ?? "Free") : formatMoney(effectiveDeliveryFee, primaryCurrency)}
         </Text>
         <Text style={styles.mutedSmall}>
-          {t("oldPrice")}: {toOld(effectiveDeliveryFee).toLocaleString()} SYP
+          {t("oldPrice")}: {formatMoney(toOld(effectiveDeliveryFee), primaryCurrency)}
         </Text>
         {couponDiscount > 0 && (
           <>
             <Text style={styles.muted}>
-              {t("discount")}: -{couponDiscount.toLocaleString()} SYP
+              {t("discount")}: -{formatMoney(couponDiscount, primaryCurrency)}
             </Text>
             <Text style={styles.mutedSmall}>
-              {t("oldPrice")}: -{toOld(couponDiscount).toLocaleString()} SYP
+              {t("oldPrice")}: -{formatMoney(toOld(couponDiscount), primaryCurrency)}
             </Text>
           </>
         )}
         <Text style={styles.muted}>
-          {t("total")}: {total.toLocaleString()} SYP
+          {t("total")}: {formatMoney(total, primaryCurrency)}
         </Text>
         <Text style={styles.mutedSmall}>
-          {t("oldPrice")}: {toOld(total).toLocaleString()} SYP
+          {t("oldPrice")}: {formatMoney(toOld(total), primaryCurrency)}
         </Text>
       </View>
       <Button title={t("placeOrder")} onPress={placeOrder} disabled={!selected} />

@@ -7,6 +7,7 @@ import api from "../lib/api";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import Text from "../components/Text";
+import { useCurrency } from "../lib/currency";
 
 export default function MembershipScreen() {
   const [user, setUser] = useState<any>();
@@ -15,6 +16,7 @@ export default function MembershipScreen() {
   const [showCongrats, setShowCongrats] = useState(false);
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
+  const { getWalletBalance, formatMoney, primaryCurrency } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   useEffect(() => {
@@ -24,7 +26,7 @@ export default function MembershipScreen() {
   }, []);
 
   const thresholds = settings?.membershipThresholds || { silver: 1000000, gold: 2000000, platinum: 4000000, diamond: 6000000 };
-  const balance = wallet?.balance || 0;
+  const balance = getWalletBalance(wallet, primaryCurrency);
   const level = user?.membershipLevel || "None";
   const graceUntil = user?.membershipGraceUntil ? new Date(user.membershipGraceUntil) : null;
   const inGrace = !!(graceUntil && graceUntil.getTime() > Date.now() && level !== "None");
@@ -62,11 +64,11 @@ export default function MembershipScreen() {
       <StatCard label={t("level")} value={level} />
       <View style={styles.card}>
         <Text style={styles.muted}>
-          {t("remainingToNext")} {remaining.toLocaleString()} SYP ({nextLabel})
+          {t("remainingToNext")} {formatMoney(remaining, primaryCurrency)} ({nextLabel})
         </Text>
         <ProgressBar progress={progress} />
         <Text style={styles.muted}>
-          {t("balance")}: {balance.toLocaleString()} SYP
+          {t("balance")}: {formatMoney(balance, primaryCurrency)}
         </Text>
         <Text style={styles.muted}>
           {t("graceDays")}: {settings?.membershipGraceDays}
@@ -75,7 +77,7 @@ export default function MembershipScreen() {
           <View style={styles.graceBox}>
             <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
             <Text style={styles.muted}>
-              {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} SYP
+              {(t("graceKeepLevel") ?? "Keep your balance above")} {formatMoney(currentThreshold, primaryCurrency)}
             </Text>
             <Text style={styles.muted}>
               {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}

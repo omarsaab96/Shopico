@@ -11,6 +11,7 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { useTheme } from "../lib/theme";
 import { Skeleton } from "../components/Skeleton";
+import { useCurrency } from "../lib/currency";
 
 type Branch = { _id: string; name: string; address: string };
 type SavedAddress = { _id: string; label?: string; address: string; updatedAt?: string; createdAt?: string };
@@ -21,6 +22,7 @@ export default function SetupScreen() {
   const insets = useSafeAreaInsets();
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
+  const { refreshCurrencies } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isDark, isRTL, insets), [palette, isDark, isRTL, insets]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
@@ -70,6 +72,7 @@ export default function SetupScreen() {
     try {
       await setBranchId(branch._id);
       await setBranchLock(true);
+      await refreshCurrencies();
       setSelectedBranch(branch);
     } finally {
       setSavingBranch("");

@@ -19,6 +19,7 @@ import { useCart } from "../../lib/cart";
 import Feather from "@expo/vector-icons/Feather";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import { useCurrency } from "../../lib/currency";
 
 export default function CategoryDetail() {
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function CategoryDetail() {
   const { items, addItem, setQuantity } = useCart();
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
+  const { formatMoney } = useCurrency();
 
   const styles = useMemo(
     () => createStyles(palette, isRTL, isDark),
@@ -161,11 +163,11 @@ export default function CategoryDetail() {
                     <View style={styles.priceRow}>
                       {item.isPromoted && item.promoPrice !== undefined ? (
                         <Text style={styles.oldPrice}>
-                          {item.price.toLocaleString()} SYP
+                          {formatMoney(item.price)}
                         </Text>
                       ) : null}
                       <Text weight="bold" style={styles.price}>
-                        {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} SYP
+                        {formatMoney(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price)}
                       </Text>
                       {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
                         <Text style={styles.promoBadge}>

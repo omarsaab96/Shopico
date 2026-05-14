@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, authorize, requireAnyPermissions, requirePermissions } from "../middleware/auth";
+import { authenticate, authorize, requirePermissions } from "../middleware/auth";
 import { requireBranchContext } from "../middleware/branch";
 import {
   createCurrencyHandler,
@@ -10,7 +10,7 @@ import {
 
 const router = Router();
 
-router.get("/", authenticate, requireAnyPermissions("currencies:view", "products:view"), requireBranchContext, getCurrencies);
+router.get("/", requireBranchContext, getCurrencies);
 router.post(
   "/",
   authenticate,

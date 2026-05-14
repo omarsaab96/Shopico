@@ -42,6 +42,7 @@ import Text from "../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import LottieView from "lottie-react-native";
+import { useCurrency } from "../lib/currency";
 
 type Category = { _id: string; name: string; imageUrl?: string };
 type Product = {
@@ -140,6 +141,7 @@ export default function Home() {
   const { palette, isDark } = useTheme();
   const { items, addItem, setQuantity, clear } = useCart();
   const { t, isRTL } = useI18n();
+  const { selectedCurrency, primaryCurrency, getWalletBalance, getCurrencySymbol, formatMoney, refreshCurrencies } = useCurrency();
   const isDriver = user?.role === "driver";
   const customerSetupChecking = Boolean(user && !isDriver && (!branchLockReady || !savedBranchReady || !addressesReady || addressLoading || branchLoading));
   const customerNeedsSetup = Boolean(
@@ -305,7 +307,8 @@ export default function Home() {
     return map[membershipLevel] || 0;
   }, [membershipLevel, thresholds]);
 
-  const balance = wallet?.balance || 0;
+  const balance = getWalletBalance(wallet, selectedCurrency);
+  const primaryBalance = getWalletBalance(wallet, primaryCurrency);
   const graceDays = settings?.membershipGraceDays ?? 14;
 
   const { nextLabel, remaining, progress } = useMemo(() => {
@@ -320,11 +323,11 @@ export default function Home() {
     const next = levels[currentIdx + 1];
     if (!next) return { nextLabel: "Max", remaining: 0, progress: 1 };
 
-    const remaining = Math.max(0, next.min - balance);
+    const remaining = Math.max(0, next.min - primaryBalance);
     const range = next.min - levels[currentIdx].min || 1;
-    const progress = Math.min(1, (balance - levels[currentIdx].min) / range);
+    const progress = Math.min(1, (primaryBalance - levels[currentIdx].min) / range);
     return { nextLabel: next.name, remaining, progress };
-  }, [balance, membershipLevel, thresholds]);
+  }, [primaryBalance, membershipLevel, thresholds]);
 
   const fetchProducts = useCallback(
     (nextPage = 1, append = false) => {
@@ -430,6 +433,7 @@ export default function Home() {
       updateSelectedBranch(branch || null);
       if (branch?._id) {
         await setBranchId(branch._id);
+        await refreshCurrencies();
         await setBranchLock(true);
         setBranchLocked(true);
       } else {
@@ -462,6 +466,7 @@ export default function Home() {
       updateSelectedBranch(branch || null);
       if (branch?._id) {
         await setBranchId(branch._id);
+        await refreshCurrencies();
         await setBranchLock(true);
         setBranchLocked(true);
       } else {
@@ -798,7 +803,8 @@ export default function Home() {
               </View>
             </View>
             <Text style={styles.walletValue}>
-              {balance.toLocaleString()}<Text style={{ fontWeight: 400, fontSize: 14 }}> {t("syp")}</Text>
+              {balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}
+              <Text style={{ fontWeight: 400, fontSize: 14 }}> {getCurrencySymbol(selectedCurrency)}</Text>
             </Text>
           </View>
         </View>
@@ -812,7 +818,7 @@ export default function Home() {
               <Text style={styles.walletMiniHint}>{nextLabel}</Text>
             </Text>}
             <Text style={styles.walletMiniValue}>
-              {remaining > 0 ? `${remaining.toLocaleString()} ${t("syp")}` : (t("congrats") ?? "Top level")}
+              {remaining > 0 ? formatMoney(remaining, primaryCurrency) : (t("congrats") ?? "Top level")}
             </Text>
           </View>
 
@@ -820,7 +826,7 @@ export default function Home() {
             <View style={[styles.graceBox, { borderColor: membershipTone.ring }]}>
               <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
               <Text style={styles.graceCopy}>
-                {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} {t("syp")}
+                {(t("graceKeepLevel") ?? "Keep your balance above")} {formatMoney(currentThreshold, primaryCurrency)}
               </Text>
               <Text style={styles.graceCopy}>
                 {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
@@ -1186,10 +1192,9 @@ export default function Home() {
         )}
         {renderDriverStatCard(
           t("cashCollected") ?? "Cash collected",
-          `${driverDashboard.cashCollected.toLocaleString()}`,
+          formatMoney(driverDashboard.cashCollected),
           "dollar-sign",
-          palette.accent,
-          `${t("syp")}`
+          palette.accent
         )}
       </View>
     </ScrollView>
@@ -1379,11 +1384,11 @@ export default function Home() {
                               <View style={styles.priceRow}>
                                 <Text style={[styles.productOldPrice]} numberOfLines={1}>
                                   {item.isPromoted && item.promoPrice !== undefined
-                                    && `${item.price.toLocaleString()} ${t("syp")}`
+                                    && formatMoney(item.price)
                                   }
                                 </Text>
                                 <Text style={[styles.productPrice]}>
-                                  {(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price).toLocaleString()} {t("syp")}
+                                  {formatMoney(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price)}
                                 </Text>
                               </View>
                             </TouchableOpacity>
@@ -1598,6 +1603,7 @@ export default function Home() {
                             onPress={async () => {
                               updateSelectedBranch(branch);
                               await setBranchId(branch._id);
+                              await refreshCurrencies();
                               await setBranchLock(true);
                               setBranchLocked(true);
                               setShowBranchPrompt(false);
@@ -1654,6 +1660,7 @@ export default function Home() {
                               }
                               updateSelectedBranch(branch);
                               await setBranchId(branch._id);
+                              await refreshCurrencies();
                               await setBranchLock(true);
                               setBranchLocked(true);
                               branchSheetRef.current?.dismiss();

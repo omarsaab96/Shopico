@@ -20,6 +20,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import LottieView from "lottie-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Entypo from '@expo/vector-icons/Entypo';
+import { useCurrency } from "../lib/currency";
 
 const COUPON_CARD_GAP = 15;
 const COUPON_CARD_MAX_WIDTH = 200;
@@ -71,6 +72,7 @@ export default function CartScreen() {
   const subtotal = items.reduce((sum, i) => (i.unavailable ? sum : sum + i.price * i.quantity), 0);
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
+  const { getWalletBalance, primaryCurrency, formatMoney } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
   const renderBackdrop = useMemo(() => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
   const addressRefreshOnVisit = useRef(false);
@@ -203,7 +205,7 @@ export default function CartScreen() {
     setWalletLoading(true);
     api
       .get("/wallet")
-      .then((res) => setWalletBalance(res.data.data.wallet?.balance || 0))
+      .then((res) => setWalletBalance(getWalletBalance(res.data.data.wallet, primaryCurrency)))
       .catch(() => setWalletBalance(0))
       .finally(() => setWalletLoading(false));
   };
@@ -773,7 +775,7 @@ export default function CartScreen() {
 
             {/* {walletInsufficient && (
                 <Text style={[styles.sheetText, { color: "red" }]}>
-                  {t("balance")}: {walletBalance.toLocaleString()} SYP 
+                  {t("balance")}: {formatMoney(walletBalance, primaryCurrency)}
                 </Text>
               )} */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -781,7 +783,7 @@ export default function CartScreen() {
                 {t("deliveryFee")}
               </Text>
               <Text style={styles.sheetText}>
-                {hasFreeDeliveryCoupon ? (t("freeDelivery") ?? "Free delivery") : `${effectiveDeliveryFee?.toLocaleString()} SYP`}
+                {hasFreeDeliveryCoupon ? (t("freeDelivery") ?? "Free delivery") : formatMoney(effectiveDeliveryFee || 0, primaryCurrency)}
               </Text>
             </View>
             {checkoutError ? <Text style={styles.errorText}>{checkoutError}</Text> : null}
@@ -799,11 +801,11 @@ export default function CartScreen() {
               </Text>
               {/* <View style={{ gap: 2 }}> */}
               <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
-                {!submitting && `${orderTotal.toLocaleString()} ${t('syp')}`}
+                {!submitting && formatMoney(orderTotal, primaryCurrency)}
               </Text>
 
               {!submitting && <Text style={[styles.primaryBtnText, { fontSize: 14, textAlign: 'center', opacity: 0.6, textDecorationLine: "line-through", lineHeight: 14 }]}>
-                {`${(orderTotal * 100).toLocaleString()} ${t('syp')}`}
+                {formatMoney(orderTotal * 100, primaryCurrency)}
               </Text>}
             </View>
             {/* </View> */}
@@ -894,7 +896,7 @@ export default function CartScreen() {
 
         {items.length > 0 && <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>{t("subtotal")}</Text>
-          <Text weight="bold" style={styles.totalValue}>{subtotal.toLocaleString()} SYP</Text>
+          <Text weight="bold" style={styles.totalValue}>{formatMoney(subtotal, primaryCurrency)}</Text>
         </View>}
         {hasUnavailableItems ? (
           <Text style={styles.cartWarning}>
@@ -1249,7 +1251,7 @@ export default function CartScreen() {
                                 <ActivityIndicator color={palette.accent} size="small" />
                               ) : (
                                 <Text style={[{ fontWeight: '700' }, !walletLoading && walletInsufficient && { color: '#ff5555' }]}>
-                                  {t("balance")}: {walletBalance.toLocaleString()} {t('syp')}
+                                  {t("balance")}: {formatMoney(walletBalance, primaryCurrency)}
                                 </Text>
                               )}
                             </View>
@@ -1420,7 +1422,7 @@ export default function CartScreen() {
                                         <Text style={styles.off}>{t("off") ?? "OFF"}</Text>
                                       </View>}
                                       {!c.freeDelivery && c.discountType == "FIXED" && <View style={{ gap: 0 }}>
-                                        <Text style={styles.percentSign}>{t('syp')}</Text>
+                                        <Text style={styles.percentSign}>{primaryCurrency ? formatMoney(1, primaryCurrency).replace(/[0-9.,\s]/g, "") : t('syp')}</Text>
                                       </View>}
                                     </View>
                                     <Text style={styles.subtitle} numberOfLines={1}>
