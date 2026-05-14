@@ -66,6 +66,15 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     [currencies, selectedCurrencyId, primaryCurrency]
   );
 
+  const resolveCurrency = useCallback(
+    (currency?: Currency | string) => {
+      const currencyId = getCurrencyId(currency);
+      const fromList = currencyId ? currencies.find((item) => item._id === currencyId) : undefined;
+      return fromList || (typeof currency === "string" ? undefined : currency) || selectedCurrency;
+    },
+    [currencies, selectedCurrency]
+  );
+
   const refreshCurrencies = useCallback(async () => {
     try {
       const res = await api.get("/currencies");
@@ -92,26 +101,29 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
 
   const getCurrencySymbol = useCallback(
     (currency?: Currency | string) => {
-      if (!currency || typeof currency === "string") return t("syp");
-      const symbol = currency.symbol || {};
+      const resolved = resolveCurrency(currency);
+      if (!resolved) return t("syp");
+      const symbol = resolved.symbol || {};
       const localized = lang === "ar" ? symbol.ar : symbol.en;
       return localized || symbol.en || symbol.ar || t("syp");
     },
-    [lang, t]
+    [lang, resolveCurrency, t]
   );
 
   const convertFromPrimary = useCallback((amount: number, currency?: Currency) => {
-    const rate = Number(currency?.exchangeRate || 1);
+    const resolved = resolveCurrency(currency);
+    const rate = Number(resolved?.exchangeRate || 1);
     return Number(amount || 0) / (rate > 0 ? rate : 1);
-  }, []);
+  }, [resolveCurrency]);
 
   const formatMoney = useCallback(
     (amount: number, currency = selectedCurrency) => {
-      const value = convertFromPrimary(amount, currency);
-      const decimals = currency?.isPrimary ? 0 : 2;
-      return `${value.toLocaleString(undefined, { maximumFractionDigits: decimals })} ${getCurrencySymbol(currency)}`;
+      const resolved = resolveCurrency(currency);
+      const value = convertFromPrimary(amount, resolved);
+      const decimals = resolved?.isPrimary ? 0 : 2;
+      return `${value.toLocaleString(undefined, { maximumFractionDigits: decimals })} ${getCurrencySymbol(resolved)}`;
     },
-    [convertFromPrimary, getCurrencySymbol, selectedCurrency]
+    [convertFromPrimary, getCurrencySymbol, resolveCurrency, selectedCurrency]
   );
 
   const getWalletBalance = useCallback(

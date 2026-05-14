@@ -1386,11 +1386,11 @@ export default function Home() {
                               <View style={styles.priceRow}>
                                 <Text style={[styles.productOldPrice]} numberOfLines={1}>
                                   {item.isPromoted && item.promoPrice !== undefined
-                                    && formatMoney(item.price)
+                                    && formatMoney(item.price, selectedCurrency)
                                   }
                                 </Text>
                                 <Text style={[styles.productPrice]}>
-                                  {formatMoney(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price)}
+                                  {formatMoney(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price, selectedCurrency)}
                                 </Text>
                               </View>
                             </TouchableOpacity>

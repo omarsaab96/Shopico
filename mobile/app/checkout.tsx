@@ -32,7 +32,7 @@ export default function Checkout() {
   const [deliveryEstimate, setDeliveryEstimate] = useState<{ distanceKm: number; deliveryFee: number } | null>(null);
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
-  const { formatMoney, primaryCurrency } = useCurrency();
+  const { formatMoney, primaryCurrency, selectedCurrency } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   useEffect(() => {
@@ -120,14 +120,23 @@ export default function Checkout() {
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         subtotal,
         deliveryFee,
+        currencyId: selectedCurrency?._id,
       })
       .then((res) => setAvailableCoupons(res.data.data || []))
       .catch(() => setAvailableCoupons([]));
-  }, [user, items, subtotal, deliveryFee]);
+  }, [user, items, subtotal, deliveryFee, selectedCurrency?._id]);
 
   useEffect(() => {
     fetchAvailableCoupons();
   }, [fetchAvailableCoupons]);
+
+  useEffect(() => {
+    setCouponCode("");
+    setCouponDiscount(0);
+    setCouponFreeDelivery(false);
+    setCouponError("");
+    setAvailableCoupons([]);
+  }, [selectedCurrency?._id]);
 
   useEffect(() => {
     if (autoApplyDisabled || couponCode.trim()) return;
@@ -154,6 +163,7 @@ export default function Checkout() {
         code: couponCode.trim(),
         subtotal,
         deliveryFee,
+        currencyId: selectedCurrency?._id,
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       });
       const freeDelivery = Boolean(res.data.data?.freeDelivery);

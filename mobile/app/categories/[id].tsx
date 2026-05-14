@@ -34,7 +34,7 @@ export default function CategoryDetail() {
   const { items, addItem, setQuantity } = useCart();
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
-  const { formatMoney } = useCurrency();
+  const { selectedCurrency, formatMoney } = useCurrency();
 
   const styles = useMemo(
     () => createStyles(palette, isRTL, isDark),
@@ -163,11 +163,11 @@ export default function CategoryDetail() {
                     <View style={styles.priceRow}>
                       {item.isPromoted && item.promoPrice !== undefined ? (
                         <Text style={styles.oldPrice}>
-                          {formatMoney(item.price)}
+                          {formatMoney(item.price, selectedCurrency)}
                         </Text>
                       ) : null}
                       <Text weight="bold" style={styles.price}>
-                        {formatMoney(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price)}
+                        {formatMoney(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price, selectedCurrency)}
                       </Text>
                       {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
                         <Text style={styles.promoBadge}>

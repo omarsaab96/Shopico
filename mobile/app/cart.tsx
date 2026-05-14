@@ -496,16 +496,24 @@ export default function CartScreen() {
         items: availableCartItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         subtotal,
         deliveryFee,
+        currencyId: selectedCurrency?._id,
       })
       .then((res) => setAvailableCoupons(res.data.data || []))
       .catch(() => setAvailableCoupons([]))
       .finally(() => setCouponsLoading(false));
-  }, [user, items, subtotal, deliveryFee]);
+  }, [user, items, subtotal, deliveryFee, selectedCurrency?._id]);
 
   useEffect(() => {
     if (!checkoutOpen) return;
     fetchAvailableCoupons();
   }, [checkoutOpen, fetchAvailableCoupons]);
+
+  useEffect(() => {
+    setSelectedCoupons([]);
+    setAvailableCoupons([]);
+    setCouponError("");
+    setInputCouponCode("");
+  }, [selectedCurrency?._id]);
 
   useEffect(() => {
     if (autoApplyDisabledRef.current || autoApplyDisabled || inputCouponCode.trim() || selectedCoupons.length > 0) return;
@@ -534,7 +542,6 @@ export default function CartScreen() {
   const renderCouponMetaDb = (coupon: { freeDelivery: boolean; discountType?: string; discountValue?: number; discount?: number }) => {
     if (coupon.freeDelivery) return t("freeDelivery") ?? "Free delivery";
     if (coupon.discountType === "PERCENT") return `${Number(coupon.discountValue || 0)}`;
-    if (coupon.discountValue !== undefined) return `-${formatMoney(Number(coupon.discountValue || 0), selectedCurrency)}`;
     return `-${formatMoney(Number(coupon.discount || 0), selectedCurrency)}`;
   };
 
@@ -601,6 +608,7 @@ export default function CartScreen() {
         code: normalized,
         subtotal,
         deliveryFee,
+        currencyId: selectedCurrency?._id,
         items: availableCartItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       });
       const freeDelivery = Boolean(res.data.data?.freeDelivery);
@@ -1413,7 +1421,7 @@ export default function CartScreen() {
                                           ? renderCouponUsesLeft(c)
                                           : c.discountType === "FIXED"
                                             ? (() => {
-                                              const parts = formatFixedParts(convertFromPrimary(c.discountValue ?? c.discount ?? 0, selectedCurrency));
+                                              const parts = formatFixedParts(convertFromPrimary(c.discount ?? 0, selectedCurrency));
                                               return (
                                                 <>
                                                   {parts.main}

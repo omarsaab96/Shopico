@@ -697,7 +697,7 @@ const OrderDetailsPage = () => {
                   <div className="detailsValue">
                     {selectedCoupon.freeDelivery
                       ? t("freeDelivery")
-                      : `${selectedCoupon.discountValue}${selectedCoupon.discountType === "PERCENT" ? "%" : ` ${t("syp").toUpperCase()}`}`}
+                      : `${selectedCoupon.discountValue}${selectedCoupon.discountType === "PERCENT" ? "%" : ` ${getCurrencySymbol(selectedCoupon.currency)}`}`}
                   </div>
                 </div>
                 <div className="detailsRow">

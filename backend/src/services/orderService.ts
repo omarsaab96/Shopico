@@ -212,6 +212,13 @@ const getCurrencyId = (currency: any) => {
   return currency._id?.toString?.() || currency.toString?.() || "";
 };
 
+const getCouponCurrency = async (branchId: string, currency: any) => {
+  const currencyId = getCurrencyId(currency);
+  return currencyId
+    ? Currency.findOne({ _id: currencyId, branchId, isActive: true })
+    : getPrimaryCurrency(branchId);
+};
+
 const handleWalletDebit = async (userId: Types.ObjectId, branchId: string, amount: number, reference: string, currencyId?: string) => {
   const wallet = await Wallet.findOne({ user: userId });
   if (!wallet) throw { status: 404, message: "Wallet not found" };
@@ -262,6 +269,7 @@ const applyCoupon = async (
   subtotal: number,
   deliveryFee: number,
   items: { product: Types.ObjectId; quantity: number; price: number }[],
+  orderCurrencyId: string,
   code?: string
 ) => {
   if (!code) return { coupon: null, discount: 0, freeDelivery: false };
@@ -311,9 +319,18 @@ const applyCoupon = async (
     }
   }
 
+  let fixedCouponCurrency = null;
+  if (!coupon.freeDelivery && coupon.discountType === "FIXED") {
+    fixedCouponCurrency = await getCouponCurrency(branchId, coupon.currency);
+    if (!fixedCouponCurrency) throw { status: 400, message: "Coupon currency not found" };
+    if (fixedCouponCurrency._id.toString() !== orderCurrencyId) {
+      throw { status: 400, message: "Coupon is not available for the selected currency" };
+    }
+  }
+
   const rawDiscount = coupon.discountType === "PERCENT"
     ? (eligibleSubtotal * coupon.discountValue) / 100
-    : coupon.discountValue;
+    : coupon.discountValue * (fixedCouponCurrency?.isPrimary ? 1 : Number(fixedCouponCurrency?.exchangeRate || 1));
   const maxTotal = eligibleSubtotal;
   const discount = coupon.freeDelivery ? deliveryFee : Math.max(0, Math.min(maxTotal, rawDiscount));
   return { coupon, discount, freeDelivery: coupon.freeDelivery };
@@ -325,14 +342,15 @@ const applyCoupons = async (
   subtotal: number,
   deliveryFee: number,
   items: { product: Types.ObjectId; quantity: number; price: number }[],
-  codes: string[]
+  codes: string[],
+  orderCurrencyId: string
 ) => {
   if (!codes.length) return { coupons: [], discount: 0 };
   let freeDeliveryApplied = false;
   let discountTotal = 0;
   const coupons = [];
   for (const code of codes) {
-    const result = await applyCoupon(userId, branchId, subtotal, deliveryFee, items, code);
+    const result = await applyCoupon(userId, branchId, subtotal, deliveryFee, items, orderCurrencyId, code);
     if (!result.coupon) continue;
     let discount = result.discount;
     if (result.freeDelivery) {
@@ -421,15 +439,15 @@ export const createOrder = async (
   if (!settings.allowMultipleCoupons && normalizedCodes.length > 1) {
     throw { status: 400, message: "Multiple coupons are not allowed" };
   }
-  const couponResult = await applyCoupons(userId, branchId, subtotal, deliveryFee, items, normalizedCodes);
-  const rewardResult = await tryConsumeRewardToken(userId, settings.rewardValue, payload.useReward ?? false);
-  const discount = rewardResult.discount + couponResult.discount;
-  const total = Math.max(0, subtotal + deliveryFee - discount);
   const primaryCurrency = await getPrimaryCurrency(branchId);
   const orderCurrency = payload.currencyId
     ? await Currency.findOne({ _id: payload.currencyId, branchId, isActive: true })
     : primaryCurrency;
   if (!orderCurrency) throw { status: 404, message: "Currency not found" };
+  const couponResult = await applyCoupons(userId, branchId, subtotal, deliveryFee, items, normalizedCodes, orderCurrency._id.toString());
+  const rewardResult = await tryConsumeRewardToken(userId, settings.rewardValue, payload.useReward ?? false);
+  const discount = rewardResult.discount + couponResult.discount;
+  const total = Math.max(0, subtotal + deliveryFee - discount);
 
   if (payload.paymentMethod === "WALLET") {
     await handleWalletDebit(userId, branchId, total, "ORDER", orderCurrency._id.toString());

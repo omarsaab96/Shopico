@@ -167,6 +167,8 @@ export interface Coupon {
   description?: string;
   discountType: CouponDiscountType;
   discountValue: number;
+  currency?: Currency | string;
+  currencyId?: string;
   freeDelivery: boolean;
   restricted?: boolean;
   expiresAt?: string;

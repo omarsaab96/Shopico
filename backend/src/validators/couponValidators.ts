@@ -12,6 +12,7 @@ export const couponSchema = z.object({
   description: optionalText,
   discountType: z.enum(["PERCENT", "FIXED"]),
   discountValue: z.number().nonnegative(),
+  currencyId: z.string().optional().nullable(),
   freeDelivery: z.boolean().optional(),
   restricted: z.boolean().optional(),
   expiresAt: z.coerce.date().optional(),
@@ -42,6 +43,7 @@ export const couponValidateSchema = z.object({
   code: z.string().min(3),
   subtotal: z.number().nonnegative(),
   deliveryFee: z.number().nonnegative().optional(),
+  currencyId: z.string().optional().nullable(),
   items: z
     .array(
       z.object({

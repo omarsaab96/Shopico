@@ -7,6 +7,8 @@ import { couponSchema, couponValidateSchema } from "../validators/couponValidato
 import { catchAsync } from "../utils/catchAsync";
 import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
+import { Currency } from "../models/Currency";
+import { getPrimaryCurrency } from "../services/walletService";
 
 const normalizeCode = (code: string) => code.trim().toUpperCase();
 
@@ -68,15 +70,43 @@ const computeCouponDiscount = (
     freeDelivery: boolean;
   },
   eligibleSubtotal: number,
-  deliveryFee: number
+  deliveryFee: number,
+  couponCurrency?: { exchangeRate?: number; isPrimary?: boolean } | null
 ) => {
   if (coupon.freeDelivery) return { discount: 0, freeDelivery: true };
   const rawDiscount =
     coupon.discountType === "PERCENT"
       ? (eligibleSubtotal * coupon.discountValue) / 100
-      : coupon.discountValue;
+      : coupon.discountValue * (couponCurrency?.isPrimary ? 1 : Number(couponCurrency?.exchangeRate || 1));
   const discount = Math.max(0, Math.min(eligibleSubtotal, rawDiscount));
   return { discount, freeDelivery: false };
+};
+
+const getCurrencyId = (currency?: any) => {
+  if (!currency) return "";
+  if (typeof currency === "string") return currency;
+  return currency._id?.toString?.() || currency.toString?.() || "";
+};
+
+const resolveCouponCurrency = async (branchId: string, currencyId?: string | null) => {
+  if (!currencyId) return getPrimaryCurrency(branchId);
+  return Currency.findOne({ _id: currencyId, branchId, isActive: true });
+};
+
+const validateCouponCurrency = async (
+  branchId: string,
+  coupon: { discountType: string; freeDelivery: boolean; currency?: any },
+  selectedCurrencyId?: string | null
+) => {
+  if (coupon.freeDelivery || coupon.discountType === "PERCENT") return { ok: true, currency: null as any, message: "" };
+  const couponCurrency = await resolveCouponCurrency(branchId, getCurrencyId(coupon.currency) || undefined);
+  if (!couponCurrency) return { ok: false, currency: null as any, message: "Coupon currency not found" };
+  const selectedCurrency = await resolveCouponCurrency(branchId, selectedCurrencyId);
+  if (!selectedCurrency) return { ok: false, currency: null as any, message: "Currency not found" };
+  if (couponCurrency._id.toString() !== selectedCurrency._id.toString()) {
+    return { ok: false, currency: null as any, message: "Coupon is not available for the selected currency" };
+  }
+  return { ok: true, currency: couponCurrency, message: "" };
 };
 
 const ensureValidDiscount = (payload: {
@@ -159,6 +189,7 @@ export const listCoupons = catchAsync(async (req, res) => {
 
   const coupons = await Coupon.find(filter)
     .sort({ createdAt: -1 })
+    .populate("currency")
     .populate("assignedUsers", "name email")
     .populate("assignedProducts", "name");
   if (consumed === "true" || consumed === "false") {
@@ -183,12 +214,19 @@ export const createCoupon = catchAsync(async (req, res) => {
   const error = ensureValidDiscount(payload);
   if (error) return res.status(400).json({ success: false, message: error });
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const couponCurrency = payload.discountType === "FIXED" && !payload.freeDelivery
+    ? await resolveCouponCurrency(req.branchId, payload.currencyId)
+    : null;
+  if (payload.discountType === "FIXED" && !payload.freeDelivery && !couponCurrency) {
+    return res.status(400).json({ success: false, message: "Currency is required for fixed coupons" });
+  }
   const assignments = resolveAssignments(payload);
   if ("error" in assignments) return res.status(400).json({ success: false, message: assignments.error });
   const code = normalizeCode(payload.code);
   const coupon = await Coupon.create({
     ...payload,
     code,
+    currency: couponCurrency?._id,
     assignedUsers: assignments.users.length ? assignments.users.map((id) => new Types.ObjectId(id)) : [],
     assignedProducts: assignments.products.length ? assignments.products.map((id) => new Types.ObjectId(id)) : [],
     assignedMembershipLevels: assignments.levels.length ? assignments.levels : [],
@@ -203,11 +241,20 @@ export const updateCoupon = catchAsync(async (req, res) => {
   const error = ensureValidDiscount(payload);
   if (error) return res.status(400).json({ success: false, message: error });
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const couponCurrency = payload.discountType === "FIXED" && !payload.freeDelivery
+    ? await resolveCouponCurrency(req.branchId, payload.currencyId)
+    : null;
+  if (payload.discountType === "FIXED" && !payload.freeDelivery && !couponCurrency) {
+    return res.status(400).json({ success: false, message: "Currency is required for fixed coupons" });
+  }
   const assignments = resolveAssignments(payload);
   if ("error" in assignments) return res.status(400).json({ success: false, message: assignments.error });
   if (payload.code) payload.code = normalizeCode(payload.code);
   const update: Record<string, any> = { ...payload };
   const unset: Record<string, 1> = {};
+  delete update.currencyId;
+  if (payload.discountType === "FIXED" && !payload.freeDelivery) update.currency = couponCurrency?._id;
+  if (payload.discountType === "PERCENT" || payload.freeDelivery) unset.currency = 1;
   if (Object.prototype.hasOwnProperty.call(req.body, "assignedUsers")) {
     update.assignedUsers = assignments.users.map((id) => new Types.ObjectId(id));
   }
@@ -251,10 +298,11 @@ export const deleteCoupon = catchAsync(async (req, res) => {
 });
 
 export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => {
-  const { items = [], subtotal = 0, deliveryFee = 0 } = req.body as {
+  const { items = [], subtotal = 0, deliveryFee = 0, currencyId } = req.body as {
     items?: { productId: string; quantity: number }[];
     subtotal?: number;
     deliveryFee?: number;
+    currencyId?: string;
   };
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const now = new Date();
@@ -290,7 +338,9 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
     const eligibleSubtotal = getEligibleSubtotal(coupon, items, priceMap, subtotal);
     if (coupon.assignedProducts && coupon.assignedProducts.length > 0 && eligibleSubtotal <= 0) continue;
 
-    const { discount, freeDelivery } = computeCouponDiscount(coupon, eligibleSubtotal, deliveryFee);
+    const currencyCheck = await validateCouponCurrency(req.branchId, coupon, currencyId);
+    if (!currencyCheck.ok) continue;
+    const { discount, freeDelivery } = computeCouponDiscount(coupon, eligibleSubtotal, deliveryFee, currencyCheck.currency);
     let assignedProductName: string | undefined;
     if (coupon.assignedProducts && coupon.assignedProducts.length > 0) {
       if (coupon.assignedProducts.length === 1) {
@@ -314,6 +364,7 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
       discount,
       discountType: coupon.discountType,
       discountValue: coupon.discountValue,
+      currency: currencyCheck.currency || coupon.currency,
       maxUses: coupon.maxUses,
       maxUsesScope: legacyScope,
       maxUsesPerUser,
@@ -380,12 +431,17 @@ export const validateCoupon = catchAsync(async (req: AuthRequest, res) => {
     }
   }
 
-  const result = computeCouponDiscount(coupon, eligibleSubtotal, payload.deliveryFee || 0);
+  const currencyCheck = await validateCouponCurrency(req.branchId, coupon, payload.currencyId);
+  if (!currencyCheck.ok) {
+    return res.status(400).json({ success: false, message: currencyCheck.message });
+  }
+  const result = computeCouponDiscount(coupon, eligibleSubtotal, payload.deliveryFee || 0, currencyCheck.currency);
   sendSuccess(res, {
     code: coupon.code,
     discount: result.discount,
     discountType: coupon.discountType,
     discountValue: coupon.discountValue,
+    currency: currencyCheck.currency || coupon.currency,
     freeDelivery: result.freeDelivery,
     usageType: coupon.usageType,
     maxUses: coupon.maxUses,

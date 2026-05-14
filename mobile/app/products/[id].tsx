@@ -16,7 +16,7 @@ export default function ProductDetail() {
   const { addItem, items, setQuantity } = useCart();
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
-  const { formatMoney } = useCurrency();
+  const { selectedCurrency, formatMoney } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   const fallbackLogo = isDark ? require("../../assets/shopico_logo.png") : require("../../assets/shopico_logo-black.png");
@@ -44,11 +44,11 @@ export default function ProductDetail() {
       <Text style={styles.name}>{product.name}</Text>
       <View style={styles.priceRow}>
         {product.isPromoted && product.promoPrice !== undefined ? (
-          <Text style={styles.oldPrice}>{formatMoney(product.price || 0)}</Text>
+          <Text style={styles.oldPrice}>{formatMoney(product.price || 0, selectedCurrency)}</Text>
         ) : null}
         <View style={{ flexDirection: 'row', justifyContent:'flex-start', alignItems: 'center', gap: 5, flex:1 }}>
           <Text style={[styles.price]}>
-            {formatMoney(product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price)}
+            {formatMoney(product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price, selectedCurrency)}
           </Text>
         </View>
         {product.isPromoted && product.promoPrice !== undefined && product.price > 0 ? (

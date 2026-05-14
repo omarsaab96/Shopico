@@ -3,8 +3,8 @@ import type { FormEvent } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Card from "../components/Card";
-import api, { deleteCoupon, fetchAllProducts, fetchCoupons, saveCoupon } from "../api/client";
-import type { ApiUser, Coupon, Product } from "../types/api";
+import api, { deleteCoupon, fetchAllProducts, fetchCoupons, fetchCurrencies, saveCoupon } from "../api/client";
+import type { ApiUser, Coupon, Currency, Product } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
@@ -51,6 +51,7 @@ const CouponsPage = () => {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [enabledFilter, setEnabledFilter] = useState("");
   const [consumedFilter, setConsumedFilter] = useState("");
@@ -76,6 +77,14 @@ const CouponsPage = () => {
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
   const canManage = can("coupons:manage");
+
+  const getCurrencyId = (currency?: Currency | string) => (typeof currency === "string" ? currency : currency?._id || "");
+  const getCurrencySymbol = (currency?: Currency | string) => {
+    const id = getCurrencyId(currency);
+    const resolved = id ? currencies.find((item) => item._id === id) : typeof currency === "string" ? undefined : currency;
+    return resolved?.symbol?.en || resolved?.symbol?.ar || t("syp").toUpperCase();
+  };
+  const primaryCurrencyId = currencies.find((currency) => currency.isPrimary)?._id || currencies[0]?._id || "";
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -103,12 +112,16 @@ const CouponsPage = () => {
   const loadProducts = () => {
     fetchAllProducts({ includeUnavailable: true }).then(setProducts).catch(() => setProducts([]));
   };
+  const loadCurrencies = () => {
+    fetchCurrencies().then((data) => setCurrencies(data.filter((currency) => currency.isActive))).catch(() => setCurrencies([]));
+  };
 
   useEffect(() => {
     if (!selectedBranchId) return;
     loadCoupons(getFilterParams());
     loadUsers();
     loadProducts();
+    loadCurrencies();
   }, [selectedBranchId]);
 
   const openNewModal = () => {
@@ -126,6 +139,7 @@ const CouponsPage = () => {
       assignedProducts: [],
       assignedMembershipLevels: [],
       assignmentType: "RESTRICTED",
+      currencyId: primaryCurrencyId,
     });
     setFormError("");
     setUserSearch("");
@@ -158,6 +172,7 @@ const CouponsPage = () => {
         maxUsesPerUser: draft.usageType === "MULTIPLE" ? draft.maxUsesPerUser : undefined,
         maxUsesGlobal: draft.usageType === "MULTIPLE" ? draft.maxUsesGlobal : undefined,
         discountValue: draft.freeDelivery ? 0 : draft.discountValue,
+        currencyId: !draft.freeDelivery && draft.discountType === "FIXED" ? (draft.currencyId || primaryCurrencyId) : undefined,
       };
       const saved = await saveCoupon(payload);
       setCoupons((prev) => [saved, ...prev]);
@@ -197,6 +212,7 @@ const CouponsPage = () => {
       assignedMembershipLevels: coupon.assignedMembershipLevels || [],
       maxUsesPerUser: resolvedPerUser,
       maxUsesGlobal: resolvedGlobal,
+      currencyId: getCurrencyId(coupon.currency) || primaryCurrencyId,
     });
     setEditError("");
     setEditUserSearch("");
@@ -221,6 +237,7 @@ const CouponsPage = () => {
         maxUsesPerUser: editDraft.usageType === "MULTIPLE" ? editDraft.maxUsesPerUser : undefined,
         maxUsesGlobal: editDraft.usageType === "MULTIPLE" ? editDraft.maxUsesGlobal : undefined,
         discountValue: editDraft.freeDelivery ? 0 : editDraft.discountValue,
+        currencyId: !editDraft.freeDelivery && editDraft.discountType === "FIXED" ? (editDraft.currencyId || primaryCurrencyId) : undefined,
       };
       const saved = await saveCoupon(payload);
       setCoupons((prev) => prev.map((c) => (c._id === saved._id ? saved : c)));
@@ -664,6 +681,18 @@ const CouponsPage = () => {
                               value={editDraft.discountValue ?? 0}
                               onChange={(e) => setEditDraft({ ...editDraft, discountValue: Number(e.target.value) })}
                             />
+                            {(editDraft.discountType || "PERCENT") === "FIXED" && (
+                              <select
+                                value={editDraft.currencyId || primaryCurrencyId}
+                                onChange={(e) => setEditDraft({ ...editDraft, currencyId: e.target.value })}
+                              >
+                                {currencies.map((currency) => (
+                                  <option key={currency._id} value={currency._id}>
+                                    {getCurrencySymbol(currency)}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                           </div>
                         )}
                       </div>
@@ -672,7 +701,7 @@ const CouponsPage = () => {
                     ) : coupon.discountType === "PERCENT" ? (
                       `${coupon.discountValue}%`
                     ) : (
-                      `${coupon.discountValue.toLocaleString()} SYP`
+                      `${coupon.discountValue.toLocaleString()} ${getCurrencySymbol(coupon.currency)}`
                     )}
                   </td>
                   <td>
@@ -1035,6 +1064,18 @@ const CouponsPage = () => {
                       value={draft.discountValue ?? 0}
                       onChange={(e) => setDraft({ ...draft, discountValue: Number(e.target.value) })}
                     />
+                    {(draft.discountType || "PERCENT") === "FIXED" && (
+                      <select
+                        value={draft.currencyId || primaryCurrencyId}
+                        onChange={(e) => setDraft({ ...draft, currencyId: e.target.value })}
+                      >
+                        {currencies.map((currency) => (
+                          <option key={currency._id} value={currency._id}>
+                            {getCurrencySymbol(currency)}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </label>
 

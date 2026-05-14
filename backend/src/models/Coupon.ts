@@ -10,6 +10,7 @@ export interface ICoupon extends Document {
   description?: string;
   discountType: CouponDiscountType;
   discountValue: number;
+  currency?: Types.ObjectId | string;
   freeDelivery: boolean;
   restricted: boolean;
   expiresAt?: Date;
@@ -35,6 +36,7 @@ const CouponSchema = new Schema<ICoupon>(
     description: { type: String },
     discountType: { type: String, enum: ["PERCENT", "FIXED"], required: true },
     discountValue: { type: Number, required: true },
+    currency: { type: Schema.Types.ObjectId, ref: "Currency" },
     freeDelivery: { type: Boolean, default: false },
     restricted: { type: Boolean, default: false },
     expiresAt: { type: Date },
