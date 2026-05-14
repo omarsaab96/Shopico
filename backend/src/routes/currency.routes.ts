@@ -10,7 +10,7 @@ import {
 
 const router = Router();
 
-router.get("/", requireBranchContext, getCurrencies);
+router.get("/", authenticate, requireBranchContext, getCurrencies);
 router.post(
   "/",
   authenticate,

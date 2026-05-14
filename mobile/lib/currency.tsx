@@ -20,6 +20,11 @@ type WalletBalance = {
   amount: number;
 };
 
+const getCurrencyId = (currency?: Currency | string) => {
+  if (!currency) return "";
+  return typeof currency === "string" ? currency : currency._id || "";
+};
+
 type CurrencyContextValue = {
   currencies: Currency[];
   primaryCurrency?: Currency;
@@ -107,12 +112,16 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       const currencyId = currency?._id;
       if (currencyId) {
         const match = balances.find((entry) => {
-          const entryCurrency = entry.currency;
-          const entryCurrencyId = typeof entryCurrency === "string" ? entryCurrency : entryCurrency?._id;
-          return entryCurrencyId === currencyId;
+          return getCurrencyId(entry.currency) === currencyId;
         });
         return Number(match?.amount || 0);
       }
+      const primaryBalance = balances.find((entry) => {
+        const entryCurrency = entry.currency;
+        return typeof entryCurrency !== "string" && entryCurrency?.isPrimary;
+      });
+      if (primaryBalance) return Number(primaryBalance.amount || 0);
+      if (balances.length > 0) return Number(balances[0]?.amount || 0);
       return Number(wallet?.balance || wallet?.wallet?.balance || 0);
     },
     [selectedCurrency]

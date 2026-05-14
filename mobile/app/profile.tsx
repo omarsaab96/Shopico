@@ -1,5 +1,5 @@
-import { Link } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { Link, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
@@ -27,6 +27,7 @@ export default function Profile() {
     getCurrencySymbol,
     getWalletBalance,
     primaryCurrency,
+    refreshCurrencies,
   } = useCurrency();
   const [pointsData, setPointsData] = useState<any>();
   const [settings, setSettings] = useState<any>();
@@ -55,11 +56,18 @@ export default function Profile() {
       setWallet(undefined);
       return;
     }
+    refreshCurrencies();
     api
       .get("/wallet")
       .then((res) => setWallet(res.data.data.wallet || res.data.data))
       .catch(() => setWallet(undefined));
-  }, [user]);
+  }, [refreshCurrencies, user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user) refreshCurrencies();
+    }, [refreshCurrencies, user])
+  );
 
   const points = pointsData?.points ?? user?.points ?? 0;
   const formattedPoints = Number(points || 0).toLocaleString();
@@ -244,10 +252,10 @@ export default function Profile() {
                   {currencies.map((currency) => (
                     <TouchableOpacity
                       key={currency._id}
-                      style={[styles.pill, selectedCurrencyId === currency._id && styles.pillActive]}
+                      style={[styles.pill, (selectedCurrencyId || selectedCurrency?._id) === currency._id && styles.pillActive]}
                       onPress={() => setSelectedCurrencyId(currency._id)}
                     >
-                      <Text style={[styles.pillText, selectedCurrencyId === currency._id && styles.pillActiveText]}>
+                      <Text style={[styles.pillText, (selectedCurrencyId || selectedCurrency?._id) === currency._id && styles.pillActiveText]}>
                         {getCurrencySymbol(currency)}
                       </Text>
                     </TouchableOpacity>

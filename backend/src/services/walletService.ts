@@ -20,13 +20,19 @@ const getCurrencyForBranch = async (branchId: string, currencyId?: string) => {
   return currency;
 };
 
+const getCurrencyId = (currency: any) => {
+  if (!currency) return "";
+  if (typeof currency === "string") return currency;
+  return currency._id?.toString?.() || currency.toString?.() || "";
+};
+
 export const getWalletCurrencyBalance = (wallet: any, currencyId: string) => {
-  const item = (wallet.balances || []).find((entry: any) => entry.currency?.toString() === currencyId);
+  const item = (wallet.balances || []).find((entry: any) => getCurrencyId(entry.currency) === currencyId);
   return Number(item?.amount || 0);
 };
 
 const setWalletCurrencyBalance = (wallet: any, currencyId: string, amount: number) => {
-  const item = (wallet.balances || []).find((entry: any) => entry.currency?.toString() === currencyId);
+  const item = (wallet.balances || []).find((entry: any) => getCurrencyId(entry.currency) === currencyId);
   if (item) item.amount = amount;
   else wallet.balances.push({ currency: currencyId, amount });
 };
