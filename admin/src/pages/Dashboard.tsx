@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import Card from "../components/Card";
-import { fetchAnnouncements, fetchCoupons, fetchOrders, fetchProductsAdmin, fetchTopUps, fetchUsers } from "../api/client";
+import { fetchAnnouncements, fetchCoupons, fetchCurrencies, fetchOrders, fetchProductsAdmin, fetchTopUps, fetchUsers } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import type { Currency, Order } from "../types/api";
 import StatusPill from "../components/StatusPill";
@@ -25,6 +25,7 @@ const DashboardPage = () => {
   const [productsTotal, setProductsTotal] = useState(0);
   const [pendingTopups, setPendingTopups] = useState(0);
   const [usersTotal, setUsersTotal] = useState(0);
+  const [primaryCurrency, setPrimaryCurrency] = useState<Currency | null>(null);
   const [announcementsTotal, setAnnouncementsTotal] = useState(0);
   const [couponsTotal, setCouponsTotal] = useState(0);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -60,6 +61,20 @@ const DashboardPage = () => {
     const rate = Number(currency.exchangeRate || 1);
     const converted = currency.isPrimary ? value : value / (rate > 0 ? rate : 1);
     return `${converted.toLocaleString(undefined, { maximumFractionDigits: currency.isPrimary ? 0 : 2 })} ${getCurrencySymbol(currency)}`;
+  };
+  const getPrimaryOrderTotal = (order: Order) => {
+    const value = Number(order.total || 0);
+    const currency = order.currency;
+    if (!currency || typeof currency === "string" || currency.isPrimary) return value;
+
+    const rate = Number(currency.exchangeRate || 1);
+    const safeRate = rate > 0 ? rate : 1;
+    const orderCurrencyAmount = value / safeRate;
+    return orderCurrencyAmount * safeRate;
+  };
+  const formatPrimaryMoney = (value: number) => {
+    const symbol = primaryCurrency ? getCurrencySymbol(primaryCurrency) : t("syp").toUpperCase();
+    return `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${symbol}`;
   };
 
   useEffect(() => {
@@ -134,7 +149,17 @@ const DashboardPage = () => {
     selectedBranchId,
   ]);
 
-  const totalRevenue = canViewOrders ? orders.reduce((sum, o) => sum + o.total, 0) : 0;
+  useEffect(() => {
+    if (!selectedBranchId) {
+      setPrimaryCurrency(null);
+      return;
+    }
+    fetchCurrencies()
+      .then((data) => setPrimaryCurrency(data.find((currency) => currency.isPrimary) || null))
+      .catch(console.error);
+  }, [selectedBranchId]);
+
+  const totalRevenue = canViewOrders ? orders.reduce((sum, order) => sum + getPrimaryOrderTotal(order), 0) : 0;
   const pending = canViewOrders
     ? orders.filter((o) => o.status !== "DELIVERED" && o.status !== "CANCELLED").length
     : 0;
@@ -162,7 +187,7 @@ const DashboardPage = () => {
       const diffDays = Math.floor((orderDay.getTime() - base.getTime()) / (24 * 60 * 60 * 1000));
       const idx = days - 1 + diffDays;
       if (idx >= 0 && idx < days) {
-        buckets[idx].revenue += order.total || 0;
+        buckets[idx].revenue += getPrimaryOrderTotal(order);
         buckets[idx].count += 1;
       }
     });
@@ -186,7 +211,7 @@ const DashboardPage = () => {
           <div className="kpi-card accent">
             <div className="kpi-label">{t("dashboard.revenueSyp")}</div>
             <div className="kpi-value">
-              {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-140" /> : totalRevenue.toLocaleString()}
+              {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-140" /> : formatPrimaryMoney(totalRevenue)}
             </div>
             <div className="kpi-sub">{!canViewOrders ? lockedMetricSub : rangeLabel}</div>
           </div>
@@ -220,7 +245,7 @@ const DashboardPage = () => {
             <div className="chart-meta">
               <div className="chart-title">{t("dashboard.sevenDayTrend")}</div>
               <div className="chart-value">
-                {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-120" /> : `${weeklyRevenue.toLocaleString()} ${t("syp").toUpperCase()}`}
+                {!canViewOrders ? lockedMetricValue : loadingOrders ? <span className="skeleton-line w-120" /> : formatPrimaryMoney(weeklyRevenue)}
               </div>
             </div>
             <div className="chart-wrap" dir="ltr">
@@ -251,7 +276,7 @@ const DashboardPage = () => {
                       cursor={{ stroke: "#cbd5e1", strokeWidth: 1 }}
                       contentStyle={{ borderRadius: 12, border: "1px solid var(--gray-300)" }}
                       wrapperStyle={{ direction: dir }}
-                      formatter={(value) => [`${formatTooltipNumber(value)} SYP`, t("dashboard.revenueSyp")]}
+                      formatter={(value) => [formatPrimaryMoney(Number(value || 0)), t("dashboard.revenueSyp")]}
                     />
                     <Area
                       type="monotone"
