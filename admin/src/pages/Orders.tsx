@@ -84,20 +84,27 @@ const OrdersPage = () => {
   };
 
   const getOrderUserLabel = (order: Order) => (typeof order.user === "string" ? order.user : order.user.email);
+  const resolveCurrency = (currency?: Currency | string) => {
+    const currencyId = typeof currency === "string" ? currency : currency?._id;
+    const fromList = currencyId ? currencies.find((item) => item._id === currencyId) : undefined;
+    return fromList || (typeof currency === "string" ? undefined : currency);
+  };
   const getCurrencySymbol = (currency?: Currency | string) => {
-    if (!currency || typeof currency === "string") return t("syp").toUpperCase();
-    const localized = currency.symbol?.[lang] || currency.symbol?.en || currency.symbol?.ar || "";
-    if (lang === "ar" && localized.toLowerCase?.() === currency.symbol?.en?.toLowerCase?.()) {
-      const translated = t(`currencySymbol.${currency.symbol.en.toUpperCase()}`);
-      if (translated !== `currencySymbol.${currency.symbol.en.toUpperCase()}`) return translated;
+    const resolved = resolveCurrency(currency);
+    if (!resolved) return t("syp").toUpperCase();
+    const localized = resolved.symbol?.[lang] || resolved.symbol?.en || resolved.symbol?.ar || "";
+    if (lang === "ar" && localized.toLowerCase?.() === resolved.symbol?.en?.toLowerCase?.()) {
+      const translated = t(`currencySymbol.${resolved.symbol.en.toUpperCase()}`);
+      if (translated !== `currencySymbol.${resolved.symbol.en.toUpperCase()}`) return translated;
     }
     return localized;
   };
   const formatOrderMoney = (value: number, currency?: Currency | string) => {
-    if (!currency || typeof currency === "string") return `${value.toLocaleString()} ${t("syp").toUpperCase()}`;
-    const rate = Number(currency.exchangeRate || 1);
-    const converted = currency.isPrimary ? value : value / (rate > 0 ? rate : 1);
-    return `${converted.toLocaleString(undefined, { maximumFractionDigits: currency.isPrimary ? 0 : 2 })} ${getCurrencySymbol(currency)}`;
+    const resolved = resolveCurrency(currency);
+    if (!resolved) return `${value.toLocaleString()} ${t("syp").toUpperCase()}`;
+    const rate = Number(resolved.exchangeRate || 1);
+    const converted = resolved.isPrimary ? value : value / (rate > 0 ? rate : 1);
+    return `${converted.toLocaleString(undefined, { maximumFractionDigits: resolved.isPrimary ? 0 : 2 })} ${getCurrencySymbol(resolved)}`;
   };
 
   const getDriverIdValue = (driverId?: ApiUser | string | null) =>

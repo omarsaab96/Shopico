@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Card from "../components/Card";
 import StatusPill from "../components/StatusPill";
-import api, { fetchCoupons, fetchDrivers, fetchOrderById, updateOrderDetails, updateOrderStatus } from "../api/client";
+import api, { fetchCoupons, fetchCurrencies, fetchDrivers, fetchOrderById, updateOrderDetails, updateOrderStatus } from "../api/client";
 import type { ApiUser, Coupon, Currency, Order, Product } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
@@ -56,6 +56,7 @@ const OrderDetailsPage = () => {
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
   const [driverUser, setDriverUser] = useState<ApiUser | null>(null);
   const [drivers, setDrivers] = useState<ApiUser[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [driverDraft, setDriverDraft] = useState("");
   const [statusDraft, setStatusDraft] = useState("");
   const [driverSaving, setDriverSaving] = useState(false);
@@ -75,21 +76,28 @@ const OrderDetailsPage = () => {
   const canViewUserBranches = canAny(...USER_BRANCHES_VIEW_PERMISSIONS);
   const canOpenUserDetails =
     canViewUsersPage && (canViewUserAbout || canViewUserLedger || canViewUserBranches);
+  const resolveCurrency = (currency?: Currency | string) => {
+    const currencyId = typeof currency === "string" ? currency : currency?._id;
+    const fromList = currencyId ? currencies.find((item) => item._id === currencyId) : undefined;
+    return fromList || (typeof currency === "string" ? undefined : currency);
+  };
   const getCurrencySymbol = (currency?: Currency | string) => {
-    if (!currency || typeof currency === "string") return t("syp").toUpperCase();
-    const localized = currency.symbol?.[lang] || currency.symbol?.en || currency.symbol?.ar || "";
-    if (lang === "ar" && localized.toLowerCase?.() === currency.symbol?.en?.toLowerCase?.()) {
-      const translated = t(`currencySymbol.${currency.symbol.en.toUpperCase()}`);
-      if (translated !== `currencySymbol.${currency.symbol.en.toUpperCase()}`) return translated;
+    const resolved = resolveCurrency(currency);
+    if (!resolved) return t("syp").toUpperCase();
+    const localized = resolved.symbol?.[lang] || resolved.symbol?.en || resolved.symbol?.ar || "";
+    if (lang === "ar" && localized.toLowerCase?.() === resolved.symbol?.en?.toLowerCase?.()) {
+      const translated = t(`currencySymbol.${resolved.symbol.en.toUpperCase()}`);
+      if (translated !== `currencySymbol.${resolved.symbol.en.toUpperCase()}`) return translated;
     }
     return localized;
   };
   const formatOrderMoney = (value?: number, currency = order?.currency) => {
     const amount = typeof value === "number" ? value : 0;
-    if (!currency || typeof currency === "string") return `${amount.toLocaleString()} ${t("syp").toUpperCase()}`;
-    const rate = Number(currency.exchangeRate || 1);
-    const converted = currency.isPrimary ? amount : amount / (rate > 0 ? rate : 1);
-    return `${converted.toLocaleString(undefined, { maximumFractionDigits: currency.isPrimary ? 0 : 2 })} ${getCurrencySymbol(currency)}`;
+    const resolved = resolveCurrency(currency);
+    if (!resolved) return `${amount.toLocaleString()} ${t("syp").toUpperCase()}`;
+    const rate = Number(resolved.exchangeRate || 1);
+    const converted = resolved.isPrimary ? amount : amount / (rate > 0 ? rate : 1);
+    return `${converted.toLocaleString(undefined, { maximumFractionDigits: resolved.isPrimary ? 0 : 2 })} ${getCurrencySymbol(resolved)}`;
   };
 
   useEffect(() => {
@@ -123,6 +131,12 @@ const OrderDetailsPage = () => {
     }
     fetchDrivers().then(setDrivers).catch(() => setDrivers([]));
   }, [canViewUsersPage]);
+
+  useEffect(() => {
+    fetchCurrencies()
+      .then((data) => setCurrencies(data.filter((currency) => currency.isActive)))
+      .catch(() => setCurrencies([]));
+  }, []);
 
   useEffect(() => {
     const driverId = typeof order?.driverId === "string" ? order.driverId : "";
