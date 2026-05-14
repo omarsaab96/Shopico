@@ -16,7 +16,13 @@ export default function MembershipScreen() {
   const [showCongrats, setShowCongrats] = useState(false);
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
-  const { getWalletBalance, formatMoney, primaryCurrency } = useCurrency();
+  const {
+    selectedCurrency,
+    getCurrencySymbol,
+    getWalletBalance,
+    getMembershipThresholds,
+    getMembershipLevel,
+  } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   useEffect(() => {
@@ -25,9 +31,9 @@ export default function MembershipScreen() {
     api.get("/wallet").then((res) => setWallet(res.data.data.wallet));
   }, []);
 
-  const thresholds = settings?.membershipThresholds || { silver: 1000000, gold: 2000000, platinum: 4000000, diamond: 6000000 };
-  const balance = getWalletBalance(wallet, primaryCurrency);
-  const level = user?.membershipLevel || "None";
+  const thresholds = getMembershipThresholds(settings, selectedCurrency);
+  const balance = getWalletBalance(wallet, selectedCurrency);
+  const level = getMembershipLevel(balance, thresholds);
   const graceUntil = user?.membershipGraceUntil ? new Date(user.membershipGraceUntil) : null;
   const inGrace = !!(graceUntil && graceUntil.getTime() > Date.now() && level !== "None");
   const currentThreshold = useMemo(() => {
@@ -64,11 +70,11 @@ export default function MembershipScreen() {
       <StatCard label={t("level")} value={level} />
       <View style={styles.card}>
         <Text style={styles.muted}>
-          {t("remainingToNext")} {formatMoney(remaining, primaryCurrency)} ({nextLabel})
+          {t("remainingToNext")} {remaining.toLocaleString()} {getCurrencySymbol(selectedCurrency)} ({nextLabel})
         </Text>
         <ProgressBar progress={progress} />
         <Text style={styles.muted}>
-          {t("balance")}: {formatMoney(balance, primaryCurrency)}
+          {t("balance")}: {balance.toLocaleString()} {getCurrencySymbol(selectedCurrency)}
         </Text>
         <Text style={styles.muted}>
           {t("graceDays")}: {settings?.membershipGraceDays}
@@ -77,7 +83,7 @@ export default function MembershipScreen() {
           <View style={styles.graceBox}>
             <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
             <Text style={styles.muted}>
-              {(t("graceKeepLevel") ?? "Keep your balance above")} {formatMoney(currentThreshold, primaryCurrency)}
+              {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} {getCurrencySymbol(selectedCurrency)}
             </Text>
             <Text style={styles.muted}>
               {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}

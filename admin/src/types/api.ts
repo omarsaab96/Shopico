@@ -100,6 +100,10 @@ export interface Settings {
   allowMultipleCoupons: boolean;
   membershipGraceDays: number;
   membershipThresholds: { silver: number; gold: number; platinum: number; diamond: number };
+  membershipThresholdsByCurrency?: {
+    currency: Currency | string;
+    thresholds: { silver: number; gold: number; platinum: number; diamond: number };
+  }[];
   pointsPerAmount: number;
   rewardThresholdPoints: number;
   rewardValue: number;

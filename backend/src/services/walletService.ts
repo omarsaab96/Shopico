@@ -159,7 +159,7 @@ export const updateTopUpStatus = async (
       balanceAfter: nextBalance,
     });
     const user = await User.findById(topUp.user);
-    if (user) await updateMembershipOnBalanceChange(user, wallet.balance, topUp.branchId.toString());
+    if (user) await updateMembershipOnBalanceChange(user, nextBalance, topUp.branchId.toString(), currencyId);
   }
   await AuditLog.create({ user: actorId, type: "wallet", action: "TOPUP_STATUS", result: "SUCCESS", metadata: { topUpId, status } });
   return topUp;
@@ -205,7 +205,7 @@ export const adminTopUpWallet = async (
     metadata: { note, adminId: adminId.toString() },
   });
 
-  await updateMembershipOnBalanceChange(user, wallet.balance, branchId);
+  await updateMembershipOnBalanceChange(user, nextBalance, branchId, currency._id.toString());
   await AuditLog.create({
     user: adminId,
     type: "wallet",

@@ -206,7 +206,7 @@ const handleWalletDebit = async (userId: Types.ObjectId, branchId: string, amoun
     balanceAfter: nextBalance,
   });
   const user = await User.findById(userId);
-  if (user) await updateMembershipOnBalanceChange(user, wallet.balance, branchId);
+  if (user) await updateMembershipOnBalanceChange(user, nextBalance, branchId, currencyId);
 };
 
 const tryConsumeRewardToken = async (userId: Types.ObjectId, rewardValue: number, apply: boolean) => {

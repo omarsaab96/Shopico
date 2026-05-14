@@ -141,7 +141,16 @@ export default function Home() {
   const { palette, isDark } = useTheme();
   const { items, addItem, setQuantity, clear } = useCart();
   const { t, isRTL } = useI18n();
-  const { selectedCurrency, primaryCurrency, getWalletBalance, getCurrencySymbol, formatMoney, refreshCurrencies } = useCurrency();
+  const {
+    selectedCurrency,
+    primaryCurrency,
+    getWalletBalance,
+    getCurrencySymbol,
+    formatMoney,
+    refreshCurrencies,
+    getMembershipThresholds,
+    getMembershipLevel,
+  } = useCurrency();
   const isDriver = user?.role === "driver";
   const customerSetupChecking = Boolean(user && !isDriver && (!branchLockReady || !savedBranchReady || !addressesReady || addressLoading || branchLoading));
   const customerNeedsSetup = Boolean(
@@ -260,7 +269,9 @@ export default function Home() {
       });
   }, [user, branchLocked, selectedBranch]);
 
-  const membershipLevel = profile?.membershipLevel || "None";
+  const thresholds = getMembershipThresholds(settings, selectedCurrency);
+  const balance = getWalletBalance(wallet, selectedCurrency);
+  const membershipLevel = getMembershipLevel(balance, thresholds);
   const graceUntil = profile?.membershipGraceUntil ? new Date(profile.membershipGraceUntil) : null;
   const inGrace = !!(graceUntil && graceUntil.getTime() > Date.now() && membershipLevel !== "None");
 
@@ -290,13 +301,6 @@ export default function Home() {
     return base;
   }, [membershipLevel, isDark, palette]);
 
-  const thresholds = settings?.membershipThresholds || {
-    silver: 1000000,
-    gold: 2000000,
-    platinum: 4000000,
-    diamond: 6000000,
-  };
-
   const currentThreshold = useMemo(() => {
     const map: Record<string, number> = {
       Silver: thresholds.silver,
@@ -307,8 +311,6 @@ export default function Home() {
     return map[membershipLevel] || 0;
   }, [membershipLevel, thresholds]);
 
-  const balance = getWalletBalance(wallet, selectedCurrency);
-  const primaryBalance = getWalletBalance(wallet, primaryCurrency);
   const graceDays = settings?.membershipGraceDays ?? 14;
 
   const { nextLabel, remaining, progress } = useMemo(() => {
@@ -323,11 +325,11 @@ export default function Home() {
     const next = levels[currentIdx + 1];
     if (!next) return { nextLabel: "Max", remaining: 0, progress: 1 };
 
-    const remaining = Math.max(0, next.min - primaryBalance);
+    const remaining = Math.max(0, next.min - balance);
     const range = next.min - levels[currentIdx].min || 1;
-    const progress = Math.min(1, (primaryBalance - levels[currentIdx].min) / range);
+    const progress = Math.min(1, (balance - levels[currentIdx].min) / range);
     return { nextLabel: next.name, remaining, progress };
-  }, [primaryBalance, membershipLevel, thresholds]);
+  }, [balance, membershipLevel, thresholds]);
 
   const fetchProducts = useCallback(
     (nextPage = 1, append = false) => {
@@ -818,7 +820,7 @@ export default function Home() {
               <Text style={styles.walletMiniHint}>{nextLabel}</Text>
             </Text>}
             <Text style={styles.walletMiniValue}>
-              {remaining > 0 ? formatMoney(remaining, primaryCurrency) : (t("congrats") ?? "Top level")}
+              {remaining > 0 ? `${remaining.toLocaleString()} ${getCurrencySymbol(selectedCurrency)}` : (t("congrats") ?? "Top level")}
             </Text>
           </View>
 
@@ -826,7 +828,7 @@ export default function Home() {
             <View style={[styles.graceBox, { borderColor: membershipTone.ring }]}>
               <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
               <Text style={styles.graceCopy}>
-                {(t("graceKeepLevel") ?? "Keep your balance above")} {formatMoney(currentThreshold, primaryCurrency)}
+                {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} {getCurrencySymbol(selectedCurrency)}
               </Text>
               <Text style={styles.graceCopy}>
                 {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}

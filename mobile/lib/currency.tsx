@@ -20,6 +20,13 @@ type WalletBalance = {
   amount: number;
 };
 
+type MembershipThresholds = {
+  silver: number;
+  gold: number;
+  platinum: number;
+  diamond: number;
+};
+
 const getCurrencyId = (currency?: Currency | string) => {
   if (!currency) return "";
   return typeof currency === "string" ? currency : currency._id || "";
@@ -36,6 +43,8 @@ type CurrencyContextValue = {
   convertFromPrimary: (amount: number, currency?: Currency) => number;
   formatMoney: (amount: number, currency?: Currency) => string;
   getWalletBalance: (wallet?: any, currency?: Currency) => number;
+  getMembershipThresholds: (settings?: any, currency?: Currency) => MembershipThresholds;
+  getMembershipLevel: (balance: number, thresholds: MembershipThresholds) => string;
 };
 
 const CURRENCY_STORAGE_KEY = "selected-currency-id";
@@ -127,6 +136,34 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     [selectedCurrency]
   );
 
+  const getMembershipThresholds = useCallback((settings?: any, currency = selectedCurrency): MembershipThresholds => {
+    const legacy = settings?.membershipThresholds || {
+      silver: 1000000,
+      gold: 2000000,
+      platinum: 4000000,
+      diamond: 6000000,
+    };
+    const currencyId = currency?._id;
+    const match = (settings?.membershipThresholdsByCurrency || []).find((entry: any) => getCurrencyId(entry.currency) === currencyId);
+    if (match?.thresholds) return match.thresholds;
+    if (!currency || currency.isPrimary) return legacy;
+    const rate = Number(currency.exchangeRate || 1);
+    return {
+      silver: Math.round(Number(legacy.silver || 0) / rate),
+      gold: Math.round(Number(legacy.gold || 0) / rate),
+      platinum: Math.round(Number(legacy.platinum || 0) / rate),
+      diamond: Math.round(Number(legacy.diamond || 0) / rate),
+    };
+  }, [selectedCurrency]);
+
+  const getMembershipLevel = useCallback((balance: number, thresholds: MembershipThresholds) => {
+    if (balance >= Number(thresholds.diamond || 0)) return "Diamond";
+    if (balance >= Number(thresholds.platinum || 0)) return "Platinum";
+    if (balance >= Number(thresholds.gold || 0)) return "Gold";
+    if (balance >= Number(thresholds.silver || 0)) return "Silver";
+    return "None";
+  }, []);
+
   const value = useMemo(
     () => ({
       currencies,
@@ -139,6 +176,8 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       convertFromPrimary,
       formatMoney,
       getWalletBalance,
+      getMembershipThresholds,
+      getMembershipLevel,
     }),
     [
       currencies,
@@ -150,6 +189,8 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       convertFromPrimary,
       formatMoney,
       getWalletBalance,
+      getMembershipThresholds,
+      getMembershipLevel,
     ]
   );
 

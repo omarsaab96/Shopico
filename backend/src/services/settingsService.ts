@@ -17,6 +17,16 @@ const thresholdsChanged = (previous: any, next: any) => {
     prev.diamond !== current.diamond;
 };
 
+const thresholdsByCurrencyChanged = (previous: any[] = [], next: any[] = []) =>
+  JSON.stringify(previous.map((entry) => ({
+    currency: entry.currency?.toString?.() || entry.currency,
+    thresholds: normalizeThresholds(entry.thresholds),
+  })).sort((a, b) => String(a.currency).localeCompare(String(b.currency)))) !==
+  JSON.stringify(next.map((entry) => ({
+    currency: entry.currency?.toString?.() || entry.currency,
+    thresholds: normalizeThresholds(entry.thresholds),
+  })).sort((a, b) => String(a.currency).localeCompare(String(b.currency))));
+
 export const getSettings = async (branchId: string) => {
   const settings = (await Settings.findOne({ branchId })) || (await Settings.create({ branchId }));
   return settings;
@@ -25,9 +35,16 @@ export const getSettings = async (branchId: string) => {
 export const updateSettings = async (branchId: string, payload: Partial<Awaited<ReturnType<typeof getSettings>>>) => {
   const settings = (await Settings.findOne({ branchId })) || (await Settings.create({ branchId }));
   const previousThresholds = normalizeThresholds(settings.membershipThresholds);
+  const previousThresholdsByCurrency = (settings.membershipThresholdsByCurrency || []).map((entry: any) => ({
+    currency: entry.currency,
+    thresholds: entry.thresholds,
+  }));
   Object.assign(settings, payload);
   await settings.save();
-  if (payload.membershipThresholds && thresholdsChanged(previousThresholds, settings.membershipThresholds)) {
+  if (
+    (payload.membershipThresholds && thresholdsChanged(previousThresholds, settings.membershipThresholds)) ||
+    (payload.membershipThresholdsByCurrency && thresholdsByCurrencyChanged(previousThresholdsByCurrency, settings.membershipThresholdsByCurrency))
+  ) {
     await recalculateMembershipsForThresholdChange(branchId);
   }
   return settings;

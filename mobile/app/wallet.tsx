@@ -22,7 +22,13 @@ export default function WalletScreen() {
   const [loading, setLoading] = useState(true);
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
-  const { selectedCurrency, primaryCurrency, getCurrencySymbol, getWalletBalance, formatMoney } = useCurrency();
+  const {
+    selectedCurrency,
+    getCurrencySymbol,
+    getWalletBalance,
+    getMembershipThresholds,
+    getMembershipLevel,
+  } = useCurrency();
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(user);
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
@@ -53,9 +59,8 @@ export default function WalletScreen() {
   }, [user]);
 
   const balance = getWalletBalance(wallet, selectedCurrency);
-  const primaryBalance = getWalletBalance(wallet, primaryCurrency);
-  const membershipLevel = profile?.membershipLevel || "None";
-  const thresholds = settings?.membershipThresholds;
+  const thresholds = getMembershipThresholds(settings, selectedCurrency);
+  const membershipLevel = getMembershipLevel(balance, thresholds);
   const hasThresholds = Boolean(thresholds);
   const graceUntil = profile?.membershipGraceUntil ? new Date(profile.membershipGraceUntil) : null;
   const inGrace = !!(graceUntil && graceUntil.getTime() > Date.now() && membershipLevel !== "None");
@@ -103,11 +108,11 @@ export default function WalletScreen() {
     const next = levels[currentIdx + 1];
     if (!next) return { nextLabel: "Max", remaining: 0, progress: 1 };
 
-    const remaining = Math.max(0, next.min - primaryBalance);
+    const remaining = Math.max(0, next.min - balance);
     const range = next.min - levels[currentIdx].min || 1;
-    const progress = Math.min(1, (primaryBalance - levels[currentIdx].min) / range);
+    const progress = Math.min(1, (balance - levels[currentIdx].min) / range);
     return { nextLabel: next.name, remaining, progress };
-  }, [primaryBalance, membershipLevel, thresholds]);
+  }, [balance, membershipLevel, thresholds]);
 
   if (loading) {
     return (
@@ -165,7 +170,7 @@ export default function WalletScreen() {
               <View style={styles.walletFooterRow}>
                 {remaining > 0 && <Text style={styles.walletMiniLabel}>{t("remainingToNext") ?? "Remaining to"}{nextLabel}</Text>}
                 <Text style={styles.walletMiniValue}>
-                  {remaining > 0 ? formatMoney(remaining, primaryCurrency) : t("congrats") ?? "Top level"}
+                  {remaining > 0 ? `${remaining.toLocaleString()} ${getCurrencySymbol(selectedCurrency)}` : t("congrats") ?? "Top level"}
                 </Text>
               </View>
             </>
@@ -177,7 +182,7 @@ export default function WalletScreen() {
             <View style={[styles.graceBox, { borderColor: membershipTone.ring, backgroundColor: isDark ? palette.surface : "#fffaf0" }]}>
               <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
               <Text style={styles.graceCopy}>
-                {(t("graceKeepLevel") ?? "Keep your balance above")} {formatMoney(currentThreshold, primaryCurrency)}
+                {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} {getCurrencySymbol(selectedCurrency)}
               </Text>
               <Text style={[styles.graceCopy, { color: palette.muted }]}>
                 {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
@@ -201,7 +206,7 @@ export default function WalletScreen() {
                   {item.type == "CREDIT" && <Feather name="arrow-down-circle" size={18} color={'#009933'} />}
                   {item.type == "DEBIT" && <Feather name="arrow-up-circle" size={18} color={'#f00000'} />}
                   <Text style={styles.txAmount}>
-                    {(item.amount || 0).toLocaleString()} {getCurrencySymbol(item.currency || primaryCurrency)}
+                    {(item.amount || 0).toLocaleString()} {getCurrencySymbol(item.currency || selectedCurrency)}
                   </Text>
                 </View>
 
@@ -213,7 +218,7 @@ export default function WalletScreen() {
               </View>
               {item.balanceAfter !== undefined && (
                 <Text style={styles.txMeta}>
-                  {item.balanceAfter.toLocaleString()} {getCurrencySymbol(item.currency || primaryCurrency)}
+                  {item.balanceAfter.toLocaleString()} {getCurrencySymbol(item.currency || selectedCurrency)}
                 </Text>
               )}
             </View>

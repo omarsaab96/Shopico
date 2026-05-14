@@ -11,6 +11,15 @@ export const updateSettingsSchema = z.object({
     platinum: z.number().nonnegative(),
     diamond: z.number().nonnegative(),
   }),
+  membershipThresholdsByCurrency: z.array(z.object({
+    currency: z.string().min(1),
+    thresholds: z.object({
+      silver: z.number().nonnegative(),
+      gold: z.number().nonnegative(),
+      platinum: z.number().nonnegative(),
+      diamond: z.number().nonnegative(),
+    }),
+  })).optional(),
   pointsPerAmount: z.number().positive(),
   rewardThresholdPoints: z.number().int().positive(),
   rewardValue: z.number().nonnegative(),

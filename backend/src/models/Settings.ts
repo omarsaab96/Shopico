@@ -14,6 +14,10 @@ export interface ISettings extends Document {
   allowMultipleCoupons: boolean;
   membershipGraceDays: number;
   membershipThresholds: IMembershipThresholds;
+  membershipThresholdsByCurrency: {
+    currency: Types.ObjectId | string;
+    thresholds: IMembershipThresholds;
+  }[];
   pointsPerAmount: number;
   rewardThresholdPoints: number;
   rewardValue: number;
@@ -39,6 +43,18 @@ const SettingsSchema = new Schema<ISettings>(
     allowMultipleCoupons: { type: Boolean, default: false },
     membershipGraceDays: { type: Number, default: 14 },
     membershipThresholds: { type: MembershipThresholdSchema, default: () => ({}) },
+    membershipThresholdsByCurrency: {
+      type: [
+        new Schema(
+          {
+            currency: { type: Schema.Types.ObjectId, ref: "Currency", required: true },
+            thresholds: { type: MembershipThresholdSchema, default: () => ({}) },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
     pointsPerAmount: { type: Number, default: 10000 },
     rewardThresholdPoints: { type: Number, default: 100 },
     rewardValue: { type: Number, default: 80000 },

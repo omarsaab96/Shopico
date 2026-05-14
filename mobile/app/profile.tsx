@@ -26,8 +26,9 @@ export default function Profile() {
     setSelectedCurrencyId,
     getCurrencySymbol,
     getWalletBalance,
-    primaryCurrency,
     refreshCurrencies,
+    getMembershipThresholds,
+    getMembershipLevel,
   } = useCurrency();
   const [pointsData, setPointsData] = useState<any>();
   const [settings, setSettings] = useState<any>();
@@ -81,14 +82,8 @@ export default function Profile() {
     router.push("/edit-profile");
   }
   const balance = getWalletBalance(wallet, selectedCurrency);
-  const primaryBalance = getWalletBalance(wallet, primaryCurrency);
-  const membershipLevel = user?.membershipLevel || "None";
-  const thresholds = settings?.membershipThresholds || {
-    silver: 1000000,
-    gold: 2000000,
-    platinum: 4000000,
-    diamond: 6000000,
-  };
+  const thresholds = getMembershipThresholds(settings, selectedCurrency);
+  const membershipLevel = getMembershipLevel(balance, thresholds);
 
   const { nextLabel, remaining, progress } = useMemo(() => {
     const levels = [
@@ -102,11 +97,11 @@ export default function Profile() {
     const next = levels[currentIdx + 1];
     if (!next) return { nextLabel: "Max", remaining: 0, progress: 1 };
 
-    const remaining = Math.max(0, next.min - primaryBalance);
+    const remaining = Math.max(0, next.min - balance);
     const range = next.min - levels[currentIdx].min || 1;
-    const progress = Math.min(1, (primaryBalance - levels[currentIdx].min) / range);
+    const progress = Math.min(1, (balance - levels[currentIdx].min) / range);
     return { nextLabel: next.name, remaining, progress };
-  }, [primaryBalance, membershipLevel, thresholds]);
+  }, [balance, membershipLevel, thresholds]);
 
   const membershipTone = useMemo(() => {
     // “Card tone” for light mode (orange-first like the reference).

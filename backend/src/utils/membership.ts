@@ -1,6 +1,7 @@
 import { IUser, User } from "../models/User";
 import { Settings } from "../models/Settings";
 import { Wallet } from "../models/Wallet";
+import { Currency } from "../models/Currency";
 
 export type MembershipLevel = "None" | "Silver" | "Gold" | "Platinum" | "Diamond";
 
@@ -20,6 +21,20 @@ type MembershipThresholds = {
   diamond: number;
 };
 
+const getCurrencyId = (currency: any) => {
+  if (!currency) return "";
+  if (typeof currency === "string") return currency;
+  return currency._id?.toString?.() || currency.toString?.() || "";
+};
+
+const getThresholdsForCurrency = (settings: any, currencyId?: string): MembershipThresholds => {
+  if (currencyId) {
+    const match = (settings?.membershipThresholdsByCurrency || []).find((entry: any) => getCurrencyId(entry.currency) === currencyId);
+    if (match?.thresholds) return match.thresholds;
+  }
+  return settings?.membershipThresholds || DEFAULT_THRESHOLDS;
+};
+
 export const determineMembershipLevelFromThresholds = (
   walletBalance: number,
   thresholds: MembershipThresholds
@@ -31,17 +46,17 @@ export const determineMembershipLevelFromThresholds = (
   return "None";
 };
 
-export const determineMembershipLevel = async (walletBalance: number, branchId?: string): Promise<MembershipLevel> => {
+export const determineMembershipLevel = async (walletBalance: number, branchId?: string, currencyId?: string): Promise<MembershipLevel> => {
   const settings = branchId ? await Settings.findOne({ branchId }) : await Settings.findOne();
-  const thresholds = settings?.membershipThresholds || DEFAULT_THRESHOLDS;
+  const thresholds = getThresholdsForCurrency(settings, currencyId);
   return determineMembershipLevelFromThresholds(walletBalance, thresholds);
 };
 
-export const updateMembershipOnBalanceChange = async (user: IUser, walletBalance: number, branchId?: string) => {
+export const updateMembershipOnBalanceChange = async (user: IUser, walletBalance: number, branchId?: string, currencyId?: string) => {
   const settings = branchId ? await Settings.findOne({ branchId }) : await Settings.findOne();
   const graceDays = settings?.membershipGraceDays ?? 14;
 
-  const targetLevel = await determineMembershipLevel(walletBalance, branchId);
+  const targetLevel = await determineMembershipLevel(walletBalance, branchId, currencyId);
   const currentIndex = Math.max(0, LEVEL_ORDER.indexOf(user.membershipLevel as MembershipLevel));
   const targetIndex = LEVEL_ORDER.indexOf(targetLevel);
 
@@ -65,7 +80,9 @@ export const updateMembershipOnBalanceChange = async (user: IUser, walletBalance
 
 export const recalculateMembershipsForThresholdChange = async (branchId: string) => {
   const settings = await Settings.findOne({ branchId });
-  const thresholds = settings?.membershipThresholds || DEFAULT_THRESHOLDS;
+  const primary = await Currency.findOne({ branchId, isPrimary: true });
+  const primaryId = primary?._id.toString();
+  const thresholds = getThresholdsForCurrency(settings, primaryId);
   const users = await User.find({ branchIds: branchId });
   const wallets = await Wallet.find({ user: { $in: users.map((user) => user._id) } });
   const walletBalanceByUser = new Map(wallets.map((wallet) => [wallet.user.toString(), wallet.balance]));
