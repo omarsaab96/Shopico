@@ -21,7 +21,7 @@ router.get(
   requireBranchContext,
   listUsers
 );
-router.post("/", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:view", "users:about:view", "users:about:manage"), requireBranchContext, createUser);
+router.post("/", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:view", "users:create"), requireBranchContext, createUser);
 router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("users:view", "users:about:view", "users:about:manage"), requireBranchContext, updateUser);
 router.get(
   "/:id",

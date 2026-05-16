@@ -20,15 +20,11 @@ const USER_ABOUT_VIEW_PERMISSIONS = ["users:about:view"] as const;
 const USER_BRANCHES_VIEW_PERMISSIONS = ["users:branches:view"] as const;
 const USER_PERMISSIONS_VIEW_PERMISSIONS = ["users:permissions:view"] as const;
 const ROLE_ORDER: ApiUser["role"][] = ["customer", "staff", "manager", "driver", "admin"];
+const PERMISSION_CONTROLLED_ROLE_ORDER: ApiUser["role"][] = ["customer", "staff", "manager", "driver"];
 const CREATE_ROLE_ORDER: ApiUser["role"][] = ["customer", "staff", "manager", "driver"];
 
-const getVisibleUserRoles = (role?: ApiUser["role"]): ApiUser["role"][] => {
-  if (role === "admin") return ["admin", "manager", "staff", "driver", "customer"];
-  if (role === "manager") return ["staff", "driver", "customer"];
-  if (role === "staff") return ["driver", "customer"];
-  if (role === "driver") return ["driver"];
-  return ["customer"];
-};
+const viewRolePermission = (role: ApiUser["role"]) => `users:roles:${role}:view`;
+const createRolePermission = (role: ApiUser["role"]) => `users:roles:${role}:create`;
 
 const UsersPage = () => {
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -80,15 +76,21 @@ const UsersPage = () => {
   const canManageUserBranches = canViewUserBranches && can("users:branches:manage");
   const canViewUserPermissions = canAny(...USER_PERMISSIONS_VIEW_PERMISSIONS);
   const canManageUserPermissions = canViewUserPermissions && can("users:permissions:manage");
+  const canCreateUsers = can("users:create");
   const canOpenUserDetails = canViewUserAbout || canViewUserLedger || canViewUserBranches || canViewUserPermissions;
   const canEditAuditPermission = editDraft.role === "admin";
   const canCreateAuditPermission = createDraft.role === "admin";
   const selectedSupportsPermissions = selected?.user?.role !== "customer";
   const createRoleSupportsPermissions = createDraft.role !== "customer";
-  const visibleRoleOptions = getVisibleUserRoles(currentUser?.role);
-  const filterRoleOptions = ROLE_ORDER.filter((role) => visibleRoleOptions.includes(role));
-  const createRoleOptions = CREATE_ROLE_ORDER.filter((role) => visibleRoleOptions.includes(role));
+  const visibleRoleOptions = [
+    ...PERMISSION_CONTROLLED_ROLE_ORDER.filter((role) => can(viewRolePermission(role))),
+    ...(currentUser?.role === "admin" ? (["admin"] as ApiUser["role"][]) : []),
+  ];
+  const filterRoleOptions = visibleRoleOptions;
+  const createRoleOptions = CREATE_ROLE_ORDER.filter((role) => can(createRolePermission(role)));
+  const editRoleOptions = ROLE_ORDER.filter((role) => role === selected?.user?.role || createRoleOptions.includes(role));
   const defaultCreateRole = createRoleOptions[0] || "customer";
+  const canOpenCreateUser = canCreateUsers && createRoleOptions.length > 0;
 
   const getCurrencySymbol = (currency?: Currency | string) => {
     if (!currency || typeof currency === "string") return "SYP";
@@ -112,7 +114,7 @@ const UsersPage = () => {
   };
 
   const getDefaultCreateTab = (): "about" | "branches" | "permissions" => {
-    if (canManageUserAbout) return "about";
+    if (canCreateUsers) return "about";
     if (canViewUserBranches) return "branches";
     return "permissions";
   };
@@ -216,7 +218,7 @@ const UsersPage = () => {
   };
 
   const openCreateModal = () => {
-    if (!canManageUserAbout) return;
+    if (!canOpenCreateUser) return;
     setCreateDraft({
       name: "",
       email: "",
@@ -256,7 +258,7 @@ const UsersPage = () => {
   };
 
   const submitCreateUser = async () => {
-    if (!canManageUserAbout) return;
+    if (!canOpenCreateUser) return;
     if (!createDraft.name.trim() || !createDraft.email.trim()) {
       setCreateError(t("invalidForm"));
       return;
@@ -339,11 +341,16 @@ const UsersPage = () => {
     setEditSaving(true);
     setEditError("");
     try {
-      const updated = await updateUser(selected.user._id, {
+      const payload: Partial<ApiUser> = {
         name: editDraft.name.trim(),
         email: editDraft.email.trim(),
         phone: editDraft.phone.trim() || undefined,
-        role: editDraft.role,
+      };
+      if (editDraft.role !== selected.user.role) {
+        payload.role = editDraft.role;
+      }
+      const updated = await updateUser(selected.user._id, {
+        ...payload,
       });
       setSelected((prev) => (prev ? { ...prev, user: updated } : prev));
       loadUsers();
@@ -428,7 +435,7 @@ const UsersPage = () => {
               {t("clear")}
             </button>
           </form>
-          {canManageUserAbout && (
+          {canOpenCreateUser && (
             <button className="primary" type="button" onClick={openCreateModal}>
               {t("addUser")}
             </button>
@@ -579,7 +586,7 @@ const UsersPage = () => {
                           value={editDraft.role}
                           onChange={(e) => setEditDraft((prev) => ({ ...prev, role: e.target.value as ApiUser["role"] }))}
                         >
-                          {filterRoleOptions.map((role) => (
+                          {editRoleOptions.map((role) => (
                             <option value={role} key={role}>{t(`role.${role}`) || role}</option>
                           ))}
                         </select>
@@ -819,7 +826,7 @@ const UsersPage = () => {
           </div>
         </div>
       )}
-      {showCreateModal && canManageUserAbout && (
+      {showCreateModal && canOpenCreateUser && (
         <div className="modal-backdrop" onClick={closeCreateModal}>
           <div className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">

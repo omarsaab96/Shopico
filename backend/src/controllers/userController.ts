@@ -11,23 +11,39 @@ import { AuditLog } from "../models/AuditLog";
 import { UserRole } from "../types";
 import { ensureWalletBalances } from "../services/walletService";
 
-const getVisibleUserRoles = (role?: UserRole): UserRole[] => {
-  if (role === "admin") return ["admin", "manager", "staff", "driver", "customer"];
-  if (role === "manager") return ["staff", "driver", "customer"];
-  if (role === "staff") return ["driver", "customer"];
-  if (role === "driver") return ["driver"];
-  return ["customer"];
+const PERMISSION_CONTROLLED_USER_ROLES: UserRole[] = ["manager", "staff", "driver", "customer"];
+const CREATABLE_USER_ROLES: UserRole[] = ["manager", "staff", "driver", "customer"];
+
+const viewRolePermission = (role: UserRole) => `users:roles:${role}:view`;
+const createRolePermission = (role: UserRole) => `users:roles:${role}:create`;
+
+const hasPermission = (req: any, permission: string) => {
+  const permissions = req.user?.permissions || [];
+  return permissions.includes(permission);
+};
+
+const getVisibleUserRoles = (req: any): UserRole[] => {
+  const roles = PERMISSION_CONTROLLED_USER_ROLES.filter((role) => hasPermission(req, viewRolePermission(role)));
+  return req.user?.role === "admin" ? ["admin", ...roles] : roles;
+};
+
+const getCreatableUserRoles = (req: any): UserRole[] => {
+  return CREATABLE_USER_ROLES.filter((role) => hasPermission(req, createRolePermission(role)));
 };
 
 const getScopedUserFilter = (req: any, baseFilter: Record<string, unknown> = {}) => {
-  const visibleRoles = getVisibleUserRoles(req.user?.role);
-  if (req.user?.role === "admin") return baseFilter;
+  const visibleRoles = getVisibleUserRoles(req);
   return { ...baseFilter, role: { $in: visibleRoles } };
 };
 
-const canUseRole = (req: any, role?: UserRole) => {
+const canViewRole = (req: any, role?: UserRole) => {
   if (!role) return true;
-  return getVisibleUserRoles(req.user?.role).includes(role);
+  return getVisibleUserRoles(req).includes(role);
+};
+
+const canCreateOrAssignRole = (req: any, role?: UserRole) => {
+  if (!role) return true;
+  return getCreatableUserRoles(req).includes(role);
 };
 
 export const listUsers = catchAsync(async (req, res) => {
@@ -35,7 +51,7 @@ export const listUsers = catchAsync(async (req, res) => {
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const filter: Record<string, unknown> = getScopedUserFilter(req, { branchIds: req.branchId });
   if (role) {
-    if (!canUseRole(req, role as UserRole)) return sendSuccess(res, []);
+    if (!canViewRole(req, role as UserRole)) return sendSuccess(res, []);
     filter.role = role;
   }
   if (q) {
@@ -66,7 +82,7 @@ export const getUserDetails = catchAsync(async (req, res) => {
 
 export const createUser = catchAsync(async (req, res) => {
   const payload = createUserSchema.parse(req.body);
-  if (!canUseRole(req, payload.role)) {
+  if (!canCreateOrAssignRole(req, payload.role)) {
     return res.status(403).json({ success: false, message: "Cannot create this type of user" });
   }
   const existing = await User.findOne({ email: payload.email.toLowerCase() });
@@ -131,7 +147,7 @@ export const updateUserBranches = catchAsync(async (req, res) => {
 export const updateUser = catchAsync(async (req, res) => {
   const payload = updateUserSchema.parse(req.body);
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
-  if (!canUseRole(req, payload.role)) {
+  if (!canCreateOrAssignRole(req, payload.role)) {
     return res.status(403).json({ success: false, message: "Cannot assign this user role" });
   }
 
