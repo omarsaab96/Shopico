@@ -8,6 +8,7 @@ import type { ApiUser, Coupon, Currency, Product } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
+import { confirmDelete } from "../utils/confirm";
 
 type CouponDraft = Partial<Omit<Coupon, "expiresAt" | "assignedUsers" | "assignedProducts" | "assignedMembershipLevels">> & {
   expiresAt?: Date | string;
@@ -881,7 +882,7 @@ const CouponsPage = () => {
                         <button className="ghost-btn" onClick={cancelEdit}>
                           {t("cancel")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deleteCoupon(coupon._id).then(() => loadCoupons(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteCoupon(coupon._id).then(() => loadCoupons(getFilterParams()))}>
                           {t("delete")}
                         </button>
                         {editError && <div className="error">{editError}</div>}
@@ -891,7 +892,7 @@ const CouponsPage = () => {
                         <button className="ghost-btn" onClick={() => startEdit(coupon)}>
                           {t("edit")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deleteCoupon(coupon._id).then(() => loadCoupons(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteCoupon(coupon._id).then(() => loadCoupons(getFilterParams()))}>
                           {t("delete")}
                         </button>
                       </div>

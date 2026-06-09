@@ -3,6 +3,8 @@ import { OrderStatus, PaymentMethod } from "../types";
 
 export interface IOrderItem {
   product: Types.ObjectId | string;
+  variantId?: Types.ObjectId | string;
+  variantAttributes?: Record<string, string>;
   quantity: number;
   price: number;
 }
@@ -52,6 +54,8 @@ export interface IOrder extends Document {
 const OrderItemSchema = new Schema<IOrderItem>(
   {
     product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
+    variantId: { type: Schema.Types.ObjectId },
+    variantAttributes: { type: Schema.Types.Mixed },
     quantity: { type: Number, required: true },
     price: { type: Number, required: true },
   },

@@ -802,6 +802,7 @@ nav::-webkit-scrollbar {
 .filter-input,
 .filters .react-datepicker-time__input,
 .productRow input,
+.variant-row input ,
 .form input {
   padding: 10px 12px;
   border-radius: 10px;
@@ -1088,6 +1089,12 @@ nav::-webkit-scrollbar {
   object-fit: contain;
   border-radius: 20px;
   border: 1px solid var(--gray-300);
+}
+
+.modal .thumb img {
+
+  border-radius: 0px;
+
 }
 
 .list {
@@ -1448,6 +1455,10 @@ nav::-webkit-scrollbar {
   padding: 16px;
 }
 
+.image-editor-backdrop {
+  z-index: 60;
+}
+
 .modal {
   background: white;
   border-radius: 16px;
@@ -1470,6 +1481,244 @@ nav::-webkit-scrollbar {
 
 .modal.import-modal {
   width: min(980px, 100%);
+}
+
+.image-editor-modal {
+  width: min(1040px, 100%);
+}
+
+.image-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 16px;
+  align-items: start;
+}
+
+.image-editor-stage {
+  display: block;
+  height: 600px;
+  border: 1px solid var(--gray-300);
+  border-radius: 12px;
+  background: var(--gray-300);
+  overflow: hidden;
+}
+
+.image-editor-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-editor-image-frame {
+  position: relative;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+
+.image-editor-image-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.image-editor-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: center;
+}
+
+.image-editor-crop {
+  position: absolute;
+  z-index: 1;
+  border: 2px solid #ffb347;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
+  cursor: move;
+}
+
+/* .image-editor-crop::before,
+.image-editor-crop::after {
+  content: "";
+  position: absolute;
+  inset: 33.333% 0 auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.7);
+} */
+
+.image-editor-crop::after {
+  inset: auto 33.333% 0 auto;
+  height: 100%;
+  border-top: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.image-editor-handle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  border: 2px solid white;
+  background: #ff7a1f;
+}
+
+.image-editor-handle.nw {
+  top: -8px;
+  left: -8px;
+  cursor: nwse-resize;
+}
+
+.image-editor-handle.ne {
+  top: -8px;
+  right: -8px;
+  cursor: nesw-resize;
+}
+
+.image-editor-handle.sw {
+  bottom: -8px;
+  left: -8px;
+  cursor: nesw-resize;
+}
+
+.image-editor-handle.se {
+  right: -8px;
+  bottom: -8px;
+  cursor: nwse-resize;
+}
+
+.image-editor-controls {
+  display: grid;
+  gap: 14px;
+}
+
+.image-editor-group {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.image-editor-button-row,
+.image-editor-size-row,
+.image-editor-slider-row {
+  display: flex;
+  gap: 8px;
+}
+
+.image-editor-rotate-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+}
+
+.image-editor-rotate-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.image-editor-slider-row {
+  align-items: center;
+}
+
+.image-editor-slider-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--orange-500);
+  margin: 0;
+  height: 4px;
+  background-color: var(--gray-500);
+}
+
+.image-editor-slider-row span {
+  min-width: 55px;
+  text-align: right;
+  color: var(--gray-600);
+  font-size: 13px;
+}
+
+.image-editor-size-row label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--gray-600);
+}
+
+.image-editor-size-row input {
+  min-width: 0;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--gray-300);
+  outline: none !important;
+  transition: all 0.3s ease-in-out;
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+.image-editor-size-row input:hover,
+.image-editor-size-row input:focus {
+  background: var(--gray-500);
+}
+
+.image-editor-empty {
+  color: var(--gray-600);
+}
+
+.variants-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.variants-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.variants-list {
+  display: grid;
+  gap: 10px;
+}
+
+.variant-row {
+  display: block;
+  /* grid-template-columns: minmax(180px, 1.4fr) repeat(5, minmax(90px, 1fr)) 74px 62px auto; */
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid var(--gray-300);
+  border-radius: 12px;
+  /* background: var(--gray-100); */
+}
+
+.variant-row label {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  color: var(--gray-600);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom:10px;
+}
+
+.variant-row input {
+  width: 100%;
+}
+
+.variant-row .checkboxContainer label {
+  height:20px;
 }
 
 .modal::-webkit-scrollbar {
@@ -1949,6 +2198,18 @@ nav::-webkit-scrollbar {
 }
 
 @media (max-width: 900px) {
+  .image-editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .image-editor-stage {
+    min-height: 260px;
+  }
+
+  .image-editor-controls {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
   }
@@ -2000,11 +2261,15 @@ html[dir="rtl"] .unassignLabel {
   text-align: right;
 }
 
-.currentLocIcon{
-  width:18px;
-  height:18px;
+.currentLocIcon {
+  width: 18px;
+  height: 18px;
   background-image: url(../public/locate.png);
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
+}
+
+.variants-editor .variants-list .variant-row{
+
 }

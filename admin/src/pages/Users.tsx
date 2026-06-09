@@ -62,6 +62,7 @@ const UsersPage = () => {
   });
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [createdSetupLink, setCreatedSetupLink] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const { t, lang } = useI18n();
@@ -228,6 +229,7 @@ const UsersPage = () => {
       branchIds: selectedBranchId ? [selectedBranchId] : [],
     });
     setCreateError("");
+    setCreatedSetupLink("");
     setCreateSaving(false);
     setActiveCreateTab(getDefaultCreateTab());
     setShowCreateModal(true);
@@ -235,6 +237,7 @@ const UsersPage = () => {
 
   const closeCreateModal = () => {
     if (createSaving) return;
+    setCreatedSetupLink("");
     setShowCreateModal(false);
   };
 
@@ -266,7 +269,7 @@ const UsersPage = () => {
     setCreateSaving(true);
     setCreateError("");
     try {
-      await createUser({
+      const created = await createUser({
         name: createDraft.name.trim(),
         email: createDraft.email.trim(),
         role: createDraft.role,
@@ -274,7 +277,15 @@ const UsersPage = () => {
         permissions: createDraft.permissions,
         branchIds: createDraft.branchIds.length ? createDraft.branchIds : undefined,
       });
-      setShowCreateModal(false);
+      if (created.setupToken) {
+        const url = new URL("/login", window.location.origin);
+        url.searchParams.set("email", created.email);
+        url.searchParams.set("setupToken", created.setupToken);
+        setCreatedSetupLink(url.toString());
+        setCreateError("");
+      } else {
+        setShowCreateModal(false);
+      }
       loadUsers();
     } catch (err: any) {
       const message = err?.response?.data?.message || "Failed to create user";
@@ -951,13 +962,33 @@ const UsersPage = () => {
               )}
             </div>
             {createError && <div className="error">{createError}</div>}
+            {createdSetupLink && (
+              <div className="ledger-group" style={{ marginTop: 12 }}>
+                <h4>{t("passwordSetupLink") || "Password setup link"}</h4>
+                <div className="muted" style={{ marginBottom: 8 }}>
+                  {t("passwordSetupLinkHint") || "Send this one-time link to the user. It expires in 7 days."}
+                </div>
+                <input className="filter-input" value={createdSetupLink} readOnly />
+                <div className="modal-actions">
+                  <button
+                    className="ghost-btn"
+                    type="button"
+                    onClick={() => navigator.clipboard?.writeText(createdSetupLink)}
+                  >
+                    {t("copy") || "Copy"}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="modal-actions">
               <button className="ghost-btn" type="button" onClick={closeCreateModal} disabled={createSaving}>
-                {t("cancel")}
+                {createdSetupLink ? t("close") : t("cancel")}
               </button>
-              <button className="primary" type="button" onClick={submitCreateUser} disabled={createSaving}>
-                {createSaving ? t("saving") : t("createUser")}
-              </button>
+              {!createdSetupLink && (
+                <button className="primary" type="button" onClick={submitCreateUser} disabled={createSaving}>
+                  {createSaving ? t("saving") : t("createUser")}
+                </button>
+              )}
             </div>
           </div>
         </div>

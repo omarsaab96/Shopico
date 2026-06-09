@@ -2,7 +2,7 @@ import { Types } from "mongoose";
 import { Coupon } from "../models/Coupon";
 import { CouponRedemption } from "../models/CouponRedemption";
 import { User } from "../models/User";
-import { Product } from "../models/Product";
+import { findProductVariant, getEffectiveVariantPrice, Product } from "../models/Product";
 import { couponSchema, couponValidateSchema } from "../validators/couponValidators";
 import { catchAsync } from "../utils/catchAsync";
 import { sendSuccess } from "../utils/response";
@@ -33,23 +33,29 @@ const resolveAssignments = (payload: {
 
 type ProductMeta = { price: number; name?: string | null };
 
-const getProductMetaMap = async (items: { productId: string; quantity: number }[]) => {
+const getItemKey = (item: { productId: string; variantId?: string }) => `${item.productId}:${item.variantId || ""}`;
+
+const getProductMetaMap = async (items: { productId: string; variantId?: string; quantity: number }[]) => {
   const ids = items.map((i) => i.productId);
-  const products = await Product.find({ _id: { $in: ids } }).select("_id name price promoPrice isPromoted");
-  return new Map(
-    products.map((p) => [
-      p._id.toString(),
+  const products = await Product.find({ _id: { $in: ids } });
+  const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+  return new Map(items.flatMap((item) => {
+    const product = productMap.get(item.productId);
+    if (!product) return [];
+    const variant = findProductVariant(product, item.variantId);
+    return [[
+      getItemKey(item),
       {
-        price: p.isPromoted && p.promoPrice !== undefined ? p.promoPrice : p.price,
-        name: p.name,
+        price: getEffectiveVariantPrice(product, variant),
+        name: product.name,
       },
-    ])
-  );
+    ]];
+  }));
 };
 
 const getEligibleSubtotal = (
   coupon: { assignedProducts?: Array<Types.ObjectId | string> },
-  items: { productId: string; quantity: number }[],
+  items: { productId: string; variantId?: string; quantity: number }[],
   priceMap: Map<string, ProductMeta>,
   fallbackSubtotal: number
 ) => {
@@ -57,7 +63,7 @@ const getEligibleSubtotal = (
   const eligibleIds = new Set(coupon.assignedProducts.map((id) => id.toString()));
   return items.reduce((sum, item) => {
     if (!eligibleIds.has(item.productId)) return sum;
-    const meta = priceMap.get(item.productId);
+    const meta = priceMap.get(getItemKey(item));
     if (!meta) return sum;
     return sum + meta.price * item.quantity;
   }, 0);
@@ -299,7 +305,7 @@ export const deleteCoupon = catchAsync(async (req, res) => {
 
 export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => {
   const { items = [], subtotal = 0, deliveryFee = 0, currencyId } = req.body as {
-    items?: { productId: string; quantity: number }[];
+    items?: { productId: string; variantId?: string; quantity: number }[];
     subtotal?: number;
     deliveryFee?: number;
     currencyId?: string;
@@ -344,13 +350,15 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
     let assignedProductName: string | undefined;
     if (coupon.assignedProducts && coupon.assignedProducts.length > 0) {
       if (coupon.assignedProducts.length === 1) {
-        const meta = priceMap.get(coupon.assignedProducts[0].toString());
+        const assignedProductId = coupon.assignedProducts[0].toString();
+        const matched = items.find((item) => item.productId === assignedProductId);
+        const meta = matched ? priceMap.get(getItemKey(matched)) : undefined;
         assignedProductName = meta?.name ?? undefined;
       } else {
         const assignedIds = new Set(coupon.assignedProducts.map((id) => id.toString()));
         const matched = items.find((item) => assignedIds.has(item.productId));
         if (matched) {
-          assignedProductName = priceMap.get(matched.productId)?.name ?? undefined;
+          assignedProductName = priceMap.get(getItemKey(matched))?.name ?? undefined;
         }
       }
     }

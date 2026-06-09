@@ -32,7 +32,7 @@ export default function CartScreen() {
   const sheetRef = useRef<BottomSheetModal>(null);
   const clearSheetRef = useRef<BottomSheetModal>(null);
   const checkoutSheetRef = useRef<BottomSheetModal>(null);
-  const [pendingRemove, setPendingRemove] = useState<string | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<{ productId: string; variantId?: string } | null>(null);
   const [skipConfirm, setSkipConfirm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddresses, setShowAddresses] = useState(false);
@@ -101,32 +101,38 @@ export default function CartScreen() {
     setAutoApplyDisabled(false);
   };
 
+  const toCheckoutItem = (item: CartItem) => ({
+    productId: item.productId,
+    variantId: item.variantId,
+    quantity: item.quantity,
+  });
+
   const syncCartWithServer = useCallback(async () => {
     if (!user || !items.length) return { ok: true, changed: false };
     const before = items
-      .map((item) => `${item.productId}:${item.quantity}:${item.price}:${item.unavailable ? "off" : "on"}`)
+      .map((item) => `${item.productId}:${item.variantId || ""}:${item.quantity}:${item.price}:${item.unavailable ? "off" : "on"}`)
       .sort()
       .join("|");
     setCartSyncLoading(true);
     try {
       const res = await api.post("/cart/sync", {
-        items: items
-          .filter((item) => !item.unavailable)
-          .map((item) => ({ productId: item.productId, quantity: item.quantity })),
+          items: items
+            .filter((item) => !item.unavailable)
+            .map(toCheckoutItem),
       });
       const data = res.data.data || {};
       const syncedItems: CartItem[] = Array.isArray(data.items)
         ? data.items.map((item: CartItem) => ({ ...item, unavailable: false }))
         : [];
-      const removedIds = new Set((Array.isArray(data.removedItems) ? data.removedItems : []).map((item: any) => item.productId));
-      const syncedIds = new Set(syncedItems.map((item) => item.productId));
+      const removedIds = new Set((Array.isArray(data.removedItems) ? data.removedItems : []).map((item: any) => `${item.productId}:${item.variantId || ""}`));
+      const syncedIds = new Set(syncedItems.map((item) => `${item.productId}:${item.variantId || ""}`));
       const unavailableLocalItems = items
-        .filter((item) => item.unavailable || removedIds.has(item.productId))
-        .filter((item) => !syncedIds.has(item.productId))
+        .filter((item) => item.unavailable || removedIds.has(`${item.productId}:${item.variantId || ""}`))
+        .filter((item) => !syncedIds.has(`${item.productId}:${item.variantId || ""}`))
         .map((item) => ({ ...item, unavailable: true }));
       const nextItems = [...syncedItems, ...unavailableLocalItems];
       const after = nextItems
-        .map((item) => `${item.productId}:${item.quantity}:${item.price}:${item.unavailable ? "off" : "on"}`)
+        .map((item) => `${item.productId}:${item.variantId || ""}:${item.quantity}:${item.price}:${item.unavailable ? "off" : "on"}`)
         .sort()
         .join("|");
       const changed = before !== after;
@@ -365,17 +371,17 @@ export default function CartScreen() {
     }, [user])
   );
 
-  const confirmRemove = (productId: string) => {
+  const confirmRemove = (productId: string, variantId?: string) => {
     if (skipConfirm) {
-      removeItem(productId);
+      removeItem(productId, variantId);
       return;
     }
-    setPendingRemove(productId);
+    setPendingRemove({ productId, variantId });
     sheetRef.current?.present();
   };
 
   const handleRemoveConfirmed = () => {
-    if (pendingRemove) removeItem(pendingRemove);
+    if (pendingRemove) removeItem(pendingRemove.productId, pendingRemove.variantId);
     setPendingRemove(null);
     sheetRef.current?.dismiss();
   };
@@ -493,7 +499,7 @@ export default function CartScreen() {
     setCouponsLoading(true);
     api
       .post("/coupons/available", {
-        items: availableCartItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: availableCartItems.map(toCheckoutItem),
         subtotal,
         deliveryFee,
         currencyId: selectedCurrency?._id,
@@ -609,7 +615,7 @@ export default function CartScreen() {
         subtotal,
         deliveryFee,
         currencyId: selectedCurrency?._id,
-        items: availableCartItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: availableCartItems.map(toCheckoutItem),
       });
       const freeDelivery = Boolean(res.data.data?.freeDelivery);
       const discount = freeDelivery ? 0 : res.data.data?.discount || 0;
@@ -715,7 +721,7 @@ export default function CartScreen() {
         paymentMethod,
         currencyId: selectedCurrency?._id,
         couponCodes: selectedCoupons.length ? selectedCoupons.map((c) => c.code) : undefined,
-        items: items.filter((i) => !i.unavailable).map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: items.filter((i) => !i.unavailable).map(toCheckoutItem),
       });
       const created = res?.data?.data;
       setSuccessOrderId(created?._id || created?.id || null);
@@ -858,7 +864,7 @@ export default function CartScreen() {
         ) : (
           <FlatList
             data={items}
-            keyExtractor={(i) => i.productId}
+            keyExtractor={(i) => `${i.productId}:${i.variantId || ""}`}
             ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} />}
             renderItem={({ item }) => (
@@ -877,6 +883,11 @@ export default function CartScreen() {
                   {!item.unavailable && <Text style={styles.muted}>
                     {formatMoney(item.price, selectedCurrency)}
                   </Text>}
+                  {item.variantAttributes && Object.keys(item.variantAttributes).length > 0 ? (
+                    <Text style={styles.muted}>
+                      {Object.entries(item.variantAttributes).map(([key, value]) => `${key}: ${value}`).join(" / ")}
+                    </Text>
+                  ) : null}
                   {item.unavailable &&
                     <Text style={styles.unavailableText}>
                       {t("cartItemUnavailable") ?? "This item is no longer available."}
@@ -886,11 +897,11 @@ export default function CartScreen() {
                 <View style={styles.qtyRow}>
                   {!item.unavailable ? (
                     <View style={styles.qtyRow}>
-                      <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity - 1)}>
+                      <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity - 1, item.variantId)}>
                         <Text weight="bold" style={styles.qtySymbol}>-</Text>
                       </TouchableOpacity>
                       <Text weight="bold" style={styles.qtyValue}>{item.quantity}</Text>
-                      <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity + 1)}>
+                      <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity + 1, item.variantId)}>
                         <Text weight="bold" style={styles.qtySymbol}>+</Text>
                       </TouchableOpacity>
                     </View>
@@ -899,7 +910,7 @@ export default function CartScreen() {
                       <Text weight="bold" style={styles.replaceBtnText}>{t("replace") ?? "Replace"}</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity onPress={() => confirmRemove(item.productId)} style={styles.removeFromCartBtn}>
+                  <TouchableOpacity onPress={() => confirmRemove(item.productId, item.variantId)} style={styles.removeFromCartBtn}>
                     <MaterialIcons name="delete" size={20} color="#fff" />
                   </TouchableOpacity>
                 </View>

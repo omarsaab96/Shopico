@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { DragEvent, FormEvent } from "react";
 import Card from "../components/Card";
-import type { Category, Currency, Product, ProductImage } from "../types/api";
+import ImageEditorModal from "../components/ImageEditorModal";
+import type { Category, Currency, Product, ProductImage, ProductVariant } from "../types/api";
 import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchCurrencies, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
+import { confirmDelete } from "../utils/confirm";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
+type ProductVariantDraft = ProductVariant & { attributeText?: string };
 
 const getCurrencySymbol = (currency: Currency, lang: "en" | "ar", t: (key: string) => string) => {
   const symbol = currency.symbol as Currency["symbol"] | string;
@@ -37,11 +40,13 @@ const ProductsPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<Product>>({});
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
+  const [imageEditor, setImageEditor] = useState<{ file: File; target: "new" | "edit"; productId?: string } | null>(null);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
   const [editCategorySearch, setEditCategorySearch] = useState("");
   const [showEditCategories, setShowEditCategories] = useState(false);
+  const [showEditVariants, setShowEditVariants] = useState(false);
   const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [promoteProduct, setPromoteProduct] = useState<Product | null>(null);
   const [promotePrice, setPromotePrice] = useState("");
@@ -142,7 +147,7 @@ const ProductsPage = () => {
 
   const openNewModal = () => {
     if (!canManage) return;
-    setDraft({ images: [], categories: [], isAvailable: true, isPublic: true });
+    setDraft({ images: [], categories: [], variants: [], isAvailable: true, isPublic: true });
     setFormError("");
     setCategorySearch("");
     setShowNewModal(true);
@@ -404,6 +409,174 @@ const ProductsPage = () => {
     );
   };
 
+  const formatVariantAttributes = (attributes?: Record<string, string>) =>
+    Object.entries(attributes || {})
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(", ");
+
+  const parseVariantAttributes = (value: string) => {
+    return value
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .reduce<Record<string, string>>((acc, part) => {
+        const [rawKey, ...rest] = part.split(":");
+        const key = rawKey?.trim();
+        const attrValue = rest.join(":").trim();
+        if (key && attrValue) acc[key] = attrValue;
+        return acc;
+      }, {});
+  };
+
+  const variantAttributeInputValue = (variant: ProductVariantDraft) =>
+    variant.attributeText ?? formatVariantAttributes(variant.attributes);
+
+  const cleanVariants = (variants?: ProductVariantDraft[]) =>
+    (variants || [])
+      .map((variant) => {
+        const { attributeText, ...rest } = variant;
+        return {
+          ...rest,
+          attributes: parseVariantAttributes(attributeText ?? formatVariantAttributes(variant.attributes)),
+        };
+      })
+      .filter((variant) => Object.values(variant.attributes || {}).some((value) => value.trim()))
+      .map((variant) => ({
+        ...variant,
+        price: variant.price === undefined || Number.isNaN(variant.price) ? undefined : Number(variant.price),
+        promoPrice: variant.promoPrice === undefined || Number.isNaN(variant.promoPrice) ? undefined : Number(variant.promoPrice),
+      }));
+
+  const updateVariant = (
+    variants: ProductVariantDraft[] | undefined,
+    index: number,
+    next: Partial<ProductVariantDraft>
+  ) => (variants || []).map((variant, idx) => (idx === index ? { ...variant, ...next } : variant));
+
+  const renderVariantsEditor = (
+    variants: ProductVariantDraft[] | undefined,
+    onChange: (variants: ProductVariantDraft[]) => void
+  ) => {
+    const list = variants || [];
+    return (
+      <div className="variants-editor">
+        <div className="variants-editor-header">
+          <label>{t("variants") || "Variants"}</label>
+          <button
+            className="ghost-btn"
+            type="button"
+            onClick={() =>
+              onChange([
+                ...list,
+                { attributes: {}, isAvailable: true, isPublic: true, images: [] },
+              ])
+            }
+          >
+            {t("addVariant") || "Add variant"}
+          </button>
+        </div>
+        {list.length === 0 ? (
+          <div className="muted">{t("noVariants") || "No variants"}</div>
+        ) : (
+          <div className="variants-list">
+            {list.map((variant, index) => (
+              <div className="variant-row" key={variant._id || index}>
+                <label>
+                {t("attributes") || "Attributes"}
+                  <input
+                    value={variantAttributeInputValue(variant)}
+                    onChange={(e) =>
+                      onChange(updateVariant(list, index, {
+                        attributeText: e.target.value,
+                        attributes: parseVariantAttributes(e.target.value),
+                      }))
+                    }
+                    placeholder="size: M, color: Red"
+                  />
+                </label>
+                <label>
+                  {t("price") || "Price"}
+                  <input
+                    type="number"
+                    value={variant.price ?? ""}
+                    onChange={(e) => onChange(updateVariant(list, index, { price: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                    placeholder={t("inherit") || "Inherit"}
+                  />
+                </label>
+                <label>
+                  {t("promoStatus") || "Promo"}
+                  <div className="checkboxContainer">
+                    <input
+                      id={`variantPromo${index}`}
+                      type="checkbox"
+                      checked={Boolean(variant.isPromoted)}
+                      onChange={(e) => onChange(updateVariant(list, index, { isPromoted: e.target.checked }))}
+                    />
+                    <label htmlFor={`variantPromo${index}`}></label>
+                  </div>
+                </label>
+                <label>
+                  {t("newPrice") || "New price"}
+                  <input
+                    type="number"
+                    value={variant.promoPrice ?? ""}
+                    onChange={(e) => onChange(updateVariant(list, index, { promoPrice: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                    placeholder={t("inherit") || "Inherit"}
+                  />
+                </label>
+                <label>
+                  {t("barcode") || "Barcode"}
+                  <input
+                    value={variant.barcode || ""}
+                    onChange={(e) => onChange(updateVariant(list, index, { barcode: e.target.value || undefined }))}
+                  />
+                </label>
+                <label>
+                  {t("sku") || "SKU"}
+                  <input
+                    value={variant.sku || ""}
+                    onChange={(e) => onChange(updateVariant(list, index, { sku: e.target.value || undefined }))}
+                  />
+                </label>
+                <label>
+                  {t("available") || "Available"}
+                  <div className="checkboxContainer">
+                    <input
+                      id={`variantAvailable${index}`}
+                      type="checkbox"
+                      checked={variant.isAvailable !== false}
+                      onChange={(e) => onChange(updateVariant(list, index, { isAvailable: e.target.checked }))}
+                    />
+                    <label htmlFor={`variantAvailable${index}`}></label>
+                  </div>
+                </label>
+                <label>
+                  {t("isPublic") || "Public"}
+                  <div className="checkboxContainer">
+                    <input
+                      id={`variantPublic${index}`}
+                      type="checkbox"
+                      checked={variant.isPublic !== false}
+                      onChange={(e) => onChange(updateVariant(list, index, { isPublic: e.target.checked }))}
+                    />
+                    <label htmlFor={`variantPublic${index}`}></label>
+                  </div>
+                </label>
+                <button
+                  className="ghost-btn danger"
+                  type="button"
+                  onClick={() => confirmDelete(t) && onChange(list.filter((_, idx) => idx !== index))}
+                >
+                  {t("delete")}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderImportActionIcon = (action: string) => {
     if (action === "create") {
       return (
@@ -474,12 +647,39 @@ const ProductsPage = () => {
     }
   };
 
+  const uploadEditedImage = (editedFile: File) => {
+    const target = imageEditor;
+    setImageEditor(null);
+    if (!target) return;
+    if (target.target === "new") {
+      uploadToImageKit(
+        editedFile,
+        (img) => setDraft((d) => ({ ...d, images: [...((d.images as ProductImage[]) || []), img] })),
+        setUploadingNew,
+        (msg) => setFormError(msg)
+      );
+      return;
+    }
+    if (!target.productId) return;
+    setEditUploadingId(target.productId);
+    uploadToImageKit(
+      editedFile,
+      (img) =>
+        setEditDraft((prev) => ({
+          ...prev,
+          images: [...((prev.images as ProductImage[]) || []), img],
+        })),
+      (flag) => (flag ? setEditUploadingId(target.productId || null) : setEditUploadingId(null)),
+      (msg) => setEditError(msg)
+    );
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!canManage) return;
     try {
-      const saved = await saveProduct(draft);
-      setDraft({ images: [] });
+      const saved = await saveProduct({ ...draft, variants: cleanVariants(draft.variants as ProductVariantDraft[] | undefined) });
+      setDraft({ images: [], variants: [] });
       setProducts((prev) => {
         const exists = prev.find((p) => p._id === saved._id);
         if (exists) return prev.map((p) => (p._id === saved._id ? saved : p));
@@ -506,6 +706,7 @@ const ProductsPage = () => {
       isAvailable: p.isAvailable,
       isPublic: p.isPublic !== false,
       images: p.images || [],
+      variants: p.variants || [],
       categories: Array.isArray(p.categories) ? p.categories.map((c) => (typeof c === "string" ? c : c._id)) : [],
     });
     setEditError("");
@@ -513,6 +714,7 @@ const ProductsPage = () => {
   };
 
   const removeNewImage = (fileId: string) => {
+    if (!confirmDelete(t)) return;
     setDraft((prev) => ({
       ...prev,
       images: (prev.images as ProductImage[] | undefined)?.filter((img) => img.fileId !== fileId) || [],
@@ -520,6 +722,7 @@ const ProductsPage = () => {
   };
 
   const removeEditImage = (fileId: string) => {
+    if (!confirmDelete(t)) return;
     setEditDraft((prev) => ({
       ...prev,
       images: (prev.images as ProductImage[] | undefined)?.filter((img) => img.fileId !== fileId) || [],
@@ -530,7 +733,7 @@ const ProductsPage = () => {
     if (!editingId) return;
     if (!canManage) return;
     try {
-      const payload = { ...editDraft, _id: editingId };
+      const payload = { ...editDraft, _id: editingId, variants: cleanVariants(editDraft.variants as ProductVariantDraft[] | undefined) };
       const saved = await saveProduct(payload);
       setProducts((prev) => prev.map((p) => (p._id === saved._id ? saved : p)));
       setEditingId(null);
@@ -592,6 +795,7 @@ const ProductsPage = () => {
           price: promoteProduct.price,
           isAvailable: promoteProduct.isAvailable,
           images: promoteProduct.images || [],
+          variants: promoteProduct.variants || [],
           categories: Array.isArray(promoteProduct.categories)
             ? promoteProduct.categories.map((category) => (typeof category === "string" ? category : category._id))
             : [],
@@ -938,17 +1142,7 @@ const ProductsPage = () => {
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                setEditUploadingId(product._id);
-                                uploadToImageKit(
-                                  file,
-                                  (img) =>
-                                    setEditDraft((prev) => ({
-                                      ...prev,
-                                      images: [...((prev.images as ProductImage[]) || []), img],
-                                    })),
-                                  (flag) => (flag ? setEditUploadingId(product._id) : setEditUploadingId(null)),
-                                  (msg) => setEditError(msg)
-                                );
+                                setImageEditor({ file, target: "edit", productId: product._id });
                               }
                             }}
                             disabled={editUploadingId === product._id || !canUpload}
@@ -1006,6 +1200,9 @@ const ProductsPage = () => {
                         <span>{getCategoryLabels(editDraft.categories as string[] | undefined)}</span>
                         <button className="ghost-btn" type="button" onClick={() => setShowEditCategories(true)}>
                           {t("changeCategories") || "Change categories"}
+                        </button>
+                        <button className="ghost-btn" type="button" onClick={() => setShowEditVariants(true)}>
+                          {t("variants") || "Variants"} ({(editDraft.variants as ProductVariant[] | undefined)?.length || 0})
                         </button>
                       </div>
                     ) : (
@@ -1071,7 +1268,7 @@ const ProductsPage = () => {
                         <button className="ghost-btn" onClick={cancelEdit}>
                           {t("cancel")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deleteProduct(product._id).then(load)}>
+                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteProduct(product._id).then(load)}>
                           {t("delete")}
                         </button>
                         {editError && <div className="error">{editError}</div>}
@@ -1084,7 +1281,7 @@ const ProductsPage = () => {
                         <button className="ghost-btn" onClick={() => openPromote(product)}>
                           {t("promote") || "Promote"}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deleteProduct(product._id).then(load)}>
+                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteProduct(product._id).then(load)}>
                           {t("delete")}
                         </button>
                       </div>
@@ -1151,6 +1348,14 @@ const ProductsPage = () => {
         </div>
       </Card>
 
+      {imageEditor && (
+        <ImageEditorModal
+          file={imageEditor.file}
+          onApply={uploadEditedImage}
+          onCancel={() => setImageEditor(null)}
+        />
+      )}
+
       {showEditCategories && editingId && (
         <div
           className="modal-backdrop"
@@ -1178,6 +1383,30 @@ const ProductsPage = () => {
               (ids) => setEditDraft({ ...editDraft, categories: ids as any }),
               editCategorySearch,
               setEditCategorySearch
+            )}
+          </div>
+        </div>
+      )}
+
+      {showEditVariants && editingId && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowEditVariants(false)}
+        >
+          <div className="modal import-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">{t("variants") || "Variants"}</div>
+              <button
+                className="ghost-btn"
+                type="button"
+                onClick={() => setShowEditVariants(false)}
+              >
+                {t("close")}
+              </button>
+            </div>
+            {renderVariantsEditor(
+              editDraft.variants as ProductVariantDraft[] | undefined,
+              (variants) => setEditDraft((prev) => ({ ...prev, variants }))
             )}
           </div>
         </div>
@@ -1312,6 +1541,10 @@ const ProductsPage = () => {
                   setCategorySearch
                 )}
               </label>
+              {renderVariantsEditor(
+                draft.variants as ProductVariantDraft[] | undefined,
+                (variants) => setDraft((prev) => ({ ...prev, variants }))
+              )}
               <label style={{ margin: 0 }}>
                 {t("images")} ({draft.images?.length})
               </label>
@@ -1351,13 +1584,7 @@ const ProductsPage = () => {
                     }}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file)
-                        uploadToImageKit(
-                          file,
-                          (img) => setDraft((d) => ({ ...d, images: [...((d.images as ProductImage[]) || []), img] })),
-                          setUploadingNew,
-                          (msg) => setFormError(msg)
-                        );
+                      if (file) setImageEditor({ file, target: "new" });
                     }}
                     disabled={uploadingNew || !canUpload}
                   />

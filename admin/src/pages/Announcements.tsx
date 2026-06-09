@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
+import ImageEditorModal from "../components/ImageEditorModal";
 import type { Announcement, AnnouncementImage } from "../types/api";
 import { deleteAnnouncement, fetchAnnouncements, getImageKitAuth, saveAnnouncement } from "../api/client";
 import { useI18n } from "../context/I18nContext";
@@ -8,6 +9,7 @@ import { usePermissions } from "../hooks/usePermissions";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useBranch } from "../context/BranchContext";
+import { confirmDelete } from "../utils/confirm";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
 
@@ -51,6 +53,7 @@ const AnnouncementsPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<AnnouncementDraft>({});
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
+  const [imageEditor, setImageEditor] = useState<{ file: File; target: "new" | "edit"; announcementId?: string } | null>(null);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -136,6 +139,29 @@ const AnnouncementsPage = () => {
     }
   };
 
+  const uploadEditedImage = (editedFile: File) => {
+    const target = imageEditor;
+    setImageEditor(null);
+    if (!target) return;
+    if (target.target === "new") {
+      uploadToImageKit(
+        editedFile,
+        (img) => setDraft((prev) => ({ ...prev, image: img })),
+        setUploadingNew,
+        (msg) => setFormError(msg)
+      );
+      return;
+    }
+    if (!target.announcementId) return;
+    setEditUploadingId(target.announcementId);
+    uploadToImageKit(
+      editedFile,
+      (img) => setEditDraft((prev) => ({ ...prev, image: img })),
+      (flag) => (flag ? setEditUploadingId(target.announcementId || null) : setEditUploadingId(null)),
+      (msg) => setEditError(msg)
+    );
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!canManage) return;
@@ -195,8 +221,14 @@ const AnnouncementsPage = () => {
     setEditError("");
   };
 
-  const removeNewImage = () => setDraft((prev) => ({ ...prev, image: undefined }));
-  const removeEditImage = () => setEditDraft((prev) => ({ ...prev, image: undefined }));
+  const removeNewImage = () => {
+    if (!confirmDelete(t)) return;
+    setDraft((prev) => ({ ...prev, image: undefined }));
+  };
+  const removeEditImage = () => {
+    if (!confirmDelete(t)) return;
+    setEditDraft((prev) => ({ ...prev, image: undefined }));
+  };
 
   return (
     <>
@@ -320,13 +352,7 @@ const AnnouncementsPage = () => {
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                setEditUploadingId(announcement._id);
-                                uploadToImageKit(
-                                  file,
-                                  (img) => setEditDraft((prev) => ({ ...prev, image: img })),
-                                  (flag) => (flag ? setEditUploadingId(announcement._id) : setEditUploadingId(null)),
-                                  (msg) => setEditError(msg)
-                                );
+                                setImageEditor({ file, target: "edit", announcementId: announcement._id });
                               }
                             }}
                             disabled={editUploadingId === announcement._id || !canUpload}
@@ -441,7 +467,7 @@ const AnnouncementsPage = () => {
                         <button className="ghost-btn" onClick={cancelEdit}>
                           {t("cancel")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deleteAnnouncement(announcement._id).then(() => load(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteAnnouncement(announcement._id).then(() => load(getFilterParams()))}>
                           {t("delete")}
                         </button>
                         {editError && <div className="error">{editError}</div>}
@@ -451,7 +477,7 @@ const AnnouncementsPage = () => {
                         <button className="ghost-btn" onClick={() => startEdit(announcement)}>
                           {t("edit")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => deleteAnnouncement(announcement._id).then(() => load(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteAnnouncement(announcement._id).then(() => load(getFilterParams()))}>
                           {t("delete")}
                         </button>
                       </div>
@@ -465,6 +491,14 @@ const AnnouncementsPage = () => {
           </tbody>
         </table>
       </Card>
+
+      {imageEditor && (
+        <ImageEditorModal
+          file={imageEditor.file}
+          onApply={uploadEditedImage}
+          onCancel={() => setImageEditor(null)}
+        />
+      )}
 
       {showNewModal && canManage && (
         <div className="modal-backdrop" onClick={closeNewModal}>
@@ -568,13 +602,7 @@ const AnnouncementsPage = () => {
                     className="uploadForm"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file)
-                        uploadToImageKit(
-                          file,
-                          (img) => setDraft({ ...draft, image: img }),
-                          setUploadingNew,
-                          (msg) => setFormError(msg)
-                        );
+                      if (file) setImageEditor({ file, target: "new" });
                     }}
                     disabled={uploadingNew || !canUpload}
                   />

@@ -7,6 +7,7 @@ import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useAuth } from "../context/AuthContext";
 import { useBranch } from "../context/BranchContext";
+import { confirmDelete } from "../utils/confirm";
 
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 const DEFAULT_CENTER = { lat: 33.5138, lng: 36.2765 };
@@ -344,6 +345,7 @@ const BranchesPage = () => {
   };
 
   const removeBranch = async (id: string) => {
+    if (!confirmDelete(t)) return;
     await deleteBranch(id);
     await refreshBranches();
     load(getFilterParams());

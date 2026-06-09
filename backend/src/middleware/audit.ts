@@ -13,6 +13,18 @@ const getTypeFromPath = (path: string) => {
 
 const normalizeAction = (method: string, path: string) => `${method.toUpperCase()} ${path.replace(/^\/api/, "") || "/"}`;
 
+const getActorMetadata = (req: AuthRequest) => {
+  const body = req.body && typeof req.body === "object" ? req.body as Record<string, unknown> : {};
+  const email = typeof body.email === "string" ? body.email.toLowerCase().trim() : undefined;
+  return {
+    actorEmail: req.user?.email || email,
+    actorName: req.user?.name,
+    actorRole: req.user?.role,
+    actorUserId: req.user?._id?.toString(),
+    requestIp: req.ip,
+  };
+};
+
 export const auditRequests = (req: AuthRequest, res: Response, next: NextFunction) => {
   if (ignoredMethods.has(req.method) || ignoredPathPrefixes.some((prefix) => req.path.startsWith(prefix))) {
     return next();
@@ -32,6 +44,7 @@ export const auditRequests = (req: AuthRequest, res: Response, next: NextFunctio
         statusCode,
         branchId: req.branchId,
         durationMs: Date.now() - startedAt,
+        ...getActorMetadata(req),
       },
     }).catch((error) => {
       console.error("Audit request log failed:", error);

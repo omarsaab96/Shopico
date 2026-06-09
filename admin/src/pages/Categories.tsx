@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
+import ImageEditorModal from "../components/ImageEditorModal";
 import type { Category } from "../types/api";
 import api, { fetchCategories, getImageKitAuth } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
+import { confirmDelete } from "../utils/confirm";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
 
@@ -21,6 +23,7 @@ const CategoriesPage = () => {
   const [editError, setEditError] = useState("");
   const [newUploading, setNewUploading] = useState(false);
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
+  const [imageEditor, setImageEditor] = useState<{ file: File; target: "new" | "edit"; categoryId?: string } | null>(null);
   const { t } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
@@ -81,6 +84,29 @@ const CategoriesPage = () => {
     } finally {
       setUploading(false);
     }
+  };
+
+  const uploadEditedImage = (editedFile: File) => {
+    const target = imageEditor;
+    setImageEditor(null);
+    if (!target) return;
+    if (target.target === "new") {
+      uploadToImageKit(
+        editedFile,
+        (url) => setDraft((prev) => ({ ...prev, imageUrl: url })),
+        setNewUploading,
+        (msg) => setFormError(msg)
+      );
+      return;
+    }
+    if (!target.categoryId) return;
+    setEditUploadingId(target.categoryId);
+    uploadToImageKit(
+      editedFile,
+      (url) => setEditDraft((prev) => ({ ...prev, imageUrl: url })),
+      (flag) => (flag ? setEditUploadingId(target.categoryId || null) : setEditUploadingId(null)),
+      (msg) => setEditError(msg)
+    );
   };
 
   const submit = async (e: FormEvent) => {
@@ -144,10 +170,12 @@ const CategoriesPage = () => {
   };
 
   const removeNewImage = () => {
+    if (!confirmDelete(t)) return;
     setDraft((prev) => ({ ...prev, imageUrl: null }));
   };
 
   const removeEditImage = () => {
+    if (!confirmDelete(t)) return;
     setEditDraft((prev) => ({ ...prev, imageUrl: null }));
   };
 
@@ -240,13 +268,7 @@ const CategoriesPage = () => {
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                setEditUploadingId(cat._id);
-                                uploadToImageKit(
-                                  file,
-                                  (url) => setEditDraft((prev) => ({ ...prev, imageUrl: url })),
-                                  (flag) => (flag ? setEditUploadingId(cat._id) : setEditUploadingId(null)),
-                                  (msg) => setEditError(msg)
-                                );
+                                setImageEditor({ file, target: "edit", categoryId: cat._id });
                               }
                             }}
                             disabled={editUploadingId === cat._id || !canUpload}
@@ -291,7 +313,7 @@ const CategoriesPage = () => {
                         </button>
                         <button
                           className="ghost-btn danger"
-                          onClick={() => api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
+                          onClick={() => confirmDelete(t) && api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
                         >
                           {t("delete")}
                         </button>
@@ -304,7 +326,7 @@ const CategoriesPage = () => {
                         </button>
                         <button
                           className="ghost-btn danger"
-                          onClick={() => api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
+                          onClick={() => confirmDelete(t) && api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
                         >
                           {t("delete")}
                         </button>
@@ -319,6 +341,14 @@ const CategoriesPage = () => {
           </tbody>
         </table>
       </Card>
+
+      {imageEditor && (
+        <ImageEditorModal
+          file={imageEditor.file}
+          onApply={uploadEditedImage}
+          onCancel={() => setImageEditor(null)}
+        />
+      )}
 
       {showNewModal && canManage && (
         <div className="modal-backdrop" onClick={closeNewModal}>
@@ -375,13 +405,7 @@ const CategoriesPage = () => {
                     className="uploadForm"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file)
-                        uploadToImageKit(
-                          file,
-                          (url) => setDraft({ ...draft, imageUrl: url }),
-                          setNewUploading,
-                          (msg) => setFormError(msg)
-                        );
+                      if (file) setImageEditor({ file, target: "new" });
                     }}
                     disabled={newUploading || !canUpload}
                   />

@@ -38,6 +38,10 @@ export const listAuditLogs = catchAsync(async (req, res) => {
     filter.user = users.length ? { $in: users.map((user) => user._id) } : null;
   }
 
-  const logs = await AuditLog.find(filter).sort({ createdAt: -1 }).limit(500).populate("user").populate("metadata.targetUserId");
+  const logs = await AuditLog.find(filter)
+    .sort({ createdAt: -1 })
+    .limit(500)
+    .populate("user", "name email role")
+    .populate("metadata.targetUserId", "name email role");
   sendSuccess(res, logs);
 });

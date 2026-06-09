@@ -5,6 +5,8 @@ import { useAuth } from "./auth";
 
 export interface CartItem {
   productId: string;
+  variantId?: string;
+  variantAttributes?: Record<string, string>;
   name: string;
   price: number;
   image?: string;
@@ -16,8 +18,8 @@ interface CartContextValue {
   items: CartItem[];
   addItem: (item: CartItem) => void;
   replaceItems: (items: CartItem[]) => void;
-  setQuantity: (productId: string, quantity: number) => void;
-  removeItem: (productId: string) => void;
+  setQuantity: (productId: string, quantity: number, variantId?: string) => void;
+  removeItem: (productId: string, variantId?: string) => void;
   reload: () => Promise<void>;
   clear: () => void;
 }
@@ -29,6 +31,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
 
   const storageKey = user?._id ? `cart:${user._id}` : "cart:guest";
+  const getCartKey = (item: Pick<CartItem, "productId" | "variantId">) => `${item.productId}:${item.variantId || ""}`;
 
   const serializeCartItem = (item: any): CartItem | null => {
     const product = item.product || {};
@@ -36,6 +39,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     if (!productId) return null;
     return {
       productId: productId.toString(),
+      variantId: item.variantId?.toString(),
+      variantAttributes: item.variantAttributes,
       name: item.name || product.name || "",
       price: Number(item.price ?? item.priceSnapshot ?? product.promoPrice ?? product.price ?? 0),
       image: item.image || product.images?.[0]?.url,
@@ -92,30 +97,35 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         .put("/cart", {
           items: next
             .filter((item) => !item.unavailable)
-            .map((item) => ({ productId: item.productId, quantity: item.quantity })),
+            .map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })),
         })
         .catch(() => { });
     }
   };
 
   const addItem = (item: CartItem) => {
-    const existing = items.find((i) => i.productId === item.productId);
+    const itemKey = getCartKey(item);
+    const existing = items.find((i) => getCartKey(i) === itemKey);
     if (existing) {
-      const next = items.map((i) => (i.productId === item.productId ? { ...item, quantity: i.unavailable ? item.quantity : i.quantity + item.quantity } : i));
+      const next = items.map((i) => (getCartKey(i) === itemKey ? { ...item, quantity: i.unavailable ? item.quantity : i.quantity + item.quantity } : i));
       return persist(next);
     }
     persist([...items, item]);
   };
 
-  const setQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) return removeItem(productId);
-    const exists = items.some((i) => i.productId === productId);
+  const setQuantity = (productId: string, quantity: number, variantId?: string) => {
+    if (quantity <= 0) return removeItem(productId, variantId);
+    const key = `${productId}:${variantId || ""}`;
+    const exists = items.some((i) => getCartKey(i) === key);
     if (!exists) return;
-    const next = items.map((i) => (i.productId === productId ? { ...i, quantity } : i));
+    const next = items.map((i) => (getCartKey(i) === key ? { ...i, quantity } : i));
     persist(next);
   };
 
-  const removeItem = (productId: string) => persist(items.filter((i) => i.productId !== productId));
+  const removeItem = (productId: string, variantId?: string) => {
+    const key = `${productId}:${variantId || ""}`;
+    persist(items.filter((i) => getCartKey(i) !== key));
+  };
   const replaceItems = (next: CartItem[]) => persist(next);
   const clear = () => persist([]);
 

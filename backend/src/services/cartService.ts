@@ -1,9 +1,10 @@
 import { Types } from "mongoose";
 import { Cart } from "../models/Cart";
-import { IProduct, Product } from "../models/Product";
+import { findProductVariant, getEffectiveVariantPrice, getVariantAttributes, isVariantAvailable, Product } from "../models/Product";
 
 interface UpdateCartItem {
   productId: string;
+  variantId?: string;
   quantity: number;
 }
 
@@ -11,23 +12,20 @@ interface RemovedCartItem extends UpdateCartItem {
   name?: string;
 }
 
-const getDisplayPrice = (product: IProduct) =>
-  product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price;
-
 export const getUserCart = async (userId: Types.ObjectId, branchId?: string) => {
   const cart = await Cart.findOne({ user: userId });
   if (!cart) return (await Cart.create({ user: userId, items: [] })).populate("items.product");
 
   if (branchId && cart.items.length > 0) {
     const productIds = cart.items.map((item) => item.product);
-    const products = await Product.find({
-      _id: { $in: productIds },
-      branchId,
-      isAvailable: true,
-      isPublic: { $ne: false },
-    }).select("_id");
-    const allowedIds = new Set(products.map((product) => product._id.toString()));
-    const visibleItems = cart.items.filter((item) => allowedIds.has(item.product.toString()));
+    const productMap = new Map(await Product.find({ _id: { $in: productIds }, branchId }).then((products) => products.map((product) => [product._id.toString(), product])));
+    const visibleItems = cart.items.filter((item) => {
+      const product = productMap.get(item.product.toString());
+      if (!product || product.isPublic === false) return false;
+      const variant = findProductVariant(product, item.variantId?.toString());
+      if (item.variantId && !variant) return false;
+      return isVariantAvailable(product, variant);
+    });
     if (visibleItems.length !== cart.items.length) {
       cart.items = visibleItems;
       await cart.save();
@@ -39,7 +37,7 @@ export const getUserCart = async (userId: Types.ObjectId, branchId?: string) => 
 
 export const updateCart = async (userId: Types.ObjectId, branchId: string, items: UpdateCartItem[]) => {
   const productIds = items.map((i) => i.productId);
-  const products = await Product.find({ _id: { $in: productIds }, branchId, isAvailable: true, isPublic: { $ne: false } });
+  const products = await Product.find({ _id: { $in: productIds }, branchId, isPublic: { $ne: false } });
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
 
   const cartItems = items.map((item) => {
@@ -47,9 +45,14 @@ export const updateCart = async (userId: Types.ObjectId, branchId: string, items
     if (!product) {
       throw { status: 404, message: "Product not found" };
     }
-    const price = getDisplayPrice(product);
+    const variant = findProductVariant(product, item.variantId);
+    if (item.variantId && !variant) throw { status: 404, message: "Product variant not found" };
+    if (!isVariantAvailable(product, variant)) throw { status: 404, message: "Product not found" };
+    const price = getEffectiveVariantPrice(product, variant);
     return {
       product: product._id,
+      variantId: variant?._id,
+      variantAttributes: getVariantAttributes(variant),
       quantity: item.quantity,
       priceSnapshot: price,
     };
@@ -67,14 +70,17 @@ export const syncCart = async (userId: Types.ObjectId, branchId: string, items: 
 
   const cartItems = items.flatMap((item) => {
     const product = productMap.get(item.productId);
-    if (!product || !product.isAvailable || product.isPublic === false) {
+    const variant = product ? findProductVariant(product, item.variantId) : undefined;
+    if (!product || product.isPublic === false || (item.variantId && !variant) || !isVariantAvailable(product, variant)) {
       removedItems.push({ ...item, name: product?.name });
       return [];
     }
     return [{
       product: product._id,
       quantity: item.quantity,
-      priceSnapshot: getDisplayPrice(product),
+      variantId: variant?._id,
+      variantAttributes: getVariantAttributes(variant),
+      priceSnapshot: getEffectiveVariantPrice(product, variant),
     }];
   });
 
@@ -84,9 +90,11 @@ export const syncCart = async (userId: Types.ObjectId, branchId: string, items: 
     const image = product.images?.[0]?.url;
     return {
       productId: product._id.toString(),
+      variantId: item.variantId?.toString(),
+      variantAttributes: item.variantAttributes,
       name: product.name,
       price: item.priceSnapshot,
-      image,
+      image: findProductVariant(product, item.variantId?.toString())?.images?.[0]?.url || image,
       quantity: item.quantity,
     };
   });

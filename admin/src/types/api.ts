@@ -12,6 +12,7 @@ export interface ApiUser {
   phone?: string;
   membershipLevel?: string;
   points?: number;
+  setupToken?: string;
 }
 
 export interface Category {
@@ -26,6 +27,19 @@ export interface ProductImage {
   fileId: string;
 }
 
+export interface ProductVariant {
+  _id?: string;
+  sku?: string;
+  barcode?: string;
+  attributes: Record<string, string>;
+  price?: number;
+  promoPrice?: number;
+  isPromoted?: boolean;
+  isAvailable?: boolean;
+  isPublic?: boolean;
+  images?: ProductImage[];
+}
+
 export interface Product {
   _id: string;
   name: string;
@@ -37,6 +51,7 @@ export interface Product {
   isAvailable: boolean;
   isPublic?: boolean;
   images: ProductImage[];
+  variants?: ProductVariant[];
   categories: Category[] | string[];
 }
 

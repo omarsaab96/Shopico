@@ -1,6 +1,7 @@
 import { catchAsync } from "../utils/catchAsync";
 import bcrypt from "bcryptjs";
 import { User } from "../models/User";
+import { createPasswordSetupToken, getPasswordSetupExpiry } from "../services/authService";
 import { Wallet } from "../models/Wallet";
 import { PointsTransaction } from "../models/PointsTransaction";
 import { WalletTransaction } from "../models/WalletTransaction";
@@ -60,13 +61,13 @@ export const listUsers = catchAsync(async (req, res) => {
       { email: { $regex: q, $options: "i" } },
     ];
   }
-  const users = await User.find(filter).select("-password").sort({ createdAt: -1 });
+  const users = await User.find(filter).select("-password -passwordSetupToken -passwordSetupExpires").sort({ createdAt: -1 });
   sendSuccess(res, users);
 });
 
 export const getUserDetails = catchAsync(async (req, res) => {
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
-  const user = await User.findOne(getScopedUserFilter(req, { _id: req.params.id, branchIds: req.branchId })).select("-password");
+  const user = await User.findOne(getScopedUserFilter(req, { _id: req.params.id, branchIds: req.branchId })).select("-password -passwordSetupToken -passwordSetupExpires");
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
   let wallet = await Wallet.findOne({ user: user._id }).populate("balances.currency");
   if (wallet) wallet = await ensureWalletBalances(wallet, req.branchId).then((w) => w.populate("balances.currency"));
@@ -92,6 +93,7 @@ export const createUser = catchAsync(async (req, res) => {
   }
 
   const hashed = payload.password ? await bcrypt.hash(payload.password, 10) : null;
+  const passwordSetupToken = hashed ? null : createPasswordSetupToken();
   const branchIds = payload.branchIds && payload.branchIds.length > 0
     ? payload.branchIds
     : req.branchId ? [req.branchId] : [];
@@ -105,14 +107,17 @@ export const createUser = catchAsync(async (req, res) => {
     email: payload.email.toLowerCase(),
     phone: payload.phone,
     password: hashed,
+    passwordSetupToken,
+    passwordSetupExpires: passwordSetupToken ? getPasswordSetupExpiry() : null,
     role: payload.role,
     permissions: payload.permissions || [],
     branchIds,
   });
   await Wallet.create({ user: user._id, balance: 0 });
   await AuditLog.create({ user: req.user?._id, type: "users", action: "ADMIN_CREATE_USER", result: "SUCCESS", metadata: { userId: user._id } });
-  const safeUser = await User.findById(user._id).select("-password");
-  sendSuccess(res, safeUser, "User created", 201);
+  const safeUser = await User.findById(user._id).select("-password -passwordSetupToken -passwordSetupExpires");
+  const data = safeUser?.toObject ? safeUser.toObject() : safeUser;
+  sendSuccess(res, { ...data, setupToken: passwordSetupToken || undefined }, "User created", 201);
 });
 
 export const updateUserPermissions = catchAsync(async (req, res) => {
@@ -122,7 +127,7 @@ export const updateUserPermissions = catchAsync(async (req, res) => {
     getScopedUserFilter(req, { _id: req.params.id, branchIds: req.branchId }),
     { permissions: payload.permissions },
     { new: true }
-  ).select("-password");
+  ).select("-password -passwordSetupToken -passwordSetupExpires");
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
   sendSuccess(res, user);
 });
@@ -139,7 +144,7 @@ export const updateUserBranches = catchAsync(async (req, res) => {
     getScopedUserFilter(req, { _id: req.params.id }),
     { branchIds: payload.branchIds },
     { new: true }
-  ).select("-password");
+  ).select("-password -passwordSetupToken -passwordSetupExpires");
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
   sendSuccess(res, user);
 });
@@ -161,7 +166,7 @@ export const updateUser = catchAsync(async (req, res) => {
     getScopedUserFilter(req, { _id: req.params.id, branchIds: req.branchId }),
     payload,
     { new: true }
-  ).select("-password");
+  ).select("-password -passwordSetupToken -passwordSetupExpires");
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
   sendSuccess(res, user);
 });

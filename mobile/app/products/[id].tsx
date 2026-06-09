@@ -13,6 +13,7 @@ import { useCurrency } from "../../lib/currency";
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [product, setProduct] = useState<any>();
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
   const { addItem, items, setQuantity } = useCart();
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
@@ -22,10 +23,25 @@ export default function ProductDetail() {
   const fallbackLogo = isDark ? require("../../assets/shopico_logo.png") : require("../../assets/shopico_logo-black.png");
 
   useEffect(() => {
-    api.get(`/products/${id}`).then((res) => setProduct(res.data.data));
+    api.get(`/products/${id}`).then((res) => {
+      const nextProduct = res.data.data;
+      setProduct(nextProduct);
+      const firstVariant = (nextProduct.variants || []).find((variant: any) => variant.isAvailable !== false && variant.isPublic !== false);
+      setSelectedVariantId(firstVariant?._id || "");
+    });
   }, [id]);
 
-  const existing = items.find((i) => i.productId === product?._id);
+  const variants = (product?.variants || []).filter((variant: any) => variant.isPublic !== false);
+  const selectedVariant = variants.find((variant: any) => variant._id === selectedVariantId);
+  const displayPrice = selectedVariant
+    ? (selectedVariant.isPromoted ?? product?.isPromoted) && (selectedVariant.promoPrice ?? product?.promoPrice) !== undefined
+      ? selectedVariant.promoPrice ?? product?.promoPrice
+      : selectedVariant.price ?? product?.price
+    : product?.isPromoted && product?.promoPrice !== undefined ? product.promoPrice : product?.price;
+  const originalPrice = selectedVariant?.price ?? product?.price;
+  const displayImages = selectedVariant?.images?.length ? selectedVariant.images : product?.images;
+  const variantLabel = (variant: any) => Object.entries(variant.attributes || {}).map(([key, value]) => `${key}: ${value}`).join(" / ");
+  const existing = items.find((i) => i.productId === product?._id && (i.variantId || "") === (selectedVariantId || ""));
 
   if (!product) return null;
 
@@ -33,36 +49,61 @@ export default function ProductDetail() {
     <Screen showBack backLabel={t("back") ?? "Back"}>
       <View style={styles.prodImgBox}>
         <Image
-          source={product.images?.[0]?.url ? {
-            uri: product.images?.[0]?.url
+          source={displayImages?.[0]?.url ? {
+            uri: displayImages?.[0]?.url
           } :
             fallbackLogo
           }
-          style={[styles.img, !product.images?.[0]?.url && styles.defaultImage]}
+          style={[styles.img, !displayImages?.[0]?.url && styles.defaultImage]}
         />
       </View>
       <Text style={styles.name}>{product.name}</Text>
       <View style={styles.priceRow}>
-        {product.isPromoted && product.promoPrice !== undefined ? (
-          <Text style={styles.oldPrice}>{formatMoney(product.price || 0, selectedCurrency)}</Text>
+        {displayPrice !== originalPrice ? (
+          <Text style={styles.oldPrice}>{formatMoney(originalPrice || 0, selectedCurrency)}</Text>
         ) : null}
         <View style={{ flexDirection: 'row', justifyContent:'flex-start', alignItems: 'center', gap: 5, flex:1 }}>
           <Text style={[styles.price]}>
-            {formatMoney(product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price, selectedCurrency)}
+            {formatMoney(displayPrice || 0, selectedCurrency)}
           </Text>
         </View>
-        {product.isPromoted && product.promoPrice !== undefined && product.price > 0 ? (
+        {displayPrice !== originalPrice && originalPrice > 0 ? (
           <Text style={styles.promoBadge}>
-            {Math.round((1 - product.promoPrice / product.price) * 100)}% {t("off") ?? "off"}
+            {Math.round((1 - displayPrice / originalPrice) * 100)}% {t("off") ?? "off"}
           </Text>
         ) : null}
       </View>
       <Text style={styles.desc}>{product.description}</Text>
-      {existing ? (
+      {variants.length > 0 && (
+        <View style={styles.variantSection}>
+          <Text style={styles.variantTitle}>{t("variants") ?? "Variants"}</Text>
+          <View style={styles.variantGrid}>
+            {variants.map((variant: any) => {
+              const disabled = variant.isAvailable === false;
+              const selected = selectedVariantId === variant._id;
+              return (
+                <TouchableOpacity
+                  key={variant._id}
+                  style={[styles.variantOption, selected && styles.variantOptionActive, disabled && styles.variantOptionDisabled]}
+                  onPress={() => !disabled && setSelectedVariantId(variant._id)}
+                  disabled={disabled}
+                >
+                  <Text style={[styles.variantOptionText, selected && styles.variantOptionTextActive]}>
+                    {variantLabel(variant) || variant.sku || variant.barcode || "-"}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
+      {variants.length > 0 && !selectedVariant ? (
+        <Text style={styles.desc}>{t("unavailable") ?? "Unavailable"}</Text>
+      ) : existing ? (
         <View style={styles.qtyRow}>
           <TouchableOpacity
             style={styles.qtyButton}
-            onPress={() => setQuantity(existing.productId, existing.quantity - 1)}
+            onPress={() => setQuantity(existing.productId, existing.quantity - 1, existing.variantId)}
           >
             <Text style={styles.qtySymbol}>-</Text>
           </TouchableOpacity>
@@ -72,9 +113,11 @@ export default function ProductDetail() {
             onPress={() => {
               addItem({
                 productId: product._id,
+                variantId: selectedVariant?._id,
+                variantAttributes: selectedVariant?.attributes,
                 name: product.name,
-                price: product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price,
-                image: product.images?.[0]?.url,
+                price: displayPrice,
+                image: displayImages?.[0]?.url,
                 quantity: 1,
               });
             }}
@@ -88,9 +131,11 @@ export default function ProductDetail() {
           onPress={() => {
             addItem({
               productId: product._id,
+              variantId: selectedVariant?._id,
+              variantAttributes: selectedVariant?.attributes,
               name: product.name,
-              price: product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price,
-              image: product.images?.[0]?.url,
+              price: displayPrice,
+              image: displayImages?.[0]?.url,
               quantity: 1,
             });
           }}
@@ -137,6 +182,43 @@ const createStyles = (palette: any, isRTL: boolean) =>
     },
     price: { color: palette.accent, fontSize: 22, lineHeight: 24, fontWeight: '900' },
     desc: { color: palette.muted, marginBottom: 12 },
+    variantSection: {
+      marginBottom: 14,
+      gap: 8,
+    },
+    variantTitle: {
+      color: palette.text,
+      fontSize: 14,
+      fontWeight: "800",
+    },
+    variantGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    variantOption: {
+      borderWidth: 1,
+      borderColor: palette.border,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      backgroundColor: palette.surface,
+    },
+    variantOptionActive: {
+      borderColor: palette.accent,
+      backgroundColor: palette.accent,
+    },
+    variantOptionDisabled: {
+      opacity: 0.45,
+    },
+    variantOptionText: {
+      color: palette.text,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+    variantOptionTextActive: {
+      color: "#0f172a",
+    },
     qtyRow: {
       flexDirection: "row",
       alignItems: "center",

@@ -1,9 +1,13 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { User } from "../models/User";
 import { Wallet } from "../models/Wallet";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "./tokenService";
 import { AuditLog } from "../models/AuditLog";
 import { getDefaultBranchId } from "../utils/branch";
+
+export const createPasswordSetupToken = () => crypto.randomBytes(32).toString("hex");
+export const getPasswordSetupExpiry = () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
 export const registerUser = async (name: string, email: string, password: string, phone?: string) => {
   const normalizedEmail = email.toLowerCase();
@@ -46,13 +50,20 @@ export const loginUser = async (email: string, password: string) => {
   return { user, accessToken, refreshToken };
 };
 
-export const getPasswordStatus = async (email: string) => {
+export const getPasswordStatus = async (email: string, setupToken?: string) => {
   const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) return { exists: false, hasPassword: false };
-  return { exists: true, hasPassword: Boolean(user.password) };
+  const canSetPassword = Boolean(
+    !user.password &&
+    setupToken &&
+    user.passwordSetupToken === setupToken &&
+    user.passwordSetupExpires &&
+    user.passwordSetupExpires.getTime() > Date.now()
+  );
+  return { exists: true, hasPassword: Boolean(user.password), canSetPassword };
 };
 
-export const setPasswordForUser = async (email: string, password: string) => {
+export const setPasswordForUser = async (email: string, setupToken: string, password: string) => {
   const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) {
     throw { status: 404, message: "User not found" };
@@ -60,8 +71,18 @@ export const setPasswordForUser = async (email: string, password: string) => {
   if (user.password) {
     throw { status: 400, message: "Password already set" };
   }
+  if (
+    !user.passwordSetupToken ||
+    user.passwordSetupToken !== setupToken ||
+    !user.passwordSetupExpires ||
+    user.passwordSetupExpires.getTime() <= Date.now()
+  ) {
+    throw { status: 403, message: "Invalid or expired setup token" };
+  }
   const hashed = await bcrypt.hash(password, 10);
   user.password = hashed;
+  user.passwordSetupToken = null;
+  user.passwordSetupExpires = null;
   await user.save();
   await AuditLog.create({ user: user._id, type: "auth", action: "USER_SET_PASSWORD", result: "SUCCESS" });
   const accessToken = signAccessToken(user);

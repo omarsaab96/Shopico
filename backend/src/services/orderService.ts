@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { Cart } from "../models/Cart";
 import { Order } from "../models/Order";
-import { Product } from "../models/Product";
+import { findProductVariant, getEffectiveVariantPrice, getVariantAttributes, isVariantAvailable, Product } from "../models/Product";
 import { RewardToken } from "../models/RewardToken";
 import { User } from "../models/User";
 import { Wallet } from "../models/Wallet";
@@ -22,6 +22,7 @@ import { Currency } from "../models/Currency";
 
 interface CheckoutItemInput {
   productId: string;
+  variantId?: string;
   quantity: number;
 }
 
@@ -177,27 +178,37 @@ const syncDriverRatingAggregate = async (driverId: Types.ObjectId | string) => {
 const buildOrderItems = async (itemsInput?: CheckoutItemInput[], userId?: Types.ObjectId, branchId?: string) => {
   if (itemsInput && itemsInput.length > 0) {
     const ids = itemsInput.map((i) => i.productId);
-    const products = await Product.find({ _id: { $in: ids }, ...(branchId ? { branchId } : {}), isAvailable: true, isPublic: { $ne: false } });
+    const products = await Product.find({ _id: { $in: ids }, ...(branchId ? { branchId } : {}), isPublic: { $ne: false } });
     const productMap = new Map(products.map((p) => [p._id.toString(), p]));
     return itemsInput.map((item) => {
       const product = productMap.get(item.productId);
       if (!product) throw { status: 404, message: "Product not found" };
-      const price = product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price;
-      return { product: product._id, quantity: item.quantity, price };
+      const variant = findProductVariant(product, item.variantId);
+      if (item.variantId && !variant) throw { status: 404, message: "Product variant not found" };
+      if (!isVariantAvailable(product, variant)) throw { status: 404, message: "Product not found" };
+      const price = getEffectiveVariantPrice(product, variant);
+      return { product: product._id, variantId: variant?._id, variantAttributes: getVariantAttributes(variant), quantity: item.quantity, price };
     });
   }
   if (!userId) throw { status: 400, message: "No items provided" };
   const cart = await Cart.findOne({ user: userId });
   if (!cart || cart.items.length === 0) throw { status: 400, message: "Cart is empty" };
   const cartIds = cart.items.map((item) => item.product);
-  const products = await Product.find({ _id: { $in: cartIds }, ...(branchId ? { branchId } : {}), isAvailable: true, isPublic: { $ne: false } });
+  const products = await Product.find({ _id: { $in: cartIds }, ...(branchId ? { branchId } : {}), isPublic: { $ne: false } });
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
-  const filtered = cart.items.filter((item) => productMap.has(item.product.toString()));
+  const filtered = cart.items.filter((item) => {
+    const product = productMap.get(item.product.toString());
+    if (!product) return false;
+    const variant = findProductVariant(product, item.variantId?.toString());
+    if (item.variantId && !variant) return false;
+    return isVariantAvailable(product, variant);
+  });
   if (filtered.length === 0) throw { status: 400, message: "Cart items not available for this branch" };
   return filtered.map((item) => {
     const product = productMap.get(item.product.toString())!;
-    const price = product.isPromoted && product.promoPrice !== undefined ? product.promoPrice : product.price;
-    return { product: product._id, quantity: item.quantity, price };
+    const variant = findProductVariant(product, item.variantId?.toString());
+    const price = getEffectiveVariantPrice(product, variant);
+    return { product: product._id, variantId: variant?._id, variantAttributes: getVariantAttributes(variant), quantity: item.quantity, price };
   });
 };
 
@@ -268,7 +279,7 @@ const applyCoupon = async (
   branchId: string,
   subtotal: number,
   deliveryFee: number,
-  items: { product: Types.ObjectId; quantity: number; price: number }[],
+  items: { product: Types.ObjectId; variantId?: Types.ObjectId | string; variantAttributes?: Record<string, string>; quantity: number; price: number }[],
   orderCurrencyId: string,
   code?: string
 ) => {
@@ -341,7 +352,7 @@ const applyCoupons = async (
   branchId: string,
   subtotal: number,
   deliveryFee: number,
-  items: { product: Types.ObjectId; quantity: number; price: number }[],
+  items: { product: Types.ObjectId; variantId?: Types.ObjectId | string; variantAttributes?: Record<string, string>; quantity: number; price: number }[],
   codes: string[],
   orderCurrencyId: string
 ) => {

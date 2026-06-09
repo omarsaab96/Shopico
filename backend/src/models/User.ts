@@ -6,6 +6,8 @@ export interface IUser extends Document {
   email: string;
   phone?: string;
   password?: string | null;
+  passwordSetupToken?: string | null;
+  passwordSetupExpires?: Date | null;
   role: UserRole;
   driverStatus?: DriverStatus;
   ratingAverage?: number;
@@ -25,6 +27,8 @@ const UserSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true, lowercase: true, index: true },
     phone: { type: String },
     password: { type: String, required: false, default: null },
+    passwordSetupToken: { type: String, required: false, default: null, index: true },
+    passwordSetupExpires: { type: Date, required: false, default: null },
     role: { type: String, enum: ["customer", "admin", "manager", "staff", "driver"], default: "customer" },
     driverStatus: { type: String, enum: ["AVAILABLE", "BUSY"], default: "AVAILABLE" },
     ratingAverage: { type: Number, default: 0, min: 0 },

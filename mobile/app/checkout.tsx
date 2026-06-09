@@ -112,12 +112,17 @@ export default function Checkout() {
   const effectiveDeliveryFee = couponFreeDelivery ? 0 : deliveryFee;
   const total = Math.max(0, subtotal + effectiveDeliveryFee - couponDiscount);
   const toOld = (value: number) => value * 100;
+  const toCheckoutItem = (item: typeof items[number]) => ({
+    productId: item.productId,
+    variantId: item.variantId,
+    quantity: item.quantity,
+  });
 
   const fetchAvailableCoupons = useCallback(() => {
     if (!user) return;
     api
       .post("/coupons/available", {
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: items.map(toCheckoutItem),
         subtotal,
         deliveryFee,
         currencyId: selectedCurrency?._id,
@@ -164,7 +169,7 @@ export default function Checkout() {
         subtotal,
         deliveryFee,
         currencyId: selectedCurrency?._id,
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: items.map(toCheckoutItem),
       });
       const freeDelivery = Boolean(res.data.data?.freeDelivery);
       const discount = freeDelivery ? 0 : res.data.data?.discount || 0;
@@ -207,7 +212,7 @@ export default function Checkout() {
       addressId: selected._id,
       paymentMethod,
       couponCode: couponDiscount > 0 || couponFreeDelivery ? couponCode.trim() : undefined,
-      items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      items: items.map(toCheckoutItem),
     });
     clear();
     router.replace("/(tabs)/orders");
@@ -343,7 +348,7 @@ export default function Checkout() {
           {t("oldPrice")}: {formatMoney(toOld(total), primaryCurrency)}
         </Text>
       </View>
-      <Button title={t("placeOrder")} onPress={placeOrder} disabled={!selected} />
+      <Button title={t("placeOrder")} onPress={placeOrder} />
     </Screen>
   );
 }

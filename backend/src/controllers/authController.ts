@@ -36,13 +36,13 @@ export const login = catchAsync(async (req: AuthRequest, res) => {
 
 export const passwordStatus = catchAsync(async (req: AuthRequest, res) => {
   const parsed = passwordStatusSchema.parse(req.body);
-  const status = await getPasswordStatus(parsed.email);
+  const status = await getPasswordStatus(parsed.email, parsed.setupToken);
   sendSuccess(res, status);
 });
 
 export const setPassword = catchAsync(async (req: AuthRequest, res) => {
   const parsed = setPasswordSchema.parse(req.body);
-  const result = await setPasswordForUser(parsed.email, parsed.password);
+  const result = await setPasswordForUser(parsed.email, parsed.setupToken, parsed.password);
   setRefreshCookie(res, result.refreshToken);
   sendSuccess(res, { user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken }, "Password set");
 });
@@ -67,7 +67,7 @@ export const me = catchAsync(async (req: AuthRequest, res) => {
   } catch (e) {
     // best-effort; we still return the user even if this fails
   }
-  const user = await User.findById(req.user!._id).select("-password");
+  const user = await User.findById(req.user!._id).select("-password -passwordSetupToken -passwordSetupExpires");
   sendSuccess(res, { user });
 });
 
@@ -85,7 +85,7 @@ export const updateMe = catchAsync(async (req: AuthRequest, res) => {
     update.email = email;
   }
 
-  const user = await User.findByIdAndUpdate(req.user._id, update, { new: true }).select("-password");
+  const user = await User.findByIdAndUpdate(req.user._id, update, { new: true }).select("-password -passwordSetupToken -passwordSetupExpires");
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
   await AuditLog.create({ user: user._id, type: "auth", action: "USER_UPDATE_PROFILE", result: "SUCCESS" });
   sendSuccess(res, { user }, "Profile updated");

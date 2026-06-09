@@ -14,10 +14,12 @@ export const loginSchema = z.object({
 
 export const passwordStatusSchema = z.object({
   email: z.string().email(),
+  setupToken: z.string().min(16).optional(),
 });
 
 export const setPasswordSchema = z.object({
   email: z.string().email(),
+  setupToken: z.string().min(16),
   password: z.string().min(6),
 });
 

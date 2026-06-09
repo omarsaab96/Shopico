@@ -53,6 +53,7 @@ type Product = {
   promoPrice?: number;
   isPromoted?: boolean;
   images: { url: string }[];
+  variants?: { _id: string }[];
 };
 type SortOption = "relevance" | "priceAsc" | "priceDesc";
 type PriceFilter = "all" | "lt50k" | "lt100k" | "gte100k";
@@ -1397,8 +1398,9 @@ export default function Home() {
                           </Link>
 
                           {(() => {
+                            const hasVariants = Boolean(item.variants?.length);
                             const existing = items.find(
-                              (i) => i.productId === item._id
+                              (i) => i.productId === item._id && !i.variantId
                             );
 
                             if (existing) {
@@ -1407,7 +1409,7 @@ export default function Home() {
                                   <TouchableOpacity
                                     style={styles.qtyBtn}
                                     onPress={() =>
-                                      setQuantity(existing.productId, existing.quantity - 1)
+                                      setQuantity(existing.productId, existing.quantity - 1, existing.variantId)
                                     }
                                   >
                                     <Text style={styles.qtySym}>-</Text>
@@ -1418,7 +1420,7 @@ export default function Home() {
                                   <TouchableOpacity
                                     style={styles.qtyBtn}
                                     onPress={() =>
-                                      addItem({
+                                      hasVariants ? router.push(`/products/${item._id}`) : addItem({
                                         productId: item._id,
                                         name: item.name,
                                         price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
@@ -1437,7 +1439,7 @@ export default function Home() {
                               <TouchableOpacity
                                 style={styles.addBtn}
                                 onPress={() =>
-                                  addItem({
+                                  hasVariants ? router.push(`/products/${item._id}`) : addItem({
                                     productId: item._id,
                                     name: item.name,
                                     price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,

@@ -58,13 +58,13 @@ export const login = async (email: string, password: string) => {
   return res.data.data;
 };
 
-export const checkPasswordStatus = async (email: string) => {
-  const res = await api.post<{ data: { exists: boolean; hasPassword: boolean } }>("/auth/password-status", { email });
+export const checkPasswordStatus = async (email: string, setupToken?: string) => {
+  const res = await api.post<{ data: { exists: boolean; hasPassword: boolean; canSetPassword?: boolean } }>("/auth/password-status", { email, setupToken });
   return res.data.data;
 };
 
-export const setInitialPassword = async (email: string, password: string) => {
-  const res = await api.post<{ data: AuthResponse }>("/auth/set-password", { email, password });
+export const setInitialPassword = async (email: string, setupToken: string, password: string) => {
+  const res = await api.post<{ data: AuthResponse }>("/auth/set-password", { email, setupToken, password });
   return res.data.data;
 };
 
@@ -287,7 +287,7 @@ export const createUser = async (payload: {
   permissions?: string[];
   branchIds?: string[];
 }) => {
-  const res = await api.post<{ data: ApiUser }>("/users", payload);
+  const res = await api.post<{ data: ApiUser & { setupToken?: string } }>("/users", payload);
   return res.data.data;
 };
 

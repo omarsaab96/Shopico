@@ -12,8 +12,12 @@ interface AuditLog {
   result?: "SUCCESS" | "FAILURE";
   metadata?: Record<string, unknown> & {
     targetUserId?: string | { email?: string; name?: string };
+    actorEmail?: string;
+    actorName?: string;
+    actorUserId?: string;
+    requestIp?: string;
   };
-  user?: { email: string; name?: string };
+  user?: { _id?: string; email?: string; name?: string } | string | null;
   createdAt: string;
 }
 
@@ -42,7 +46,22 @@ const AuditLogsPage = () => {
     load();
   }, []);
 
-  const getActor = (log: AuditLog) => log.user?.email || log.user?.name || t("unknownUser") || "Unknown user";
+  const getActor = (log: AuditLog) => {
+    if (log.user && typeof log.user === "object") {
+      return log.user.email || log.user.name || log.user._id || "-";
+    }
+    if (typeof log.user === "string") return `${t("deletedUser") || "Deleted user"} (${log.user})`;
+    if (log.metadata?.actorEmail || log.metadata?.actorName) {
+      return log.metadata.actorEmail || log.metadata.actorName || "-";
+    }
+    if (log.metadata?.actorUserId) {
+      return `${t("deletedUser") || "Deleted user"} (${log.metadata.actorUserId})`;
+    }
+    if (log.metadata?.requestIp) {
+      return `${t("unauthenticatedRequest") || "Unauthenticated request"} (${log.metadata.requestIp})`;
+    }
+    return t("systemRequest") || "System request";
+  };
 
   const renderAction = (log: AuditLog) => {
     // if (log.action === "ADMIN_TOPUP_REQUEST") {

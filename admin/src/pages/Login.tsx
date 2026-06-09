@@ -10,10 +10,13 @@ const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const { t, toggleLanguage, lang } = useI18n();
+  const query = new URLSearchParams(window.location.search);
+  const setupToken = query.get("setupToken") || "";
+  const setupEmail = query.get("email") || "";
   const [theme, setTheme] = useStateReact<"light" | "dark">(
     (localStorage.getItem("theme") as "light" | "dark") || "light"
   );
-  const [email, setEmail] = useState("admin@shopico-sy.com");
+  const [email, setEmail] = useState(setupEmail || "admin@shopico-sy.com");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -36,9 +39,13 @@ const LoginPage = () => {
       setLoading(true);
       setError("");
       try {
-        const status = await checkPasswordStatus(normalizedEmail);
+        const status = await checkPasswordStatus(normalizedEmail, setupToken || undefined);
         if (!status.exists) {
           setError(t("accountNotFound") ?? "Account not found");
+          return;
+        }
+        if (!status.hasPassword && !status.canSetPassword) {
+          setError(t("passwordSetupTokenRequired") || "A valid password setup link is required.");
           return;
         }
         setStep(status.hasPassword ? "password" : "setPassword");
@@ -64,7 +71,7 @@ const LoginPage = () => {
       setLoading(true);
       setError("");
       try {
-        const result = await setInitialPassword(email.trim(), password);
+        const result = await setInitialPassword(email.trim(), setupToken, password);
         localStorage.setItem("accessToken", result.accessToken);
         navigate("/");
       } catch (err) {

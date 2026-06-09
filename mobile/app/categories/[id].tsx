@@ -122,7 +122,8 @@ export default function CategoryDetail() {
         contentContainerStyle={{ paddingBottom: 16 }}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         renderItem={({ item, index }) => {
-          const existing = items.find((i) => i.productId === item._id);
+          const hasVariants = Boolean(item.variants?.length);
+          const existing = items.find((i) => i.productId === item._id && !i.variantId);
           const isLeft = index % 2 === 0;
 
 
@@ -182,7 +183,7 @@ export default function CategoryDetail() {
                         <TouchableOpacity
                           style={styles.qtyBtn}
                           onPress={() =>
-                            setQuantity(existing.productId, existing.quantity - 1)
+                            setQuantity(existing.productId, existing.quantity - 1, existing.variantId)
                           }
                         >
                           <Text weight="black" style={styles.qtyText}>−</Text>
@@ -193,7 +194,7 @@ export default function CategoryDetail() {
                         <TouchableOpacity
                           style={styles.qtyBtn}
                           onPress={() =>
-                            addItem({
+                            hasVariants ? router.push(`/products/${item._id}`) : addItem({
                               productId: item._id,
                               name: item.name,
                               price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
@@ -209,7 +210,7 @@ export default function CategoryDetail() {
                       <TouchableOpacity
                         style={styles.addBtn}
                         onPress={() =>
-                          addItem({
+                          hasVariants ? router.push(`/products/${item._id}`) : addItem({
                             productId: item._id,
                             name: item.name,
                             price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,

@@ -6,6 +6,16 @@ import { AuditLog } from "../models/AuditLog";
 import { AuthRequest } from "../types/auth";
 import * as xlsx from "xlsx";
 import { getDefaultBranchId } from "../utils/branch";
+import { Types } from "mongoose";
+
+const normalizeVariants = (variants?: { _id?: string }[]) =>
+  (variants || []).map((variant) => {
+    const { _id, ...rest } = variant;
+    if (_id && Types.ObjectId.isValid(_id)) {
+      return { ...rest, _id: new Types.ObjectId(_id) };
+    }
+    return rest;
+  });
 
 export const listProducts = catchAsync(async (req, res) => {
   const {
@@ -101,6 +111,7 @@ export const createProduct = catchAsync(async (req, res) => {
     isPromoted: payload.isPromoted ?? false,
     categories: payload.categories,
     images: payload.images,
+    variants: normalizeVariants(payload.variants),
     isAvailable: payload.isAvailable ?? true,
     isPublic: payload.isPublic ?? true,
     isFeatured: payload.isFeatured ?? false,
@@ -112,7 +123,11 @@ export const createProduct = catchAsync(async (req, res) => {
 export const updateProduct = catchAsync(async (req, res) => {
   const payload = productUpdateSchema.partial().parse(req.body);
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
-  const product = await Product.findOneAndUpdate({ _id: req.params.id, branchId: req.branchId }, payload, { new: true });
+  const update = {
+    ...payload,
+    ...(payload.variants ? { variants: normalizeVariants(payload.variants) } : {}),
+  };
+  const product = await Product.findOneAndUpdate({ _id: req.params.id, branchId: req.branchId }, update, { new: true });
   if (!product) return res.status(404).json({ success: false, message: "Product not found" });
   sendSuccess(res, product, "Product updated");
 });
