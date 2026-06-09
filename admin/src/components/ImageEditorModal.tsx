@@ -383,7 +383,7 @@ const ImageEditorModal = ({ file, onApply, onCancel }: Props) => {
                   onChange={(e) => setRotation(Number(e.target.value))}
                   disabled={processing}
                 />
-                <span>{rotation} deg</span>
+                <span>{rotation} {t("degreesShort") || "deg"}</span>
               </div>
             </div>
 
