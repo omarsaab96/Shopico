@@ -423,7 +423,12 @@ const ProductsPage = () => {
         const [rawKey, ...rest] = part.split(":");
         const key = rawKey?.trim();
         const attrValue = rest.join(":").trim();
-        if (key && attrValue) acc[key] = attrValue;
+        if (key && attrValue) {
+          acc[key] = attrValue;
+        } else if (key) {
+          const nameKey = acc.Name ? `Name ${Object.keys(acc).filter((attrKey) => attrKey.startsWith("Name")).length + 1}` : "Name";
+          acc[nameKey] = key;
+        }
         return acc;
       }, {});
   };
@@ -438,9 +443,17 @@ const ProductsPage = () => {
         return {
           ...rest,
           attributes: parseVariantAttributes(attributeText ?? formatVariantAttributes(variant.attributes)),
+          sku: variant.sku?.trim() || undefined,
+          barcode: variant.barcode?.trim() || undefined,
         };
       })
-      .filter((variant) => Object.values(variant.attributes || {}).some((value) => value.trim()))
+      .filter((variant) => {
+        const hasAttributes = Object.values(variant.attributes || {}).some((value) => value.trim());
+        const hasPrice = variant.price !== undefined && !Number.isNaN(variant.price);
+        const hasPromoPrice = variant.promoPrice !== undefined && !Number.isNaN(variant.promoPrice);
+        const hasImages = Boolean(variant.images?.length);
+        return hasAttributes || Boolean(variant.sku) || Boolean(variant.barcode) || hasPrice || hasPromoPrice || hasImages;
+      })
       .map((variant) => ({
         ...variant,
         price: variant.price === undefined || Number.isNaN(variant.price) ? undefined : Number(variant.price),
@@ -491,7 +504,7 @@ const ProductsPage = () => {
                         attributes: parseVariantAttributes(e.target.value),
                       }))
                     }
-                    placeholder="size: M, color: Red"
+                    placeholder="Large or size: M, color: Red"
                   />
                 </label>
                 <label>
@@ -730,18 +743,21 @@ const ProductsPage = () => {
   };
 
   const saveEdit = async () => {
-    if (!editingId) return;
-    if (!canManage) return;
+    if (!editingId) return false;
+    if (!canManage) return false;
     try {
       const payload = { ...editDraft, _id: editingId, variants: cleanVariants(editDraft.variants as ProductVariantDraft[] | undefined) };
       const saved = await saveProduct(payload);
       setProducts((prev) => prev.map((p) => (p._id === saved._id ? saved : p)));
       setEditingId(null);
       setEditDraft({});
+      setShowEditVariants(false);
       applyFilters();
+      return true;
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Update failed";
       setEditError(msg);
+      return false;
     }
   };
 
@@ -1408,6 +1424,12 @@ const ProductsPage = () => {
               editDraft.variants as ProductVariantDraft[] | undefined,
               (variants) => setEditDraft((prev) => ({ ...prev, variants }))
             )}
+            <div className="modal-actions">
+              <button className="ghost-btn" type="button" onClick={saveEdit} disabled={Boolean(editUploadingId)}>
+                {t("save")}
+              </button>
+              {editError && <div className="error">{editError}</div>}
+            </div>
           </div>
         </div>
       )}
