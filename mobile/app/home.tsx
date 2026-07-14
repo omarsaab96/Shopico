@@ -179,6 +179,8 @@ export default function Home() {
   const promoWidth = Math.min(360, windowWidth - 32);
   const hasAnnouncements = announcements.length > 0;
 
+  const successLottieRef = useRef<LottieView>(null);
+
   const customFooter = (props: any) => (
     <BottomSheetFooter {...props}>
       <View style={styles.sheetFooterWrap}>
@@ -890,7 +892,7 @@ export default function Home() {
     if (!showCategorySkeleton && categories.length == 0) return null;
 
     return (
-      <View style={{ gap: 10 }}>
+      <View style={{ gap: 10, marginBottom: 10 }}>
         <View style={styles.sectionHead}>
           <Text weight="black" style={styles.sectionTitle}>{t("featuredCategories") ?? "Featured categories"}</Text>
           <Link href="/categories" asChild>
@@ -901,11 +903,13 @@ export default function Home() {
         </View>
 
         <FlatList
-          data={showCategorySkeleton ? Array.from({ length: 5 }, (_, i) => ({ _id: `skeleton-${i}` })) : categories.slice(0, 6)}
+          data={showCategorySkeleton ? Array.from({ length: 6 }, (_, i) => ({ _id: `skeleton-${i}` })) : categories.slice(0, 7)}
           key={isRTL ? "rtl-cats" : "ltr-cats"}
-          scrollEnabled={false}
-          numColumns={5}
-          columnWrapperStyle={styles.catRow}
+          scrollEnabled={true}
+          showsHorizontalScrollIndicator={false}
+          horizontal
+          // numColumns={6}
+          // columnWrapperStyle={styles.catRow}
           contentContainerStyle={{ gap: 12, }}
           keyExtractor={(c) => c._id}
           renderItem={({ item }) =>
@@ -934,7 +938,11 @@ export default function Home() {
                       </>
                     )}
                   </View>
-                  <Text style={styles.catName} numberOfLines={2}>
+                  <Text
+                    style={styles.catName}
+                    numberOfLines={item.name.includes(" ") ? 2 : 1}
+                    ellipsizeMode="tail"
+                  >
                     {item.name}
                   </Text>
                 </TouchableOpacity>
@@ -955,7 +963,6 @@ export default function Home() {
       </Text>
     </View>
   );
-
 
   const renderHero = () => (
     <Animated.View
@@ -1260,16 +1267,10 @@ export default function Home() {
         </View>
       </Modal>
 
-      <View style={styles.safe}>
+      <View style={[styles.safe]} >
         {user.role == 'customer' ? (
           customerNeedsSetup || customerSetupChecking ? null : (
             <View style={styles.container}>
-              {/* <LottieView
-              autoPlay
-              loop
-              style={{ width: 220, height: 220 }}
-              source={{ uri: "https://assets10.lottiefiles.com/packages/lf20_usmfx6bp.json" }}
-            /> */}
 
               <View style={styles.stickyHeroWrap}>
                 {renderHero()}
@@ -1468,6 +1469,35 @@ export default function Home() {
                       {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
                     </View>
                   }
+                  ListEmptyComponent={() => (
+                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 40 }}>
+                      {/* <LottieView
+                        ref={successLottieRef}
+                        loop={false}
+                        style={{ width: 200, height: 200 }}
+                        source={require("../assets/orderSuccess.json")}
+                        onAnimationLoaded={() => {
+                          successLottieRef.current?.play(0, 145);
+                        }}
+                        onAnimationFinish={() => {
+                          successLottieRef.current?.play(145, 145);
+                        }}
+                      /> */}
+
+                      <View style={styles.emptyBox}>
+                        <LottieView
+                          autoPlay
+                          loop
+                          style={{ width: 80, height: 80 }}
+                          source={require("../assets/noorders.json")}
+                        />
+                        <Text style={styles.emptyTitle}>{t("noProducts") ?? "No products to show"}</Text>
+                        <Text style={[styles.emptyText, { marginTop: 0 }]}>
+                          {t("checkLater") ?? "Check again in a bit."}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                 />
               </View>
 
@@ -1797,18 +1827,35 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
   return StyleSheet.create({
     safe: {
       flex: 1,
-      backgroundColor: palette.accent,
-      paddingTop: insets.top + 15,
+      backgroundColor: palette.background,
       writingDirection: isRTL ? "rtl" : "ltr",
       direction: isRTL ? "rtl" : "ltr",
+      // borderWidth:6
     },
     container: {
       flex: 1,
+      paddingTop: insets.top + 15,
       // paddingHorizontal: 16,
       // paddingTop: 16,
       writingDirection: isRTL ? "rtl" : "ltr",
       direction: isRTL ? "rtl" : "ltr",
+      backgroundColor: palette.accent,
     },
+    emptyBox: {
+      alignItems: "center",
+      gap: 8,
+      flex: 1,
+      justifyContent: "center",
+    },
+    emptyTitle: { color: palette.text, fontSize: 18, fontWeight: "800" },
+    browseBtn: {
+      backgroundColor: palette.accent,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+      marginTop: 4,
+    },
+    browseBtnText: { color: "#fff", fontWeight: "700" },
 
     headerWrap: {
       // paddingTop: 10,
@@ -2173,18 +2220,22 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     sectionTitle: { color: palette.text, fontSize: 16, textAlign: 'left' },
     sectionAction: { color: palette.accent, fontWeight: "900", textAlign: 'left' },
 
-    catRow: { gap: 12 },
+    catRow: {
+      gap: 12,
+      // borderWidth: 1,
+    },
     catCard: {
       // flex: 1,
       // backgroundColor: palette.card,
       // borderRadius: 18,
-      paddingHorizontal: 10,
+      // paddingHorizontal: 10,
       // borderWidth: 1,
       // borderColor: hairline,
       alignItems: "center",
       gap: 5,
       // ...cardShadow,
-      maxWidth: 100
+      width: 60
+      // maxWidth: 100
     },
     catImgBox: {
       width: "100%",
@@ -2212,7 +2263,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     catIcon: {
       width: '90%',
-      height: 44,
+      height: 55,
       resizeMode: "contain",
     },
     catName: { color: palette.text, fontSize: 12, textAlign: "center", fontWeight: '700' },
