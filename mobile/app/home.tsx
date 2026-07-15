@@ -243,10 +243,6 @@ export default function Home() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) {
-      setSavedBranchReady(true);
-      return;
-    }
     if (selectedBranch) {
       setSavedBranchReady(true);
       return;
@@ -270,7 +266,7 @@ export default function Home() {
         setBranchLoading(false);
         setSavedBranchReady(true);
       });
-  }, [user, branchLocked, selectedBranch]);
+  }, [selectedBranch]);
 
   const thresholds = getMembershipThresholds(settings, selectedCurrency);
   const balance = getWalletBalance(wallet, selectedCurrency);
@@ -382,12 +378,7 @@ export default function Home() {
       setLatestAddress(null);
       setAddresses([]);
       setSelectedAddress(null);
-      updateSelectedBranch(null);
-      setBranchId(null);
-      setBranchLock(false);
       setLocationFallback(false);
-      setBranchLocked(false);
-      setShowBranchPrompt(false);
       setRefreshing(false);
       return;
     }
@@ -420,7 +411,7 @@ export default function Home() {
         setAddressLoading(false);
         setAddressesReady(true);
       });
-  }, [user, updateSelectedBranch]);
+  }, [user]);
 
   const fetchNearestBranch = useCallback(async (address: SavedAddress | null) => {
     if (branchLocked) return;
@@ -517,7 +508,7 @@ export default function Home() {
   const lastCategoriesBranchRef = useRef<string | null>(null);
   useEffect(() => {
     if (authLoading) return;
-    if (!user || !selectedBranch) {
+    if (!selectedBranch) {
       lastCategoriesBranchRef.current = null;
       setCategories([]);
       setCategoriesLoading(false);
@@ -537,7 +528,7 @@ export default function Home() {
         setCategoriesLoading(false);
         setCategoriesLoaded(true);
       });
-  }, [authLoading, selectedBranch?._id, user]);
+  }, [authLoading, selectedBranch?._id]);
 
   useEffect(() => {
     api
@@ -704,7 +695,6 @@ export default function Home() {
     addressSheetRef.current?.present();
   };
   const openBranchSheet = () => {
-    if (!user) return;
     if (branchOptions.length == 0 && !branchPromptLoading) {
       loadBranchOptions();
     }
@@ -1045,18 +1035,49 @@ export default function Home() {
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity
-              onPress={() => {
-                router.push("/auth/login");
-              }}
-              activeOpacity={0.9}
-              style={styles.addressRow}
-            >
-              <Feather name="log-in" size={14} color={palette.muted} />
-              <Text style={styles.addressValue} numberOfLines={1}>
-                {t("loginToLoadLocation") ?? "Login to load your location"} · {t("login") ?? "Login"}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.locationRow}>
+              <TouchableOpacity
+                onPress={() => router.push("/auth/login")}
+                activeOpacity={0.9}
+                style={styles.addressRow}
+              >
+                <Feather name="log-in" size={18} color={'white'} />
+                <View style={styles.locationTextWrap}>
+                  <Text style={styles.addressLabel} numberOfLines={1}>
+                    {t("hello") ?? "Hello"}, {t("guest") ?? "Guest"}!
+                  </Text>
+                  <Text style={[styles.addressValue]} numberOfLines={1}>
+                    {t("loginToLoadLocation") ?? "Login to load your location"}
+                  </Text>
+                  {!isRTL && <View style={styles.locationSeperator}></View>}
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={openBranchSheet}
+                activeOpacity={0.9}
+                style={styles.branchRow}
+              >
+                {isRTL && <View style={styles.branchSeperator}></View>}
+                <Ionicons name="storefront-outline" size={18} color={'white'} />
+                <View style={styles.locationTextWrap}>
+                  <Text style={styles.addressLabel} numberOfLines={1}>
+                    {t("fromBranch") ?? "From branch"}
+                  </Text>
+                  {branchLoading ? (
+                    <Skeleton width={100} height={14} colorScheme={isDark ? "dark" : "light"} />
+                  ) : selectedBranch ? (
+                    <Text style={[styles.addressValue]} numberOfLines={1}>
+                      {selectedBranch.name}
+                    </Text>
+                  ) : (
+                    <Text style={styles.addressValue} numberOfLines={1}>
+                      {t("selectBranch") ?? "Select branch"}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </View>
@@ -1268,7 +1289,7 @@ export default function Home() {
       </Modal>
 
       <View style={[styles.safe]} >
-        {user.role == 'customer' ? (
+        {!isDriver ? (
           customerNeedsSetup || customerSetupChecking ? null : (
             <View style={styles.container}>
 

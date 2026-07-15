@@ -1,4 +1,4 @@
-import { Redirect, Tabs } from "expo-router";
+import { Tabs } from "expo-router";
 import { useMemo } from "react";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
@@ -60,8 +60,6 @@ export default function TabsLayout() {
   );
 
   if (loading) return null;
-
-  if (!user) return <Redirect href="/auth/login" />;
 
   const customerScreens: TabScreen[] = [
     { name: "store", label: t("store"), icon: tabIcons.store },

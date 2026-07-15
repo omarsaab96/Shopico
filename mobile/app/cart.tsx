@@ -116,9 +116,9 @@ export default function CartScreen() {
     setCartSyncLoading(true);
     try {
       const res = await api.post("/cart/sync", {
-          items: items
-            .filter((item) => !item.unavailable)
-            .map(toCheckoutItem),
+        items: items
+          .filter((item) => !item.unavailable)
+          .map(toCheckoutItem),
       });
       const data = res.data.data || {};
       const syncedItems: CartItem[] = Array.isArray(data.items)
@@ -951,7 +951,13 @@ export default function CartScreen() {
               </TouchableOpacity>
             )
           ) : (
-            <Button title={t("loginToCheckout") ?? "Login to checkout"} onPress={() => router.push("/auth/login")} />
+            // <Button title={t("loginToCheckout") ?? "Login to checkout"} onPress={() => router.push("/auth/login")} />
+            <TouchableOpacity
+              style={[styles.buttonCta, { flex: 1 }, hasUnavailableItems && { opacity: 0.6 }]}
+              onPress={() => router.push("/auth/login")} disabled={hasUnavailableItems}
+            >
+              <Text style={styles.buttonCtaText}>{t("loginToCheckout")}</Text>
+            </TouchableOpacity>
           )}
         </View>}
       </Screen>

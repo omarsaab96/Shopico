@@ -35,6 +35,7 @@ const baseStrings = {
   password: "Password",
   name: "Full name",
   continue: "Continue",
+  continueAsGuest: "Continue as guest",
   loggingIn: 'Logging in',
   backToLogin: "Back to login",
   pushNotifications: "Push notifications",
@@ -60,7 +61,7 @@ const baseStrings = {
   helloShopper: "Hello shopper",
   hello: "Hello",
   deliveryTo: "Delivery to",
-  loginToLoadLocation: "No selected address.",
+  loginToLoadLocation: "Login to load address",
   featuredCategories: "Featured categories",
   freshPicks: "Fresh picks",
   amount: "Amount",
@@ -438,10 +439,13 @@ const arStrings: Record<string, string> = {
   completeSetupTitle: "قبل أن تتابع… ",
   completeSetupSub1: "اختار فرعك المفضل",
   completeSetupSub2: "اختار عنوان التوصيل",
-  haveAnAccount: "هل لديك حساب؟"
+  haveAnAccount: "هل لديك حساب؟",
+  donthaveAnAccount: "لا تملك حساب؟",
+  or:"أو"
 };
 
 const extraBaseStrings: Record<string, string> = {
+  or:"OR",
   Add: "Add",
   addresses: "Addresses",
   announcements: "Announcements",
@@ -497,6 +501,7 @@ const extraBaseStrings: Record<string, string> = {
 };
 
 const extraArStrings: Record<string, string> = {
+  continueAsGuest: "\u0627\u0644\u0645\u062a\u0627\u0628\u0639\u0629 \u0643\u0632\u0627\u0626\u0631",
   Add: "إضافة",
   addresses: "العناوين",
   announcements: "الإعلانات",
