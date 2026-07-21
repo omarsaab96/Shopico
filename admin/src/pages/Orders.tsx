@@ -338,7 +338,7 @@ const OrdersPage = () => {
             dateFormat="MM/dd/yyyy h:mm aa"
             isClearable
           />
-          <button className="ghost-btn" type="submit">
+          <button className="primary" type="submit">
             {t("filter")}
           </button>
           <button
@@ -474,7 +474,7 @@ const OrdersPage = () => {
                     editingId === order._id ? (
                       <div style={{ display: "flex", gap: 5 }}>
                         <button
-                          className="ghost-btn"
+                          className="primary"
                           type="button"
                           onClick={() => saveEdit(order)}
                           disabled={assigning[order._id]}
@@ -486,7 +486,7 @@ const OrdersPage = () => {
                         </button>
                       </div>
                     ) : (
-                      <button className="ghost-btn" type="button" onClick={() => startEdit(order)}>
+                      <button className="primary" type="button" onClick={() => startEdit(order)}>
                         {t("edit")}
                       </button>
                     )

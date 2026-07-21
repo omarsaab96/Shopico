@@ -269,7 +269,7 @@ const AnnouncementsPage = () => {
               dateFormat="MM/dd/yyyy h:mm aa"
               isClearable
             />
-            <button className="ghost-btn" type="submit">
+            <button className="primary" type="submit">
               {t("filter")}
             </button>
           <button className="ghost-btn" type="button" onClick={resetFilters}>
@@ -461,7 +461,7 @@ const AnnouncementsPage = () => {
                   <td>
                     {editingId === announcement._id ? (
                       <div className="flex">
-                        <button className="ghost-btn" onClick={saveEdit}>
+                        <button className="primary" onClick={saveEdit}>
                           {t("save")}
                         </button>
                         <button className="ghost-btn" onClick={cancelEdit}>
@@ -474,7 +474,7 @@ const AnnouncementsPage = () => {
                       </div>
                     ) : canManage ? (
                       <div className="flex">
-                        <button className="ghost-btn" onClick={() => startEdit(announcement)}>
+                        <button className="primary" onClick={() => startEdit(announcement)}>
                           {t("edit")}
                         </button>
                         <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteAnnouncement(announcement._id).then(() => load(getFilterParams()))}>

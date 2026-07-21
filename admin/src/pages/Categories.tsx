@@ -196,7 +196,7 @@ const CategoriesPage = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button className="ghost-btn" type="submit">
+            <button className="primary" type="submit">
               {t("filter")}
             </button>
           <button className="ghost-btn" type="button" onClick={clearFilters}>
@@ -305,7 +305,7 @@ const CategoriesPage = () => {
                   <td style={{}}>
                     {editingId === cat._id ? (
                       <div className="flex">
-                        <button className="ghost-btn mr-10" onClick={saveEdit}>
+                        <button className="primary mr-10" onClick={saveEdit}>
                           {t("save")}
                         </button>
                         <button className="ghost-btn mr-10" onClick={cancelEdit}>
@@ -321,7 +321,7 @@ const CategoriesPage = () => {
                       </div>
                     ) : canManage ? (
                       <div className="flex">
-                        <button className="ghost-btn mr-10" onClick={() => startEdit(cat)}>
+                        <button className="primary mr-10" onClick={() => startEdit(cat)}>
                           {t("edit")}
                         </button>
                         <button

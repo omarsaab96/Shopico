@@ -431,7 +431,7 @@ const UsersPage = () => {
                 <option value={role} key={role}>{t(`role.${role}`) || role}</option>
               ))}
             </select>
-            <button className="ghost-btn" type="submit">
+            <button className="primary" type="submit">
               {t("filter")}
             </button>
             <button
@@ -481,7 +481,7 @@ const UsersPage = () => {
                 <td>{u.membershipLevel}</td>
                 <td>
                   {canOpenUserDetails ? (
-                    <button className="ghost-btn" onClick={() => loadDetails(u._id)} disabled={loading == u._id}>
+                    <button className="primary" onClick={() => loadDetails(u._id)} disabled={loading == u._id}>
                       {loading == u._id ?
                         <div className="spinner small"></div>
                         : t("view")}
@@ -645,11 +645,11 @@ const UsersPage = () => {
                   </div>
                   {canManageUserAbout && (
                     <div className="modal-actions">
-                      <button className="ghost-btn" type="button" onClick={saveUserDetails} disabled={editSaving}>
+                      <button className="primary" type="button" onClick={saveUserDetails} disabled={editSaving}>
                         {editSaving ? t("saving") : t("saveUser") ?? "Save user"}
                       </button>
                       <button className="ghost-btn danger" type="button" onClick={removeUser} disabled={deleteSaving}>
-                        {deleteSaving ? t("saving") : t("deleteUser") ?? "Delete user"}
+                        {deleteSaving ? t("deleting") : t("deleteUser") ?? "Delete user"}
                       </button>
                     </div>
                   )}
@@ -785,7 +785,7 @@ const UsersPage = () => {
                   {canManageUserBranches && (
                     <div className="modal-actions">
                       <button
-                        className="ghost-btn"
+                        className="primary"
                         type="button"
                         onClick={saveBranches}
                         disabled={branchSaving}
@@ -822,7 +822,7 @@ const UsersPage = () => {
                   {canManageUserPermissions && (
                     <div className="modal-actions">
                       <button
-                        className="ghost-btn"
+                        className="primary"
                         type="button"
                         onClick={savePermissions}
                         disabled={permissionsSaving}

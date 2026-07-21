@@ -3,13 +3,14 @@ import type { DragEvent, FormEvent } from "react";
 import Card from "../components/Card";
 import ImageEditorModal from "../components/ImageEditorModal";
 import type { Category, Currency, Product, ProductImage, ProductVariant } from "../types/api";
-import { bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchCurrencies, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
+import { bulkUpdateProductCategories, bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchCurrencies, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
 import { confirmDelete } from "../utils/confirm";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
+const NO_CATEGORY_FILTER = "__no_category__";
 type ProductVariantDraft = ProductVariant & { attributeText?: string };
 
 const getCurrencySymbol = (currency: Currency, lang: "en" | "ar", t: (key: string) => string) => {
@@ -47,6 +48,13 @@ const ProductsPage = () => {
   const [editCategorySearch, setEditCategorySearch] = useState("");
   const [showEditCategories, setShowEditCategories] = useState(false);
   const [showEditVariants, setShowEditVariants] = useState(false);
+  const [selectedProductsById, setSelectedProductsById] = useState<Record<string, Product>>({});
+  const [showBulkCategoryModal, setShowBulkCategoryModal] = useState(false);
+  const [bulkCategorySearch, setBulkCategorySearch] = useState("");
+  const [bulkCategoryIds, setBulkCategoryIds] = useState<string[]>([]);
+  const [bulkCategoryStep, setBulkCategoryStep] = useState<"select" | "confirm">("select");
+  const [bulkCategorySaving, setBulkCategorySaving] = useState(false);
+  const [bulkCategoryError, setBulkCategoryError] = useState("");
   const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [promoteProduct, setPromoteProduct] = useState<Product | null>(null);
   const [promotePrice, setPromotePrice] = useState("");
@@ -96,9 +104,18 @@ const ProductsPage = () => {
   const { t, lang } = useI18n();
   const { selectedBranchId } = useBranch();
   const { can } = usePermissions();
+  const tx = (key: string, fallback: string) => {
+    const value = t(key);
+    return value === key ? fallback : value;
+  };
   const canManage = can("products:manage");
   const canUpload = canManage;
   const canImport = can("products:import");
+  const selectedProducts = Object.values(selectedProductsById);
+  const selectedProductIds = selectedProducts.map((product) => product._id);
+  const pageSelectionCount = products.filter((product) => selectedProductsById[product._id]).length;
+  const allPageProductsSelected = products.length > 0 && pageSelectionCount === products.length;
+  const somePageProductsSelected = pageSelectionCount > 0 && !allPageProductsSelected;
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
@@ -169,6 +186,52 @@ const ProductsPage = () => {
   const closePriceModal = () => {
     if (priceSaving) return;
     setShowPriceModal(false);
+  };
+
+  const toggleProductSelection = (product: Product) => {
+    setSelectedProductsById((prev) => {
+      const next = { ...prev };
+      if (next[product._id]) {
+        delete next[product._id];
+      } else {
+        next[product._id] = product;
+      }
+      return next;
+    });
+  };
+
+  const togglePageSelection = () => {
+    setSelectedProductsById((prev) => {
+      const next = { ...prev };
+      if (allPageProductsSelected) {
+        products.forEach((product) => {
+          delete next[product._id];
+        });
+      } else {
+        products.forEach((product) => {
+          next[product._id] = product;
+        });
+      }
+      return next;
+    });
+  };
+
+  const clearProductSelection = () => {
+    setSelectedProductsById({});
+  };
+
+  const openBulkCategoryModal = () => {
+    if (!canManage || selectedProductIds.length === 0) return;
+    setBulkCategoryIds([]);
+    setBulkCategorySearch("");
+    setBulkCategoryStep("select");
+    setBulkCategoryError("");
+    setShowBulkCategoryModal(true);
+  };
+
+  const closeBulkCategoryModal = () => {
+    if (bulkCategorySaving) return;
+    setShowBulkCategoryModal(false);
   };
 
   const openImportModal = () => {
@@ -495,7 +558,7 @@ const ProductsPage = () => {
             {list.map((variant, index) => (
               <div className="variant-row" key={variant._id || index}>
                 <label>
-                {t("attributes") || "Attributes"}
+                  {t("attributes") || "Attributes"}
                   <input
                     value={variantAttributeInputValue(variant)}
                     onChange={(e) =>
@@ -752,7 +815,7 @@ const ProductsPage = () => {
       setEditingId(null);
       setEditDraft({});
       setShowEditVariants(false);
-      applyFilters();
+      loadProducts(getFilterParams(), page, limit);
       return true;
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Update failed";
@@ -801,24 +864,24 @@ const ProductsPage = () => {
       setPromoteError(t("invalidAmount") || "Enter a valid amount");
       return;
     }
-      setPromoteSaving(true);
-      setPromoteError("");
-      try {
-        const payload: Partial<Product> = {
-          _id: promoteProduct._id,
-          name: promoteProduct.name,
-          description: promoteProduct.description,
-          price: promoteProduct.price,
-          isAvailable: promoteProduct.isAvailable,
-          images: promoteProduct.images || [],
-          variants: promoteProduct.variants || [],
-          categories: Array.isArray(promoteProduct.categories)
-            ? promoteProduct.categories.map((category) => (typeof category === "string" ? category : category._id))
-            : [],
-          isPromoted: promoteActive,
-          promoPrice: promoteActive ? promoteValue : undefined,
-        };
-        const saved = await saveProduct(payload);
+    setPromoteSaving(true);
+    setPromoteError("");
+    try {
+      const payload: Partial<Product> = {
+        _id: promoteProduct._id,
+        name: promoteProduct.name,
+        description: promoteProduct.description,
+        price: promoteProduct.price,
+        isAvailable: promoteProduct.isAvailable,
+        images: promoteProduct.images || [],
+        variants: promoteProduct.variants || [],
+        categories: Array.isArray(promoteProduct.categories)
+          ? promoteProduct.categories.map((category) => (typeof category === "string" ? category : category._id))
+          : [],
+        isPromoted: promoteActive,
+        promoPrice: promoteActive ? promoteValue : undefined,
+      };
+      const saved = await saveProduct(payload);
       setProducts((prev) => prev.map((p) => (p._id === saved._id ? saved : p)));
       closePromote();
     } catch (err: any) {
@@ -856,6 +919,41 @@ const ProductsPage = () => {
       setPriceError(msg);
     } finally {
       setPriceSaving(false);
+    }
+  };
+
+  const submitBulkCategoryPreview = (e: FormEvent) => {
+    e.preventDefault();
+    if (!canManage) return;
+    if (selectedProductIds.length === 0) {
+      setBulkCategoryError(tx("selectProductsFirst", "Select products first"));
+      return;
+    }
+    if (bulkCategoryIds.length === 0) {
+      setBulkCategoryError(tx("selectCategoryFirst", "Select a category first"));
+      return;
+    }
+    setBulkCategoryError("");
+    setBulkCategoryStep("confirm");
+  };
+
+  const confirmBulkCategoryUpdate = async () => {
+    if (!canManage || bulkCategoryIds.length === 0 || selectedProductIds.length === 0) return;
+    setBulkCategorySaving(true);
+    setBulkCategoryError("");
+    try {
+      await bulkUpdateProductCategories({
+        productIds: selectedProductIds,
+        categoryIds: bulkCategoryIds,
+      });
+      setShowBulkCategoryModal(false);
+      clearProductSelection();
+      loadProducts(getFilterParams());
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Update failed";
+      setBulkCategoryError(msg);
+    } finally {
+      setBulkCategorySaving(false);
     }
   };
 
@@ -947,6 +1045,8 @@ const ProductsPage = () => {
     return `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
   };
 
+  const bulkCategoryLabels = getCategoryLabels(bulkCategoryIds);
+
   const renderCurrencyAmounts = (amount: number) => {
     const activeCurrencies = currencies
       .filter((currency) => currency.isActive)
@@ -993,18 +1093,29 @@ const ProductsPage = () => {
             />
             <select className="filter-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
               <option value="">{t("category")}</option>
+              <option value={NO_CATEGORY_FILTER}>{tx("noCategories", "No categories")}</option>
               {categories.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.name}
                 </option>
               ))}
             </select>
-            <button className="ghost-btn" type="submit">
+            <button className="primary" type="submit">
               {t("filter")}
             </button>
             <button className="ghost-btn" type="button" onClick={resetFilters}>
               {t("clear")}
             </button>
+            {canManage && selectedProducts.length > 0 && (
+              <>
+                <button className="primary" type="button" onClick={openBulkCategoryModal}>
+                  {tx("bulkUpdateCategory", "Update category")} ({selectedProducts.length})
+                </button>
+                <button className="ghost-btn" type="button" onClick={clearProductSelection}>
+                  {tx("clearSelection", "Clear selection")}
+                </button>
+              </>
+            )}
           </form>
           <div className="flex" style={{ gap: 10 }}>
             {canManage && (
@@ -1080,6 +1191,22 @@ const ProductsPage = () => {
         <table className="table" style={{ marginBottom: 15 }}>
           <thead>
             <tr>
+              {canManage && (
+                <th className="select-col">
+                  <div className="checkboxContainer row-select">
+                    <input
+                      id="selectProductsOnPage"
+                      type="checkbox"
+                      checked={allPageProductsSelected}
+                      ref={(input) => {
+                        if (input) input.indeterminate = somePageProductsSelected;
+                      }}
+                      onChange={togglePageSelection}
+                    />
+                    <label htmlFor="selectProductsOnPage" title={t("selectAll") || "Select all"}></label>
+                  </div>
+                </th>
+              )}
               <th>{t("images")}</th>
               <th>{t("name")}</th>
               <th>{t("description")}</th>
@@ -1097,6 +1224,7 @@ const ProductsPage = () => {
             {pageLoading ? (
               Array.from({ length: 6 }).map((_, idx) => (
                 <tr key={`skeleton-${idx}`} className="productRow">
+                  {canManage && <td><span className="skeleton-line w-60" /></td>}
                   <td className="prodImgCell">
                     <div className="skeleton-block" style={{ width: 48, height: 48 }} />
                   </td>
@@ -1113,11 +1241,25 @@ const ProductsPage = () => {
               ))
             ) : products.length == 0 ? (
               <tr>
-                <td colSpan={10} className="muted">No products</td>
+                <td colSpan={canManage ? 11 : 10} className="muted">No products</td>
               </tr>
             ) : (
               products.map((product) => (
                 <tr key={product._id} className="productRow">
+                  {canManage && (
+                    <td className="select-col">
+                      <div className="checkboxContainer row-select">
+                        <input
+                          id={`selectProduct${product._id}`}
+                          type="checkbox"
+                          checked={Boolean(selectedProductsById[product._id])}
+                          onChange={() => toggleProductSelection(product)}
+                          disabled={editingId === product._id}
+                        />
+                        <label htmlFor={`selectProduct${product._id}`} title={product.name}></label>
+                      </div>
+                    </td>
+                  )}
                   <td className="prodImgCell">
                     {editingId === product._id ? (
                       <div className="thumb-row">
@@ -1125,7 +1267,7 @@ const ProductsPage = () => {
                           ((editDraft.images as ProductImage[]) || []).map((img) => (
                             <div key={img.fileId} className="thumb">
                               <div className="listImage">
-                                <img src={img.url} alt="" style={{borderRadius:0}}/>
+                                <img src={img.url} alt="" style={{ borderRadius: 0 }} />
                                 <button
                                   type="button"
                                   className="removeImageBtn"
@@ -1278,7 +1420,7 @@ const ProductsPage = () => {
                   <td style={{}}>
                     {editingId === product._id ? (
                       <div className="flex">
-                        <button className="ghost-btn" onClick={saveEdit} disabled={Boolean(editUploadingId)}>
+                        <button className="primary" onClick={saveEdit} disabled={Boolean(editUploadingId)}>
                           {t("save")}
                         </button>
                         <button className="ghost-btn" onClick={cancelEdit}>
@@ -1291,7 +1433,7 @@ const ProductsPage = () => {
                       </div>
                     ) : canManage ? (
                       <div className="flex">
-                        <button className="ghost-btn" onClick={() => startEdit(product)}>
+                        <button className="primary" onClick={() => startEdit(product)}>
                           {t("edit")}
                         </button>
                         <button className="ghost-btn" onClick={() => openPromote(product)}>
@@ -1694,6 +1836,101 @@ const ProductsPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showBulkCategoryModal && canManage && (
+        <div className="modal-backdrop" onClick={closeBulkCategoryModal}>
+          <div className="modal bulk-category-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">
+                {bulkCategoryStep === "select"
+                  ? tx("bulkUpdateCategory", "Update category")
+                  : tx("confirmCategoryUpdate", "Confirm category update")}
+              </div>
+              <button className="ghost-btn" type="button" onClick={closeBulkCategoryModal} disabled={bulkCategorySaving}>
+                {t("close")}
+              </button>
+            </div>
+
+            {bulkCategoryStep === "select" ? (
+              <form className="form" onSubmit={submitBulkCategoryPreview}>
+                <div className="bulk-summary">
+                  {tx("selectedProductsCount", "Selected products")}: {selectedProducts.length}
+                </div>
+                {renderCategorySelect(
+                  bulkCategoryIds,
+                  setBulkCategoryIds,
+                  bulkCategorySearch,
+                  setBulkCategorySearch
+                )}
+                {bulkCategoryError && <div className="error">{bulkCategoryError}</div>}
+                <div className="modal-actions">
+                  <button className="ghost-btn" type="button" onClick={closeBulkCategoryModal}>
+                    {t("cancel")}
+                  </button>
+                  <button className="primary" type="submit">
+                    {t("save")}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="form">
+                <div className="flex" style={{ justifyContent: "space-between", alignItems: "center", marginBottom:50 }}>
+                  <div className="bulk-summary">
+                    {tx("categoryWillChangeTo", "Category will change to")}: {bulkCategoryLabels}
+                  </div>
+
+                  <div className="bulk-summary">
+                    {tx("selectedProductsCount", "Selected products")}: {selectedProducts.length}
+                  </div>
+                </div>
+
+                <div className="bulk-preview-list">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>{t("name")}</th>
+                        <th>{t("barcode") || "Barcode"}</th>
+                        <th>{tx("currentCategory", "Current category")}</th>
+                        <th>{t("newCategory") || "New Category"}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedProducts.map((product) => (
+                        <tr key={product._id}>
+                          <td>{product.name}</td>
+                          <td>{product.barcode || "-"}</td>
+                          <td>{getCategoryLabels(product.categories)}</td>
+                          <td>{bulkCategoryLabels}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {bulkCategoryError && <div className="error">{bulkCategoryError}</div>}
+                <div className="modal-actions">
+                  <button
+                    className="ghost-btn"
+                    type="button"
+                    onClick={() => {
+                      setBulkCategoryStep("select");
+                      setBulkCategoryError("");
+                    }}
+                    disabled={bulkCategorySaving}
+                  >
+                    {t("edit")}
+                  </button>
+                  <button className="ghost-btn" type="button" onClick={closeBulkCategoryModal} disabled={bulkCategorySaving}>
+                    {t("cancel")}
+                  </button>
+                  <button className="primary" type="button" onClick={confirmBulkCategoryUpdate} disabled={bulkCategorySaving}>
+                    {bulkCategorySaving ? (t("saving") || "Saving...") : tx("confirm", "Confirm")}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

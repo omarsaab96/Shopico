@@ -40,3 +40,8 @@ export const bulkPriceSchema = z.object({
   amountType: z.enum(["FIXED", "PERCENT"]),
   amount: z.number().positive(),
 });
+
+export const bulkCategorySchema = z.object({
+  productIds: z.array(z.string().min(1)).min(1),
+  categoryIds: z.array(z.string().min(1)).min(1),
+});

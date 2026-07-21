@@ -562,7 +562,7 @@ const CouponsPage = () => {
               dateFormat="yyyy-MM-dd HH:mm"
               isClearable
             />
-            <button className="ghost-btn" type="submit">
+            <button className="primary" type="submit">
               {t("filter")}
             </button>
           <button className="ghost-btn" type="button" onClick={resetFilters}>
@@ -876,7 +876,7 @@ const CouponsPage = () => {
                   <td>
                     {editingId === coupon._id ? (
                       <div className="flex">
-                        <button className="ghost-btn" onClick={saveEdit}>
+                        <button className="primary" onClick={saveEdit}>
                           {t("save")}
                         </button>
                         <button className="ghost-btn" onClick={cancelEdit}>
@@ -889,7 +889,7 @@ const CouponsPage = () => {
                       </div>
                     ) : canManage ? (
                       <div className="flex">
-                        <button className="ghost-btn" onClick={() => startEdit(coupon)}>
+                        <button className="primary" onClick={() => startEdit(coupon)}>
                           {t("edit")}
                         </button>
                         <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteCoupon(coupon._id).then(() => loadCoupons(getFilterParams()))}>

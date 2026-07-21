@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { bulkUpdatePrices, createProduct, deleteProduct, getProduct, importProductsFromExcel, listAllProductsAdmin, listProducts, listProductsAdminPaginated, previewProductsImport, updateProduct } from "../controllers/productController";
+import { bulkUpdateCategories, bulkUpdatePrices, createProduct, deleteProduct, getProduct, importProductsFromExcel, listAllProductsAdmin, listProducts, listProductsAdminPaginated, previewProductsImport, updateProduct } from "../controllers/productController";
 import { authenticate, authorize, requirePermissions } from "../middleware/auth";
 import { attachBranchContext, requireBranchContext } from "../middleware/branch";
 
@@ -25,6 +25,7 @@ router.get(
   listProductsAdminPaginated
 );
 router.post("/bulk-price", authenticate, authorize("admin", "manager", "staff"), requirePermissions("products:view", "products:manage"), requireBranchContext, bulkUpdatePrices);
+router.post("/bulk-category", authenticate, authorize("admin", "manager", "staff"), requirePermissions("products:view", "products:manage"), requireBranchContext, bulkUpdateCategories);
 router.post(
   "/import",
   authenticate,

@@ -128,7 +128,7 @@ const AuditLogsPage = () => {
             dateFormat="yyyy-MM-dd HH:mm"
             isClearable
           />
-          <button className="ghost-btn" type="submit">
+          <button className="primary" type="submit">
             {t("filter")}
           </button>
           <button

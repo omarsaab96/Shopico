@@ -381,7 +381,7 @@ const BranchesPage = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button className="ghost-btn" type="submit">
+            <button className="primary" type="submit">
               {t("filter")}
             </button>
             <button className="ghost-btn" type="button" onClick={resetFilters}>
@@ -500,7 +500,7 @@ const BranchesPage = () => {
                   <td>
                     {editingId === branch._id ? (
                       <div className="flex">
-                        <button className="ghost-btn" onClick={saveEdit}>
+                        <button className="primary" onClick={saveEdit}>
                           {t("save")}
                         </button>
                         <button className="ghost-btn" onClick={cancelEdit}>
@@ -513,7 +513,7 @@ const BranchesPage = () => {
                       </div>
                     ) : canManage ? (
                       <div className="flex">
-                        <button className="ghost-btn mr-10" onClick={() => startEdit(branch)}>
+                        <button className="primary mr-10" onClick={() => startEdit(branch)}>
                           {t("edit")}
                         </button>
                         <button className="ghost-btn danger" onClick={() => removeBranch(branch._id)}>

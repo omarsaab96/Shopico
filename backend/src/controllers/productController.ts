@@ -1,12 +1,15 @@
 import { catchAsync } from "../utils/catchAsync";
 import { Product } from "../models/Product";
-import { bulkPriceSchema, productSchema, productUpdateSchema } from "../validators/productValidators";
+import { Category } from "../models/Category";
+import { bulkCategorySchema, bulkPriceSchema, productSchema, productUpdateSchema } from "../validators/productValidators";
 import { sendSuccess } from "../utils/response";
 import { AuditLog } from "../models/AuditLog";
 import { AuthRequest } from "../types/auth";
 import * as xlsx from "xlsx";
 import { getDefaultBranchId } from "../utils/branch";
 import { Types } from "mongoose";
+
+const NO_CATEGORY_FILTER = "__no_category__";
 
 const normalizeVariants = (variants?: { _id?: string }[]) =>
   (variants || []).map((variant) => {
@@ -16,6 +19,11 @@ const normalizeVariants = (variants?: { _id?: string }[]) =>
     }
     return rest;
   });
+
+const applyCategoryFilter = (filter: Record<string, unknown>, category?: string) => {
+  if (!category) return;
+  filter.categories = category === NO_CATEGORY_FILTER ? { $size: 0 } : category;
+};
 
 export const listProducts = catchAsync(async (req, res) => {
   const {
@@ -29,7 +37,7 @@ export const listProducts = catchAsync(async (req, res) => {
   if (!branchId) return res.status(400).json({ success: false, message: "Branch not configured" });
   const filter: Record<string, unknown> = { branchId, isPublic: { $ne: false } };
   if (q) filter.name = { $regex: q, $options: "i" };
-  if (category) filter.categories = category;
+  applyCategoryFilter(filter, category);
   if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
 
   const page = Math.max(1, Number(rawPage) || 1);
@@ -57,7 +65,7 @@ export const listAllProductsAdmin = catchAsync(async (req, res) => {
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const filter: Record<string, unknown> = { branchId: req.branchId };
   if (q) filter.name = { $regex: q, $options: "i" };
-  if (category) filter.categories = category;
+  applyCategoryFilter(filter, category);
   if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
 
   const products = await Product.find(filter).populate("categories").sort({ createdAt: -1 });
@@ -75,7 +83,7 @@ export const listProductsAdminPaginated = catchAsync(async (req, res) => {
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const filter: Record<string, unknown> = { branchId: req.branchId };
   if (q) filter.name = { $regex: q, $options: "i" };
-  if (category) filter.categories = category;
+  applyCategoryFilter(filter, category);
   if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
 
   const page = Math.max(1, Number(rawPage) || 1);
@@ -168,6 +176,41 @@ export const bulkUpdatePrices = catchAsync(async (req, res) => {
   const result = await Product.updateMany({ branchId: req.branchId }, [{ $set: { price } }], { updatePipeline: true });
   const modifiedCount = (result as any).modifiedCount ?? (result as any).nModified ?? 0;
   sendSuccess(res, { modifiedCount }, "Prices updated");
+});
+
+export const bulkUpdateCategories = catchAsync(async (req: AuthRequest, res) => {
+  const payload = bulkCategorySchema.parse(req.body);
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  if (payload.categoryIds.some((id) => !Types.ObjectId.isValid(id)) || payload.productIds.some((id) => !Types.ObjectId.isValid(id))) {
+    return res.status(400).json({ success: false, message: "Invalid product or category id" });
+  }
+
+  const categories = await Category.find({ _id: { $in: payload.categoryIds }, branchId: req.branchId }).select("_id name").lean();
+  if (categories.length !== new Set(payload.categoryIds).size) {
+    return res.status(404).json({ success: false, message: "Category not found" });
+  }
+
+  const result = await Product.updateMany(
+    { _id: { $in: payload.productIds }, branchId: req.branchId },
+    { $set: { categories: payload.categoryIds } }
+  );
+  const matchedCount = (result as any).matchedCount ?? (result as any).n ?? 0;
+  const modifiedCount = (result as any).modifiedCount ?? (result as any).nModified ?? 0;
+
+  await AuditLog.create({
+    user: req.user?._id,
+    type: "products",
+    action: "PRODUCTS_BULK_CATEGORY_UPDATE",
+    result: "SUCCESS",
+    metadata: {
+      productIds: payload.productIds,
+      categoryIds: payload.categoryIds,
+      matchedCount,
+      modifiedCount,
+    },
+  });
+
+  sendSuccess(res, { matchedCount, modifiedCount, categories }, "Product categories updated");
 });
 
 const normalizeBarcode = (value: unknown) => {

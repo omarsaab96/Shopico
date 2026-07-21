@@ -1,5 +1,5 @@
 :root {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
   color: #0f172a;
   background: #f8fafc;
   --bg-page: #f8fafc;
@@ -653,6 +653,24 @@ nav::-webkit-scrollbar {
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: #475569;
+}
+
+.table .select-col {
+  width: 42px;
+  min-width: 42px;
+}
+
+.row-select {
+  width: 22px;
+  height: 22px;
+}
+
+.row-select label {
+  display: block;
+  width: 22px;
+  height: 22px;
+  padding-left: 22px;
+  margin: 0;
 }
 
 .detailsTable {
@@ -1481,6 +1499,27 @@ nav::-webkit-scrollbar {
 
 .modal.import-modal {
   width: min(980px, 100%);
+}
+
+.modal.bulk-category-modal {
+  width: min(900px, 100%);
+}
+
+.bulk-summary {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.bulk-preview-list {
+  max-height: 52vh;
+  overflow: auto;
+  border: 1px solid var(--gray-300);
+  border-radius: 12px;
+}
+
+.bulk-preview-list .table th,
+.bulk-preview-list .table td {
+  white-space: nowrap;
 }
 
 .image-editor-modal {

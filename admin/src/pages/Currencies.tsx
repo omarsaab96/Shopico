@@ -181,7 +181,7 @@ const CurrenciesPage = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button className="ghost-btn" type="submit">
+            <button className="primary" type="submit">
               {t("filter")}
             </button>
             <button className="ghost-btn" type="button" onClick={resetFilters}>
@@ -297,7 +297,7 @@ const CurrenciesPage = () => {
                   <td>
                     {editingId === currency._id ? (
                       <div className="flex">
-                        <button className="ghost-btn" type="button" onClick={saveEdit} disabled={saving}>
+                        <button className="primary" type="button" onClick={saveEdit} disabled={saving}>
                           {t("save")}
                         </button>
                         <button className="ghost-btn" type="button" onClick={cancelEdit} disabled={saving}>
@@ -306,7 +306,7 @@ const CurrenciesPage = () => {
                       </div>
                     ) : canManage ? (
                       <div className="flex">
-                        <button className="ghost-btn" type="button" onClick={() => startEdit(currency)}>
+                        <button className="primary" type="button" onClick={() => startEdit(currency)}>
                           {t("edit")}
                         </button>
                         <button

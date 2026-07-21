@@ -189,6 +189,17 @@ export const bulkUpdateProductPrices = async (payload: {
   return res.data.data;
 };
 
+export const bulkUpdateProductCategories = async (payload: {
+  productIds: string[];
+  categoryIds: string[];
+}) => {
+  const res = await api.post<{ data: { matchedCount: number; modifiedCount: number; categories: Category[] } }>(
+    "/products/bulk-category",
+    payload
+  );
+  return res.data.data;
+};
+
 export const fetchOrders = async (params?: {
   q?: string;
   status?: string;
