@@ -9,6 +9,7 @@ export const env = {
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || "dev-refresh-secret",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "1h",
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+  trustProxy: process.env.TRUST_PROXY ? parseInt(process.env.TRUST_PROXY, 10) : 0,
   corsOrigins: (process.env.CORS_ORIGINS || "*").split(","),
   imageKit: {
     publicKey: process.env.IMAGEKIT_PUBLIC_KEY || "",
