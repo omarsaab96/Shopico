@@ -15,13 +15,27 @@ export const sendEmailVerificationOtp = async (to: string, otp: string) => {
     port: env.smtp.port,
     secure: env.smtp.secure,
     auth: env.smtp.user && env.smtp.pass ? { user: env.smtp.user, pass: env.smtp.pass } : undefined,
+    connectionTimeout: env.smtp.connectionTimeoutMs,
+    greetingTimeout: env.smtp.greetingTimeoutMs,
   });
 
-  await transporter.sendMail({
-    from: env.smtp.from || env.smtp.user || "Shopico <no-reply@shopico.local>",
-    to,
-    subject: "Verify your Shopico email",
-    text: `Your Shopico verification code is ${otp}. It expires in 10 minutes.`,
-    html: `<p>Your Shopico verification code is <strong>${otp}</strong>.</p><p>It expires in 10 minutes.</p>`,
-  });
+  try {
+    await transporter.sendMail({
+      from: env.smtp.from || env.smtp.user || "Shopico <no-reply@shopico.local>",
+      to,
+      subject: "Verify your Shopico email",
+      text: `Your Shopico verification code is ${otp}. It expires in 10 minutes.`,
+      html: `<p>Your Shopico verification code is <strong>${otp}</strong>.</p><p>It expires in 10 minutes.</p>`,
+    });
+  } catch (error: any) {
+    console.error("[email verification] SMTP send failed", {
+      code: error?.code,
+      command: error?.command,
+      message: error?.message,
+      host: env.smtp.host,
+      port: env.smtp.port,
+      secure: env.smtp.secure,
+    });
+    throw { status: 502, message: "Email provider did not accept the SMTP connection" };
+  }
 };

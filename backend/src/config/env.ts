@@ -32,5 +32,7 @@ export const env = {
     user: process.env.SMTP_USER || "",
     pass: process.env.SMTP_PASS || "",
     from: process.env.SMTP_FROM || "",
+    connectionTimeoutMs: process.env.SMTP_CONNECTION_TIMEOUT_MS ? parseInt(process.env.SMTP_CONNECTION_TIMEOUT_MS, 10) : 10000,
+    greetingTimeoutMs: process.env.SMTP_GREETING_TIMEOUT_MS ? parseInt(process.env.SMTP_GREETING_TIMEOUT_MS, 10) : 10000,
   },
 };
