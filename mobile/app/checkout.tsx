@@ -85,6 +85,10 @@ export default function Checkout() {
   useEffect(() => {
     if (!user) {
       router.replace("/auth/login");
+      return;
+    }
+    if (!user.emailVerified) {
+      router.replace("/email-verification?returnTo=/checkout" as any);
     }
   }, [user, router]);
 
@@ -205,6 +209,10 @@ export default function Checkout() {
   const placeOrder = async () => {
     if (!user) {
       router.push("/auth/login");
+      return;
+    }
+    if (!user.emailVerified) {
+      router.push("/email-verification?returnTo=/checkout" as any);
       return;
     }
     if (!selected) return;

@@ -87,14 +87,19 @@ export const syncCart = async (userId: Types.ObjectId, branchId: string, items: 
   const cart = await Cart.findOneAndUpdate({ user: userId }, { items: cartItems }, { new: true, upsert: true });
   const syncedItems = cartItems.map((item) => {
     const product = productMap.get(item.product.toString())!;
+    const variant = findProductVariant(product, item.variantId?.toString());
+    const originalPrice = variant?.price ?? product.price;
+    const effectivePrice = item.priceSnapshot;
     const image = product.images?.[0]?.url;
     return {
       productId: product._id.toString(),
       variantId: item.variantId?.toString(),
       variantAttributes: item.variantAttributes,
       name: product.name,
-      price: item.priceSnapshot,
-      image: findProductVariant(product, item.variantId?.toString())?.images?.[0]?.url || image,
+      price: effectivePrice,
+      originalPrice: originalPrice > effectivePrice ? originalPrice : undefined,
+      isPromoted: originalPrice > effectivePrice,
+      image: variant?.images?.[0]?.url || image,
       quantity: item.quantity,
     };
   });

@@ -534,7 +534,7 @@ export const estimateOrderDelivery = async (
   const deliveryFee =
     distanceKm <= settings.deliveryFreeKm
       ? 0
-      : Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm;
+      : Math.ceil((distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm);
 
   return { distanceKm, deliveryFee };
 };

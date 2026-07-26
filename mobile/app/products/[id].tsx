@@ -117,6 +117,8 @@ export default function ProductDetail() {
                 variantAttributes: selectedVariant?.attributes,
                 name: product.name,
                 price: displayPrice,
+                originalPrice: originalPrice && originalPrice > displayPrice ? originalPrice : undefined,
+                isPromoted: Boolean(originalPrice && originalPrice > displayPrice),
                 image: displayImages?.[0]?.url,
                 quantity: 1,
               });
@@ -135,6 +137,8 @@ export default function ProductDetail() {
               variantAttributes: selectedVariant?.attributes,
               name: product.name,
               price: displayPrice,
+              originalPrice: originalPrice && originalPrice > displayPrice ? originalPrice : undefined,
+              isPromoted: Boolean(originalPrice && originalPrice > displayPrice),
               image: displayImages?.[0]?.url,
               quantity: 1,
             });

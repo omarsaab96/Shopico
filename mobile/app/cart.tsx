@@ -21,6 +21,7 @@ import LottieView from "lottie-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Entypo from '@expo/vector-icons/Entypo';
 import { useCurrency } from "../lib/currency";
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 const COUPON_CARD_GAP = 15;
 const COUPON_CARD_MAX_WIDTH = 200;
@@ -411,6 +412,10 @@ export default function CartScreen() {
       router.push("/auth/login");
       return;
     }
+    if (!user.emailVerified) {
+      router.push("/email-verification?returnTo=/(tabs)/cart" as any);
+      return;
+    }
     if (!items.length || cartSyncLoading) return;
     if (hasUnavailableItems) {
       Alert.alert(
@@ -687,6 +692,11 @@ export default function CartScreen() {
 
   const placeOrder = async () => {
     if (!user || !selectedAddress) return;
+    if (!user.emailVerified) {
+      checkoutSheetRef.current?.dismiss();
+      router.push("/email-verification?returnTo=/(tabs)/cart" as any);
+      return;
+    }
     if (hasUnavailableItems) {
       setCheckoutError(t("removeUnavailableItemsBeforeCheckout") ?? "Remove or replace unavailable items before checkout.");
       return;
@@ -804,6 +814,7 @@ export default function CartScreen() {
                 {hasFreeDeliveryCoupon ? (t("freeDelivery") ?? "Free delivery") : formatMoney(effectiveDeliveryFee || 0, selectedCurrency)}
               </Text>
             </View>
+
             {checkoutError ? <Text style={styles.errorText}>{checkoutError}</Text> : null}
 
           </View>
@@ -822,9 +833,9 @@ export default function CartScreen() {
                 {!submitting && formatMoney(orderTotal, selectedCurrency)}
               </Text>
 
-              {!submitting && selectedCurrency?.symbol.en != "USD" && <Text style={[styles.primaryBtnText, { fontSize: 14, textAlign: 'center', opacity: 0.6, textDecorationLine: "line-through", lineHeight: 14 }]}>
+              {/* {!submitting && selectedCurrency?.symbol.en != "USD" && <Text style={[styles.primaryBtnText, { fontSize: 14, textAlign: 'center', opacity: 0.6, textDecorationLine: "line-through", lineHeight: 14 }]}>
                 {formatMoney(orderTotal * 100, selectedCurrency)}
-              </Text>}
+              </Text>} */}
 
               {submitting && <ActivityIndicator color={'#fff'} size={'small'} style={{}} />}
             </View>
@@ -869,50 +880,75 @@ export default function CartScreen() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} />}
             renderItem={({ item }) => (
               <View style={[styles.cartItem, item.unavailable && styles.cartItemUnavailable]}>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.itemTitleRow}>
-                    <Text weight="bold" style={[styles.name, item.unavailable && { color: isDark ? "#fecaca" : "#991b1b" }]}>{item.name}</Text>
-                    {/* {item.unavailable ? (
+                <View style={styles.itemImageWrap}>
+                  {item.image ? (
+                    <Image source={{ uri: item.image }} style={styles.itemImage} />
+                  ) : (
+                    <MaterialIcons name="image-not-supported" size={24} color={palette.muted} />
+                  )}
+                </View>
+
+                <View style={{ flex: 1, borderWidth: 1, gap: 10 }}>
+                  <View style={styles.cartItemBody}>
+                    <View style={styles.itemTitleRow}>
+                      <Text weight="bold" style={[styles.name, item.unavailable && { color: isDark ? "#fecaca" : "#991b1b" }]}>{item.name}</Text>
+                      {/* {item.unavailable ? (
                       <View style={styles.unavailableBadge}>
                         <Text weight="bold" style={styles.unavailableBadgeText}>
                           {t("unavailable") ?? "Unavailable"}
                         </Text>
                       </View>
                     ) : null} */}
-                  </View>
-                  {!item.unavailable && <Text style={styles.muted}>
-                    {formatMoney(item.price, selectedCurrency)}
-                  </Text>}
-                  {item.variantAttributes && Object.keys(item.variantAttributes).length > 0 ? (
-                    <Text style={styles.muted}>
-                      {Object.entries(item.variantAttributes).map(([key, value]) => `${key}: ${value}`).join(" / ")}
-                    </Text>
-                  ) : null}
-                  {item.unavailable &&
-                    <Text style={styles.unavailableText}>
-                      {t("cartItemUnavailable") ?? "This item is no longer available."}
-                    </Text>
-                  }
-                </View>
-                <View style={styles.qtyRow}>
-                  {!item.unavailable ? (
-                    <View style={styles.qtyRow}>
-                      <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity - 1, item.variantId)}>
-                        <Text weight="bold" style={styles.qtySymbol}>-</Text>
-                      </TouchableOpacity>
-                      <Text weight="bold" style={styles.qtyValue}>{item.quantity}</Text>
-                      <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity + 1, item.variantId)}>
-                        <Text weight="bold" style={styles.qtySymbol}>+</Text>
-                      </TouchableOpacity>
                     </View>
-                  ) : (
-                    <TouchableOpacity style={styles.replaceBtn} onPress={() => router.replace("/(tabs)/store")}>
-                      <Text weight="bold" style={styles.replaceBtnText}>{t("replace") ?? "Replace"}</Text>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity onPress={() => confirmRemove(item.productId, item.variantId)} style={styles.removeFromCartBtn}>
-                    <MaterialIcons name="delete" size={20} color="#fff" />
-                  </TouchableOpacity>
+                  </View>
+                  
+                  <View style={styles.itemRow}>
+                    <View style={styles.itemActions}>
+                      {((!item.unavailable && item.quantity <= 1) || item.unavailable) && <TouchableOpacity onPress={() => confirmRemove(item.productId, item.variantId)} style={styles.removeFromCartBtn}>
+                        {/* <MaterialIcons name="delete" size={20} color="#000" /> */}
+                        <FontAwesome name="trash-o" size={22} color="black" />
+                      </TouchableOpacity>}
+
+                      {!item.unavailable ? (
+                        <View style={styles.qtyRow}>
+                          {item.quantity > 1 && <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity - 1, item.variantId)}>
+                            {/* <Text weight="bold" style={styles.qtySymbol}>-</Text> */}
+                            <AntDesign name="minus" size={18} color="black" />
+                          </TouchableOpacity>}
+                          <Text weight="bold" style={styles.qtyValue}>{item.quantity}</Text>
+                          <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity + 1, item.variantId)}>
+                            {/* <Text weight="bold" style={styles.qtySymbol}>+</Text> */}
+                            <AntDesign name="plus" size={20} color="black" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity style={styles.replaceBtn} onPress={() => router.replace("/(tabs)/store")}>
+                          <Text weight="bold" style={styles.replaceBtnText}>{t("replace") ?? "Replace"}</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {!item.unavailable && (
+                      <View style={styles.priceRow}>
+                        {item.originalPrice && item.originalPrice > item.price ? (
+                          <Text style={styles.oldItemPrice}>{formatMoney(item.originalPrice, selectedCurrency)}</Text>
+                        ) : null}
+                        <Text weight="bold" style={styles.newItemPrice}>
+                          {formatMoney(item.price, selectedCurrency)}
+                        </Text>
+                      </View>
+                    )}
+                    {item.variantAttributes && Object.keys(item.variantAttributes).length > 0 ? (
+                      <Text style={styles.muted}>
+                        {Object.entries(item.variantAttributes).map(([key, value]) => `${key}: ${value}`).join(" / ")}
+                      </Text>
+                    ) : null}
+                    {item.unavailable &&
+                      <Text style={styles.unavailableText}>
+                        {t("cartItemUnavailable") ?? "This item is no longer available."}
+                      </Text>
+                    }
+                  </View>
                 </View>
               </View>
             )}
@@ -1516,7 +1552,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     },
     cartItem: {
       flexDirection: "row",
-      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: 12,
       paddingBottom: 10,
       borderBottomWidth: 1,
       borderBottomColor: '#dedede'
@@ -1530,8 +1567,51 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       gap: 8,
       flexWrap: "wrap",
     },
+    itemRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      flexWrap: "wrap",
+      justifyContent:'space-between'
+    },
+    itemImageWrap: {
+      width: 72,
+      height: 72,
+      borderRadius: 12,
+      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: palette.border,
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+    },
+    itemImage: {
+      width: "100%",
+      height: "100%",
+      resizeMode: "cover",
+    },
+    cartItemBody: {
+      borderWidth: 1,
+    },
     name: { color: palette.text, textAlign: 'left' },
     muted: { color: palette.muted, textAlign: 'left' },
+    priceRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: 8,
+      flexWrap: "wrap",
+    },
+    oldItemPrice: {
+      color: palette.muted,
+      fontSize: 12,
+      textDecorationLine: "line-through",
+      textAlign: "left",
+    },
+    newItemPrice: {
+      color: palette.text,
+      fontSize: 14,
+      textAlign: "left",
+    },
     unavailableBadge: {
       backgroundColor: isDark ? "#4a1f1f" : "#fee2e2",
       borderColor: isDark ? "#7f1d1d" : "#fecaca",
@@ -1565,25 +1645,35 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     totalLabel: { color: palette.muted },
     totalValue: { color: palette.text, fontSize: 16 },
     qtyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-    qtyButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      backgroundColor: palette.surface,
+    itemActions: {
       alignItems: "center",
-      justifyContent: "center",
+      gap: 10,
+      flexDirection: 'row',
       borderWidth: 1,
+      borderRadius: 30,
       borderColor: palette.border,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
     },
-    qtySymbol: { color: palette.text, fontSize: 18 },
-    qtyValue: { color: palette.text, fontSize: 16, minWidth: 24, textAlign: "center" },
+    qtyButton: {
+      // width: 36,
+      // height: 36,
+      // borderRadius: 10,
+      // backgroundColor: palette.surface,
+      // alignItems: "center",
+      // justifyContent: "center",
+      // borderWidth: 1,
+      // borderColor: palette.border,
+    },
+    qtySymbol: { color: palette.text, fontSize: 24 },
+    qtyValue: { color: palette.text, fontSize: 16, minWidth: 30, textAlign: "center" },
     removeFromCartBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      backgroundColor: palette.accent,
-      alignItems: "center",
-      justifyContent: "center",
+      // width: 36,
+      // height: 36,
+      // borderRadius: 10,
+      // backgroundColor: palette.accent,
+      // alignItems: "center",
+      // justifyContent: "center",
     },
     replaceBtn: {
       minHeight: 36,

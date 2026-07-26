@@ -9,6 +9,8 @@ export interface CartItem {
   variantAttributes?: Record<string, string>;
   name: string;
   price: number;
+  originalPrice?: number;
+  isPromoted?: boolean;
   image?: string;
   quantity: number;
   unavailable?: boolean;
@@ -37,13 +39,22 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     const product = item.product || {};
     const productId = item.productId || product._id || item.product;
     if (!productId) return null;
+    const variant = item.variantId && Array.isArray(product.variants)
+      ? product.variants.find((v: any) => v._id?.toString() === item.variantId?.toString())
+      : undefined;
+    const basePrice = Number(item.originalPrice ?? variant?.price ?? product.price ?? item.price ?? item.priceSnapshot ?? 0);
+    const promoted = Boolean(item.isPromoted ?? (variant?.isPromoted ?? product.isPromoted));
+    const promoPrice = variant?.promoPrice ?? product.promoPrice;
+    const effectivePrice = Number(item.price ?? item.priceSnapshot ?? (promoted && promoPrice !== undefined ? promoPrice : basePrice) ?? 0);
     return {
       productId: productId.toString(),
       variantId: item.variantId?.toString(),
       variantAttributes: item.variantAttributes,
       name: item.name || product.name || "",
-      price: Number(item.price ?? item.priceSnapshot ?? product.promoPrice ?? product.price ?? 0),
-      image: item.image || product.images?.[0]?.url,
+      price: effectivePrice,
+      originalPrice: basePrice > effectivePrice ? basePrice : undefined,
+      isPromoted: promoted && basePrice > effectivePrice,
+      image: item.image || variant?.images?.[0]?.url || product.images?.[0]?.url,
       quantity: Number(item.quantity || 1),
       unavailable: item.unavailable,
     };

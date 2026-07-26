@@ -198,6 +198,8 @@ export default function CategoryDetail() {
                               productId: item._id,
                               name: item.name,
                               price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
+                              originalPrice: item.isPromoted && item.promoPrice !== undefined ? item.price : undefined,
+                              isPromoted: item.isPromoted && item.promoPrice !== undefined,
                               image: item.images?.[0]?.url,
                               quantity: 1,
                             })
@@ -214,6 +216,8 @@ export default function CategoryDetail() {
                             productId: item._id,
                             name: item.name,
                             price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
+                            originalPrice: item.isPromoted && item.promoPrice !== undefined ? item.price : undefined,
+                            isPromoted: item.isPromoted && item.promoPrice !== undefined,
                             image: item.images?.[0]?.url,
                             quantity: 1,
                           })
