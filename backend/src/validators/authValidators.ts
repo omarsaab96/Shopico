@@ -34,6 +34,10 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(6),
 });
 
+export const verifyEmailOtpSchema = z.object({
+  otp: z.string().regex(/^\d{6}$/, "OTP must be 6 digits"),
+});
+
 export const deleteProfileSchema = z.object({
   password: z.string().min(6),
 });

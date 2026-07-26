@@ -1,7 +1,9 @@
 import { Response } from "express";
 import { catchAsync } from "../utils/catchAsync";
-import { changePasswordSchema, deleteProfileSchema, loginSchema, passwordStatusSchema, registerSchema, setPasswordSchema, updateProfileSchema } from "../validators/authValidators";
+import crypto from "crypto";
+import { changePasswordSchema, deleteProfileSchema, loginSchema, passwordStatusSchema, registerSchema, setPasswordSchema, updateProfileSchema, verifyEmailOtpSchema } from "../validators/authValidators";
 import { getPasswordStatus, loginUser, refreshTokens, registerUser, setPasswordForUser } from "../services/authService";
+import { sendEmailVerificationOtp } from "../services/emailService";
 import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
 import { Wallet } from "../models/Wallet";
@@ -10,6 +12,12 @@ import { User } from "../models/User";
 import { AuditLog } from "../models/AuditLog";
 import bcrypt from "bcryptjs";
 import { Cart } from "../models/Cart";
+
+const EMAIL_VERIFICATION_OTP_TTL_MS = 10 * 60 * 1000;
+const EMAIL_VERIFICATION_RESEND_MS = 60 * 1000;
+
+const hashOtp = (otp: string) => crypto.createHash("sha256").update(otp).digest("hex");
+const createOtp = () => crypto.randomInt(100000, 1000000).toString();
 
 const setRefreshCookie = (res: Response, token: string) => {
   res.cookie("refreshToken", token, {
@@ -71,6 +79,57 @@ export const me = catchAsync(async (req: AuthRequest, res) => {
   sendSuccess(res, { user });
 });
 
+export const sendEmailOtp = catchAsync(async (req: AuthRequest, res) => {
+  if (!req.user) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+  const user = await User.findById(req.user._id).select("+emailVerificationSentAt");
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  if (user.emailVerified) return sendSuccess(res, { emailVerified: true }, "Email already verified");
+
+  if (user.emailVerificationSentAt && Date.now() - user.emailVerificationSentAt.getTime() < EMAIL_VERIFICATION_RESEND_MS) {
+    return res.status(429).json({ success: false, message: "Please wait before requesting another code" });
+  }
+
+  const otp = createOtp();
+  user.emailVerificationOtpHash = hashOtp(otp);
+  user.emailVerificationOtpExpires = new Date(Date.now() + EMAIL_VERIFICATION_OTP_TTL_MS);
+  user.emailVerificationSentAt = new Date();
+  await user.save();
+
+  await sendEmailVerificationOtp(user.email, otp);
+  await AuditLog.create({ user: user._id, type: "auth", action: "USER_SEND_EMAIL_VERIFICATION_OTP", result: "SUCCESS" });
+  sendSuccess(res, { email: user.email }, "Verification code sent");
+});
+
+export const verifyEmailOtp = catchAsync(async (req: AuthRequest, res) => {
+  const payload = verifyEmailOtpSchema.parse(req.body);
+  if (!req.user) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+  const user = await User.findById(req.user._id).select("+emailVerificationOtpHash +emailVerificationOtpExpires +emailVerificationSentAt");
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  if (user.emailVerified) {
+    const safeUser = await User.findById(user._id).select("-password -passwordSetupToken -passwordSetupExpires");
+    return sendSuccess(res, { user: safeUser }, "Email already verified");
+  }
+
+  const isExpired = !user.emailVerificationOtpExpires || user.emailVerificationOtpExpires.getTime() <= Date.now();
+  const isMatch = Boolean(user.emailVerificationOtpHash && user.emailVerificationOtpHash === hashOtp(payload.otp));
+  if (isExpired || !isMatch) {
+    await AuditLog.create({ user: user._id, type: "auth", action: "USER_VERIFY_EMAIL_OTP", result: "FAILURE" });
+    return res.status(400).json({ success: false, message: "Invalid or expired verification code" });
+  }
+
+  user.emailVerified = true;
+  user.emailVerificationOtpHash = null;
+  user.emailVerificationOtpExpires = null;
+  user.emailVerificationSentAt = null;
+  await user.save();
+  await AuditLog.create({ user: user._id, type: "auth", action: "USER_VERIFY_EMAIL_OTP", result: "SUCCESS" });
+
+  const safeUser = await User.findById(user._id).select("-password -passwordSetupToken -passwordSetupExpires");
+  sendSuccess(res, { user: safeUser }, "Email verified");
+});
+
 export const updateMe = catchAsync(async (req: AuthRequest, res) => {
   const payload = updateProfileSchema.parse(req.body);
   if (!req.user) return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -87,6 +146,13 @@ export const updateMe = catchAsync(async (req: AuthRequest, res) => {
 
   const user = await User.findByIdAndUpdate(req.user._id, update, { new: true }).select("-password -passwordSetupToken -passwordSetupExpires");
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  if (payload.email !== undefined) {
+    user.emailVerified = false;
+    user.emailVerificationOtpHash = null;
+    user.emailVerificationOtpExpires = null;
+    user.emailVerificationSentAt = null;
+    await user.save();
+  }
   await AuditLog.create({ user: user._id, type: "auth", action: "USER_UPDATE_PROFILE", result: "SUCCESS" });
   sendSuccess(res, { user }, "Profile updated");
 });

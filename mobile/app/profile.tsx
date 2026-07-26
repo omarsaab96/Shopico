@@ -19,7 +19,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function Profile() {
   const router = useRouter();
   const deleteSheetRef = useRef<BottomSheetModal>(null);
-  const { user, logout } = useAuth();
+  const emailVerifySheetRef = useRef<BottomSheetModal>(null);
+  const { user, logout, setUserProfile } = useAuth();
   const { palette, isDark, mode, setMode } = useTheme();
   const { t, isRTL, lang, setLang } = useI18n();
   const insets = useSafeAreaInsets();
@@ -42,6 +43,11 @@ export default function Profile() {
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [emailOtp, setEmailOtp] = useState("");
+  const [sendingEmailOtp, setSendingEmailOtp] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [emailVerifyError, setEmailVerifyError] = useState("");
+  const [emailVerifyMessage, setEmailVerifyMessage] = useState("");
   const renderBackdrop = useMemo(() => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
 
   useEffect(() => {
@@ -96,6 +102,49 @@ export default function Profile() {
     setDeleteError("");
     setShowDeletePassword(false);
     deleteSheetRef.current?.present();
+  };
+
+  const openEmailVerification = async () => {
+    setEmailOtp("");
+    setEmailVerifyError("");
+    setEmailVerifyMessage("");
+    emailVerifySheetRef.current?.present();
+    await sendEmailVerificationOtp();
+  };
+
+  const sendEmailVerificationOtp = async () => {
+    if (!user || user.emailVerified) return;
+    setSendingEmailOtp(true);
+    setEmailVerifyError("");
+    setEmailVerifyMessage("");
+    try {
+      await api.post("/auth/me/email/send-otp");
+      setEmailVerifyMessage(t("emailVerificationOtpSent") ?? "Verification code sent to your email");
+    } catch (err: any) {
+      setEmailVerifyError(err?.response?.data?.message || t("emailVerificationSendFailed") || "Could not send verification code");
+    } finally {
+      setSendingEmailOtp(false);
+    }
+  };
+
+  const verifyEmail = async () => {
+    if (!emailOtp.trim()) {
+      setEmailVerifyError(t("invalidForm") ?? "Please fill all fields correctly");
+      return;
+    }
+    setVerifyingEmail(true);
+    setEmailVerifyError("");
+    setEmailVerifyMessage("");
+    try {
+      const res = await api.post("/auth/me/email/verify", { otp: emailOtp.trim() });
+      if (res.data.data?.user) setUserProfile(res.data.data.user);
+      setEmailVerifyMessage(t("emailVerified") ?? "Email verified");
+      emailVerifySheetRef.current?.dismiss();
+    } catch (err: any) {
+      setEmailVerifyError(err?.response?.data?.message || t("emailVerificationFailed") || "Could not verify email");
+    } finally {
+      setVerifyingEmail(false);
+    }
   };
 
   const deleteProfile = async () => {
@@ -190,7 +239,26 @@ export default function Profile() {
                         </View>
                       </View>
                     </View>
-                    <Text style={[styles.muted, { textAlign: 'left' }]}>{user?.email}</Text>
+                    <View style={styles.emailRow}>
+                      <Text style={[styles.muted, { textAlign: 'left' }]}>{user?.email}</Text>
+                      {user?.emailVerified ? (
+                        <View style={styles.verifiedPill}>
+                          <Feather name="check-circle" size={13} color="#16a34a" />
+                          <Text style={styles.verifiedPillText}>{t("verified") ?? "Verified"}</Text>
+                        </View>
+                      ) : (
+                        <TouchableOpacity style={styles.verifyEmailBtn} onPress={openEmailVerification} disabled={sendingEmailOtp} activeOpacity={0.85}>
+                          {sendingEmailOtp ? (
+                            <ActivityIndicator color={palette.accent} size="small" />
+                          ) : (
+                            <>
+                              <Feather name="mail" size={13} color={palette.accent} />
+                              <Text style={styles.verifyEmailText}>{t("verifyEmail") ?? "Verify email"}</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                   <View>
                     <TouchableOpacity style={styles.btn} onPress={() => { handleEdit() }}>
@@ -329,6 +397,63 @@ export default function Profile() {
         </View>
 
       </Screen >
+      <BottomSheetModal
+        ref={emailVerifySheetRef}
+        snapPoints={["42%", "55%"]}
+        enablePanDownToClose
+        keyboardBehavior="extend"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
+        backdropComponent={renderBackdrop}
+        onDismiss={() => {
+          setEmailOtp("");
+          setEmailVerifyError("");
+          setEmailVerifyMessage("");
+        }}
+        backgroundStyle={{ backgroundColor: palette.card, borderRadius: 20 }}
+        handleIndicatorStyle={{ backgroundColor: palette.muted }}
+      >
+        <BottomSheetScrollView contentContainerStyle={styles.sheetContainer} keyboardShouldPersistTaps="handled">
+          <Text weight="bold" style={styles.sheetTitle}>{t("verifyEmail") ?? "Verify email"}</Text>
+          <Text style={styles.sheetMutedText}>
+            {(t("emailVerificationCopy") ?? "Enter the 6-digit code sent to {email}.").replace("{email}", user?.email || "")}
+          </Text>
+
+          <View style={styles.sheetField}>
+            <Text weight="bold" style={styles.sheetLabel}>{t("verificationCode") ?? "Verification code"}</Text>
+            <BottomSheetTextInput
+              style={[styles.input, styles.otpInput]}
+              value={emailOtp}
+              onChangeText={(value) => setEmailOtp(value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="000000"
+              placeholderTextColor={palette.muted}
+              keyboardType="number-pad"
+              maxLength={6}
+              onFocus={() => emailVerifySheetRef.current?.snapToIndex(1)}
+            />
+          </View>
+
+          {emailVerifyError ? <Text style={styles.error}>{emailVerifyError}</Text> : null}
+          {emailVerifyMessage ? <Text style={styles.success}>{emailVerifyMessage}</Text> : null}
+
+          <View style={styles.sheetActions}>
+            <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonSecondary]} onPress={sendEmailVerificationOtp} disabled={sendingEmailOtp || verifyingEmail}>
+              {sendingEmailOtp ? (
+                <ActivityIndicator color={palette.text} size="small" />
+              ) : (
+                <Text weight="bold" style={styles.sheetButtonTextSecondary}>{t("resendCode") ?? "Resend code"}</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonPrimary, verifyingEmail && styles.disabledBtn]} onPress={verifyEmail} disabled={verifyingEmail}>
+              {verifyingEmail ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text weight="bold" style={styles.sheetButtonTextPrimary}>{t("verify") ?? "Verify"}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </BottomSheetScrollView>
+      </BottomSheetModal>
       <BottomSheetModal
         ref={deleteSheetRef}
         snapPoints={["50%", "62%"]}
@@ -516,6 +641,45 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontSize: 13,
       lineHeight: 18,
     },
+    emailRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    verifyEmailBtn: {
+      minHeight: 28,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 5,
+      paddingHorizontal: 9,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: palette.accent,
+      backgroundColor: palette.surface,
+    },
+    verifyEmailText: {
+      color: palette.accent,
+      fontSize: 12,
+      fontWeight: "800",
+    },
+    verifiedPill: {
+      minHeight: 28,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 9,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: isDark ? "#14532d" : "#bbf7d0",
+      backgroundColor: isDark ? "#052e16" : "#f0fdf4",
+    },
+    verifiedPillText: {
+      color: "#16a34a",
+      fontSize: 12,
+      fontWeight: "800",
+    },
 
     pointsBox: {
       flex: 1,
@@ -649,6 +813,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontWeight: "700",
       textAlign: align,
     },
+    sheetMutedText: {
+      color: palette.muted,
+      lineHeight: 20,
+      textAlign: align,
+    },
     sheetField: {
       gap: 7,
     },
@@ -674,6 +843,12 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       paddingRight: isRTL ? 12 : 46,
       paddingLeft: isRTL ? 46 : 12,
     },
+    otpInput: {
+      fontSize: 22,
+      fontWeight: "900",
+      letterSpacing: 0,
+      textAlign: "center",
+    },
     passwordToggle: {
       position: "absolute",
       top: 0,
@@ -687,6 +862,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     error: {
       color: "#ef4444",
       textAlign: align,
+    },
+    success: {
+      color: "#16a34a",
+      textAlign: align,
+      fontWeight: "700",
     },
     disabledBtn: {
       opacity: 0.7,
@@ -711,6 +891,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     sheetButtonDanger: {
       backgroundColor: "#dc2626",
       borderColor: "#dc2626",
+    },
+    sheetButtonPrimary: {
+      backgroundColor: palette.accent,
+      borderColor: palette.accent,
     },
     sheetButtonTextSecondary: {
       color: palette.text,

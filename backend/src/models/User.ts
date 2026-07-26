@@ -8,6 +8,10 @@ export interface IUser extends Document {
   password?: string | null;
   passwordSetupToken?: string | null;
   passwordSetupExpires?: Date | null;
+  emailVerified: boolean;
+  emailVerificationOtpHash?: string | null;
+  emailVerificationOtpExpires?: Date | null;
+  emailVerificationSentAt?: Date | null;
   role: UserRole;
   driverStatus?: DriverStatus;
   ratingAverage?: number;
@@ -29,6 +33,10 @@ const UserSchema = new Schema<IUser>(
     password: { type: String, required: false, default: null },
     passwordSetupToken: { type: String, required: false, default: null, index: true },
     passwordSetupExpires: { type: Date, required: false, default: null },
+    emailVerified: { type: Boolean, default: false },
+    emailVerificationOtpHash: { type: String, required: false, default: null, select: false },
+    emailVerificationOtpExpires: { type: Date, required: false, default: null, select: false },
+    emailVerificationSentAt: { type: Date, required: false, default: null, select: false },
     role: { type: String, enum: ["customer", "admin", "manager", "staff", "driver"], default: "customer" },
     driverStatus: { type: String, enum: ["AVAILABLE", "BUSY"], default: "AVAILABLE" },
     ratingAverage: { type: Number, default: 0, min: 0 },

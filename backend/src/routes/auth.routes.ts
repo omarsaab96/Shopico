@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { changeMyPassword, deleteMe, login, me, passwordStatus, refresh, register, setPassword, updateMe } from "../controllers/authController";
+import { changeMyPassword, deleteMe, login, me, passwordStatus, refresh, register, sendEmailOtp, setPassword, updateMe, verifyEmailOtp } from "../controllers/authController";
 import { authenticate } from "../middleware/auth";
 
 const router = Router();
@@ -12,6 +12,8 @@ router.post("/refresh", refresh);
 router.get("/me", authenticate, me);
 router.put("/me", authenticate, updateMe);
 router.put("/me/password", authenticate, changeMyPassword);
+router.post("/me/email/send-otp", authenticate, sendEmailOtp);
+router.post("/me/email/verify", authenticate, verifyEmailOtp);
 router.delete("/me", authenticate, deleteMe);
 
 export default router;
