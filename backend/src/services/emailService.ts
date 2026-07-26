@@ -20,12 +20,18 @@ export const sendEmailVerificationOtp = async (to: string, otp: string) => {
   });
 
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: env.smtp.from || env.smtp.user || "Shopico <no-reply@shopico.local>",
       to,
       subject: "Verify your Shopico email",
       text: `Your Shopico verification code is ${otp}. It expires in 10 minutes.`,
       html: `<p>Your Shopico verification code is <strong>${otp}</strong>.</p><p>It expires in 10 minutes.</p>`,
+    });
+    console.log("[email verification] SMTP send accepted", {
+      messageId: info.messageId,
+      accepted: info.accepted,
+      rejected: info.rejected,
+      response: info.response,
     });
   } catch (error: any) {
     console.error("[email verification] SMTP send failed", {
