@@ -7,6 +7,7 @@ import {
   View,
   StyleSheet,
   Animated,
+  Easing,
   Image,
   TouchableOpacity,
   ActivityIndicator,
@@ -87,6 +88,7 @@ export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -177,8 +179,41 @@ export default function Home() {
   );
 
   const fallbackLogo = isDark ? require("../assets/shopico_logo.png") : require("../assets/shopico_logo-black.png");
+  const fallbackLogoCat = require("../assets/adaptive-icon.png") ;
   const promoWidth = Math.min(360, windowWidth - 32);
   const hasAnnouncements = announcements.length > 0;
+  const featuredCategoryLimit = 10;
+  const categoryImageSize = 50;
+  const categoryGridColumns = 5;
+  const categoryCardHeight = 85;
+  const categoryGridRowGap = 12;
+  const categoryGridHeight = useRef(new Animated.Value(categoryCardHeight * 2 + categoryGridRowGap)).current;
+  const showFeaturedCategorySkeleton = categoriesLoading || refreshSkeleton || (!categoriesLoaded && Boolean(selectedBranch) && categories.length === 0);
+  const getCategoryGridHeight = useCallback(
+    (rows: number) => {
+      if (rows <= 0) return 0;
+      return rows * categoryCardHeight + (rows - 1) * categoryGridRowGap;
+    },
+    [categoryCardHeight, categoryGridRowGap]
+  );
+
+  useEffect(() => {
+    const itemCount = showFeaturedCategorySkeleton ? featuredCategoryLimit : categories.length;
+    const rowCount = Math.ceil(itemCount / categoryGridColumns);
+    const visibleRows = categoriesExpanded ? rowCount : Math.min(2, rowCount);
+    Animated.timing(categoryGridHeight, {
+      toValue: getCategoryGridHeight(visibleRows),
+      duration: 650,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [
+    categories.length,
+    categoriesExpanded,
+    categoryGridHeight,
+    getCategoryGridHeight,
+    showFeaturedCategorySkeleton,
+  ]);
 
   const successLottieRef = useRef<LottieView>(null);
 
@@ -879,68 +914,73 @@ export default function Home() {
 
   const renderCategoriesGrid = () => {
     if (hasQuery) return null;
-    const showCategorySkeleton = categoriesLoading || refreshSkeleton || (!categoriesLoaded && Boolean(selectedBranch) && categories.length === 0);
-    if (!showCategorySkeleton && categories.length == 0) return null;
+    if (!showFeaturedCategorySkeleton && categories.length == 0) return null;
+    const categoryItems: Category[] = showFeaturedCategorySkeleton
+      ? Array.from({ length: featuredCategoryLimit }, (_, i) => ({ _id: `skeleton-${i}`, name: "" }))
+      : categories;
+    const canToggleCategories = !showFeaturedCategorySkeleton && categories.length > featuredCategoryLimit;
+    const toggleCategoriesExpanded = () => {
+      setCategoriesExpanded((expanded) => !expanded);
+    };
 
     return (
       <View style={{ gap: 10, marginBottom: 10 }}>
         <View style={styles.sectionHead}>
           <Text weight="black" style={styles.sectionTitle}>{t("featuredCategories") ?? "Featured categories"}</Text>
-          <Link href="/categories" asChild>
-            <TouchableOpacity>
-              <Text style={styles.sectionAction}>{t("viewAll") ?? "View all"}</Text>
-            </TouchableOpacity>
-          </Link>
         </View>
 
-        <FlatList
-          data={showCategorySkeleton ? Array.from({ length: 6 }, (_, i) => ({ _id: `skeleton-${i}` })) : categories.slice(0, 7)}
-          key={isRTL ? "rtl-cats" : "ltr-cats"}
-          scrollEnabled={true}
-          showsHorizontalScrollIndicator={false}
-          horizontal
-          // numColumns={6}
-          // columnWrapperStyle={styles.catRow}
-          contentContainerStyle={{ gap: 12, }}
-          keyExtractor={(c) => c._id}
-          renderItem={({ item }) =>
-            showCategorySkeleton ? (
-              <View style={styles.catCard} pointerEvents="none">
-                <View style={styles.catImgBox}>
-                  <Skeleton width={46} height={46} colorScheme={isDark ? "dark" : "light"} />
-                </View>
-                <Skeleton width={60} height={10} colorScheme={isDark ? "dark" : "light"} />
-              </View>
-            ) : (
-              <Link href={{ pathname: `/categories/${item._id}`, params: { name: item.name } }} asChild>
-                <TouchableOpacity style={styles.catCard} activeOpacity={0.8}>
-                  <View style={styles.catImgBox}>
-                    {/* soft ?frosted? look: blurred bg + icon-like image */}
-                    {item.imageUrl ? (
-                      <>
-                        {/* <Image source={{ uri: item.imageUrl }} style={styles.catBg} blurRadius={18} /> */}
-                        {/* <View style={styles.catOverlay} /> */}
-                        <Image source={{ uri: item.imageUrl }} style={styles.catIcon} />
-                      </>
-                    ) : (
-                      <>
-                        <View style={[styles.catOverlay, { backgroundColor: isDark ? '#333' : '#f0f0f0' }]} />
-                        <Image source={fallbackLogo} style={[styles.catIcon, { tintColor: isDark ? '#444' : '#dedede' }]} />
-                      </>
-                    )}
+        <Animated.View style={[styles.catGridClip, { height: categoryGridHeight }]}>
+          <View style={styles.catGrid}>
+            {categoryItems.map((item) =>
+              showFeaturedCategorySkeleton ? (
+                <View key={item._id} style={styles.catCard} pointerEvents="none">
+                  <View style={[styles.catImgBox, { width: categoryImageSize, height: categoryImageSize }]}>
+                    <Skeleton width={categoryImageSize} height={categoryImageSize} colorScheme={isDark ? "dark" : "light"} />
                   </View>
-                  <Text
-                    style={styles.catName}
-                    numberOfLines={item.name.includes(" ") ? 2 : 1}
-                    ellipsizeMode="tail"
-                  >
-                    {item.name}
-                  </Text>
-                </TouchableOpacity>
-              </Link>
-            )
-          }
-        />
+                  <Skeleton width={60} height={10} colorScheme={isDark ? "dark" : "light"} />
+                </View>
+              ) : (
+                <Link key={item._id} href={{ pathname: `/categories/${item._id}`, params: { name: item.name } }} asChild>
+                  <TouchableOpacity style={styles.catCard} activeOpacity={0.8}>
+                    <View style={[styles.catImgBox, { width: categoryImageSize, height: categoryImageSize }]}>
+                      {/* soft ?frosted? look: blurred bg + icon-like image */}
+                      {item.imageUrl ? (
+                        <>
+                          {/* <Image source={{ uri: item.imageUrl }} style={styles.catBg} blurRadius={18} /> */}
+                          {/* <View style={styles.catOverlay} /> */}
+                          <Image source={{ uri: item.imageUrl }} style={styles.catIcon} />
+                        </>
+                      ) : (
+                        <>
+                          <View style={[styles.catOverlay, { backgroundColor: isDark ? '#333' : '#f0f0f0' }]} />
+                          <Image source={fallbackLogoCat} style={[styles.catIcon, { tintColor: isDark ? '#444' : '#dedede', objectFit:'contain' }]} />
+                        </>
+                      )}
+                    </View>
+                    <View style={styles.catNameWrap}>
+                      <Text
+                        style={styles.catName}
+                        numberOfLines={2}
+                        ellipsizeMode="tail"
+                        textBreakStrategy="simple"
+                      >
+                        {item.name}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </Link>
+              )
+            )}
+          </View>
+        </Animated.View>
+
+        {canToggleCategories ? (
+          <TouchableOpacity style={styles.categoryViewAllBtn} onPress={toggleCategoriesExpanded} activeOpacity={0.85}>
+            <Text style={styles.sectionAction}>
+              {categoriesExpanded ? (t("showLess") ?? "Show less") : (t("viewAll") ?? "View all")}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     );
   };
@@ -2248,29 +2288,33 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     sectionTitle: { color: palette.text, fontSize: 16, textAlign: 'left' },
     sectionAction: { color: palette.accent, fontWeight: "900", textAlign: 'left' },
 
-    catRow: {
-      gap: 12,
-      // borderWidth: 1,
+    catGridClip: {
+      overflow: "hidden",
+    },
+    catGrid: {
+      flexDirection: row,
+      flexWrap: "wrap",
+      justifyContent: "center",
+      rowGap: 12,
     },
     catCard: {
+      flexBasis: "20%",
+      maxWidth: "20%",
       // flex: 1,
       // backgroundColor: palette.card,
       // borderRadius: 18,
-      // paddingHorizontal: 10,
+      paddingHorizontal: 3,
       // borderWidth: 1,
       // borderColor: hairline,
       alignItems: "center",
       gap: 5,
       // ...cardShadow,
-      width: 60
       // maxWidth: 100
     },
     catImgBox: {
-      width: "100%",
-      // height: 72,
       borderRadius: 16,
       overflow: "hidden",
-      // backgroundColor: palette.surface,
+      backgroundColor: isDark ? "#2f2f2f" : palette.surface,
       alignItems: "center",
       justifyContent: "center",
       // borderWidth: 1,
@@ -2290,11 +2334,32 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       backgroundColor: isDark ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.45)",
     },
     catIcon: {
-      width: '90%',
-      height: 55,
-      resizeMode: "contain",
+      width: "100%",
+      height: "100%",
+      resizeMode: "cover",
     },
-    catName: { color: palette.text, fontSize: 12, textAlign: "center", fontWeight: '700' },
+    catNameWrap: {
+      width: "100%",
+      minHeight: 30,
+      maxHeight: 30,
+      overflow: "hidden",
+      alignItems: "center",
+    },
+    catName: {
+      width: "100%",
+      color: palette.text,
+      fontSize: 11,
+      lineHeight: 15,
+      textAlign: "center",
+      fontWeight: '700',
+      flexShrink: 1,
+      flexWrap: "wrap",
+    },
+    categoryViewAllBtn: {
+      alignSelf: "center",
+      paddingHorizontal: 18,
+      paddingVertical: 8,
+    },
 
     productRow: {
       gap: 12,

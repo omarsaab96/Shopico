@@ -1324,11 +1324,12 @@ export default function CartScreen() {
                         },
                         paymentMethod === "WALLET" && { flexDirection: 'row', justifyContent: 'space-between' },
                         ]}>
-                          <View style={{ flexDirection: 'row', gap: 10 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                             {paymentMethod === 'WALLET' ?
                               <Entypo name="wallet" size={20} color={palette.text} />
                               :
-                              <FontAwesome6 name="money-bill" size={20} color={palette.text} />
+                              // <FontAwesome6 name="money-bill" size={20} color={palette.text} />
+                              <Image source={require("../assets/bill.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
                             }
                             <Text weight="bold" style={{ color: palette.text }}>
                               {paymentMethod === 'WALLET' ? t('wallet') : t('cashOnDelivery')}
@@ -1361,7 +1362,7 @@ export default function CartScreen() {
                           {paymentMethods.map((method) => (
                             <TouchableOpacity
                               key={method}
-                              style={[styles.pillRow, { flexDirection: 'row', gap: 10 }, paymentMethod === method && styles.pillRowActive]}
+                              style={[styles.pillRow, { flexDirection: 'row', alignItems: 'center', gap: 10 }, paymentMethod === method && styles.pillRowActive]}
                               onPress={() => selectPaymentMethod(method)}
                             >
                               {paymentMethod === method &&
@@ -1370,7 +1371,8 @@ export default function CartScreen() {
                               {method === 'WALLET' ?
                                 <Entypo name="wallet" size={20} color={palette.text} />
                                 :
-                                <FontAwesome6 name="money-bill" size={20} color={palette.text} />
+                                // <FontAwesome6 name="money-bill" size={20} color={palette.text} />
+                                <Image source={require("../assets/bill.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
                               }
 
                               <Text weight="bold" style={[styles.pillText, paymentMethod === method && styles.pillTextActive]}>
