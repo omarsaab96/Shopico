@@ -71,6 +71,12 @@ export default function CartScreen() {
   const unavailableItems = items.filter((item) => item.unavailable);
   const hasUnavailableItems = unavailableItems.length > 0;
   const subtotal = items.reduce((sum, i) => (i.unavailable ? sum : sum + i.price * i.quantity), 0);
+  const originalSubtotal = items.reduce((sum, i) => {
+    if (i.unavailable) return sum;
+    const originalPrice = i.originalPrice && i.originalPrice > i.price ? i.originalPrice : i.price;
+    return sum + originalPrice * i.quantity;
+  }, 0);
+  const hasPromotionalSubtotal = originalSubtotal > subtotal;
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
   const { selectedCurrency, getWalletBalance, getCurrencySymbol, convertFromPrimary, formatMoney } = useCurrency();
@@ -778,15 +784,20 @@ export default function CartScreen() {
           }}
         >
           <View style={{ gap: 5, position: 'relative' }}>
-
-
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={[styles.sheetText, { fontWeight: '700' }]}>
+              <Text style={[styles.sheetText, { fontWeight: '700', }]}>
                 {t("subtotal")}
               </Text>
-              <Text style={styles.sheetText}>
-                {formatMoney(subtotal, selectedCurrency)}
-              </Text>
+              <View style={[styles.subtotalPriceStack, { flexDirection: 'row', gap: 5, alignItems: 'baseline' }]}>
+                {hasPromotionalSubtotal ? (
+                  <Text style={[styles.sheetOldPrice, { marginBottom: 0 }]}>
+                    {formatMoney(originalSubtotal, selectedCurrency)}
+                  </Text>
+                ) : null}
+                <Text weight="bold" style={[styles.sheetSubtotalValue]}>
+                  {formatMoney(subtotal, selectedCurrency)}
+                </Text>
+              </View>
             </View>
 
             {couponDiscountTotal > 0 && <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -824,13 +835,13 @@ export default function CartScreen() {
             onPress={placeOrder}
             disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading}
           >
-            <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={[styles.primaryBtnText, { opacity: 0.8, fontSize: 14, lineHeight: 14 }]}>
+            <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
                 {submitting ? t("placingOrder") : t("placeOrder")}
               </Text>
 
               <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
-                {!submitting && formatMoney(orderTotal, selectedCurrency)}
+                {!submitting && ` • ${formatMoney(orderTotal, selectedCurrency)}`}
               </Text>
 
               {/* {!submitting && selectedCurrency?.symbol.en != "USD" && <Text style={[styles.primaryBtnText, { fontSize: 14, textAlign: 'center', opacity: 0.6, textDecorationLine: "line-through", lineHeight: 14 }]}>
@@ -850,7 +861,14 @@ export default function CartScreen() {
   return (
     <BottomSheetModalProvider>
       <Screen>
-        <Text weight="bold" style={styles.title}>{t("cart")}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <Text weight="bold" style={styles.title}>{t("cart")}</Text>
+          {items.length > 0 &&
+            <TouchableOpacity onPress={confirmClear}>
+              <Text style={{ color: palette.accent, fontWeight: 'bold' }}>{t("clearCart")}</Text>
+            </TouchableOpacity>
+          }
+        </View>
 
         {items.length === 0 ? (
           <View style={styles.emptyBox}>
@@ -880,15 +898,17 @@ export default function CartScreen() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} />}
             renderItem={({ item }) => (
               <View style={[styles.cartItem, item.unavailable && styles.cartItemUnavailable]}>
-                <View style={styles.itemImageWrap}>
-                  {item.image ? (
-                    <Image source={{ uri: item.image }} style={styles.itemImage} />
-                  ) : (
-                    <MaterialIcons name="image-not-supported" size={24} color={palette.muted} />
-                  )}
-                </View>
 
-                <View style={{ flex: 1, borderWidth: 1, gap: 10 }}>
+                {item.image ? (<View style={styles.itemImageWrap}>
+                  <Image source={{ uri: item.image }} style={styles.itemImage} />
+                </View>
+                ) : (<View style={[styles.itemImageWrap, { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.surface }]}>
+                  <MaterialIcons name="image-not-supported" size={24} color={palette.border} />
+                </View>
+                )}
+
+
+                <View style={{ flex: 1, gap: 10 }}>
                   <View style={styles.cartItemBody}>
                     <View style={styles.itemTitleRow}>
                       <Text weight="bold" style={[styles.name, item.unavailable && { color: isDark ? "#fecaca" : "#991b1b" }]}>{item.name}</Text>
@@ -901,24 +921,24 @@ export default function CartScreen() {
                     ) : null} */}
                     </View>
                   </View>
-                  
+
                   <View style={styles.itemRow}>
                     <View style={styles.itemActions}>
                       {((!item.unavailable && item.quantity <= 1) || item.unavailable) && <TouchableOpacity onPress={() => confirmRemove(item.productId, item.variantId)} style={styles.removeFromCartBtn}>
                         {/* <MaterialIcons name="delete" size={20} color="#000" /> */}
-                        <FontAwesome name="trash-o" size={22} color="black" />
+                        <FontAwesome name="trash-o" size={22} color={palette.text} />
                       </TouchableOpacity>}
 
                       {!item.unavailable ? (
                         <View style={styles.qtyRow}>
                           {item.quantity > 1 && <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity - 1, item.variantId)}>
                             {/* <Text weight="bold" style={styles.qtySymbol}>-</Text> */}
-                            <AntDesign name="minus" size={18} color="black" />
+                            <AntDesign name="minus" size={18} color={palette.text} />
                           </TouchableOpacity>}
                           <Text weight="bold" style={styles.qtyValue}>{item.quantity}</Text>
                           <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity + 1, item.variantId)}>
                             {/* <Text weight="bold" style={styles.qtySymbol}>+</Text> */}
-                            <AntDesign name="plus" size={20} color="black" />
+                            <AntDesign name="plus" size={20} color={palette.text} />
                           </TouchableOpacity>
                         </View>
                       ) : (
@@ -957,7 +977,12 @@ export default function CartScreen() {
 
         {items.length > 0 && <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>{t("subtotal")}</Text>
-          <Text weight="bold" style={styles.totalValue}>{formatMoney(subtotal, selectedCurrency)}</Text>
+          <View style={styles.subtotalPriceStack}>
+            {hasPromotionalSubtotal ? (
+              <Text style={styles.totalOldValue}>{formatMoney(originalSubtotal, selectedCurrency)}</Text>
+            ) : null}
+            <Text weight="bold" style={styles.totalValue}>{formatMoney(subtotal, selectedCurrency)}</Text>
+          </View>
         </View>}
         {hasUnavailableItems ? (
           <Text style={styles.cartWarning}>
@@ -966,7 +991,7 @@ export default function CartScreen() {
         ) : null}
 
         {items.length > 0 && <View style={{ paddingBottom: 16, flexDirection: 'row', gap: 5 }}>
-          <Button title={t("clearCart")} onPress={confirmClear} secondary />
+          {/* <Button title={t("clearCart")} onPress={confirmClear} secondary /> */}
           {user ? (
             cartSyncLoading ? (
               <TouchableOpacity
@@ -1200,7 +1225,7 @@ export default function CartScreen() {
                     {!showAddresses && !selectedAddress &&
                       <View style={styles.addressBox}>
                         <View style={{
-                          backgroundColor: "#fff",
+                          backgroundColor: palette.card,
                           padding: 10,
                           borderRadius: 20,
                           flexDirection: 'row',
@@ -1217,7 +1242,7 @@ export default function CartScreen() {
                     {!showAddresses && selectedAddress &&
                       <View style={styles.addressBox}>
                         <View style={{
-                          backgroundColor: "#fff",
+                          backgroundColor: palette.card,
                           padding: 10,
                           borderRadius: 20,
                           flexDirection: 'row',
@@ -1238,7 +1263,7 @@ export default function CartScreen() {
                     {!addressesLoading && showAddresses && (
                       <View style={styles.addressBox}>
                         <View style={{
-                          backgroundColor: "#fff",
+                          backgroundColor: palette.card,
                           padding: 10,
                           borderRadius: 20,
                           gap: 5
@@ -1293,7 +1318,7 @@ export default function CartScreen() {
                     {!showPaymentOptions ? (
                       <View style={styles.addressBox}>
                         <View style={[{
-                          backgroundColor: "#fff",
+                          backgroundColor: palette.card,
                           padding: 10,
                           borderRadius: 20
                         },
@@ -1305,7 +1330,7 @@ export default function CartScreen() {
                               :
                               <FontAwesome6 name="money-bill" size={20} color={palette.text} />
                             }
-                            <Text weight="bold" >
+                            <Text weight="bold" style={{ color: palette.text }}>
                               {paymentMethod === 'WALLET' ? t('wallet') : t('cashOnDelivery')}
                             </Text>
                           </View>
@@ -1328,7 +1353,7 @@ export default function CartScreen() {
                     ) : (
                       <View style={styles.addressBox}>
                         <View style={{
-                          backgroundColor: "#fff",
+                          backgroundColor: palette.card,
                           padding: 10,
                           borderRadius: 20,
                           gap: 5
@@ -1394,7 +1419,7 @@ export default function CartScreen() {
                       {!showCouponOptions ? (
                         <View style={styles.addressBox}>
                           <View style={{
-                            backgroundColor: "#fff",
+                            backgroundColor: palette.card,
                             padding: 10,
                             borderRadius: 20,
                             gap: 6
@@ -1420,7 +1445,7 @@ export default function CartScreen() {
                       ) : (
                         <View style={styles.addressBox}>
                           <View style={{
-                            backgroundColor: "#fff",
+                            backgroundColor: palette.card,
                             borderRadius: 20,
                             gap: 8
                           }}>
@@ -1537,7 +1562,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     title: {
       color: palette.text,
       fontSize: 22,
-      marginBottom: 12,
       textAlign: 'left',
       fontWeight: "900",
     },
@@ -1572,15 +1596,14 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       alignItems: "center",
       gap: 4,
       flexWrap: "wrap",
-      justifyContent:'space-between'
+      justifyContent: 'space-between'
     },
     itemImageWrap: {
       width: 72,
       height: 72,
       borderRadius: 12,
-      backgroundColor: palette.surface,
-      borderWidth: 1,
-      borderColor: palette.border,
+      // borderWidth: 1,
+      // borderColor: palette.border,
       alignItems: "center",
       justifyContent: "center",
       overflow: "hidden",
@@ -1591,26 +1614,29 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       resizeMode: "cover",
     },
     cartItemBody: {
-      borderWidth: 1,
+      // borderWidth: 1,
     },
     name: { color: palette.text, textAlign: 'left' },
     muted: { color: palette.muted, textAlign: 'left' },
     priceRow: {
-      flexDirection: "row",
-      alignItems: "baseline",
-      gap: 8,
-      flexWrap: "wrap",
+      // flexDirection: "row",
+      // alignItems: "baseline",
+      // gap: 8,
+      // flexWrap: "wrap",
+      // borderWidth:1
     },
     oldItemPrice: {
       color: palette.muted,
-      fontSize: 12,
+      opacity: 0.8,
+      fontSize: 14,
       textDecorationLine: "line-through",
-      textAlign: "left",
+      lineHeight: 14,
+      marginBottom: 2
     },
     newItemPrice: {
       color: palette.text,
       fontSize: 14,
-      textAlign: "left",
+      lineHeight: 14,
     },
     unavailableBadge: {
       backgroundColor: isDark ? "#4a1f1f" : "#fee2e2",
@@ -1642,8 +1668,28 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     },
     link: { color: palette.accent },
     totalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: 'center', marginVertical: 12 },
-    totalLabel: { color: palette.muted },
-    totalValue: { color: palette.text, fontSize: 16 },
+    totalLabel: { color: palette.text, fontWeight: '700', fontSize: 16, lineHeight: 16 },
+    totalValue: { color: palette.text, fontSize: 16, lineHeight: 16 },
+    totalOldValue: {
+      color: palette.muted,
+      fontSize: 12,
+      textDecorationLine: "line-through",
+      lineHeight: 12,
+      marginBottom: 2
+    },
+    subtotalPriceStack: {
+      alignItems: "flex-end",
+      // gap: 2,
+    },
+    sheetOldPrice: {
+      color: isDark ? palette.text : palette.muted,
+      fontSize: 12,
+      textDecorationLine: "line-through",
+      lineHeight: 12,
+    },
+    sheetSubtotalValue: {
+      color: palette.text,
+    },
     qtyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
     itemActions: {
       alignItems: "center",
@@ -1715,6 +1761,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     sheetTitle: { color: palette.text, fontSize: 18, marginBottom: 20, textAlign: 'left' },
     section: {
       fontSize: 14,
+      color: palette.text
     },
     buttonCta: {
       paddingVertical: 14,
@@ -1727,7 +1774,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       shadowOffset: { width: 0, height: 4 },
     },
     buttonCtaText: { color: "#fff", fontSize: 16, fontWeight: "900" },
-    sheetText: { color: palette.muted, textAlign: 'left' },
+    sheetText: { color: palette.text, textAlign: 'left', fontWeight: "700" },
     sheetActions: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
     sheetButton: {
       flex: 1, paddingBottom: 12,
@@ -1824,7 +1871,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     pillRowActive: { borderColor: palette.accent, position: 'relative', backgroundColor: isDark ? palette.surface : "rgba(249,115,22,0.10)", },
     selectedTick: { position: 'absolute', top: 5 },
     pillText: { color: palette.text, textAlign: 'left' },
-    pillTextActive: { color: "#0f172a" },
+    pillTextActive: { color: palette.text },
     primaryBtn: {
       paddingVertical: 14,
       // paddingVertical: 5,
@@ -1955,10 +2002,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
 
     subtitle: {
       fontSize: 10,
-      color: isDark ? palette.card : palette.text,
       opacity: 0.8,
       letterSpacing: 1,
-      textTransform: 'uppercase'
+      textTransform: 'uppercase',
+      color: palette.text
     },
     couponProductName: {
       fontSize: 10,
@@ -1984,7 +2031,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
 
     leftCut: {
       top: -5,
-      backgroundColor: "#fff",
+      backgroundColor: palette.card,
     },
 
     rightCut: {

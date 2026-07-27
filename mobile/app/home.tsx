@@ -25,6 +25,7 @@ import {
   BottomSheetModalProvider,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import Screen from "../components/Screen";
 import api, { getBranchId, getBranchLock, setBranchId, setBranchLock } from "../lib/api";
@@ -912,7 +913,7 @@ export default function Home() {
               </View>
             ) : (
               <Link href={{ pathname: `/categories/${item._id}`, params: { name: item.name } }} asChild>
-                <TouchableOpacity style={styles.catCard} activeOpacity={0.9}>
+                <TouchableOpacity style={styles.catCard} activeOpacity={0.8}>
                   <View style={styles.catImgBox}>
                     {/* soft ?frosted? look: blurred bg + icon-like image */}
                     {item.imageUrl ? (
@@ -923,8 +924,8 @@ export default function Home() {
                       </>
                     ) : (
                       <>
-                        <View style={[styles.catOverlay, { backgroundColor: '#f0f0f0' }]} />
-                        <Image source={fallbackLogo} style={[styles.catIcon, { tintColor: '#dedede' }]} />
+                        <View style={[styles.catOverlay, { backgroundColor: isDark ? '#333' : '#f0f0f0' }]} />
+                        <Image source={fallbackLogo} style={[styles.catIcon, { tintColor: isDark ? '#444' : '#dedede' }]} />
                       </>
                     )}
                   </View>
@@ -1369,12 +1370,12 @@ export default function Home() {
                           <Link href={`/products/${item._id}`} asChild>
                             <TouchableOpacity
                               style={styles.productPressable}
-                              activeOpacity={0.92}
+                              activeOpacity={0.8}
                             >
                               <View style={[
                                 styles.prodImgBox,
                                 !item.images?.[0]?.url && {
-                                  backgroundColor: '#f0f0f0'
+                                  backgroundColor: isDark ? '#333' : '#f0f0f0'
                                 }
                               ]}>
                                 <Image
@@ -1385,12 +1386,87 @@ export default function Home() {
                                   }
                                   style={[
                                     styles.productImg,
-                                    !item.images?.[0]?.url && { tintColor: '#dedede' },
+                                    !item.images?.[0]?.url && { tintColor: isDark ? '#444' : '#dedede' },
                                   ]}
                                 />
+
+                                {(() => {
+                                  const hasVariants = Boolean(item.variants?.length);
+                                  const existing = items.find(
+                                    (i) => i.productId === item._id && !i.variantId
+                                  );
+
+                                  if (existing) {
+                                    return (
+                                      <View style={styles.qtyRow}>
+                                        <TouchableOpacity
+                                          style={styles.qtyBtn}
+                                          onPress={() =>
+                                            setQuantity(existing.productId, existing.quantity - 1, existing.variantId)
+                                          }
+                                        >
+                                          {existing.quantity > 1 ?
+                                            <AntDesign name="minus" size={20} color={palette.text} />
+                                            :
+                                            <FontAwesome name="trash-o" size={20} color={palette.text} />
+                                          }
+                                        </TouchableOpacity>
+
+                                        <Text style={styles.qtyVal}>{existing.quantity}</Text>
+
+                                        <TouchableOpacity
+                                          style={styles.qtyBtn}
+                                          onPress={() =>
+                                            hasVariants ? router.push(`/products/${item._id}`) : addItem({
+                                              productId: item._id,
+                                              name: item.name,
+                                              price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
+                                              originalPrice: item.isPromoted && item.promoPrice !== undefined ? item.price : undefined,
+                                              isPromoted: item.isPromoted && item.promoPrice !== undefined,
+                                              image: item.images?.[0]?.url,
+                                              quantity: 1,
+                                            })
+                                          }
+                                        >
+                                          <AntDesign name="plus" size={20} color={palette.text} />
+                                        </TouchableOpacity>
+                                      </View>
+                                    );
+                                  }
+
+                                  return (
+                                    <TouchableOpacity
+                                      style={styles.addBtn}
+                                      onPress={() =>
+                                        hasVariants ? router.push(`/products/${item._id}`) : addItem({
+                                          productId: item._id,
+                                          name: item.name,
+                                          price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
+                                          originalPrice: item.isPromoted && item.promoPrice !== undefined ? item.price : undefined,
+                                          isPromoted: item.isPromoted && item.promoPrice !== undefined,
+                                          image: item.images?.[0]?.url,
+                                          quantity: 1,
+                                        })
+                                      }
+                                    >
+                                      <AntDesign name="plus" size={20} color={palette.text} />
+                                    </TouchableOpacity>
+                                  );
+                                })()}
                               </View>
 
-                              <View style={{ flexDirection: 'row', justifyContent: 'center', position: 'relative' }}>
+                              <View style={styles.priceRow}>
+                                <Text style={[styles.productPrice, item.isPromoted && { color: palette.accent }]}>
+                                  {formatMoney(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price, selectedCurrency)}
+                                </Text>
+                                <Text style={[styles.productOldPrice]} numberOfLines={1}>
+                                  {item.isPromoted && item.promoPrice !== undefined
+                                    && formatMoney(item.price, selectedCurrency)
+                                  }
+                                </Text>
+                              </View>
+
+                              <View style={{ flexDirection: 'row', justifyContent: 'flex-start', position: 'relative', marginTop: 4 }}>
                                 {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
                                   <Text style={[styles.promoBadge,]}>
                                     {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
@@ -1398,88 +1474,15 @@ export default function Home() {
                                 ) : null}
                               </View>
 
-                              <Text style={styles.productName} numberOfLines={1}>
+                              <Text style={styles.productName} numberOfLines={2}>
                                 {item.name}
                               </Text>
 
-                              <Text style={styles.productDesc} numberOfLines={2}>
+                              {/* <Text style={styles.productDesc} numberOfLines={2}>
                                 {item.description ? item.description : '-'}
-                              </Text>
-
-                              <View style={styles.priceRow}>
-                                <Text style={[styles.productOldPrice]} numberOfLines={1}>
-                                  {item.isPromoted && item.promoPrice !== undefined
-                                    && formatMoney(item.price, selectedCurrency)
-                                  }
-                                </Text>
-                                <Text style={[styles.productPrice]}>
-                                  {formatMoney(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price, selectedCurrency)}
-                                </Text>
-                              </View>
+                              </Text> */}
                             </TouchableOpacity>
                           </Link>
-
-                          {(() => {
-                            const hasVariants = Boolean(item.variants?.length);
-                            const existing = items.find(
-                              (i) => i.productId === item._id && !i.variantId
-                            );
-
-                            if (existing) {
-                              return (
-                                <View style={styles.qtyRow}>
-                                  <TouchableOpacity
-                                    style={styles.qtyBtn}
-                                    onPress={() =>
-                                      setQuantity(existing.productId, existing.quantity - 1, existing.variantId)
-                                    }
-                                  >
-                                    <Text style={styles.qtySym}>-</Text>
-                                  </TouchableOpacity>
-
-                                  <Text style={styles.qtyVal}>{existing.quantity}</Text>
-
-                                  <TouchableOpacity
-                                    style={styles.qtyBtn}
-                                    onPress={() =>
-                                      hasVariants ? router.push(`/products/${item._id}`) : addItem({
-                                        productId: item._id,
-                                        name: item.name,
-                                        price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
-                                        originalPrice: item.isPromoted && item.promoPrice !== undefined ? item.price : undefined,
-                                        isPromoted: item.isPromoted && item.promoPrice !== undefined,
-                                        image: item.images?.[0]?.url,
-                                        quantity: 1,
-                                      })
-                                    }
-                                  >
-                                    <Text style={styles.qtySym}>+</Text>
-                                  </TouchableOpacity>
-                                </View>
-                              );
-                            }
-
-                            return (
-                              <TouchableOpacity
-                                style={styles.addBtn}
-                                onPress={() =>
-                                  hasVariants ? router.push(`/products/${item._id}`) : addItem({
-                                    productId: item._id,
-                                    name: item.name,
-                                    price: item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price,
-                                    originalPrice: item.isPromoted && item.promoPrice !== undefined ? item.price : undefined,
-                                    isPromoted: item.isPromoted && item.promoPrice !== undefined,
-                                    image: item.images?.[0]?.url,
-                                    quantity: 1,
-                                  })
-                                }
-                              >
-                                <Text style={styles.addBtnText}>
-                                  {t("addToCart") ?? "Add to cart"}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })()}
                         </View>
                       </View>
                     );
@@ -2302,80 +2305,104 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
 
     productCard: {
-      backgroundColor: palette.card,
-      borderRadius: 20,
-      padding: 5,
-      borderWidth: 1,
-      borderColor: hairline,
-      gap: 10,
-      ...cardShadow,
+      // backgroundColor: palette.card,
+      // borderRadius: 20,
+      // padding: 5,
+      // borderWidth: 1,
+      // borderColor: hairline,
+      // gap: 10,
+      // ...cardShadow,
     },
     productPressable: { gap: 0 },
     prodImgBox: {
-      width: "100%",
-      height: 110,
+      // width: "100%",
+      // height: 110,
       borderRadius: 16,
       overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",
-      // borderWidth: 1,
-      // borderColor: hairline,
-      marginBottom: 10
+      borderWidth: 1,
+      borderColor: hairline,
+      marginBottom: 10,
+      position: 'relative'
     },
-    productImg: { height: '100%', aspectRatio: 4 / 3, resizeMode: "contain" },
+    productImg: {
+      height: 150,
+      // width:'100%',
+      aspectRatio: 1,
+      resizeMode: "contain",
+      // borderWidth:1
+    },
     productName: { color: palette.text, fontWeight: "900", marginBottom: isRTL ? 0 : 4, textAlign: 'left' },
     productDesc: { color: palette.muted, fontSize: 12, marginBottom: isRTL ? 0 : 10, textAlign: 'left' },
 
     priceRow: {
-      // flexDirection: "row",
-      // alignItems: "center",
-      // gap: 0,
-      // marginBottom: 5,
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: 5,
       // flexWrap: 'wrap'
     },
     productOldPrice: {
       color: palette.muted,
       fontWeight: "700",
       fontSize: 12,
+      lineHeight: 12,
       textDecorationLine: "line-through",
     },
     promoBadge: {
       backgroundColor: palette.accent,
       color: "#fff",
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: "800",
-      paddingHorizontal: 6,
+      paddingHorizontal: 8,
       paddingVertical: 2,
-      borderRadius: 10,
-      borderWidth: 3,
-      borderColor: palette.card,
-      position: 'absolute',
-      bottom: 0
+      borderRadius: 15,
+      // borderWidth: 3,
+      // borderColor: palette.card,
+      // position: 'absolute',
+      // bottom: 0
     },
-    productPrice: { color: palette.accent, fontWeight: "900", fontSize: 18, lineHeight: 22 },
+    productPrice: { color: isDark ? '#fff' : '#000', fontWeight: "900", fontSize: 18, lineHeight: 24 },
 
     addBtn: {
-      backgroundColor: palette.accent,
+      backgroundColor: isDark ? '#444' : '#fff',
       borderRadius: 15,
-      paddingVertical: 12,
       alignItems: "center",
       justifyContent: "center",
+      borderWidth: 1,
+      borderColor: hairline,
+      position: 'absolute',
+      width: 30,
+      height: 30,
+      bottom: 10,
+      right: 10,
+      ...cardShadow,
     },
     addBtnText: { color: "#fff", fontWeight: "900" },
 
     qtyRow: {
-      flexDirection: row,
+      backgroundColor: isDark ? '#444' : '#fff',
+      borderRadius: 15,
       alignItems: "center",
-      justifyContent: "space-between",
-      gap: 10,
-    },
-    qtyBtn: {
-      width: 42,
-      height: 42,
-      borderRadius: 14,
-      backgroundColor: palette.surface,
+      justifyContent: "center",
+      flexDirection: 'row',
       borderWidth: 1,
       borderColor: hairline,
+      position: 'absolute',
+      height: 30,
+      bottom: 10,
+      right: 10,
+      gap: 10,
+      paddingHorizontal: 10,
+      ...cardShadow,
+    },
+    qtyBtn: {
+      // width: 42,
+      // height: 42,
+      // borderRadius: 14,
+      // backgroundColor: palette.surface,
+      // borderWidth: 1,
+      // borderColor: hairline,
       alignItems: "center",
       justifyContent: "center",
     },
