@@ -10,6 +10,7 @@ const baseStrings = {
   add: "Add",
   store: "Store",
   cart: "Cart",
+  viewYourCart: "View your cart",
   orders: "Orders",
   driver: "Driver",
   profile: "Profile",
@@ -229,13 +230,15 @@ const baseStrings = {
   completeSetupTitle: "Before you continue...",
   completeSetupSub1: "Choose your preferred branch",
   completeSetupSub2: "Set your delivery address",
-  donthaveAnAccount: "Don't have an account?"
+  donthaveAnAccount: "Don't have an account?",
+  allCategories: "All categories"
 };
 
 const arStrings: Record<string, string> = {
   add: "أضف",
   store: "المتجر",
   cart: "السلة",
+  viewYourCart: "عرض السلة",
   orders: "الطلبات",
   profile: "الملف الشخصي",
   checkout: "إتمام الطلب",
@@ -443,7 +446,8 @@ const arStrings: Record<string, string> = {
   completeSetupSub2: "اختار عنوان التوصيل",
   haveAnAccount: "هل لديك حساب؟",
   donthaveAnAccount: "لا تملك حساب؟",
-  or: "أو"
+  or: "أو",
+  allCategories: "كل الفئات"
 };
 
 const extraBaseStrings: Record<string, string> = {
