@@ -430,8 +430,9 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       backgroundColor: palette.card,
     },
     categoryPillActive: {
-      backgroundColor: palette.accent,
+      backgroundColor: isDark ? "transparent" : "#000",
       // backgroundColor: isDark ? "#2f2f2f" : "rgba(249,115,22,0.12)",
+      borderColor: isDark ? "#2f2f2f" : "transparent",
     },
     categoryPillText: {
       color: palette.text,
@@ -439,7 +440,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       textAlign: "center",
     },
     categoryPillTextActive: {
-      color: palette.text,
+      color: isDark ? palette.text: "#fff",
     },
 
     productListContent: {
@@ -574,11 +575,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       left: 0,
       right: 0,
       bottom: insets.bottom + 10,
-      // minHeight: 56,
-      borderRadius: 10,
-      backgroundColor: palette.accent,
       flexDirection: 'row',
-      alignItems: "center",
       justifyContent: "space-between",
       gap: 12,
       paddingHorizontal: 10,
@@ -586,6 +583,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       paddingTop: isRTL ? 8 : 8,
       paddingBottom: isRTL ? 6 : 8,
       ...cardShadow,
+      paddingVertical: 14,
+      borderRadius: 14,
+      alignItems: "center",
+      backgroundColor: palette.accent,
     },
     cartCtaCount: {
       width: 28,

@@ -124,6 +124,22 @@ export default function Profile() {
   const thresholds = getMembershipThresholds(settings, selectedCurrency);
   const membershipLevel = getMembershipLevel(balance, thresholds);
 
+  const hasThresholds = Boolean(thresholds);
+
+  const graceUntil = user?.membershipGraceUntil ? new Date(user.membershipGraceUntil) : null;
+  const inGrace = !!(graceUntil && graceUntil.getTime() > Date.now() && membershipLevel !== "None");
+
+  const currentThreshold = useMemo(() => {
+    const map: Record<string, number> = {
+      Silver: thresholds?.silver ?? 0,
+      Gold: thresholds?.gold ?? 0,
+      Platinum: thresholds?.platinum ?? 0,
+      Diamond: thresholds?.diamond ?? 0,
+    };
+    return map[membershipLevel] || 0;
+  }, [membershipLevel, thresholds]);
+
+
   const { nextLabel, remaining, progress } = useMemo(() => {
     const levels = [
       { name: "None", min: 0 },
@@ -174,78 +190,156 @@ export default function Profile() {
         <View style={{ flex: 1, justifyContent: 'space-between' }}>
           <View>
             <Text style={styles.title}>{t("profile")}</Text>
-            {user ? (
-              <View style={styles.card}>
-                <View style={{ padding: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ justifyContent: 'flex-start', }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5, marginBottom: 5 }}>
-                      <Text style={styles.username}>{user?.name}</Text>
 
-                      <View style={styles.walletBadgeRow}>
+            {user ? (
+              <>
+                <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg, marginBottom: 20 }]}>
+                  <View style={[styles.walletGlowA, { backgroundColor: membershipTone.accent }]} />
+                  <View style={[styles.walletGlowB, { backgroundColor: membershipTone.accent }]} />
+                  <View style={styles.walletRow}>
+                    <View style={styles.walletTextCol}>
+                      <View style={styles.walletHeader}>
+                        <View style={{ gap: 0 }}>
+                          <Text style={styles.walletLabel}>
+                            {user?.name}
+                          </Text>
+                          <Text style={[styles.muted, { textAlign: 'left' }]}>{user?.email}</Text>
+                          {/* <Entypo name="info-with-circle" size={18} color={palette.muted} /> */}
+                        </View>
                         <View style={[styles.levelPill, { backgroundColor: membershipTone.badgeBg, borderColor: membershipTone.ring }]}>
-                          {/* <Feather name="award" size={14} color={membershipTone.badgeText} /> */}
+                          <Feather name="award" size={14} color={membershipTone.badgeText} />
                           <Text style={[styles.levelPillText, { color: membershipTone.badgeText }]}>
                             {membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}
                           </Text>
                         </View>
                       </View>
-                    </View>
-                    <View style={styles.emailRow}>
-                      <Text style={[styles.muted, { textAlign: 'left' }]}>{user?.email}</Text>
-                      {user?.emailVerified ? (
-                        <View style={styles.verifiedPill}>
-                          <Feather name="check-circle" size={13} color="#16a34a" />
-                          <Text style={styles.verifiedPillText}>{t("verified") ?? "Verified"}</Text>
+                      <View style={styles.walletValue}>
+                        <Entypo name="wallet" size={22} color={palette.text} />
+                        <View style={styles.walletValueTextRow}>
+                          <Text style={styles.walletValueText}>{balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}</Text>
+                          <Text style={{ fontWeight: "400", fontSize: 12 }}>{getCurrencySymbol(selectedCurrency)}</Text>
                         </View>
-                      ) : (
-                        <TouchableOpacity style={styles.verifyEmailBtn} onPress={() => router.push("/email-verification?returnTo=/profile" as any)} activeOpacity={0.85}>
-                          <Feather name="mail" size={13} color={palette.accent} />
-                          <Text style={styles.verifyEmailText}>{t("verifyEmail") ?? "Verify email"}</Text>
-                        </TouchableOpacity>
-                      )}
+                      </View>
                     </View>
                   </View>
-                  <View>
-                    <TouchableOpacity style={styles.btn} onPress={() => { handleEdit() }}>
-                      <Feather name="edit-3" size={20} color="#fff" />
-                    </TouchableOpacity>
+
+                  <View style={{ marginTop: 10 }}>
+                    {hasThresholds ? (
+                      <>
+                        <ProgressBar progress={progress} />
+                        <View style={styles.walletFooterRow}>
+                          {remaining > 0 && <Text style={styles.walletMiniLabel}>{t("remainingToNext") ?? "Remaining to"}{nextLabel}</Text>}
+                          <Text style={styles.walletMiniValue}>
+                            {remaining > 0 ? `${remaining.toLocaleString()} ${getCurrencySymbol(selectedCurrency)}` : t("congrats") ?? "Top level"}
+                          </Text>
+                        </View>
+                      </>
+                    ) : (
+                      <Text style={styles.walletMiniLabel}>{t("membershipLoadError") ?? "Could not load membership details."}</Text>
+                    )}
+
+                    {inGrace && (
+                      <View style={[styles.graceBox, { borderColor: membershipTone.ring, backgroundColor: isDark ? palette.surface : "#fffaf0" }]}>
+                        <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
+                        <Text style={styles.graceCopy}>
+                          {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} {getCurrencySymbol(selectedCurrency)}
+                        </Text>
+                        <Text style={[styles.graceCopy, { color: palette.muted }]}>
+                          {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
 
-                {/* <Text style={styles.muted}>
-                {t("role")}: {user?.role || "-"}
-              </Text> */}
-
-                <View style={{ borderTopWidth: 1, borderColor: palette.border, flexDirection: 'row' }}>
-                  <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBox, styles.borderRight]}>
-                    <Text style={[styles.muted]}>
-                      {t("pointsBalance")}
-                      {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
-                    </Text>
-                    <Text style={styles.pointsValue}>
-                      {formattedPoints}
-                    </Text>
+                <View style={styles.card}>
+                  <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBoxFull]}>
+                    <View>
+                      <Text style={[styles.muted]}>
+                        {t("points")}
+                        {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
+                      </Text>
+                      <Text style={styles.pointsValue}>
+                        {formattedPoints}
+                      </Text>
+                    </View>
                     {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
                     <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/points") }}>
                       <Text style={styles.link}>{t("learnMore")}</Text>
                     </TouchableOpacity>
                   </TouchableOpacity>
-
-                  <TouchableOpacity onPress={() => { router.push("/wallet") }} style={[styles.pointsBox]}>
-                    <Text style={styles.muted}>
-                      {t("WalletBalance")} ({getCurrencySymbol(selectedCurrency)})
-                      {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
-                    </Text>
-                    <Text style={styles.pointsValue}>
-                      {balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}
-                    </Text>
-                    {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
-                    <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/wallet") }}>
-                      <Text style={styles.link}>{t("learnMore")}</Text>
-                    </TouchableOpacity>
-                  </TouchableOpacity>
                 </View>
-              </View>
+
+                <View style={styles.card}>
+                  <View style={{ padding: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ justifyContent: 'flex-start', }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5, marginBottom: 5 }}>
+                        {/* <View style={styles.walletBadgeRow}>
+                          <View style={[styles.levelPill, { backgroundColor: membershipTone.badgeBg, borderColor: membershipTone.ring }]}>
+                            <Feather name="award" size={14} color={membershipTone.badgeText} />
+                            <Text style={[styles.levelPillText, { color: membershipTone.badgeText }]}>
+                              {membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}
+                            </Text>
+                          </View>
+                        </View> */}
+                      </View>
+                      <View style={styles.emailRow}>
+                        <Text style={[styles.muted, { textAlign: 'left' }]}>{user?.email}</Text>
+                        {user?.emailVerified ? (
+                          <View style={styles.verifiedPill}>
+                            <Feather name="check-circle" size={13} color="#16a34a" />
+                            <Text style={styles.verifiedPillText}>{t("verified") ?? "Verified"}</Text>
+                          </View>
+                        ) : (
+                          <TouchableOpacity style={styles.verifyEmailBtn} onPress={() => router.push("/email-verification?returnTo=/profile" as any)} activeOpacity={0.85}>
+                            <Feather name="mail" size={13} color={palette.accent} />
+                            <Text style={styles.verifyEmailText}>{t("verifyEmail") ?? "Verify email"}</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                    <View>
+                      <TouchableOpacity style={styles.btn} onPress={() => { handleEdit() }}>
+                        <Feather name="edit-3" size={18} color={palette.text} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* <Text style={styles.muted}>
+                {t("role")}: {user?.role || "-"}
+                </Text> */}
+
+                  <View style={{ borderTopWidth: 1, borderColor: palette.border, flexDirection: 'row' }}>
+                    <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBox, styles.borderRight]}>
+                      <Text style={[styles.muted]}>
+                        {t("pointsBalance")}
+                        {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
+                      </Text>
+                      <Text style={styles.pointsValue}>
+                        {formattedPoints}
+                      </Text>
+                      {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
+                      <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/points") }}>
+                        <Text style={styles.link}>{t("learnMore")}</Text>
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => { router.push("/wallet") }} style={[styles.pointsBox]}>
+                      <Text style={styles.muted}>
+                        {t("WalletBalance")} ({getCurrencySymbol(selectedCurrency)})
+                        {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
+                      </Text>
+                      <Text style={styles.pointsValue}>
+                        {balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}
+                      </Text>
+                      {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
+                      <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/wallet") }}>
+                        <Text style={styles.link}>{t("learnMore")}</Text>
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </>
             ) : (
               <View style={styles.emptyBox}>
                 <Text style={styles.emptyTitle}>
@@ -577,6 +671,13 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       overflow: 'hidden'
     },
 
+    pointsBoxFull: {
+      flexDirection: 'row',
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: 15,
+    },
+
     borderRight: {
       borderRightWidth: 1,
       borderColor: palette.border
@@ -626,13 +727,14 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
 
     btn: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      backgroundColor: palette.accent,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: palette.card,
       alignItems: "center",
       justifyContent: "center",
-
+      borderWidth: 1,
+      borderColor: palette.border
     },
     walletCard: {
       borderRadius: 20,
@@ -665,8 +767,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     walletRow: { flexDirection: 'row', gap: 12, alignItems: "flex-start" },
     walletTextCol: { flex: 1, gap: 8 },
 
-    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", textAlign: align },
-    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign: align },
+    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", textAlign: align, lineHeight: 24 },
+    walletValue: { flexDirection: 'row', gap: 5, alignItems: 'center' },
+    walletValueTextRow: { flexDirection: 'row', gap: 5, alignItems: 'baseline' },
+    walletValueText: { color: palette.text, fontSize: 28, lineHeight: 40, fontWeight: "900", textAlign: align },
 
     walletBadgeRow: { flexDirection: 'row', justifyContent: isRTL ? "flex-end" : "flex-start" },
     levelPill: {
@@ -770,6 +874,18 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     sheetButtonTextPrimary: {
       color: "#fff",
     },
-
+    graceBox: {
+      marginTop: 10,
+      padding: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surface,
+      gap: 4,
+    },
+    graceTitle: { color: palette.accent, fontWeight: "800", fontSize: 13 },
+    graceCopy: { color: palette.text, fontSize: 12 },
+    walletFooterRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 5 },
+    walletHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   });
 };
