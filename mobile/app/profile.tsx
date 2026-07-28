@@ -263,8 +263,8 @@ export default function Profile() {
                     </Text> */}
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                      <MaterialCommunityIcons name="star-four-points-circle" size={22} color="black" />
-                      <Text style={[styles.pointsValue, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
+                      <MaterialCommunityIcons name="star-four-points-circle" size={22} color="black"/>
+                      <Text style={[styles.pointsValue, { flexDirection: 'row', alignItems: 'center', gap: 5 }, {transform:[{translateY:-2}]}]}>
                         {t("points")}
                       </Text>
                     </View>
@@ -899,7 +899,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     graceTitle: { color: palette.accent, fontWeight: "800", fontSize: 13 },
     graceCopy: { color: palette.text, fontSize: 12 },
-    walletFooterRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 5 },
+    walletFooterRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 5,alignItems: "center"  },
     walletHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   });
 };
