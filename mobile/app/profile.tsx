@@ -687,7 +687,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
 
     pointsBoxFull: {
       flexDirection: 'row',
-      alignItems: "center",
+      alignItems: "baseline",
       justifyContent: "space-between",
       paddingHorizontal: 15,
     },
