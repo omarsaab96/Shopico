@@ -15,6 +15,7 @@ import Entypo from '@expo/vector-icons/Entypo';
 import ProgressBar from "../components/ProgressBar";
 import { useCurrency } from "../lib/currency";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 export default function Profile() {
   const router = useRouter();
@@ -254,19 +255,32 @@ export default function Profile() {
 
                 <View style={styles.card}>
                   <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBoxFull]}>
-                    <View>
-                      <Text style={[styles.muted]}>
+                    {/* <View> */}
+                    {/* <Text style={[styles.pointsValue, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
+                      <MaterialCommunityIcons name="star-four-points-circle" size={24} color="black" />
+                      {t("points")}
+                      <Entypo name="info-with-circle" size={16} color={palette.muted} />
+                    </Text> */}
+
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
+                      <MaterialCommunityIcons name="star-four-points-circle" size={24} color="black" />
+                      <Text style={[styles.pointsValue, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
                         {t("points")}
-                        {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
-                      </Text>
-                      <Text style={styles.pointsValue}>
-                        {formattedPoints}
                       </Text>
                     </View>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
+                      <Text style={[styles.pointsValue]}>
+                        {formattedPoints}
+                      </Text>
+                      <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.muted} />
+                    </View>
+
+                    {/* </View> */}
                     {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
-                    <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/points") }}>
+                    {/* <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/points") }}>
                       <Text style={styles.link}>{t("learnMore")}</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                   </TouchableOpacity>
                 </View>
 
@@ -675,7 +689,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       flexDirection: 'row',
       alignItems: "center",
       justifyContent: "space-between",
-      padding: 15,
+      paddingHorizontal: 15,
     },
 
     borderRight: {
@@ -690,7 +704,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
 
     pointsValue: {
       color: palette.text,
-      fontSize: 22,
+      fontSize: 20,
       fontWeight: "900",
       marginVertical: isRTL ? -5 : 10,
     },
