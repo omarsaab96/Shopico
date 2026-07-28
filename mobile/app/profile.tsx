@@ -262,8 +262,8 @@ export default function Profile() {
                       <Entypo name="info-with-circle" size={16} color={palette.muted} />
                     </Text> */}
 
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
-                      <MaterialCommunityIcons name="star-four-points-circle" size={24} color="black" />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <MaterialCommunityIcons name="star-four-points-circle" size={22} color="black" />
                       <Text style={[styles.pointsValue, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
                         {t("points")}
                       </Text>
@@ -706,7 +706,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       color: palette.text,
       fontSize: 20,
       fontWeight: "900",
-      marginVertical: isRTL ? -5 : 10,
+      marginVertical: 10,
     },
 
     pointsLink: {

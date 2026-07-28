@@ -328,7 +328,7 @@ const arStrings: Record<string, string> = {
   earnPoints: "كيفية كسب النقاط",
   earnPointsCopy: "اكسب نقاطاً على المبلغ الفرعي بعد التوصيل.",
   pointsBalance: "رصيد النقاط",
-  points: "نقطة",
+  points: "نقاطك",
   pointEarnRate: "نقطة واحدة لكل {amount} ل.س على المجموع الفرعي.",
   viewPoints: "عرض النقاط",
   usePointsTitle: "كيفية الاستخدام",
