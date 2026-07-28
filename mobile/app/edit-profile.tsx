@@ -177,7 +177,20 @@ export default function EditProfile() {
               </View>
 
               <View style={styles.field}>
-                <Text weight="bold" style={styles.label}>{t("email")}</Text>
+                <View style={styles.labelRow}>
+                  <Text weight="bold" style={styles.label}>{t("email")}</Text>
+                  {user.emailVerified ? (
+                    <View style={styles.verifiedPill}>
+                      <Feather name="check-circle" size={13} color="#16a34a" />
+                      <Text style={styles.verifiedPillText}>{t("verified") ?? "Verified"}</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={styles.verifyEmailBtn} onPress={() => router.push("/email-verification?returnTo=/edit-profile" as any)} activeOpacity={0.85}>
+                      <Feather name="mail" size={13} color={palette.accent} />
+                      <Text style={styles.verifyEmailText}>{t("verifyEmail") ?? "Verify email"}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 <TextInput
                   style={styles.input}
                   value={email}
@@ -407,6 +420,45 @@ const createStyles = (palette: any, insets: any, isRTL: boolean, isDark: boolean
     formTitle: {
       color: palette.text,
       fontSize: 16,
+    },
+    labelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+    },
+    verifiedPill: {
+      minHeight: 28,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 9,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: isDark ? "#14532d" : "#bbf7d0",
+      backgroundColor: isDark ? "#052e16" : "#f0fdf4",
+    },
+    verifyEmailBtn: {
+      minHeight: 28,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 5,
+      paddingHorizontal: 9,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: palette.accent,
+      backgroundColor: palette.surface,
+    },
+    verifiedPillText: {
+      color: "#16a34a",
+      fontSize: 12,
+      fontWeight: "800",
+    },
+    verifyEmailText: {
+      color: palette.accent,
+      fontSize: 12,
+      fontWeight: "800",
     },
     input: {
       backgroundColor: palette.surface,

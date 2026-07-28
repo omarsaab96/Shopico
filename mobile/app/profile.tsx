@@ -284,7 +284,7 @@ export default function Profile() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.card}>
+                {true&&<View style={styles.card}>
                   <View style={{ padding: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View style={{ justifyContent: 'flex-start', }}>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5, marginBottom: 5 }}>
@@ -352,7 +352,7 @@ export default function Profile() {
                       </TouchableOpacity>
                     </TouchableOpacity>
                   </View>
-                </View>
+                </View>}
               </>
             ) : (
               <View style={styles.emptyBox}>

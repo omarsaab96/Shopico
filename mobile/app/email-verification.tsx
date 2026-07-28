@@ -97,13 +97,9 @@ export default function EmailVerification() {
   return (
     <Screen showBack backLabel={t("back") ?? "Back"}>
       <View style={styles.wrap}>
-        {/* <View style={styles.icon}>
-          <Feather name="mail" size={28} color={palette.accent} />
-        </View> */}
         <Text weight="bold" style={styles.title}>
           {t("verifyEmail") ?? "Verify email"}
         </Text>
-
 
         {hasSentCode ? (
           <>
@@ -114,7 +110,6 @@ export default function EmailVerification() {
               {user?.email}
             </Text>
             <View style={styles.field}>
-              {/* <Text weight="bold" style={styles.label}>{t("verificationCode") ?? "Verification code"}</Text> */}
               <View style={styles.inputRow}>
                 <TextInput
                   style={[styles.input, styles.inputWithPaste]}
@@ -145,9 +140,6 @@ export default function EmailVerification() {
         )}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        {/* {message ? <Text style={styles.success}>{message}</Text> : null} */}
-
-        
 
         <TouchableOpacity style={[styles.resendBtn, (resendIn > 0 || verifying) && styles.resendBtnDisabled]} onPress={sendOtp} disabled={sending || verifying || resendIn > 0}>
           {sending ? (
@@ -175,16 +167,6 @@ const createStyles = (palette: any, isRTL: boolean) => {
       gap: 14,
       paddingTop: 20
     },
-    icon: {
-      width: 56,
-      height: 56,
-      borderRadius: 16,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: palette.surface,
-      borderWidth: 1,
-      borderColor: palette.border,
-    },
     title: {
       color: palette.text,
       fontSize: 24,
@@ -195,21 +177,11 @@ const createStyles = (palette: any, isRTL: boolean) => {
       fontSize: 16,
       textAlign: "center",
     },
-    copy: {
-      color: palette.muted,
-      lineHeight: 20,
-      textAlign: align,
-    },
     field: {
       gap: 7,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-    },
-    label: {
-      color: palette.text,
-      fontSize: 13,
-      textAlign: align,
     },
     input: {
       backgroundColor: palette.surface,
@@ -259,11 +231,6 @@ const createStyles = (palette: any, isRTL: boolean) => {
     error: {
       color: "#ef4444",
       textAlign: align,
-    },
-    success: {
-      color: "#16a34a",
-      textAlign: align,
-      fontWeight: "700",
     },
   });
 };
