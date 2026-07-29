@@ -25,19 +25,30 @@ const applyCategoryFilter = (filter: Record<string, unknown>, category?: string)
   filter.categories = category === NO_CATEGORY_FILTER ? { $size: 0 } : category;
 };
 
+const applyProductImageFilter = (filter: Record<string, unknown>, hasImage?: string) => {
+  if (hasImage === "yes") {
+    filter["images.0"] = { $exists: true };
+  }
+  if (hasImage === "no") {
+    filter["images.0"] = { $exists: false };
+  }
+};
+
 export const listProducts = catchAsync(async (req, res) => {
   const {
     q,
     category,
+    hasImage,
     page: rawPage,
     limit: rawLimit,
     includeUnavailable,
-  } = req.query as { q?: string; category?: string; page?: string; limit?: string; includeUnavailable?: string };
+  } = req.query as { q?: string; category?: string; hasImage?: string; page?: string; limit?: string; includeUnavailable?: string };
   const branchId = req.branchId || (await getDefaultBranchId());
   if (!branchId) return res.status(400).json({ success: false, message: "Branch not configured" });
   const filter: Record<string, unknown> = { branchId, isPublic: { $ne: false } };
   if (q) filter.name = { $regex: q, $options: "i" };
   applyCategoryFilter(filter, category);
+  applyProductImageFilter(filter, hasImage);
   if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
 
   const page = Math.max(1, Number(rawPage) || 1);
@@ -61,11 +72,12 @@ export const listProducts = catchAsync(async (req, res) => {
 });
 
 export const listAllProductsAdmin = catchAsync(async (req, res) => {
-  const { q, category, includeUnavailable } = req.query as { q?: string; category?: string; includeUnavailable?: string };
+  const { q, category, hasImage, includeUnavailable } = req.query as { q?: string; category?: string; hasImage?: string; includeUnavailable?: string };
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const filter: Record<string, unknown> = { branchId: req.branchId };
   if (q) filter.name = { $regex: q, $options: "i" };
   applyCategoryFilter(filter, category);
+  applyProductImageFilter(filter, hasImage);
   if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
 
   const products = await Product.find(filter).populate("categories").sort({ createdAt: -1 });
@@ -76,14 +88,16 @@ export const listProductsAdminPaginated = catchAsync(async (req, res) => {
   const {
     q,
     category,
+    hasImage,
     page: rawPage,
     limit: rawLimit,
     includeUnavailable,
-  } = req.query as { q?: string; category?: string; page?: string; limit?: string; includeUnavailable?: string };
+  } = req.query as { q?: string; category?: string; hasImage?: string; page?: string; limit?: string; includeUnavailable?: string };
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const filter: Record<string, unknown> = { branchId: req.branchId };
   if (q) filter.name = { $regex: q, $options: "i" };
   applyCategoryFilter(filter, category);
+  applyProductImageFilter(filter, hasImage);
   if (!includeUnavailable || includeUnavailable !== "true") filter.isAvailable = true;
 
   const page = Math.max(1, Number(rawPage) || 1);

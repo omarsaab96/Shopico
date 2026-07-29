@@ -78,12 +78,14 @@ export const fetchUsers = async (params?: { q?: string; role?: string }) => {
   return res.data.data;
 };
 
-export const fetchCategories = async (params?: { q?: string }) => {
+export type HasImageFilter = "yes" | "no";
+
+export const fetchCategories = async (params?: { q?: string; hasImage?: HasImageFilter }) => {
   const res = await api.get<{ data: Category[] }>("/categories", { params });
   return res.data.data;
 };
 
-export const fetchProducts = async (params?: { q?: string; category?: string; includeUnavailable?: boolean; page?: number; limit?: number }) => {
+export const fetchProducts = async (params?: { q?: string; category?: string; hasImage?: HasImageFilter; includeUnavailable?: boolean; page?: number; limit?: number }) => {
   const res = await api.get<{ data: Product[] | { items: Product[]; total: number; page: number; limit: number; hasMore: boolean } }>("/products", {
     params: {
       ...params,
@@ -93,7 +95,7 @@ export const fetchProducts = async (params?: { q?: string; category?: string; in
   return res.data.data;
 };
 
-export const fetchAllProducts = async (params?: { q?: string; category?: string; includeUnavailable?: boolean }) => {
+export const fetchAllProducts = async (params?: { q?: string; category?: string; hasImage?: HasImageFilter; includeUnavailable?: boolean }) => {
   const res = await api.get<{ data: Product[] }>("/products/admin/all", {
     params: {
       ...params,
@@ -103,7 +105,7 @@ export const fetchAllProducts = async (params?: { q?: string; category?: string;
   return res.data.data;
 };
 
-export const fetchProductsAdmin = async (params?: { q?: string; category?: string; includeUnavailable?: boolean; page?: number; limit?: number }) => {
+export const fetchProductsAdmin = async (params?: { q?: string; category?: string; hasImage?: HasImageFilter; includeUnavailable?: boolean; page?: number; limit?: number }) => {
   const res = await api.get<{ data: { items: Product[]; total: number; page: number; limit: number; hasMore: boolean } }>(
     "/products/admin",
     {

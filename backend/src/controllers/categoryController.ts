@@ -5,16 +5,32 @@ import { sendSuccess } from "../utils/response";
 import { getDefaultBranchId } from "../utils/branch";
 
 export const getCategories = catchAsync(async (req, res) => {
-  const { q } = req.query as { q?: string };
+  const { q, hasImage } = req.query as { q?: string; hasImage?: string };
   const branchId = req.branchId || (await getDefaultBranchId());
   if (!branchId) return res.status(400).json({ success: false, message: "Branch not configured" });
   const filter: Record<string, unknown> = {};
   filter.branchId = branchId;
-  if (q) {
+  if (hasImage === "yes") {
+    filter.imageUrl = { $exists: true, $nin: [null, ""] };
+  }
+  if (hasImage === "no") {
     filter.$or = [
+      { imageUrl: { $exists: false } },
+      { imageUrl: null },
+      { imageUrl: "" },
+    ];
+  }
+  if (q) {
+    const searchFilter = [
       { name: { $regex: q, $options: "i" } },
       { description: { $regex: q, $options: "i" } },
     ];
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, { $or: searchFilter }];
+      delete filter.$or;
+    } else {
+      filter.$or = searchFilter;
+    }
   }
   const categories = await Category.find(filter);
   sendSuccess(res, categories);

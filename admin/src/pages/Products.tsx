@@ -4,6 +4,7 @@ import Card from "../components/Card";
 import ImageEditorModal from "../components/ImageEditorModal";
 import type { Category, Currency, Product, ProductImage, ProductVariant } from "../types/api";
 import { bulkUpdateProductCategories, bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchCurrencies, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
+import type { HasImageFilter } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
@@ -38,6 +39,7 @@ const ProductsPage = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterHasImage, setFilterHasImage] = useState<"" | HasImageFilter>("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<Product>>({});
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
@@ -120,10 +122,15 @@ const ProductsPage = () => {
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
     category: filterCategory || undefined,
+    hasImage: filterHasImage || undefined,
     includeUnavailable: true,
   });
 
-  const loadProducts = async (params?: { q?: string; category?: string }, nextPage?: number, nextLimit?: number) => {
+  const loadProducts = async (
+    params?: { q?: string; category?: string; hasImage?: HasImageFilter; includeUnavailable?: boolean },
+    nextPage?: number,
+    nextLimit?: number
+  ) => {
     try {
       setPageLoading(true);
       const currentPage = nextPage ?? page;
@@ -159,7 +166,8 @@ const ProductsPage = () => {
   const resetFilters = () => {
     setSearchTerm("");
     setFilterCategory("");
-    loadProducts({ includeUnavailable: true } as any, 1, limit);
+    setFilterHasImage("");
+    loadProducts({ includeUnavailable: true }, 1, limit);
   };
 
   const openNewModal = () => {
@@ -1099,6 +1107,11 @@ const ProductsPage = () => {
                   {c.name}
                 </option>
               ))}
+            </select>
+            <select className="filter-select" value={filterHasImage} onChange={(e) => setFilterHasImage(e.target.value as "" | HasImageFilter)}>
+              <option value="">{tx("hasImageAll", "Has image: All")}</option>
+              <option value="yes">{tx("hasImageYes", "Has image: Yes")}</option>
+              <option value="no">{tx("hasImageNo", "Has image: No")}</option>
             </select>
             <button className="primary" type="submit">
               {t("filter")}

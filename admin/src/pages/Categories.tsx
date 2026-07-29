@@ -4,6 +4,7 @@ import Card from "../components/Card";
 import ImageEditorModal from "../components/ImageEditorModal";
 import type { Category } from "../types/api";
 import api, { fetchCategories, getImageKitAuth } from "../api/client";
+import type { HasImageFilter } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
@@ -14,6 +15,7 @@ const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
 const CategoriesPage = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterHasImage, setFilterHasImage] = useState<"" | HasImageFilter>("");
   const [draft, setDraft] = useState<Partial<Category>>({});
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -32,9 +34,10 @@ const CategoriesPage = () => {
 
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
+    hasImage: filterHasImage || undefined,
   });
 
-  const load = async (params?: { q?: string }) => {
+  const load = async (params?: { q?: string; hasImage?: HasImageFilter }) => {
     setLoading(true);
     try {
       const data = await fetchCategories(params);
@@ -162,6 +165,7 @@ const CategoriesPage = () => {
 
   const clearFilters = () => {
     setSearchTerm("");
+    setFilterHasImage("");
     load();
   };
 
@@ -196,6 +200,11 @@ const CategoriesPage = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            <select className="filter-select" value={filterHasImage} onChange={(e) => setFilterHasImage(e.target.value as "" | HasImageFilter)}>
+              <option value="">{t("hasImageAll") === "hasImageAll" ? "Has image: All" : t("hasImageAll")}</option>
+              <option value="yes">{t("hasImageYes") === "hasImageYes" ? "Has image: Yes" : t("hasImageYes")}</option>
+              <option value="no">{t("hasImageNo") === "hasImageNo" ? "Has image: No" : t("hasImageNo")}</option>
+            </select>
             <button className="primary" type="submit">
               {t("filter")}
             </button>
