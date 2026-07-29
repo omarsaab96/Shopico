@@ -4,6 +4,12 @@
     "slug": "shopico",
     "scheme": "shopico",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/17d7d212-1495-4d6b-a5e0-9c721785451a"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
