@@ -7,7 +7,7 @@ import Text from "../components/Text";
 
 export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
-  const { palette, mode, setMode } = useTheme();
+  const { palette } = useTheme();
   const { lang, setLang, t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
@@ -29,6 +29,7 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           ))}
         </View>
+        {/* MVP: theme selection is temporarily disabled while the app ships light-only.
         <Text style={[styles.cardTitle, { marginTop: 12 }]}>{t("theme")}</Text>
         <View style={styles.row}>
           {(["system", "light", "dark"] as const).map((opt) => (
@@ -37,6 +38,7 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           ))}
         </View>
+        */}
       </View>
     </Screen>
   );

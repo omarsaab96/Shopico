@@ -49,26 +49,36 @@ const THEME_STORAGE_KEY = "theme-mode";
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 const resolvePalette = (mode: ThemeMode, system: ColorSchemeName) => {
-  const effective = mode === "system" ? system || "light" : mode;
-  const isDark = effective === "dark";
-  return { palette: isDark ? darkPalette : lightPalette, isDark };
+  // MVP: dark mode is temporarily disabled. Keep the original mode/system
+  // plumbing in place so it can be restored without touching screens.
+  // const effective = mode === "system" ? system || "light" : mode;
+  // const isDark = effective === "dark";
+  // return { palette: isDark ? darkPalette : lightPalette, isDark };
+  void mode;
+  void system;
+  return { palette: lightPalette, isDark: false };
 };
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [mode, setModeState] = useState<ThemeMode>("system");
+  const [mode, setModeState] = useState<ThemeMode>("light");
   const systemScheme = useColorScheme();
 
   useEffect(() => {
-    AsyncStorage.getItem(THEME_STORAGE_KEY).then((stored) => {
-      if (stored === "light" || stored === "dark" || stored === "system") {
-        setModeState(stored);
-      }
-    });
+    // MVP: ignore any previously stored dark/system preference for now.
+    // AsyncStorage.getItem(THEME_STORAGE_KEY).then((stored) => {
+    //   if (stored === "light" || stored === "dark" || stored === "system") {
+    //     setModeState(stored);
+    //   }
+    // });
   }, []);
 
   const setMode = (next: ThemeMode) => {
-    setModeState(next);
-    AsyncStorage.setItem(THEME_STORAGE_KEY, next).catch(() => {});
+    // MVP: force light mode until dark mode is ready to ship.
+    // setModeState(next);
+    // AsyncStorage.setItem(THEME_STORAGE_KEY, next).catch(() => {});
+    void next;
+    setModeState("light");
+    AsyncStorage.setItem(THEME_STORAGE_KEY, "light").catch(() => {});
   };
 
   const { palette, isDark } = useMemo(

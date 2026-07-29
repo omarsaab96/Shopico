@@ -22,7 +22,7 @@ export default function Profile() {
   const router = useRouter();
   const deleteSheetRef = useRef<BottomSheetModal>(null);
   const { user, logout } = useAuth();
-  const { palette, isDark, mode, setMode } = useTheme();
+  const { palette, isDark } = useTheme();
   const { t, isRTL, lang, setLang } = useI18n();
   const insets = useSafeAreaInsets();
   const {
@@ -424,6 +424,7 @@ export default function Profile() {
                   </View>
                 </View>
 
+                {/* MVP: theme selection is temporarily disabled while the app ships light-only.
                 <View style={[styles.profileLink, { paddingVertical: 10 }, (!user || currencies.length <= 1) && styles.isLast]}>
                   <Text style={styles.profileLinkText}>{t("theme")}</Text>
                   <View style={styles.inlineRow}>
@@ -438,6 +439,7 @@ export default function Profile() {
                     ))}
                   </View>
                 </View>
+                */}
 
                 {user && currencies.length > 1 && (
                   <View style={[styles.profileLink, styles.isLast]}>
