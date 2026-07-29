@@ -60,6 +60,7 @@ const GOOGLE_MAPS_KEY =
 
 export default function OrderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const orderId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -67,7 +68,7 @@ export default function OrderDetail() {
   const insets = useSafeAreaInsets();
 
   const { palette, isDark } = useTheme();
-  const { t, isRTL } = useI18n();
+  const { t, isRTL, lang } = useI18n();
   const { formatMoney, getCurrencySymbol } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL, insets), [palette, isRTL, insets]);
   const fallbackLogo = isDark ? require("../../assets/shopico_logo.png") : require("../../assets/shopico_logo-black.png");
@@ -146,8 +147,9 @@ export default function OrderDetail() {
   }, []);
 
   useEffect(() => {
-    api.get(`/orders/${id}`).then((res) => {
-      const payload = res.data.data;
+    if (!orderId) return;
+    api.get(`/orders/${orderId}`).then((res) => {
+      const payload = res.data.data || {};
       setOrder(payload);
       const branchId =
         typeof payload?.branchId === "string"
@@ -172,7 +174,7 @@ export default function OrderDetail() {
           .catch(() => setBranch(null));
       }
     });
-  }, [id]);
+  }, [orderId]);
 
   const toCoordinate = (lat?: number | string, lng?: number | string) => {
     const latNum = typeof lat === "string" ? Number(lat) : lat;
@@ -193,6 +195,11 @@ export default function OrderDetail() {
 
   const canUseDirections = Boolean(effectiveOrigin && destination && GOOGLE_MAPS_KEY && !routeError);
   const shouldDrawFallbackLine = Boolean(effectiveOrigin && destination && (!GOOGLE_MAPS_KEY || routeError));
+  const routeOrigin = canUseDirections && effectiveOrigin ? effectiveOrigin : undefined;
+  const routeDestination = canUseDirections && destination ? destination : undefined;
+  const fallbackLineCoordinates = shouldDrawFallbackLine && effectiveOrigin && destination
+    ? [effectiveOrigin, destination]
+    : undefined;
 
   useEffect(() => {
     if (!effectiveOrigin || !destination) return;
@@ -212,11 +219,12 @@ export default function OrderDetail() {
   const startPolling = useCallback(() => {
     if (pollRef.current) return;
     pollRef.current = setInterval(() => {
-      api.get(`/orders/${id}`).then((res) => {
-        setOrder(res.data.data);
+      if (!orderId) return;
+      api.get(`/orders/${orderId}`).then((res) => {
+        setOrder(res.data.data || {});
       });
     }, 15000);
-  }, [id]);
+  }, [orderId]);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -226,18 +234,18 @@ export default function OrderDetail() {
   }, []);
 
   const submitDriverRating = useCallback(async (rating: number) => {
-    if (!id || rating < 1 || submittingRating) return;
+    if (!orderId || rating < 1 || submittingRating) return;
     setSubmittingRating(true);
     try {
-      const res = await api.post(`/orders/${id}/driver-rating`, { rating });
-      setOrder(res.data.data);
+      const res = await api.post(`/orders/${orderId}/driver-rating`, { rating });
+      setOrder(res.data.data || {});
     } catch (error: any) {
       const message = error?.response?.data?.message || error?.message || "Failed to submit rating";
       Alert.alert(t("networkError") ?? "Unable to reach the server", message);
     } finally {
       setSubmittingRating(false);
     }
-  }, [id, submittingRating, t]);
+  }, [orderId, submittingRating, t]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
@@ -267,9 +275,13 @@ export default function OrderDetail() {
   if (!order) return null;
   const orderCurrency = typeof order.currency === "object" ? order.currency : undefined;
   const orderItems = Array.isArray(order.items) ? order.items : [];
+  const orderNumber = String(order._id || orderId || "").slice(-6);
+  const orderStatus = String(order.status || "");
+  const orderAddress = order.address || "-";
+  const deliveryDistanceKm = Number(order.deliveryDistanceKm || 0);
 
   const canRateDriver =
-    order.status === "DELIVERED" &&
+    orderStatus === "DELIVERED" &&
     Boolean(order.driverId);
 
   const formatOrderDate = (value?: string) => {
@@ -278,7 +290,7 @@ export default function OrderDetail() {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
 
-    return date.toLocaleString("en-US", {
+    return date.toLocaleString(lang === "ar" ? "ar" : "en-US", {
       weekday: "long",
       month: "short",
       day: "2-digit",
@@ -302,7 +314,7 @@ export default function OrderDetail() {
             },
           ]}
         >
-          {order.status != 'CANCELLED' && order.status != 'DELIVERED' && <MapView
+          {orderStatus != 'CANCELLED' && orderStatus != 'DELIVERED' && <MapView
             ref={mapRef}
             style={styles.mapFull}
             customMapStyle={MAP_STYLE}
@@ -335,11 +347,11 @@ export default function OrderDetail() {
                 </View>
               </Marker>
             ) : null}
-            {canUseDirections ? (
+            {routeOrigin && routeDestination ? (
               <MapViewDirections
-                key={`${effectiveOrigin.latitude},${effectiveOrigin.longitude}-${destination.latitude},${destination.longitude}`}
-                origin={effectiveOrigin}
-                destination={destination}
+                key={`${routeOrigin.latitude},${routeOrigin.longitude}-${routeDestination.latitude},${routeDestination.longitude}`}
+                origin={routeOrigin}
+                destination={routeDestination}
                 apikey={GOOGLE_MAPS_KEY}
                 strokeWidth={5}
                 strokeColor={palette.accent}
@@ -358,16 +370,16 @@ export default function OrderDetail() {
                 }}
               />
             ) : null}
-            {shouldDrawFallbackLine ? (
+            {fallbackLineCoordinates ? (
               <Polyline
-                coordinates={[effectiveOrigin, destination]}
+                coordinates={fallbackLineCoordinates}
                 strokeWidth={5}
                 strokeColor={palette.accent}
               />
             ) : null}
           </MapView>}
 
-          {order.status == 'CANCELLED' && <View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
+          {orderStatus == 'CANCELLED' && <View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
             <LottieView
               autoPlay
               loop
@@ -377,7 +389,7 @@ export default function OrderDetail() {
             <Text>Your order is cancelled...</Text>
           </View>}
 
-          {order.status == 'DELIVERED' && <View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
+          {orderStatus == 'DELIVERED' && <View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
             <LottieView
               autoPlay
               loop
@@ -421,7 +433,7 @@ export default function OrderDetail() {
               </View>
             ) : null}
 
-            {order.status === "SHIPPING" ? (
+            {orderStatus === "SHIPPING" ? (
               <View style={styles.etaCard}>
                 <View style={styles.etaItem}>
                   <Text style={styles.etaLabel}>ETA</Text>
@@ -433,7 +445,7 @@ export default function OrderDetail() {
                 <View style={styles.etaItem}>
                   <Text style={styles.etaLabel}>{t("distance") ?? "Distance"}</Text>
                   <Text style={styles.etaValue}>
-                    {routeDistance !== null ? `${routeDistance.toFixed(1)} ${t("km")}` : `${order.deliveryDistanceKm} ${t("km")}`}
+                    {routeDistance !== null ? `${routeDistance.toFixed(1)} ${t("km")}` : `${deliveryDistanceKm} ${t("km")}`}
                   </Text>
                 </View>
               </View>
@@ -441,7 +453,7 @@ export default function OrderDetail() {
 
             <View style={styles.sheetHeader}>
               <View>
-                <Text style={styles.title}>{t("order")} #{order._id.slice(-6)}</Text>
+                <Text style={styles.title}>{t("order")} #{orderNumber}</Text>
                 <Text style={styles.subtle}>{formatOrderDate(order.createdAt)}</Text>
               </View>
 
@@ -456,28 +468,28 @@ export default function OrderDetail() {
                 flexDirection: 'row',
                 gap: 5,
               },
-              order.status && order.status === "PENDING" && { borderColor: '#ff7a1f', backgroundColor: 'rgba(255, 122, 31, 0.1)' },
-              order.status && order.status === "PROCESSING" && { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
-              order.status && order.status === "SHIPPING" && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' },
-              order.status && order.status === "DELIVERED" && { borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' },
-              order.status && order.status === "CANCELLED" && { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+              orderStatus === "PENDING" && { borderColor: '#ff7a1f', backgroundColor: 'rgba(255, 122, 31, 0.1)' },
+              orderStatus === "PROCESSING" && { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
+              orderStatus === "SHIPPING" && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' },
+              orderStatus === "DELIVERED" && { borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' },
+              orderStatus === "CANCELLED" && { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
               ]}>
-                {order.status && order.status === "PENDING" && <Entypo name="dots-three-horizontal" size={16} color="#ff7a1f" />}
-                {order.status && order.status === "PROCESSING" && <Feather name="loader" size={20} color="#2563eb" />}
-                {order.status && order.status === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
-                {order.status && order.status === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
-                {order.status && order.status === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
+                {orderStatus === "PENDING" && <Entypo name="dots-three-horizontal" size={16} color="#ff7a1f" />}
+                {orderStatus === "PROCESSING" && <Feather name="loader" size={20} color="#2563eb" />}
+                {orderStatus === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
+                {orderStatus === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
+                {orderStatus === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
                 <Text numberOfLines={1} style={[{
                   fontSize: 12,
                   fontWeight: '600',
                 },
-                order.status && order.status === "PENDING" && { color: '#ff7a1f' },
-                order.status && order.status === "PROCESSING" && { color: '#2563eb' },
-                order.status && order.status === "SHIPPING" && { color: '#4f46e5' },
-                order.status && order.status === "DELIVERED" && { color: '#16a34a' },
-                order.status && order.status === "CANCELLED" && { color: '#ef4444' },
+                orderStatus === "PENDING" && { color: '#ff7a1f' },
+                orderStatus === "PROCESSING" && { color: '#2563eb' },
+                orderStatus === "SHIPPING" && { color: '#4f46e5' },
+                orderStatus === "DELIVERED" && { color: '#16a34a' },
+                orderStatus === "CANCELLED" && { color: '#ef4444' },
                 ]}>
-                  {t(order.status) ?? order.status}
+                  {orderStatus ? t(orderStatus) : "-"}
                 </Text>
               </View>
             </View>
@@ -505,10 +517,10 @@ export default function OrderDetail() {
                         <Text style={styles.addressLabel}>-</Text>
                       }
                       {/* <Text style={styles.deliveryDistanceKm}>
-                        {order.deliveryDistanceKm > 1 ? Math.ceil(order.deliveryDistanceKm - 1) : order.deliveryDistanceKm} {t('km')}
+                        {deliveryDistanceKm > 1 ? Math.ceil(deliveryDistanceKm - 1) : deliveryDistanceKm} {t('km')}
                       </Text> */}
                     </View>
-                    <Text style={styles.addressText}>{order.address}</Text>
+                    <Text style={styles.addressText}>{orderAddress}</Text>
                   </View>
                 </View>
               </View>

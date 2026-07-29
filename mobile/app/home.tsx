@@ -1672,7 +1672,7 @@ export default function Home() {
                           }}
                           activeOpacity={0.9}
                         >
-                          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
                             <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
                             {selectedAddress?._id === addr._id ? <Feather name="check" size={18} color={palette.accent} /> : null}
                           </View>
@@ -1782,7 +1782,7 @@ export default function Home() {
                           }}
                           activeOpacity={0.9}
                         >
-                          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
                             <Text style={styles.addressTitle}>{branch.name}</Text>
                             {active ? <Feather name="check" size={18} color={palette.accent} /> : null}
                           </View>
@@ -2536,7 +2536,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     sheetContent: { flex: 1, gap: 6, alignItems: isRTL ? "flex-end" : "flex-start" },
     sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: align, alignSelf: "stretch" },
     sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign: align, alignSelf: "stretch" },
-    sheetPills: { flexDirection: row, flexWrap: "wrap", gap: 10, alignSelf: "stretch", justifyContent: isRTL ? "flex-start" : "flex-start" },
+    sheetPills: { flexDirection: row, flexWrap: "wrap", gap: 10, alignSelf: "stretch", justifyContent: "flex-start" },
 
     pill: {
       paddingHorizontal: 12,

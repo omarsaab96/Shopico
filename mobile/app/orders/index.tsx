@@ -31,7 +31,7 @@ export default function Orders() {
 
   const { user } = useAuth();
   const { palette } = useTheme();
-  const { t, isRTL } = useI18n();
+  const { t, isRTL, lang } = useI18n();
   const { selectedCurrency, formatMoney } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
@@ -41,7 +41,7 @@ export default function Orders() {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
 
-    return date.toLocaleString("en-US", {
+    return date.toLocaleString(lang === "ar" ? "ar" : "en-US", {
       weekday: "long",
       month: "short",
       day: "2-digit",
@@ -50,7 +50,7 @@ export default function Orders() {
       minute: "2-digit",
       hour12: true,
     });
-  }, []);
+  }, [lang]);
 
   const load = useCallback(async () => {
     if (!user) return;

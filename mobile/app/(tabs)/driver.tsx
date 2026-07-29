@@ -72,7 +72,7 @@ export default function DriverOrders() {
   const router = useRouter();
   const { user } = useAuth();
   const { palette, isDark } = useTheme();
-  const { t, isRTL } = useI18n();
+  const { t, isRTL, lang } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
   const [orders, setOrders] = useState<DriverOrder[]>([]);
   const [loading, setLoading] = useState(false);
@@ -150,7 +150,7 @@ export default function DriverOrders() {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
 
-    return date.toLocaleString("en-US", {
+    return date.toLocaleString(lang === "ar" ? "ar" : "en-US", {
       weekday: "long",
       month: "short",
       day: "2-digit",
@@ -159,7 +159,7 @@ export default function DriverOrders() {
       minute: "2-digit",
       hour12: true,
     });
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     load();

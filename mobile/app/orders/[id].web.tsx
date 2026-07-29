@@ -11,6 +11,7 @@ import { useCurrency } from "../../lib/currency";
 
 export default function OrderDetailWeb() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const orderId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
@@ -33,12 +34,16 @@ export default function OrderDetailWeb() {
   };
 
   useEffect(() => {
-    api.get(`/orders/${id}`).then((res) => setOrder(res.data.data));
-  }, [id]);
+    if (!orderId) return;
+    api.get(`/orders/${orderId}`).then((res) => setOrder(res.data.data || {}));
+  }, [orderId]);
 
   if (!order) return null;
   const orderCurrency = typeof order.currency === "object" ? order.currency : undefined;
   const orderItems = Array.isArray(order.items) ? order.items : [];
+  const orderNumber = String(order._id || orderId || "").slice(-6);
+  const orderStatus = String(order.status || "");
+  const orderAddress = order.address || "-";
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -46,7 +51,7 @@ export default function OrderDetailWeb() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} />
         </TouchableOpacity>
-        <Text style={styles.title}>{t("order")} #{order._id.slice(-6)}</Text>
+        <Text style={styles.title}>{t("order")} #{orderNumber}</Text>
       </View>
 
       <View style={styles.notice}>
@@ -58,12 +63,12 @@ export default function OrderDetailWeb() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("status") ?? "Status"}</Text>
-          <Text style={styles.sectionValue}>{t(order.status) ?? order.status}</Text>
+          <Text style={styles.sectionValue}>{orderStatus ? t(orderStatus) : "-"}</Text>
         </View>
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("delivery") ?? "Delivery"}</Text>
           {addressLabel ? <Text style={styles.sectionLabel}>{addressLabel}</Text> : null}
-          <Text style={styles.sectionValue}>{order.address}</Text>
+          <Text style={styles.sectionValue}>{orderAddress}</Text>
         </View>
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("items") ?? "Items"}</Text>
