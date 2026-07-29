@@ -2534,8 +2534,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     // Sheets
     sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },
     sheetContent: { flex: 1, gap: 6, alignItems: isRTL ? "flex-end" : "flex-start" },
-    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, alignSelf: "stretch" },
-    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, alignSelf: "stretch" },
+    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign:isRTL?"right":"left", alignSelf: "stretch" },
+    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign:isRTL?"right":"left", alignSelf: "stretch" },
     sheetPills: { flexDirection: row, flexWrap: "wrap", gap: 10, alignSelf: "stretch", justifyContent: "flex-start" },
 
     pill: {
