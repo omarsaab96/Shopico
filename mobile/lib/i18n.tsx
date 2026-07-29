@@ -524,7 +524,7 @@ const extraBaseStrings: Record<string, string> = {
 };
 
 const extraArStrings: Record<string, string> = {
-  verifyEmail: "\u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0628\u0631\u064a\u062f",
+  verifyEmail: "تحقق من بريدك الالكتروني",
   verifyEmailDescription: "\u0633\u064a\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0631\u0645\u0632 \u062a\u062d\u0642\u0642 \u0625\u0644\u0649 \u0639\u0646\u0648\u0627\u0646 \u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a \u0627\u0644\u0623\u0633\u0641\u0644",
   verified: "\u0645\u0648\u062b\u0642",
   verify: "\u062a\u062d\u0642\u0642",

@@ -16,6 +16,7 @@ import ProgressBar from "../components/ProgressBar";
 import { useCurrency } from "../lib/currency";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default function Profile() {
   const router = useRouter();
@@ -204,7 +205,7 @@ export default function Profile() {
                           <Text style={styles.walletLabel}>
                             {user?.name}
                           </Text>
-                          <Text style={[styles.muted, { textAlign: 'left' }]}>{user?.email}</Text>
+                          <Text style={[styles.muted]}>{user?.email}</Text>
                           {/* <Entypo name="info-with-circle" size={18} color={palette.muted} /> */}
                         </View>
                         <View style={[styles.levelPill, { backgroundColor: membershipTone.badgeBg, borderColor: membershipTone.ring }]}>
@@ -263,8 +264,8 @@ export default function Profile() {
                     </Text> */}
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                      <MaterialCommunityIcons name="star-four-points-circle" size={22} color="black"/>
-                      <Text style={[styles.pointsValue, { flexDirection: 'row', alignItems: 'center', gap: 5 }, {transform:[{translateY:-2}]}]}>
+                      <MaterialCommunityIcons name="star-four-points-circle" size={22} color="black" />
+                      <Text style={[styles.pointsValue, { fontWeight:"600", flexDirection: 'row', alignItems: 'center', gap: 5 }, isRTL?null:{ transform: [{ translateY: -2 }] }]}>
                         {t("points")}
                       </Text>
                     </View>
@@ -284,7 +285,7 @@ export default function Profile() {
                   </TouchableOpacity>
                 </View>
 
-                {true&&<View style={styles.card}>
+                {false && <View style={styles.card}>
                   <View style={{ padding: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View style={{ justifyContent: 'flex-start', }}>
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5, marginBottom: 5 }}>
@@ -320,8 +321,8 @@ export default function Profile() {
                   </View>
 
                   {/* <Text style={styles.muted}>
-                {t("role")}: {user?.role || "-"}
-                </Text> */}
+                    {t("role")}: {user?.role || "-"}
+                  </Text> */}
 
                   <View style={{ borderTopWidth: 1, borderColor: palette.border, flexDirection: 'row' }}>
                     <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBox, styles.borderRight]}>
@@ -374,7 +375,41 @@ export default function Profile() {
                 <Text style={styles.profileLinkText}>{t("settings")}</Text>
                 <Entypo name="chevron-right" size={20} color="black" />
               </TouchableOpacity> */}
-                <View style={styles.profileLink}>
+
+                {user && (
+                  <>
+                    <TouchableOpacity style={[styles.profileLink]} onPress={() => { handleEdit() }} >
+                      <Text style={styles.profileLinkText}>{t("editProfile") ?? "Edit profile"}</Text>
+                      <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity style={[styles.profileLink]} onPress={() => { router.push("/addresses") }} >
+                      <Text style={styles.profileLinkText}>{t("savedAddresses") ?? "Addresses"}</Text>
+                      <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.profileLink]} onPress={() => router.push("/email-verification?returnTo=/profile" as any)} >
+                      <Text style={styles.profileLinkText}>{t("verifyEmail") ?? "Verify email"}</Text>
+                      <View style={styles.emailRow}>
+                        {/* <Text style={[styles.muted, { textAlign: 'left' }]}>{user?.email}</Text> */}
+                        {user?.emailVerified ? (
+                          <View style={styles.verifiedPill}>
+                            <Feather name="check-circle" size={13} color="#16a34a" />
+                            <Text style={styles.verifiedPillText}>{t("verified") ?? "Verified"}</Text>
+                          </View>
+                        ) : (
+                          <TouchableOpacity style={styles.verifyEmailBtn} onPress={() => router.push("/email-verification?returnTo=/profile" as any)} activeOpacity={0.85}>
+                            {/* <Feather name="mail" size={13} color={palette.accent} /> */}
+                            <Ionicons name="alert" size={18} color={palette.accent} />
+                            <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                <View style={[styles.profileLink, { paddingVertical: 10 }]}>
                   <Text style={styles.profileLinkText}>{t("language")}</Text>
                   <View style={styles.inlineRow}>
                     {["en", "ar"].map((code) => (
@@ -388,7 +423,8 @@ export default function Profile() {
                     ))}
                   </View>
                 </View>
-                <View style={[styles.profileLink, !user && styles.isLast]}>
+
+                <View style={[styles.profileLink, { paddingVertical: 10 }, (!user || currencies.length <= 1) && styles.isLast]}>
                   <Text style={styles.profileLinkText}>{t("theme")}</Text>
                   <View style={styles.inlineRow}>
                     {(["system", "light", "dark"] as const).map((opt) => (
@@ -402,8 +438,9 @@ export default function Profile() {
                     ))}
                   </View>
                 </View>
-                {user && (
-                  <View style={styles.profileLink}>
+
+                {user && currencies.length > 1 && (
+                  <View style={[styles.profileLink, styles.isLast]}>
                     <Text style={styles.profileLinkText}>{t("currency") ?? "Currency"}</Text>
                     <View style={styles.inlineRow}>
                       {currencies.map((currency) => (
@@ -419,12 +456,6 @@ export default function Profile() {
                       ))}
                     </View>
                   </View>
-                )}
-                {user && (
-                  <TouchableOpacity style={[styles.profileLink, styles.isLast]} onPress={() => { router.push("/addresses") }} >
-                    <Text style={styles.profileLinkText}>{t("savedAddresses") ?? "Addresses"}</Text>
-                    <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
-                  </TouchableOpacity>
                 )}
               </View>
             </View>
@@ -525,19 +556,20 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
 
   return StyleSheet.create({
     sectionTitle: {
-      marginBottom: 10,
-      fontWeight: '700',
-      color: palette.text, textAlign: 'left'
+      marginBottom: 0,
+      fontWeight: '900',
+      color: palette.text, textAlign: 'left',
+      fontSize:18
     },
     profileLinks: {
-      borderWidth: 1,
-      borderColor: palette.border,
-      borderRadius: 20,
-      backgroundColor: palette.card
+      // borderWidth: 1,
+      // borderColor: palette.border,
+      // borderRadius: 20,
+      // backgroundColor: palette.card
     },
     profileLink: {
-      paddingVertical: 10,
-      paddingHorizontal: 15,
+      paddingVertical: 12,
+      // paddingHorizontal: 15,
       borderBottomWidth: 1,
       borderColor: palette.border,
       flexDirection: 'row',
@@ -550,6 +582,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     profileLinkText: {
       fontSize: 14,
       color: palette.text,
+      fontWeight:"600"
     },
     inlineRow: {
       flexDirection: "row",
@@ -557,9 +590,9 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       gap: 8,
     },
     pill: {
-      paddingHorizontal: 12,
-      paddingVertical: 4,
-      borderRadius: 12,
+      paddingHorizontal: 10,
+      paddingBottom: isRTL ? 0 : 2,
+      borderRadius: 15,
       borderWidth: 1,
       borderColor: palette.border,
       backgroundColor: palette.surface,
@@ -644,16 +677,16 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       gap: 8,
     },
     verifyEmailBtn: {
-      minHeight: 28,
+      // minHeight: 28,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 5,
-      paddingHorizontal: 9,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: palette.accent,
-      backgroundColor: palette.surface,
+      gap: 0,
+      // paddingHorizontal: 9,
+      // borderRadius: 999,
+      // borderWidth: 1,
+      // borderColor: palette.accent,
+      // backgroundColor: palette.surface,
     },
     verifyEmailText: {
       color: palette.accent,
@@ -661,20 +694,20 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontWeight: "800",
     },
     verifiedPill: {
-      minHeight: 28,
+      // minHeight: 28,
       flexDirection: "row",
       alignItems: "center",
       gap: 5,
-      paddingHorizontal: 9,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: isDark ? "#14532d" : "#bbf7d0",
-      backgroundColor: isDark ? "#052e16" : "#f0fdf4",
+      // paddingHorizontal: 9,
+      // borderRadius: 999,
+      // borderWidth: 1,
+      // borderColor: isDark ? "#14532d" : "#bbf7d0",
+      // backgroundColor: isDark ? "#052e16" : "#f0fdf4",
     },
     verifiedPillText: {
       color: "#16a34a",
       fontSize: 12,
-      fontWeight: "800",
+      fontWeight: "500",
     },
 
     pointsBox: {
@@ -781,8 +814,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     walletRow: { flexDirection: 'row', gap: 12, alignItems: "flex-start" },
     walletTextCol: { flex: 1, gap: 8 },
 
-    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", textAlign: align, lineHeight: 24 },
-    walletValue: { flexDirection: 'row', gap: 5, alignItems: 'center' },
+    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700",lineHeight: 24 },
+    walletValue: { flexDirection: 'row', gap: 5, alignItems: isRTL?'baseline':'center' },
     walletValueTextRow: { flexDirection: 'row', gap: 5, alignItems: 'baseline' },
     walletValueText: { color: palette.text, fontSize: 28, lineHeight: 40, fontWeight: "900", textAlign: align },
 
@@ -899,7 +932,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     graceTitle: { color: palette.accent, fontWeight: "800", fontSize: 13 },
     graceCopy: { color: palette.text, fontSize: 12 },
-    walletFooterRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 5,alignItems: "center"  },
+    walletFooterRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 5, alignItems: "center" },
     walletHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   });
 };

@@ -141,16 +141,24 @@ export default function EmailVerification() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <TouchableOpacity style={[styles.resendBtn, (resendIn > 0 || verifying) && styles.resendBtnDisabled]} onPress={sendOtp} disabled={sending || verifying || resendIn > 0}>
+        <TouchableOpacity style={[
+          styles.cta,
+          hasSentCode && styles.resendBtn,
+          (resendIn > 0 || verifying) && styles.resendBtnDisabled
+        ]}
+          onPress={sendOtp}
+          disabled={sending || verifying || resendIn > 0}
+        >
           {sending ? (
-            <ActivityIndicator color={palette.accent} size="small" />
+            <ActivityIndicator color={'#fff'} size="small" />
           ) : (
-            <Text weight="bold" style={[styles.resendText, resendIn > 0 && styles.resendTextDisabled]}>
+            <Text weight="bold" style={[styles.resendText, hasSentCode && {color:palette.accent} , resendIn > 0 && styles.resendTextDisabled]}>
               {resendIn > 0
                 ? `${t("resendCodeIn") ?? "Resend code in"} ${resendIn}s`
                 : hasSentCode
                   ? (t("resendCode") ?? "Resend code")
-                  : (t("sendCode") ?? "Send code")}
+                  : (t("sendCode") ?? "Send code")
+              }
             </Text>
           )}
         </TouchableOpacity>
@@ -214,19 +222,30 @@ const createStyles = (palette: any, isRTL: boolean) => {
       borderWidth: 1,
       borderColor: palette.border,
     },
-    resendBtn: {
-      minHeight: 44,
+    cta: {
+      marginTop: 16,
+      width: "100%",
+      paddingVertical: 14,
+      borderRadius: 18,
+      backgroundColor: "#f97316",
       alignItems: "center",
       justifyContent: "center",
+    },
+    resendBtn: {
+      // minHeight: 44,
+      // alignItems: "center",
+      // justifyContent: "center",
+      backgroundColor: "transparent",
     },
     resendBtnDisabled: {
       opacity: 0.65,
     },
     resendText: {
-      color: palette.accent,
+      color: '#fff',
+      fontSize: 15,
     },
     resendTextDisabled: {
-      color: palette.muted,
+      opacity: 0.6
     },
     error: {
       color: "#ef4444",
