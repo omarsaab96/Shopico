@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LottieView from "lottie-react-native";
 import { goBack } from "expo-router/build/global-state/routing";
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import { useRouter } from "expo-router";
 
 type Address = { _id: string; label: string; address: string; lat: number; lng: number; phone?: string };
 type PlaceSuggestion = { place_id: string; description: string };
@@ -30,6 +31,7 @@ const GOOGLE_PLACES_KEY =
   "";
 
 export default function AddressesScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [editing, setEditing] = useState<Address | null>(null);
@@ -380,7 +382,7 @@ export default function AddressesScreen() {
               <TouchableOpacity style={styles.addAddressLink} onPress={() => { setAdding(true) }}>
                 <Text weight="bold" style={styles.addAddressLinkText}>{t('addNewAddress')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ alignItems: 'center', padding: 10 }} onPress={goBack}>
+              <TouchableOpacity style={{ alignItems: 'center', padding: 10 }} onPress={() => router.back()}>
                 <Text weight="bold" style={styles.link}>{t('cancel')}</Text>
               </TouchableOpacity>
             </View>) : (

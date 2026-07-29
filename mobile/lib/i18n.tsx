@@ -521,6 +521,8 @@ const extraBaseStrings: Record<string, string> = {
   emailVerificationFailed: "Could not verify email",
   emailVerified: "Email verified",
   clipboardReadFailed: "Could not read clipboard",
+  lan_ar:"Arabic",
+  lan_en:"English"
 };
 
 const extraArStrings: Record<string, string> = {
@@ -598,6 +600,8 @@ const extraArStrings: Record<string, string> = {
   orderPlacedCopy: "تم تأكيد طلبك وهو في الطريق إليك.",
   trackOrder: "تتبع الطلب",
   view: "عرض",
+  lan_ar:"العربية",
+  lan_en:"الانكليزية"
 };
 
 const messages: Record<Lang, Record<string, string>> = {

@@ -266,6 +266,7 @@ export default function OrderDetail() {
 
   if (!order) return null;
   const orderCurrency = typeof order.currency === "object" ? order.currency : undefined;
+  const orderItems = Array.isArray(order.items) ? order.items : [];
 
   const canRateDriver =
     order.status === "DELIVERED" &&
@@ -501,11 +502,11 @@ export default function OrderDetail() {
                       {addressLabel ?
                         <Text style={styles.addressLabel}>{addressLabel}</Text>
                         :
-                        <Text style={styles.addressLabel}>{t('distance')}</Text>
+                        <Text style={styles.addressLabel}>-</Text>
                       }
-                      <Text style={styles.deliveryDistanceKm}>
+                      {/* <Text style={styles.deliveryDistanceKm}>
                         {order.deliveryDistanceKm > 1 ? Math.ceil(order.deliveryDistanceKm - 1) : order.deliveryDistanceKm} {t('km')}
-                      </Text>
+                      </Text> */}
                     </View>
                     <Text style={styles.addressText}>{order.address}</Text>
                   </View>
@@ -565,60 +566,38 @@ export default function OrderDetail() {
             <View style={styles.detailsSection}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
                 <Text style={styles.sectionTitle}>{t("items") ?? "Items"}</Text>
-                <Text style={[styles.sectionTitle, { color: palette.accent }]}>{order.items.length}</Text>
+                <Text style={[styles.sectionTitle, { color: palette.accent }]}>{orderItems.length}</Text>
               </View>
-              {order.items.map((item: any, index: number) => (
-                <View key={getOrderItemKey(item, index)} style={[styles.itemRow, index === order.items.length - 1 && { borderBottomWidth: 0 }]}>
-                  <View style={styles.itemInfo}>
-                    <View style={styles.prodImgBox}>
-                      <Image
-                        source={
-                          item.images?.[0]?.url
-                            ? { uri: item.images?.[0]?.url }
-                            : fallbackLogo
-                        }
-                        style={[
-                          styles.productImg,
-                          !item.images?.[0]?.url && { tintColor: '#dedede' },
-                        ]}
-                      />
+              {orderItems.map((item: any, index: number) => {
+                const itemImages = Array.isArray(item?.images)
+                  ? item.images
+                  : Array.isArray(item?.product?.images)
+                    ? item.product.images
+                    : [];
+                const imageUrl = itemImages[0]?.url;
+                return (
+                  <View key={getOrderItemKey(item, index)} style={[styles.itemRow, index === orderItems.length - 1 && { borderBottomWidth: 0 }]}>
+                    <View style={styles.itemInfo}>
+                      <View style={styles.prodImgBox}>
+                        <Image
+                          source={imageUrl ? { uri: imageUrl } : fallbackLogo}
+                          style={[
+                            styles.productImg,
+                            !imageUrl && { tintColor: '#dedede' },
+                          ]}
+                        />
+                      </View>
+                      <View>
+                        <Text style={styles.itemName}>
+                          {item?.product?.name || item?.product || t("product") || "Product"}
+                        </Text>
+                        <Text style={styles.itemQty}>{item?.quantity || 0}</Text>
+                      </View>
                     </View>
-                    <View>
-                      <Text style={styles.itemName}>
-                        {item.product?.name || item.product}
-                      </Text>
-                      <Text style={styles.itemQty}>{item.quantity}</Text>
-                    </View>
+                    <Text style={styles.itemPrice}>{formatMoney(item?.price || 0, orderCurrency)}</Text>
                   </View>
-                  <Text style={styles.itemPrice}>{formatMoney(item.price || 0, orderCurrency)}</Text>
-                </View>
-              ))}
-              {order.items.map((item: any, index: number) => (
-                <View key={getOrderItemKey(item, index)} style={[styles.itemRow, index === order.items.length - 1 && { borderBottomWidth: 0 }]}>
-                  <View style={styles.itemInfo}>
-                    <View style={styles.prodImgBox}>
-                      <Image
-                        source={
-                          item.images?.[0]?.url
-                            ? { uri: item.images?.[0]?.url }
-                            : fallbackLogo
-                        }
-                        style={[
-                          styles.productImg,
-                          !item.images?.[0]?.url && { tintColor: '#dedede' },
-                        ]}
-                      />
-                    </View>
-                    <View>
-                      <Text style={styles.itemName}>
-                        {item.product?.name || item.product}
-                      </Text>
-                      <Text style={styles.itemQty}>{item.quantity}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.itemPrice}>{formatMoney(item.price || 0, orderCurrency)}</Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
 
             <View style={styles.detailsSection}>
@@ -709,7 +688,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       borderColor: palette.border,
     },
     backBtnRtl: {
-      left: undefined,
+      left: null,
       right: 16,
     },
     sheetScroll: {
@@ -752,13 +731,11 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       fontSize: 11,
       fontWeight: "900",
       textTransform: "uppercase",
-      textAlign: isRTL ? "right" : "left",
     },
     etaValue: {
       color: palette.text,
       fontSize: 18,
       fontWeight: "900",
-      textAlign: isRTL ? "right" : "left",
     },
     etaDivider: {
       width: 1,

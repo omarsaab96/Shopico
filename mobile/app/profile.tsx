@@ -265,7 +265,7 @@ export default function Profile() {
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                       <MaterialCommunityIcons name="star-four-points-circle" size={22} color="black" />
-                      <Text style={[styles.pointsValue, { fontWeight:"600", flexDirection: 'row', alignItems: 'center', gap: 5 }, isRTL?null:{ transform: [{ translateY: -2 }] }]}>
+                      <Text style={[styles.pointsValue, { fontWeight: "600", flexDirection: 'row', alignItems: 'center', gap: 5 }, isRTL ? null : { transform: [{ translateY: -2 }] }]}>
                         {t("points")}
                       </Text>
                     </View>
@@ -382,13 +382,21 @@ export default function Profile() {
                       <Text style={styles.profileLinkText}>{t("editProfile") ?? "Edit profile"}</Text>
                       <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
                     </TouchableOpacity>
-                    
+
                     <TouchableOpacity style={[styles.profileLink]} onPress={() => { router.push("/addresses") }} >
                       <Text style={styles.profileLinkText}>{t("savedAddresses") ?? "Addresses"}</Text>
                       <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.profileLink]} onPress={() => router.push("/email-verification?returnTo=/profile" as any)} >
+                    <TouchableOpacity style={[styles.profileLink]}
+                      onPress={
+                        () => {
+                          if (!user?.emailVerified) {
+                            router.push("/email-verification?returnTo=/profile" as any)
+                          }
+                        }
+                      }
+                    >
                       <Text style={styles.profileLinkText}>{t("verifyEmail") ?? "Verify email"}</Text>
                       <View style={styles.emailRow}>
                         {/* <Text style={[styles.muted, { textAlign: 'left' }]}>{user?.email}</Text> */}
@@ -398,11 +406,11 @@ export default function Profile() {
                             <Text style={styles.verifiedPillText}>{t("verified") ?? "Verified"}</Text>
                           </View>
                         ) : (
-                          <TouchableOpacity style={styles.verifyEmailBtn} onPress={() => router.push("/email-verification?returnTo=/profile" as any)} activeOpacity={0.85}>
+                          <View style={[styles.verifyEmailBtn]}>
                             {/* <Feather name="mail" size={13} color={palette.accent} /> */}
                             <Ionicons name="alert" size={18} color={palette.accent} />
                             <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
-                          </TouchableOpacity>
+                          </View>
                         )}
                       </View>
                     </TouchableOpacity>
@@ -418,7 +426,10 @@ export default function Profile() {
                         style={[styles.pill, lang === code && styles.pillActive]}
                         onPress={() => setLang(code as any)}
                       >
-                        <Text style={[styles.pillText, lang === code && styles.pillActiveText]}>{code.toUpperCase()}</Text>
+                        <Text style={[styles.pillText, lang === code && styles.pillActiveText]}>
+                          {/* {code.toUpperCase()} */}
+                          {t("lan_" + code)}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -561,7 +572,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       marginBottom: 0,
       fontWeight: '900',
       color: palette.text, textAlign: 'left',
-      fontSize:18
+      fontSize: 18
     },
     profileLinks: {
       // borderWidth: 1,
@@ -584,7 +595,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     profileLinkText: {
       fontSize: 14,
       color: palette.text,
-      fontWeight:"600"
+      fontWeight: "600"
     },
     inlineRow: {
       flexDirection: "row",
@@ -816,8 +827,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     walletRow: { flexDirection: 'row', gap: 12, alignItems: "flex-start" },
     walletTextCol: { flex: 1, gap: 8 },
 
-    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700",lineHeight: 24 },
-    walletValue: { flexDirection: 'row', gap: 5, alignItems: isRTL?'baseline':'center' },
+    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", lineHeight: 24 },
+    walletValue: { flexDirection: 'row', gap: 5, alignItems: isRTL ? 'baseline' : 'center' },
     walletValueTextRow: { flexDirection: 'row', gap: 5, alignItems: 'baseline' },
     walletValueText: { color: palette.text, fontSize: 28, lineHeight: 40, fontWeight: "900", textAlign: align },
 

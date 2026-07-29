@@ -179,7 +179,7 @@ export default function Home() {
   );
 
   const fallbackLogo = isDark ? require("../assets/shopico_logo.png") : require("../assets/shopico_logo-black.png");
-  const fallbackLogoCat = require("../assets/adaptive-icon.png") ;
+  const fallbackLogoCat = require("../assets/adaptive-icon.png");
   const promoWidth = Math.min(360, windowWidth - 32);
   const hasAnnouncements = announcements.length > 0;
   const featuredCategoryLimit = 10;
@@ -953,7 +953,7 @@ export default function Home() {
                       ) : (
                         <>
                           <View style={[styles.catOverlay, { backgroundColor: isDark ? '#333' : '#f0f0f0' }]} />
-                          <Image source={fallbackLogoCat} style={[styles.catIcon, { tintColor: isDark ? '#444' : '#dedede', objectFit:'contain' }]} />
+                          <Image source={fallbackLogoCat} style={[styles.catIcon, { tintColor: isDark ? '#444' : '#dedede', objectFit: 'contain' }]} />
                         </>
                       )}
                     </View>
@@ -2351,7 +2351,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontSize: 11,
       lineHeight: 15,
       textAlign: "center",
-      fontWeight: '700',
+      fontWeight: isRTL ? "500" : "900",
       flexShrink: 1,
       flexWrap: "wrap",
     },
@@ -2398,7 +2398,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       resizeMode: "contain",
       // borderWidth:1
     },
-    productName: { color: palette.text, fontWeight: "900", marginBottom: isRTL ? 0 : 4, textAlign: 'left' },
+    productName: { color: palette.text, fontWeight: isRTL ? "500" : "900", marginBottom: isRTL ? 0 : 4, textAlign: 'left' },
     productDesc: { color: palette.muted, fontSize: 12, marginBottom: isRTL ? 0 : 10, textAlign: 'left' },
 
     priceRow: {

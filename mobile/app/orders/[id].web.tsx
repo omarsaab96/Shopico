@@ -38,6 +38,7 @@ export default function OrderDetailWeb() {
 
   if (!order) return null;
   const orderCurrency = typeof order.currency === "object" ? order.currency : undefined;
+  const orderItems = Array.isArray(order.items) ? order.items : [];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -66,12 +67,12 @@ export default function OrderDetailWeb() {
         </View>
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("items") ?? "Items"}</Text>
-          {order.items.map((item: any, index: number) => (
+          {orderItems.map((item: any, index: number) => (
             <View key={getOrderItemKey(item, index)} style={styles.itemRow}>
               <Text style={styles.itemName}>
-                {item.quantity} x {item.product?.name || item.product}
+                {item?.quantity || 0} x {item?.product?.name || item?.product || t("product") || "Product"}
               </Text>
-              <Text style={styles.itemPrice}>{formatMoney(item.price || 0, orderCurrency)}</Text>
+              <Text style={styles.itemPrice}>{formatMoney(item?.price || 0, orderCurrency)}</Text>
             </View>
           ))}
         </View>
