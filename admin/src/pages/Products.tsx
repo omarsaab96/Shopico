@@ -1109,9 +1109,9 @@ const ProductsPage = () => {
               ))}
             </select>
             <select className="filter-select" value={filterHasImage} onChange={(e) => setFilterHasImage(e.target.value as "" | HasImageFilter)}>
-              <option value="">{tx("hasImageAll", "Has image: All")}</option>
-              <option value="yes">{tx("hasImageYes", "Has image: Yes")}</option>
-              <option value="no">{tx("hasImageNo", "Has image: No")}</option>
+              <option value="">{tx("withImages", "With images")}</option>
+              <option value="yes">{tx("yes", "Yes")}</option>
+              <option value="no">{tx("no", "No")}</option>
             </select>
             <button className="primary" type="submit">
               {t("filter")}

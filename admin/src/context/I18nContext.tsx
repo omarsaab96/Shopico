@@ -324,6 +324,7 @@ const translations: Record<Language, Record<string, string>> = {
     deliveryRadiusKm: "Delivery radius (Km)",
     saveBranches: "Save branches",
     branchesUpdated: "Branches updated",
+    withImages: "With images"
   },
 
   ar: {
@@ -659,6 +660,7 @@ const translations: Record<Language, Record<string, string>> = {
     deliveryRadiusKm: "نطاق التوصيل (كم)",
     saveBranches: "حفظ الفروع",
     branchesUpdated: "تم تحديث الفروع",
+    withImages: "مع صور"
   },
 };
 
