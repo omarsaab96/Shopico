@@ -40,6 +40,7 @@ const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterHasImage, setFilterHasImage] = useState<"" | HasImageFilter>("");
+  const [filterIsPublic, setFilterIsPublic] = useState<"" | "true" | "false">("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<Product>>({});
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
@@ -123,11 +124,12 @@ const ProductsPage = () => {
     q: searchTerm.trim() || undefined,
     category: filterCategory || undefined,
     hasImage: filterHasImage || undefined,
+    isPublic: filterIsPublic === "" ? undefined : filterIsPublic === "true",
     includeUnavailable: true,
   });
 
   const loadProducts = async (
-    params?: { q?: string; category?: string; hasImage?: HasImageFilter; includeUnavailable?: boolean },
+    params?: { q?: string; category?: string; hasImage?: HasImageFilter; isPublic?: boolean; includeUnavailable?: boolean },
     nextPage?: number,
     nextLimit?: number
   ) => {
@@ -167,6 +169,7 @@ const ProductsPage = () => {
     setSearchTerm("");
     setFilterCategory("");
     setFilterHasImage("");
+    setFilterIsPublic("");
     loadProducts({ includeUnavailable: true }, 1, limit);
   };
 
@@ -1112,6 +1115,16 @@ const ProductsPage = () => {
               <option value="">{tx("withImages", "With images")}</option>
               <option value="yes">{tx("yes", "Yes")}</option>
               <option value="no">{tx("no", "No")}</option>
+            </select>
+            <select
+              className="filter-select"
+              aria-label={t("isPublic")}
+              value={filterIsPublic}
+              onChange={(e) => setFilterIsPublic(e.target.value as "" | "true" | "false")}
+            >
+              <option value="">{t("publicFilterAll")}</option>
+              <option value="true">{t("isPublic")}: {t("yes")}</option>
+              <option value="false">{t("isPublic")}: {t("no")}</option>
             </select>
             <button className="primary" type="submit">
               {t("filter")}

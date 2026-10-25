@@ -95,7 +95,7 @@ export const fetchProducts = async (params?: { q?: string; category?: string; ha
   return res.data.data;
 };
 
-export const fetchAllProducts = async (params?: { q?: string; category?: string; hasImage?: HasImageFilter; includeUnavailable?: boolean }) => {
+export const fetchAllProducts = async (params?: { q?: string; category?: string; hasImage?: HasImageFilter; isPublic?: boolean; includeUnavailable?: boolean }) => {
   const res = await api.get<{ data: Product[] }>("/products/admin/all", {
     params: {
       ...params,
@@ -105,7 +105,7 @@ export const fetchAllProducts = async (params?: { q?: string; category?: string;
   return res.data.data;
 };
 
-export const fetchProductsAdmin = async (params?: { q?: string; category?: string; hasImage?: HasImageFilter; includeUnavailable?: boolean; page?: number; limit?: number }) => {
+export const fetchProductsAdmin = async (params?: { q?: string; category?: string; hasImage?: HasImageFilter; isPublic?: boolean; includeUnavailable?: boolean; page?: number; limit?: number }) => {
   const res = await api.get<{ data: { items: Product[]; total: number; page: number; limit: number; hasMore: boolean } }>(
     "/products/admin",
     {
