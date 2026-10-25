@@ -829,7 +829,7 @@ const translationOverrides: Record<Language, Record<string, string>> = {
     sku: "SKU",
     isAvailable: "متاح",
     isPublic: "عام",
-    publicFilterAll: "عام: الكل",
+    publicFilterAll: "هو عام",
     noPoints: "لا توجد نقاط",
     unknownUser: "مستخدم غير معروف",
     topUpRequest: "إنشاء طلب شحن",
