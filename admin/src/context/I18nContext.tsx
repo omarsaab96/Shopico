@@ -709,7 +709,7 @@ const translationOverrides: Record<Language, Record<string, string>> = {
     invalidFileType: "Invalid file type",
     isAvailable: "Available",
     isPublic: "Public",
-    publicFilterAll: "Public: All",
+    publicFilterAll: "Is Public",
     noPoints: "No points",
     unknownUser: "Unknown user",
     topUpRequest: "Create top-up request",

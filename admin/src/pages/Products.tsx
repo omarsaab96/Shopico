@@ -1123,8 +1123,8 @@ const ProductsPage = () => {
               onChange={(e) => setFilterIsPublic(e.target.value as "" | "true" | "false")}
             >
               <option value="">{t("publicFilterAll")}</option>
-              <option value="true">{t("isPublic")}: {t("yes")}</option>
-              <option value="false">{t("isPublic")}: {t("no")}</option>
+              <option value="true">{t("yes")}</option>
+              <option value="false">{t("no")}</option>
             </select>
             <button className="primary" type="submit">
               {t("filter")}
