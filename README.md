@@ -19,9 +19,9 @@ cd ../mobile && npm install
 - Mobile uses `EXPO_PUBLIC_API_BASE` env when running (`EXPO_PUBLIC_API_BASE=http://localhost:4000/api npx expo start`).
 
 **3) Run apps**
-- Backend API: `cd backend && npm run dev`
-- Admin panel: `cd admin && npm run dev`
-- Mobile app: `cd mobile && npx expo start`
+- Backend API: `cd backend` then `npm run dev`
+- Admin panel: `cd admin` then `npm run dev`
+- Mobile app: `cd mobile` then `npx expo start`
 
 **4) Seed sample data and admin user**
 ```

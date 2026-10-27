@@ -36,6 +36,7 @@ const ProductsPage = () => {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [draft, setDraft] = useState<Partial<Product>>({ images: [] });
   const [uploadingNew, setUploadingNew] = useState(false);
+  const [newSaving, setNewSaving] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
@@ -44,13 +45,16 @@ const ProductsPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<Product>>({});
   const [editUploadingId, setEditUploadingId] = useState<string | null>(null);
-  const [imageEditor, setImageEditor] = useState<{ file: File; target: "new" | "edit"; productId?: string } | null>(null);
+  const [imageEditor, setImageEditor] = useState<{ file: File; target: "new" | "edit" | "variant"; productId?: string; variantIndex?: number } | null>(null);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editTab, setEditTab] = useState<"details" | "categories" | "variants">("details");
+  const [newVariant, setNewVariant] = useState<ProductVariantDraft>({ attributes: {}, images: [], isAvailable: true, isPublic: true });
+  const [variantError, setVariantError] = useState("");
+
   const [categorySearch, setCategorySearch] = useState("");
   const [editCategorySearch, setEditCategorySearch] = useState("");
-  const [showEditCategories, setShowEditCategories] = useState(false);
-  const [showEditVariants, setShowEditVariants] = useState(false);
   const [selectedProductsById, setSelectedProductsById] = useState<Record<string, Product>>({});
   const [showBulkCategoryModal, setShowBulkCategoryModal] = useState(false);
   const [bulkCategorySearch, setBulkCategorySearch] = useState("");
@@ -120,6 +124,16 @@ const ProductsPage = () => {
   const allPageProductsSelected = products.length > 0 && pageSelectionCount === products.length;
   const somePageProductsSelected = pageSelectionCount > 0 && !allPageProductsSelected;
 
+  const creatingProduct = showNewModal;
+  const productDraft = creatingProduct ? draft : editDraft;
+  const setProductDraft = creatingProduct ? setDraft : setEditDraft;
+  const productSaving = creatingProduct ? newSaving : editSaving;
+  const productUploading = creatingProduct ? uploadingNew : Boolean(editUploadingId);
+  const productError = creatingProduct ? formError : editError;
+  const setProductError = creatingProduct ? setFormError : setEditError;
+  const productCategorySearch = creatingProduct ? categorySearch : editCategorySearch;
+  const setProductCategorySearch = creatingProduct ? setCategorySearch : setEditCategorySearch;
+
   const getFilterParams = () => ({
     q: searchTerm.trim() || undefined,
     category: filterCategory || undefined,
@@ -178,10 +192,14 @@ const ProductsPage = () => {
     setDraft({ images: [], categories: [], variants: [], isAvailable: true, isPublic: true });
     setFormError("");
     setCategorySearch("");
+    setEditTab("details");
+    setNewVariant({ attributes: {}, images: [], isAvailable: true, isPublic: true });
+    setVariantError("");
     setShowNewModal(true);
   };
 
   const closeNewModal = () => {
+    if (newSaving || uploadingNew) return;
     setShowNewModal(false);
   };
 
@@ -534,135 +552,44 @@ const ProductsPage = () => {
         promoPrice: variant.promoPrice === undefined || Number.isNaN(variant.promoPrice) ? undefined : Number(variant.promoPrice),
       }));
 
-  const updateVariant = (
-    variants: ProductVariantDraft[] | undefined,
-    index: number,
-    next: Partial<ProductVariantDraft>
-  ) => (variants || []).map((variant, idx) => (idx === index ? { ...variant, ...next } : variant));
-
-  const renderVariantsEditor = (
-    variants: ProductVariantDraft[] | undefined,
-    onChange: (variants: ProductVariantDraft[]) => void
-  ) => {
-    const list = variants || [];
-    return (
-      <div className="variants-editor">
-        <div className="variants-editor-header">
-          <label>{t("variants") || "Variants"}</label>
-          <button
-            className="ghost-btn"
-            type="button"
-            onClick={() =>
-              onChange([
-                ...list,
-                { attributes: {}, isAvailable: true, isPublic: true, images: [] },
-              ])
-            }
-          >
-            {t("addVariant") || "Add variant"}
-          </button>
-        </div>
-        {list.length === 0 ? (
-          <div className="muted">{t("noVariants") || "No variants"}</div>
-        ) : (
-          <div className="variants-list">
-            {list.map((variant, index) => (
-              <div className="variant-row" key={variant._id || index}>
-                <label>
-                  {t("attributes") || "Attributes"}
-                  <input
-                    value={variantAttributeInputValue(variant)}
-                    onChange={(e) =>
-                      onChange(updateVariant(list, index, {
-                        attributeText: e.target.value,
-                        attributes: parseVariantAttributes(e.target.value),
-                      }))
-                    }
-                    placeholder="Large or size: M, color: Red"
-                  />
-                </label>
-                <label>
-                  {t("price") || "Price"}
-                  <input
-                    type="number"
-                    value={variant.price ?? ""}
-                    onChange={(e) => onChange(updateVariant(list, index, { price: e.target.value === "" ? undefined : Number(e.target.value) }))}
-                    placeholder={t("inherit") || "Inherit"}
-                  />
-                </label>
-                <label>
-                  {t("promoStatus") || "Promo"}
-                  <div className="checkboxContainer">
-                    <input
-                      id={`variantPromo${index}`}
-                      type="checkbox"
-                      checked={Boolean(variant.isPromoted)}
-                      onChange={(e) => onChange(updateVariant(list, index, { isPromoted: e.target.checked }))}
-                    />
-                    <label htmlFor={`variantPromo${index}`}></label>
-                  </div>
-                </label>
-                <label>
-                  {t("newPrice") || "New price"}
-                  <input
-                    type="number"
-                    value={variant.promoPrice ?? ""}
-                    onChange={(e) => onChange(updateVariant(list, index, { promoPrice: e.target.value === "" ? undefined : Number(e.target.value) }))}
-                    placeholder={t("inherit") || "Inherit"}
-                  />
-                </label>
-                <label>
-                  {t("barcode") || "Barcode"}
-                  <input
-                    value={variant.barcode || ""}
-                    onChange={(e) => onChange(updateVariant(list, index, { barcode: e.target.value || undefined }))}
-                  />
-                </label>
-                <label>
-                  {t("sku") || "SKU"}
-                  <input
-                    value={variant.sku || ""}
-                    onChange={(e) => onChange(updateVariant(list, index, { sku: e.target.value || undefined }))}
-                  />
-                </label>
-                <label>
-                  {t("available") || "Available"}
-                  <div className="checkboxContainer">
-                    <input
-                      id={`variantAvailable${index}`}
-                      type="checkbox"
-                      checked={variant.isAvailable !== false}
-                      onChange={(e) => onChange(updateVariant(list, index, { isAvailable: e.target.checked }))}
-                    />
-                    <label htmlFor={`variantAvailable${index}`}></label>
-                  </div>
-                </label>
-                <label>
-                  {t("isPublic") || "Public"}
-                  <div className="checkboxContainer">
-                    <input
-                      id={`variantPublic${index}`}
-                      type="checkbox"
-                      checked={variant.isPublic !== false}
-                      onChange={(e) => onChange(updateVariant(list, index, { isPublic: e.target.checked }))}
-                    />
-                    <label htmlFor={`variantPublic${index}`}></label>
-                  </div>
-                </label>
-                <button
-                  className="ghost-btn danger"
-                  type="button"
-                  onClick={() => confirmDelete(t) && onChange(list.filter((_, idx) => idx !== index))}
-                >
-                  {t("delete")}
+  const renderVariantFields = (variant: ProductVariantDraft, onChange: (next: ProductVariantDraft) => void, id: string, variantIndex?: number) => (
+    <div className="variant-fields">
+      <label>{t("attributes")}<input value={variantAttributeInputValue(variant)} placeholder={lang === "ar" ? "الحجم: كبير، اللون: أحمر" : "Size: Large, Color: Red"} onChange={(e) => onChange({ ...variant, attributeText: e.target.value, attributes: parseVariantAttributes(e.target.value) })} /></label>
+      <label>{t("sku")}<input value={variant.sku || ""} onChange={(e) => onChange({ ...variant, sku: e.target.value })} /></label>
+      <label>{t("barcode")}<input value={variant.barcode || ""} onChange={(e) => onChange({ ...variant, barcode: e.target.value })} /></label>
+      <label>{t("price")} (SYP)<input type="number" value={variant.price ?? ""} placeholder={`${t("inherit")} (${productDraft.price ?? 0})`} onChange={(e) => onChange({ ...variant, price: e.target.value === "" ? undefined : Number(e.target.value) })} /></label>
+      <label>{t("newPrice")} (SYP)<input type="number" value={variant.promoPrice ?? ""} placeholder={t("inherit")} onChange={(e) => onChange({ ...variant, promoPrice: e.target.value === "" ? undefined : Number(e.target.value) })} /></label>
+      <div className="variant-flags">
+        {([["isAvailable", "available"], ["isPublic", "isPublic"], ["isPromoted", "promoStatus"]] as const).map(([field, label]) => (
+          <div className="checkboxContainer" key={field}>
+            <input id={`${id}-${field}`} type="checkbox" checked={field === "isPromoted" ? Boolean(variant[field]) : variant[field] !== false} onChange={(e) => onChange({ ...variant, [field]: e.target.checked })} />
+            <label htmlFor={`${id}-${field}`}>{t(label)}</label>
+          </div>
+        ))}
+      </div>
+      <div className="variant-images">
+        <div className="subLabel">{t("images")}</div>
+        <div className="thumb-row prodImgCell">
+          {(variant.images || []).map((img) => (
+            <div className="thumb" key={img.fileId}>
+              <div className="listImage" style={{ width: 120, height: 120 }}>
+                <img src={img.url} alt={formatVariantAttributes(variant.attributes) || t("variants")} style={{ borderRadius: 0 }} />
+                <button type="button" className="removeImageBtn" aria-label={t("delete")} onClick={() => confirmDelete(t) && onChange({ ...variant, images: (variant.images || []).filter((image) => image.fileId !== img.fileId) })}>
+                  <img src="deleteIcon.png" alt="" />
                 </button>
               </div>
-            ))}
+            </div>
+          ))}
+          <div className="uploadDiv">
+            <label htmlFor={`${id}-image`} className="uploadBtn" aria-label={t("images")} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 60, height: 60 }}>
+              <img src={productUploading ? "loading.gif" : "plusIcon.png"} alt="" style={{ width: 30, height: 30 }} />
+            </label>
+            <input id={`${id}-image`} className="uploadForm" type="file" accept="image/*" disabled={productUploading || productSaving || !canUpload} onClick={(e) => { e.currentTarget.value = ""; }} onChange={(e) => { const file = e.target.files?.[0]; if (file) setImageEditor({ file, target: "variant", productId: creatingProduct ? undefined : editingId || undefined, variantIndex }); }} />
           </div>
-        )}
+        </div>
       </div>
-    );
-  };
+    </div>
+  );
 
   const renderImportActionIcon = (action: string) => {
     if (action === "create") {
@@ -747,6 +674,27 @@ const ProductsPage = () => {
       );
       return;
     }
+    if (target.target === "variant") {
+      const isNewProduct = !target.productId;
+      const updateProduct = isNewProduct ? setDraft : setEditDraft;
+      uploadToImageKit(
+        editedFile,
+        (img) => {
+          if (target.variantIndex === undefined) {
+            setNewVariant((prev) => ({ ...prev, images: [...(prev.images || []), img] }));
+          } else {
+            updateProduct((prev) => ({
+              ...prev, variants: (prev.variants || []).map((variant, index) =>
+                index === target.variantIndex ? { ...variant, images: [...(variant.images || []), img] } : variant
+              )
+            }));
+          }
+        },
+        (flag) => isNewProduct ? setUploadingNew(flag) : setEditUploadingId(flag ? target.productId! : null),
+        isNewProduct ? setFormError : setEditError
+      );
+      return;
+    }
     if (!target.productId) return;
     setEditUploadingId(target.productId);
     uploadToImageKit(
@@ -763,7 +711,14 @@ const ProductsPage = () => {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!canManage) return;
+    if (!canManage || newSaving || uploadingNew) return;
+    if (!draft.name?.trim() || draft.price === undefined || !Number.isFinite(draft.price)) {
+      setEditTab("details");
+      setFormError(!draft.name?.trim() ? t("name") : t("price"));
+      return;
+    }
+    setNewSaving(true);
+    setFormError("");
     try {
       const saved = await saveProduct({ ...draft, variants: cleanVariants(draft.variants as ProductVariantDraft[] | undefined) });
       setDraft({ images: [], variants: [] });
@@ -778,11 +733,18 @@ const ProductsPage = () => {
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Create failed";
       setFormError(msg);
+    } finally {
+      setNewSaving(false);
     }
   };
 
   const startEdit = (p: Product) => {
     if (!canManage) return;
+    // setShowEditCategories(false);
+    // setShowEditVariants(false);
+    setEditTab("details");
+    setNewVariant({ attributes: {}, images: [], isAvailable: true, isPublic: true });
+    setVariantError("");
     setEditingId(p._id);
     setEditDraft({
       _id: p._id,
@@ -800,14 +762,6 @@ const ProductsPage = () => {
     setEditCategorySearch("");
   };
 
-  const removeNewImage = (fileId: string) => {
-    if (!confirmDelete(t)) return;
-    setDraft((prev) => ({
-      ...prev,
-      images: (prev.images as ProductImage[] | undefined)?.filter((img) => img.fileId !== fileId) || [],
-    }));
-  };
-
   const removeEditImage = (fileId: string) => {
     if (!confirmDelete(t)) return;
     setEditDraft((prev) => ({
@@ -817,29 +771,43 @@ const ProductsPage = () => {
   };
 
   const saveEdit = async () => {
-    if (!editingId) return false;
+    if (!editingId || editSaving || editUploadingId) return false;
     if (!canManage) return false;
+    setEditSaving(true);
+    setEditError("");
     try {
       const payload = { ...editDraft, _id: editingId, variants: cleanVariants(editDraft.variants as ProductVariantDraft[] | undefined) };
       const saved = await saveProduct(payload);
       setProducts((prev) => prev.map((p) => (p._id === saved._id ? saved : p)));
       setEditingId(null);
       setEditDraft({});
-      setShowEditVariants(false);
+      // setShowEditVariants(false);
       loadProducts(getFilterParams(), page, limit);
       return true;
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Update failed";
       setEditError(msg);
       return false;
+    } finally {
+      setEditSaving(false);
     }
   };
 
   const cancelEdit = () => {
+    if (editSaving || editUploadingId) return;
+    // setShowEditVariants(false);
     setEditingId(null);
     setEditDraft({});
     setEditError("");
-    setShowEditCategories(false);
+    // setShowEditCategories(false);
+  };
+
+  const closeProductModal = () => creatingProduct ? closeNewModal() : cancelEdit();
+
+  const removeProductImage = (fileId: string) => {
+    if (!creatingProduct) { removeEditImage(fileId); return; }
+    if (!confirmDelete(t)) return;
+    setDraft((prev) => ({ ...prev, images: (prev.images || []).filter((img) => img.fileId !== fileId) }));
   };
 
   const openPromote = (product: Product) => {
@@ -984,7 +952,7 @@ const ProductsPage = () => {
     return (
       <div className="multi-select">
         <div className="flex">
-          <div className="multiSelectSearch">
+          <div className="multiSelectSearch flex">
             <input
               className="filter-input"
               placeholder={t("searchCategory")}
@@ -1287,190 +1255,32 @@ const ProductsPage = () => {
                     </td>
                   )}
                   <td className="prodImgCell">
-                    {editingId === product._id ? (
-                      <div className="thumb-row">
-                        {((editDraft.images as ProductImage[]) || []).length > 0 && (
-                          ((editDraft.images as ProductImage[]) || []).map((img) => (
-                            <div key={img.fileId} className="thumb">
-                              <div className="listImage">
-                                <img src={img.url} alt="" style={{ borderRadius: 0 }} />
-                                <button
-                                  type="button"
-                                  className="removeImageBtn"
-                                  style={{}}
-                                  onClick={() => removeEditImage(img.fileId)}
-                                >
-                                  <img src="deleteIcon.png" alt="" />
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-
-                        <div className="uploadDiv" style={{}}>
-                          <label htmlFor={`prodImg${product._id}`} className="uploadBtn">
-                            {editUploadingId === product._id ?
-                              <img src="loading.gif" className="noFilter" />
-                              :
-                              <img src="plusIcon.png" />
-                            }
-                          </label>
-                          <input
-                            type="file"
-                            id={`prodImg${product._id}`}
-                            className="uploadForm"
-                            accept="image/*"
-                            onClick={(e) => {
-                              e.currentTarget.value = "";
-                            }}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                setImageEditor({ file, target: "edit", productId: product._id });
-                              }
-                            }}
-                            disabled={editUploadingId === product._id || !canUpload}
-                          />
-                        </div>
-
-                      </div>
+                    {product.images?.[0]?.url ? (
+                      <div className="listImage"><img src={product.images[0].url} alt={product.name} /></div>
                     ) : (
-                      product.images?.[0]?.url ? (
-                        <div className="listImage">
-                          <img src={product.images[0].url} alt={product.name} />
-                        </div>
-                      ) : (
-                        <div className="defaultImage">
-                          <img src="productIcon.png" alt="" className="medium" />
-                        </div>
-                      )
-                    )}
-
-
-                  </td>
-
-                  <td>
-                    {editingId === product._id ? (
-                      <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
-                    ) : (
-                      product.name
+                      <div className="defaultImage"><img src="productIcon.png" alt="" className="medium" /></div>
                     )}
                   </td>
+                  <td>{product.name}</td>
+                  <td>{product.description || "-"}</td>
+                  <td>{product.barcode || "-"}</td>
+                  <td>{getCategoryLabels(product.categories)}</td>
+                  <td>{renderCurrencyAmounts(product.price)}</td>
                   <td>
-                    {editingId === product._id ? (
-                      <input
-                        value={editDraft.description || ""}
-                        onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
-                        placeholder=""
-                      />
-                    ) : (
-                      product.description || "-"
-                    )}
-                  </td>
-                  <td>
-                    {editingId === product._id ? (
-                      <input
-                        value={editDraft.barcode || ""}
-                        onChange={(e) => setEditDraft({ ...editDraft, barcode: e.target.value })}
-                        placeholder=""
-                      />
-                    ) : (
-                      product.barcode || "-"
-                    )}
-                  </td>
-                  <td>
-                    {editingId === product._id ? (
-                      <div className="flex">
-                        <span>{getCategoryLabels(editDraft.categories as string[] | undefined)}</span>
-                        <button className="ghost-btn" type="button" onClick={() => setShowEditCategories(true)}>
-                          {t("changeCategories") || "Change categories"}
-                        </button>
-                        <button className="ghost-btn" type="button" onClick={() => setShowEditVariants(true)}>
-                          {t("variants") || "Variants"} ({(editDraft.variants as ProductVariant[] | undefined)?.length || 0})
-                        </button>
-                      </div>
-                    ) : (
-                      getCategoryLabels(product.categories)
-                    )}
-                  </td>
-                  <td>
-                    {editingId === product._id ? (
-                      <input
-                        type="number"
-                        value={editDraft.price ?? product.price}
-                        onChange={(e) => setEditDraft({ ...editDraft, price: Number(e.target.value) })}
-                      />
-                    ) : (
-                      renderCurrencyAmounts(product.price)
-                    )}
-                  </td>
-                  <td>
-                    {product.isPromoted ? (t("yes") || "Yes") : (t("no") || "No")}
+                    {product.isPromoted ? t("yes") : t("no")}
                     {product.isPromoted && product.promoPrice !== undefined && (
                       <div style={{ marginTop: 4 }}>{renderCurrencyAmounts(product.promoPrice)}</div>
                     )}
                   </td>
+                  <td>{product.isAvailable ? t("yes") : t("no")}</td>
+                  <td>{product.isPublic !== false ? t("yes") : t("no")}</td>
                   <td>
-                    {editingId === product._id ? (
-                      <div className="checkboxContainer">
-                        <input
-                          id={`productEditIsAvailable${product._id}`}
-                          type="checkbox"
-                          checked={Boolean(editDraft.isAvailable)}
-                          onChange={(e) => setEditDraft({ ...editDraft, isAvailable: e.target.checked })}
-                        />
-                        <label htmlFor={`productEditIsAvailable${product._id}`}></label>
-                      </div>
-
-                    ) : (
-                      product.isAvailable ? (t("yes") || "Yes") : (t("no") || "No")
-                    )}
-                  </td>
-
-                  <td>
-                    {editingId === product._id ? (
-                      <div className="checkboxContainer">
-                        <input
-                          id={`productEditIsPublic${product._id}`}
-                          type="checkbox"
-                          checked={editDraft.isPublic !== false}
-                          onChange={(e) => setEditDraft({ ...editDraft, isPublic: e.target.checked })}
-                        />
-                        <label htmlFor={`productEditIsPublic${product._id}`}></label>
-                      </div>
-                    ) : (
-                      product.isPublic !== false ? (t("yes") || "Yes") : (t("no") || "No")
-                    )}
-                  </td>
-
-                  <td style={{}}>
-                    {editingId === product._id ? (
+                    {canManage && (
                       <div className="flex">
-                        <button className="primary" onClick={saveEdit} disabled={Boolean(editUploadingId)}>
-                          {t("save")}
-                        </button>
-                        <button className="ghost-btn" onClick={cancelEdit}>
-                          {t("cancel")}
-                        </button>
-                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteProduct(product._id).then(load)}>
-                          {t("delete")}
-                        </button>
-                        {editError && <div className="error">{editError}</div>}
+                        <button className="primary" onClick={() => startEdit(product)}>{t("edit")}</button>
+                        <button className="ghost-btn" onClick={() => openPromote(product)}>{t("promote") || "Promote"}</button>
+                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteProduct(product._id).then(load)}>{t("delete")}</button>
                       </div>
-                    ) : canManage ? (
-                      <div className="flex">
-                        <button className="primary" onClick={() => startEdit(product)}>
-                          {t("edit")}
-                        </button>
-                        <button className="ghost-btn" onClick={() => openPromote(product)}>
-                          {t("promote") || "Promote"}
-                        </button>
-                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteProduct(product._id).then(load)}>
-                          {t("delete")}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="muted"></div>
                     )}
                   </td>
                 </tr>
@@ -1532,626 +1342,613 @@ const ProductsPage = () => {
         </div>
       </Card>
 
-      {imageEditor && (
-        <ImageEditorModal
-          file={imageEditor.file}
-          onApply={uploadEditedImage}
-          onCancel={() => setImageEditor(null)}
-        />
-      )}
-
-      {showEditCategories && editingId && (
-        <div
-          className="modal-backdrop"
-          onClick={() => {
-            setShowEditCategories(false);
-            setEditCategorySearch("");
-          }}
-        >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">{t("changeCategories") || "Change categories"}</div>
-              <button
-                className="ghost-btn"
-                type="button"
-                onClick={() => {
-                  setShowEditCategories(false);
-                  setEditCategorySearch("");
-                }}
-              >
-                {t("close")}
-              </button>
+      {(editingId || showNewModal) && canManage && (
+        <div className="modal-backdrop" onClick={closeProductModal}>
+          <div className="modal product-edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-product-title" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header newModalHeader">
+              <div className="modal-title" id="edit-product-title">{creatingProduct ? t("newProduct") : t("editProduct")}</div>
+              <button className="ghost-btn" type="button" onClick={closeProductModal} disabled={productSaving || productUploading}>{t("close")}</button>
             </div>
-            {renderCategorySelect(
-              editDraft.categories as string[] | undefined,
-              (ids) => setEditDraft({ ...editDraft, categories: ids as any }),
-              editCategorySearch,
-              setEditCategorySearch
-            )}
-          </div>
-        </div>
-      )}
-
-      {showEditVariants && editingId && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setShowEditVariants(false)}
-        >
-          <div className="modal import-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">{t("variants") || "Variants"}</div>
-              <button
-                className="ghost-btn"
-                type="button"
-                onClick={() => setShowEditVariants(false)}
-              >
-                {t("close")}
-              </button>
+            <div className="product-edit-tabs" role="tablist" aria-label={t("edit")}>
+              <button type="button" role="tab" id="product-details-tab" aria-controls="product-details-panel" aria-selected={editTab === "details"} onClick={() => setEditTab("details")}>{lang === "ar" ? "تفاصيل المنتج" : "Product details"}</button>
+              <button type="button" role="tab" id="product-categories-tab" aria-controls="product-categories-panel" aria-selected={editTab === "categories"} onClick={() => setEditTab("categories")}>{t("category")} <span className="tab-count">{productDraft.categories?.length || 0}</span></button>
+              <button type="button" role="tab" id="product-variants-tab" aria-controls="product-variants-panel" aria-selected={editTab === "variants"} onClick={() => setEditTab("variants")}>{t("variants")} <span className="tab-count">{productDraft.variants?.length || 0}</span></button>
             </div>
-            {renderVariantsEditor(
-              editDraft.variants as ProductVariantDraft[] | undefined,
-              (variants) => setEditDraft((prev) => ({ ...prev, variants }))
-            )}
-            <div className="modal-actions">
-              <button className="ghost-btn" type="button" onClick={saveEdit} disabled={Boolean(editUploadingId)}>
-                {t("save")}
-              </button>
-              {editError && <div className="error">{editError}</div>}
-            </div>
-          </div>
-        </div>
-      )}
+            <form className="form productRow" onSubmit={(e) => { if (creatingProduct) { void submit(e); return; } e.preventDefault(); if (!productDraft.name?.trim()) { setEditTab("details"); setProductError(t("name")); return; } if (!productSaving && !productUploading) void saveEdit(); }}>
+              <div id="product-details-panel" className="modal-body" role="tabpanel" aria-labelledby="product-details-tab" hidden={editTab !== "details"}>
 
-      {showPromoteModal && promoteProduct && canManage && (
-        <div className="modal-backdrop" onClick={closePromote}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">{t("promote") || "Promote"}</div>
-              <button className="ghost-btn" type="button" onClick={closePromote}>
-                {t("close")}
-              </button>
-            </div>
-            <div className="form">
-              <div className="checkboxContainer">
-                <input
-                  id="promoteActive"
-                  type="checkbox"
-                  checked={promoteActive}
-                  onChange={(e) => setPromoteActive(e.target.checked)}
-                />
-                <label htmlFor="promoteActive" className="promoteLabel">{t("active") || "Active"}</label>
-              </div>
-              <label>
-                {t("oldPrice") || "Old price"}
-                <input value={promoteOldPrice.toLocaleString()} readOnly />
-              </label>
-              <label>
-                {t("newPrice") || "New price"}
-                <input
-                  type="number"
-                  value={promotePrice}
-                  onChange={(e) => setPromotePrice(e.target.value)}
-                  min="0"
-                  step="0.01"
-                  disabled={!promoteActive}
-                />
-              </label>
-              <label>
-                {t("priceChange") || "Price change"}
-                <div>
-                  {!promoteActive || promoteDelta === null
-                    ? "-"
-                    : promoteDelta >= 0
-                      ? `${t("discount") || "Discount"}: ${promoteDelta.toFixed(1)}%`
-                      : `${t("increase") || "Increase"}: ${Math.abs(promoteDelta).toFixed(1)}%`}
-                </div>
-              </label>
-            </div>
-            {promoteError && <div className="error">{promoteError}</div>}
-            <div className="modal-actions">
-              <button className="ghost-btn" type="button" onClick={closePromote} disabled={promoteSaving}>
-                {t("close")}
-              </button>
-              <button className="primary" type="button" onClick={savePromote} disabled={promoteSaving}>
-                {promoteSaving ? (t("saving") || "Saving...") : t("save")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showNewModal && canManage && (
-        <div className="modal-backdrop" onClick={closeNewModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">{t("newProduct")}</div>
-              <button className="ghost-btn" type="button" onClick={closeNewModal}>
-                {t("close")}
-              </button>
-            </div>
-            <form className="form productRow" onSubmit={submit}>
-              <label>
-                {t("name")}
-                <input value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
-              </label>
-              <label>
-                {t("barcode") || "Barcode"}
-                <input
-                  value={draft.barcode || ""}
-                  onChange={(e) => setDraft({ ...draft, barcode: e.target.value })}
-                />
-              </label>
-              <label>
-                {t("description")}
-                <input
-                  value={draft.description || ""}
-                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                  placeholder=""
-                />
-              </label>
-              <label>
-                {t("price")} (SYP)
-                <input
-                  type="number"
-                  value={draft.price || ""}
-                  onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })}
-                  required
-                />
-              </label>
-              <div className="checkboxContainer">
-                <input
-                  id="newProductIsAvailable"
-                  type="checkbox"
-                  checked={Boolean(draft.isAvailable)}
-                  onChange={(e) => setDraft({ ...draft, isAvailable: e.target.checked })}
-                />
-
-                <label htmlFor="newProductIsAvailable">
-                  {t("isAvailable") || "Is available"}
-                </label>
-              </div>
-              <div className="checkboxContainer">
-                <input
-                  id="newProductIsPublic"
-                  type="checkbox"
-                  checked={draft.isPublic !== false}
-                  onChange={(e) => setDraft({ ...draft, isPublic: e.target.checked })}
-                />
-
-                <label htmlFor="newProductIsPublic">
-                  {t("isPublic") || "Public"}
-                </label>
-              </div>
-              <label>
-                {t("category")}
-                {renderCategorySelect(
-                  draft.categories as string[] | undefined,
-                  (ids) => setDraft({ ...draft, categories: ids as any }),
-                  categorySearch,
-                  setCategorySearch
-                )}
-              </label>
-              {renderVariantsEditor(
-                draft.variants as ProductVariantDraft[] | undefined,
-                (variants) => setDraft((prev) => ({ ...prev, variants }))
-              )}
-              <label style={{ margin: 0 }}>
-                {t("images")} ({draft.images?.length})
-              </label>
-
-              <div className="thumb-row prodImgCell">
-                {draft.images?.length == 0 ? (
-                  <div className="defaultImage big">
-                    <img src="productIcon.png" alt="" />
+                <div className="editProductToggles">
+                  <div className="checkboxContainer">
+                    <input id="editProductisAvailable" type="checkbox" checked={Boolean(productDraft.isAvailable)} onChange={(e) => setProductDraft({ ...productDraft, isAvailable: e.target.checked })} />
+                    <label htmlFor="editProductisAvailable">{t("available")}</label>
                   </div>
-                ) : (
-                  (draft.images as ProductImage[] | undefined)?.map((img) => (
-                    <div key={img.fileId} className="thumb listImage newThumb">
-                      <img src={img.url} alt="" />
-                      <button
-                        type="button"
-                        className="removeImageBtn"
-                        style={{}}
-                        onClick={() => removeNewImage(img.fileId)}
-                      >
-                        <img src="deleteIcon.png" alt="" />
-                      </button>
+                  <div className="checkboxContainer">
+                    <input id="editProductisPublic" type="checkbox" checked={productDraft.isPublic !== false} onChange={(e) => setProductDraft({ ...productDraft, isPublic: e.target.checked })} />
+                    <label htmlFor="editProductisPublic">{t("isPublic")}</label>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 20 }}>
+                  <div style={{ flex: 2 }}>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <label style={{ flex: 1 }}>
+                        {t("name")}
+                        <input value={productDraft.name || ""} onChange={(e) => setProductDraft({ ...productDraft, name: e.target.value })} autoFocus />
+                      </label>
+
+                      <label style={{ flex: 1 }}>
+                        {t("barcode")}
+                        <input value={productDraft.barcode || ""} onChange={(e) => setProductDraft({ ...productDraft, barcode: e.target.value })} />
+                      </label>
                     </div>
-                  ))
-                )}
 
-                <div className="uploadDiv" style={{}}>
-                  <label htmlFor="prodImgUpload" className="uploadBtn">
-                    {uploadingNew ? <img src="loading.gif" className="noFilter" /> : <img src="plusIcon.png" />}
-                  </label>
-                  <input
-                    type="file"
-                    id="prodImgUpload"
-                    accept="image/*"
-                    className="uploadForm"
-                    onClick={(e) => {
-                      e.currentTarget.value = "";
-                    }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) setImageEditor({ file, target: "new" });
-                    }}
-                    disabled={uploadingNew || !canUpload}
-                  />
-                </div>
-              </div>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <label style={{ flex: 1 }}>
+                        {t("description")}
+                        <input value={productDraft.description || ""} onChange={(e) => setProductDraft({ ...productDraft, description: e.target.value })} />
+                      </label>
 
-              {formError && <div className="error">{formError}</div>}
-              <div className="modal-actions">
-                <button className="ghost-btn" type="button" onClick={closeNewModal}>
-                  {t("cancel")}
-                </button>
-                {canManage && (
-                  <button className="primary" type="submit">
-                    {t("save")}
-                  </button>
-                )}
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showPriceModal && canManage && (
-        <div className="modal-backdrop" onClick={closePriceModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">{t("changePrices") || "Change prices"}</div>
-              <button className="ghost-btn" type="button" onClick={closePriceModal}>
-                {t("close")}
-              </button>
-            </div>
-            <form className="form" onSubmit={submitPriceUpdate}>
-              <label>
-                {t("changeType") || "Change type"}
-                <div className="flex-col">
-                  <div className="radioOption">
-                    <input
-                      id="priceChangeIncrease"
-                      type="radio"
-                      name="priceMode"
-                      checked={priceMode === "INCREASE"}
-                      onChange={() => setPriceMode("INCREASE")}
-                    />
-                    <label htmlFor="priceChangeIncrease">{t("increase") || "Increase"}</label>
+                      <label style={{ flex: 1 }}>
+                        {t("price")} (SYP)
+                        <input type="number" value={productDraft.price ?? ""} onChange={(e) => setProductDraft({ ...productDraft, price: Number(e.target.value) })} />
+                      </label>
+                    </div>
                   </div>
-                  <div className="radioOption">
-                    <input
-                      id="priceChangeDecrease"
-                      type="radio"
-                      name="priceMode"
-                      checked={priceMode === "DISCOUNT"}
-                      onChange={() => setPriceMode("DISCOUNT")}
-                    />
-                    <label htmlFor="priceChangeDecrease">{t("discount") || "Discount"}</label>
+
+                  <div style={{ flex: 1, paddingLeft: 20, borderLeft: "1px solid #e9e9e9" }}>
+                    <label>{t("images")}</label>
+                    <div className="thumb-row prodImgCell">
+                      {((productDraft.images as ProductImage[]) || []).length > 0 && (
+                        ((productDraft.images as ProductImage[]) || []).map((img) => (
+                          <div key={img.fileId} className="thumb">
+                            <div className="listImage" style={{ width: 120, height: 120 }}>
+                              <img src={img.url} alt="" style={{ borderRadius: 0 }} />
+                              <button
+                                type="button"
+                                className="removeImageBtn"
+                                style={{}}
+                                onClick={() => removeProductImage(img.fileId)}
+                              >
+                                <img src="deleteIcon.png" alt="" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+
+                      <div className="uploadDiv" style={{}}>
+                        <label htmlFor={`prodImg${editingId}`} className="uploadBtn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 60, height: 60 }}>
+                          {productUploading ?
+                            <img src="loading.gif" style={{ width: 30, height: 30 }} />
+                            :
+                            <img src="plusIcon.png" style={{ width: 30, height: 30 }} />
+                          }
+                        </label>
+                        <input
+                          type="file"
+                          id={`prodImg${editingId}`}
+                          className="uploadForm"
+                          accept="image/*"
+                          onClick={(e) => {
+                            e.currentTarget.value = "";
+                          }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setImageEditor({ file, target: creatingProduct ? "new" : "edit", productId: editingId || undefined });
+                            }
+                          }}
+                          disabled={productUploading || !canUpload}
+                        />
+                      </div>
+
+                    </div>
                   </div>
                 </div>
-              </label>
-              <label>
-                {t("amountType") || "Amount type"}
-                <select
-                  value={priceAmountType}
-                  onChange={(e) => setPriceAmountType(e.target.value as "FIXED" | "PERCENT")}
-                >
-                  <option value="FIXED">{t("fixed") || "Fixed"}</option>
-                  <option value="PERCENT">{t("percent") || "Percent"}</option>
-                </select>
-              </label>
-              <label>
-                {t("amount")}
-                <input
-                  type="number"
-                  value={priceAmount}
-                  onChange={(e) => setPriceAmount(e.target.value)}
-                  min="0"
-                  step="0.01"
-                />
-              </label>
-              {priceError && <div className="error">{priceError}</div>}
-              <div className="modal-actions">
-                <button className="ghost-btn" type="button" onClick={closePriceModal} disabled={priceSaving}>
-                  {t("cancel")}
-                </button>
-                <button className="primary" type="submit" disabled={priceSaving}>
-                  {priceSaving ? (t("saving") || "Saving...") : t("apply")}
-                </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {showBulkCategoryModal && canManage && (
-        <div className="modal-backdrop" onClick={closeBulkCategoryModal}>
-          <div className="modal bulk-category-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">
-                {bulkCategoryStep === "select"
-                  ? tx("bulkUpdateCategory", "Update category")
-                  : tx("confirmCategoryUpdate", "Confirm category update")}
-              </div>
-              <button className="ghost-btn" type="button" onClick={closeBulkCategoryModal} disabled={bulkCategorySaving}>
-                {t("close")}
-              </button>
-            </div>
-
-            {bulkCategoryStep === "select" ? (
-              <form className="form" onSubmit={submitBulkCategoryPreview}>
-                <div className="bulk-summary">
-                  {tx("selectedProductsCount", "Selected products")}: {selectedProducts.length}
+              <div id="product-categories-panel" className="modal-body" role="tabpanel" aria-labelledby="product-categories-tab" hidden={editTab !== "categories"}>
+                <div className="edit-section-heading">
+                  <div>
+                    {/* <h3>{t("category")}</h3> */}
+                    <p className="muted">{lang === "ar" ? "اختر تصنيفات المنتج." : "Choose the categories this product belongs to."}</p>
+                  </div>
+                  {/* <span className="variant-count">{productDraft.categories?.length || 0}</span> */}
                 </div>
+                {/* <div className="category-tab-selection"> */}
+                {/* <label>{t("category")}</label> */}
                 {renderCategorySelect(
-                  bulkCategoryIds,
-                  setBulkCategoryIds,
-                  bulkCategorySearch,
-                  setBulkCategorySearch
+                  productDraft.categories as string[] | undefined,
+                  (ids) => setProductDraft({ ...productDraft, categories: ids as any }),
+                  productCategorySearch,
+                  setProductCategorySearch
                 )}
-                {bulkCategoryError && <div className="error">{bulkCategoryError}</div>}
+                {/* </div> */}
+              </div>
+
+              <div id="product-variants-panel" className="modal-body" role="tabpanel" aria-labelledby="product-variants-tab" hidden={editTab !== "variants"}>
+                <fieldset className="variant-sections" disabled={productSaving || productUploading}>
+                  <section className="variant-section variant-create">
+                    <h3>{lang === "ar" ? "إضافة متغير جديد" : "Add a new variant"}</h3>
+                    <p className="muted">{lang === "ar" ? "أدخل التفاصيل ثم أضف المتغير." : "Enter the variant details, then add it to the list below."}</p>
+                    {renderVariantFields(newVariant, setNewVariant, "new-variant")}
+                    {variantError && <div className="error" role="alert">{variantError}</div>}
+                    <button className="primary" type="button" onClick={() => {
+                      if (!Object.keys(parseVariantAttributes(variantAttributeInputValue(newVariant))).length && !newVariant.sku?.trim() && !newVariant.barcode?.trim()) {
+                        setVariantError(lang === "ar" ? "أدخل صفة أو SKU أو باركود لتعريف المتغير." : "Enter attributes, a SKU, or a barcode to identify the variant.");
+                        return;
+                      }
+                      setProductDraft((prev) => ({ ...prev, variants: [...(prev.variants || []), newVariant] }));
+                      setNewVariant({ attributes: {}, images: [], isAvailable: true, isPublic: true });
+                      setVariantError("");
+                    }}>{t("addVariant")}</button>
+                  </section>
+                  <section className="variant-section variant-existing">
+                    <h3>{lang === "ar" ? "المتغيرات الحالية" : "Existing variants"} ({productDraft.variants?.length || 0})</h3>
+                    <p className="muted">{lang === "ar" ? "اختر متغيراً لتعديله، ثم احفظ المنتج." : "Select a variant to edit its details and images. Save the product to apply changes."}</p>
+                    {!productDraft.variants?.length && <div className="variant-empty-state">{t("noVariants")}<p className="muted">{lang === "ar" ? "أضف أول متغير باستخدام النموذج." : "Add your first variant using the new variant form."}</p></div>}
+                    {(productDraft.variants as ProductVariantDraft[] || []).map((variant, index) => (
+                      <details className="variant-card" key={variant._id || index}>
+                        <summary className="variant-card-summary">
+                          <div className="variant-summary-image">{variant.images?.[0] ? <img src={variant.images[0].url} alt="" /> : <img src="productIcon.png" alt="" />}</div>
+                          <div className="variant-summary-info">
+                            <strong>{formatVariantAttributes(variant.attributes) || variant.sku || variant.barcode || `${t("variants")} ${index + 1}`}</strong>
+                            <span className="muted">{variant.sku ? `${t("sku")}: ${variant.sku}` : variant.barcode ? `${t("barcode")}: ${variant.barcode}` : `${t("variants")} ${index + 1}`}</span>
+                            <span className={`variant-status ${variant.isAvailable === false ? "unavailable" : ""}`}>{variant.isAvailable !== false ? t("available") : t("no")}</span>
+                          </div>
+                          <div className="variant-summary-price">{renderCurrencyAmounts(variant.price ?? productDraft.price ?? 0)}<span className="muted">{t("edit")} <span aria-hidden="true">&#8964;</span></span></div>
+                        </summary>
+                        <div className="variant-card-body">
+                          {renderVariantFields(variant, (next) => setProductDraft((prev) => ({ ...prev, variants: (prev.variants || []).map((item, idx) => idx === index ? next : item) })), `existing-variant-${index}`, index)}
+                          <div className="variant-card-actions"><button className="ghost-btn danger" type="button" onClick={() => confirmDelete(t) && setProductDraft((prev) => ({ ...prev, variants: (prev.variants || []).filter((_, idx) => idx !== index) }))}>{t("delete")}</button></div>
+                        </div>
+                      </details>
+                    ))}
+                  </section>
+                </fieldset>
+              </div>
+
+              {productError && <div className="error" role="alert">{productError}</div>}
+              <div className="modal-actions">
+                <button className="ghost-btn" type="button" onClick={closeProductModal} disabled={productSaving || productUploading}>{t("cancel")}</button>
+                <button className="primary" type="submit" disabled={productSaving || productUploading}>{productSaving ? t("saving") : t("save")}</button>
+              </div>
+            </form>
+          </div >
+        </div >
+      )}
+
+      {
+        imageEditor && (
+          <ImageEditorModal
+            file={imageEditor.file}
+            onApply={uploadEditedImage}
+            onCancel={() => setImageEditor(null)}
+          />
+        )
+      }
+
+      {
+        showPromoteModal && promoteProduct && canManage && (
+          <div className="modal-backdrop" onClick={closePromote}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="modal-title">{t("promote") || "Promote"}</div>
+                <button className="ghost-btn" type="button" onClick={closePromote}>
+                  {t("close")}
+                </button>
+              </div>
+              <div className="form">
+                <div className="checkboxContainer">
+                  <input
+                    id="promoteActive"
+                    type="checkbox"
+                    checked={promoteActive}
+                    onChange={(e) => setPromoteActive(e.target.checked)}
+                  />
+                  <label htmlFor="promoteActive" className="promoteLabel">{t("active") || "Active"}</label>
+                </div>
+                <label>
+                  {t("oldPrice") || "Old price"}
+                  <input value={promoteOldPrice.toLocaleString()} readOnly />
+                </label>
+                <label>
+                  {t("newPrice") || "New price"}
+                  <input
+                    type="number"
+                    value={promotePrice}
+                    onChange={(e) => setPromotePrice(e.target.value)}
+                    min="0"
+                    step="0.01"
+                    disabled={!promoteActive}
+                  />
+                </label>
+                <label>
+                  {t("priceChange") || "Price change"}
+                  <div>
+                    {!promoteActive || promoteDelta === null
+                      ? "-"
+                      : promoteDelta >= 0
+                        ? `${t("discount") || "Discount"}: ${promoteDelta.toFixed(1)}%`
+                        : `${t("increase") || "Increase"}: ${Math.abs(promoteDelta).toFixed(1)}%`}
+                  </div>
+                </label>
+              </div>
+              {promoteError && <div className="error">{promoteError}</div>}
+              <div className="modal-actions">
+                <button className="ghost-btn" type="button" onClick={closePromote} disabled={promoteSaving}>
+                  {t("close")}
+                </button>
+                <button className="primary" type="button" onClick={savePromote} disabled={promoteSaving}>
+                  {promoteSaving ? (t("saving") || "Saving...") : t("save")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        showPriceModal && canManage && (
+          <div className="modal-backdrop" onClick={closePriceModal}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="modal-title">{t("changePrices") || "Change prices"}</div>
+                <button className="ghost-btn" type="button" onClick={closePriceModal}>
+                  {t("close")}
+                </button>
+              </div>
+              <form className="form" onSubmit={submitPriceUpdate}>
+                <label>
+                  {t("changeType") || "Change type"}
+                  <div className="flex-col">
+                    <div className="radioOption">
+                      <input
+                        id="priceChangeIncrease"
+                        type="radio"
+                        name="priceMode"
+                        checked={priceMode === "INCREASE"}
+                        onChange={() => setPriceMode("INCREASE")}
+                      />
+                      <label htmlFor="priceChangeIncrease">{t("increase") || "Increase"}</label>
+                    </div>
+                    <div className="radioOption">
+                      <input
+                        id="priceChangeDecrease"
+                        type="radio"
+                        name="priceMode"
+                        checked={priceMode === "DISCOUNT"}
+                        onChange={() => setPriceMode("DISCOUNT")}
+                      />
+                      <label htmlFor="priceChangeDecrease">{t("discount") || "Discount"}</label>
+                    </div>
+                  </div>
+                </label>
+                <label>
+                  {t("amountType") || "Amount type"}
+                  <select
+                    value={priceAmountType}
+                    onChange={(e) => setPriceAmountType(e.target.value as "FIXED" | "PERCENT")}
+                  >
+                    <option value="FIXED">{t("fixed") || "Fixed"}</option>
+                    <option value="PERCENT">{t("percent") || "Percent"}</option>
+                  </select>
+                </label>
+                <label>
+                  {t("amount")}
+                  <input
+                    type="number"
+                    value={priceAmount}
+                    onChange={(e) => setPriceAmount(e.target.value)}
+                    min="0"
+                    step="0.01"
+                  />
+                </label>
+                {priceError && <div className="error">{priceError}</div>}
                 <div className="modal-actions">
-                  <button className="ghost-btn" type="button" onClick={closeBulkCategoryModal}>
+                  <button className="ghost-btn" type="button" onClick={closePriceModal} disabled={priceSaving}>
                     {t("cancel")}
                   </button>
-                  <button className="primary" type="submit">
-                    {t("save")}
+                  <button className="primary" type="submit" disabled={priceSaving}>
+                    {priceSaving ? (t("saving") || "Saving...") : t("apply")}
                   </button>
                 </div>
               </form>
-            ) : (
-              <div className="form">
-                <div className="flex" style={{ justifyContent: "space-between", alignItems: "center", marginBottom:50 }}>
-                  <div className="bulk-summary">
-                    {tx("categoryWillChangeTo", "Category will change to")}: {bulkCategoryLabels}
-                  </div>
+            </div>
+          </div>
+        )
+      }
 
+      {
+        showBulkCategoryModal && canManage && (
+          <div className="modal-backdrop" onClick={closeBulkCategoryModal}>
+            <div className="modal bulk-category-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="modal-title">
+                  {bulkCategoryStep === "select"
+                    ? tx("bulkUpdateCategory", "Update category")
+                    : tx("confirmCategoryUpdate", "Confirm category update")}
+                </div>
+                <button className="ghost-btn" type="button" onClick={closeBulkCategoryModal} disabled={bulkCategorySaving}>
+                  {t("close")}
+                </button>
+              </div>
+
+              {bulkCategoryStep === "select" ? (
+                <form className="form" onSubmit={submitBulkCategoryPreview}>
                   <div className="bulk-summary">
                     {tx("selectedProductsCount", "Selected products")}: {selectedProducts.length}
                   </div>
-                </div>
+                  {renderCategorySelect(
+                    bulkCategoryIds,
+                    setBulkCategoryIds,
+                    bulkCategorySearch,
+                    setBulkCategorySearch
+                  )}
+                  {bulkCategoryError && <div className="error">{bulkCategoryError}</div>}
+                  <div className="modal-actions">
+                    <button className="ghost-btn" type="button" onClick={closeBulkCategoryModal}>
+                      {t("cancel")}
+                    </button>
+                    <button className="primary" type="submit">
+                      {t("save")}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="form">
+                  <div className="flex" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 50 }}>
+                    <div className="bulk-summary">
+                      {tx("categoryWillChangeTo", "Category will change to")}: {bulkCategoryLabels}
+                    </div>
 
-                <div className="bulk-preview-list">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>{t("name")}</th>
-                        <th>{t("barcode") || "Barcode"}</th>
-                        <th>{tx("currentCategory", "Current category")}</th>
-                        <th>{t("newCategory") || "New Category"}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedProducts.map((product) => (
-                        <tr key={product._id}>
-                          <td>{product.name}</td>
-                          <td>{product.barcode || "-"}</td>
-                          <td>{getCategoryLabels(product.categories)}</td>
-                          <td>{bulkCategoryLabels}</td>
+                    <div className="bulk-summary">
+                      {tx("selectedProductsCount", "Selected products")}: {selectedProducts.length}
+                    </div>
+                  </div>
+
+                  <div className="bulk-preview-list">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>{t("name")}</th>
+                          <th>{t("barcode") || "Barcode"}</th>
+                          <th>{tx("currentCategory", "Current category")}</th>
+                          <th>{t("newCategory") || "New Category"}</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {selectedProducts.map((product) => (
+                          <tr key={product._id}>
+                            <td>{product.name}</td>
+                            <td>{product.barcode || "-"}</td>
+                            <td>{getCategoryLabels(product.categories)}</td>
+                            <td>{bulkCategoryLabels}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {bulkCategoryError && <div className="error">{bulkCategoryError}</div>}
+                  <div className="modal-actions">
+                    <button
+                      className="ghost-btn"
+                      type="button"
+                      onClick={() => {
+                        setBulkCategoryStep("select");
+                        setBulkCategoryError("");
+                      }}
+                      disabled={bulkCategorySaving}
+                    >
+                      {t("edit")}
+                    </button>
+                    <button className="ghost-btn" type="button" onClick={closeBulkCategoryModal} disabled={bulkCategorySaving}>
+                      {t("cancel")}
+                    </button>
+                    <button className="primary" type="button" onClick={confirmBulkCategoryUpdate} disabled={bulkCategorySaving}>
+                      {bulkCategorySaving ? (t("saving") || "Saving...") : tx("confirm", "Confirm")}
+                    </button>
+                  </div>
                 </div>
-                {bulkCategoryError && <div className="error">{bulkCategoryError}</div>}
-                <div className="modal-actions">
-                  <button
-                    className="ghost-btn"
-                    type="button"
-                    onClick={() => {
-                      setBulkCategoryStep("select");
-                      setBulkCategoryError("");
-                    }}
-                    disabled={bulkCategorySaving}
-                  >
-                    {t("edit")}
-                  </button>
-                  <button className="ghost-btn" type="button" onClick={closeBulkCategoryModal} disabled={bulkCategorySaving}>
-                    {t("cancel")}
-                  </button>
-                  <button className="primary" type="button" onClick={confirmBulkCategoryUpdate} disabled={bulkCategorySaving}>
-                    {bulkCategorySaving ? (t("saving") || "Saving...") : tx("confirm", "Confirm")}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {showImportModal && canImport && (
-        <div className="modal-backdrop" onClick={closeImportModal}>
-          <div className="modal import-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">{t("importProducts")}</div>
-              <button className="ghost-btn" type="button" onClick={closeImportModal}>
-                {t("close")}
-              </button>
+              )}
             </div>
-            <div className="form">
-              <div className="muted">{t("importProductsHint")}</div>
-              <div className="import-upload">
-                {importFile ? (
-                  <div className="import-file-card">
-                    <div className="import-file-details">
-                      <div>
-                        <div className="import-file-name">{importFile.name}</div>
-                        <div className="import-file-size">{formatFileSize(importFile.size)}</div>
-                      </div>
-                      <div className="import-file-actions">
-                        {importPreviewLoading ? (
-                          <>
-                            <div className="import-loading">
-                              <div className="import-progress" style={{ marginBottom: 5 }}>
-                                <div className="import-progress-bar" style={{ width: `${importPreviewProgress}%` }} />
-                              </div>
+          </div>
+        )
+      }
 
-                              <div className="import-file-size" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <img src="loading.gif" className="noFilter" width="15" />
-                                {importPreviewStage === "processing"
-                                  ? t("loadingPreview")
-                                  : `${t("upload") || "Uploading"}...`}
-                              </div>
-
-                              {importPreviewTotal > 0 && (
-                                <div className="muted import-progress-meta">
-                                  {formatFileSize(importPreviewLoaded)} / {formatFileSize(importPreviewTotal)}
+      {
+        showImportModal && canImport && (
+          <div className="modal-backdrop" onClick={closeImportModal}>
+            <div className="modal import-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="modal-title">{t("importProducts")}</div>
+                <button className="ghost-btn" type="button" onClick={closeImportModal}>
+                  {t("close")}
+                </button>
+              </div>
+              <div className="form">
+                <div className="muted">{t("importProductsHint")}</div>
+                <div className="import-upload">
+                  {importFile ? (
+                    <div className="import-file-card">
+                      <div className="import-file-details">
+                        <div>
+                          <div className="import-file-name">{importFile.name}</div>
+                          <div className="import-file-size">{formatFileSize(importFile.size)}</div>
+                        </div>
+                        <div className="import-file-actions">
+                          {importPreviewLoading ? (
+                            <>
+                              <div className="import-loading">
+                                <div className="import-progress" style={{ marginBottom: 5 }}>
+                                  <div className="import-progress-bar" style={{ width: `${importPreviewProgress}%` }} />
                                 </div>
-                              )}
-                            </div>
+
+                                <div className="import-file-size" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <img src="loading.gif" className="noFilter" width="15" />
+                                  {importPreviewStage === "processing"
+                                    ? t("loadingPreview")
+                                    : `${t("upload") || "Uploading"}...`}
+                                </div>
+
+                                {importPreviewTotal > 0 && (
+                                  <div className="muted import-progress-meta">
+                                    {formatFileSize(importPreviewLoaded)} / {formatFileSize(importPreviewTotal)}
+                                  </div>
+                                )}
+                              </div>
+                              <button
+                                className="ghost-btn"
+                                type="button"
+                                onClick={() => {
+                                  importPreviewAbortRef.current?.abort();
+                                  importPreviewAbortRef.current = null;
+                                  setImportPreviewLoading(false);
+                                  setImportPreviewProgress(0);
+                                  setImportPreviewLoaded(0);
+                                  setImportPreviewTotal(0);
+                                  setImportPreviewStage(null);
+                                  setImportFile(null);
+                                  setImportPreview(null);
+                                  setImportResult(null);
+                                  setImportError("");
+                                }}
+                              >
+                                {t("cancel") || "Cancel"}
+                              </button>
+                            </>
+                          ) : (
                             <button
                               className="ghost-btn"
                               type="button"
                               onClick={() => {
-                                importPreviewAbortRef.current?.abort();
-                                importPreviewAbortRef.current = null;
-                                setImportPreviewLoading(false);
-                                setImportPreviewProgress(0);
-                                setImportPreviewLoaded(0);
-                                setImportPreviewTotal(0);
-                                setImportPreviewStage(null);
                                 setImportFile(null);
                                 setImportPreview(null);
                                 setImportResult(null);
                                 setImportError("");
+                                setImportPreviewProgress(0);
+                                setImportPreviewLoaded(0);
+                                setImportPreviewTotal(0);
+                                setImportPreviewStage(null);
+                                importPreviewAbortRef.current?.abort();
+                                importPreviewAbortRef.current = null;
                               }}
                             >
-                              {t("cancel") || "Cancel"}
+                              {t("remove") || "Remove"}
                             </button>
-                          </>
-                        ) : (
-                          <button
-                            className="ghost-btn"
-                            type="button"
-                            onClick={() => {
-                              setImportFile(null);
-                              setImportPreview(null);
-                              setImportResult(null);
-                              setImportError("");
-                              setImportPreviewProgress(0);
-                              setImportPreviewLoaded(0);
-                              setImportPreviewTotal(0);
-                              setImportPreviewStage(null);
-                              importPreviewAbortRef.current?.abort();
-                              importPreviewAbortRef.current = null;
-                            }}
-                          >
-                            {t("remove") || "Remove"}
-                          </button>
-                        )}
-                      </div>
+                          )}
+                        </div>
 
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    className={`import-dropzone${importDragActive ? " active" : ""}${importFile ? " has-file" : ""}`}
-                    onDragOver={handleImportDragOver}
-                    onDragEnter={handleImportDragOver}
-                    onDragLeave={handleImportDragLeave}
-                    onDrop={handleImportDrop}
-                  >
-                    <input
-                      id="importExcelFile"
-                      type="file"
-                      accept=".xlsx,.xls"
-                      className="import-file-input"
-                      onChange={(e) => handleImportFile(e.target.files?.[0] || null)}
-                    />
-                    <label htmlFor="importExcelFile" className="import-dropzone-inner">
-                      <div className="import-icon">
-                        <img src="uploadIcon.png" alt="" />
                       </div>
-                      {/* <div className="import-title">{t("selectFile") || "Select file"}</div> */}
-                      <div className="import-sub">{t("importDropzoneHint")}</div>
-                      <div className="import-meta muted">{t("importAllowedExtensions")}</div>
-                    </label>
+                    </div>
+                  ) : (
+                    <div
+                      className={`import-dropzone${importDragActive ? " active" : ""}${importFile ? " has-file" : ""}`}
+                      onDragOver={handleImportDragOver}
+                      onDragEnter={handleImportDragOver}
+                      onDragLeave={handleImportDragLeave}
+                      onDrop={handleImportDrop}
+                    >
+                      <input
+                        id="importExcelFile"
+                        type="file"
+                        accept=".xlsx,.xls"
+                        className="import-file-input"
+                        onChange={(e) => handleImportFile(e.target.files?.[0] || null)}
+                      />
+                      <label htmlFor="importExcelFile" className="import-dropzone-inner">
+                        <div className="import-icon">
+                          <img src="uploadIcon.png" alt="" />
+                        </div>
+                        {/* <div className="import-title">{t("selectFile") || "Select file"}</div> */}
+                        <div className="import-sub">{t("importDropzoneHint")}</div>
+                        <div className="import-meta muted">{t("importAllowedExtensions")}</div>
+                      </label>
+                    </div>
+                  )}
+                </div>
+                {importError && <div className="error">{importError}</div>}
+                {importPreview && !importPreviewLoading && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                      <div>
+                        <div className="modal-title">
+                          {t("importPreviewSummaryPrefix")}
+                        </div>
+                        <div className="success">
+                          {t("importPreviewSummary")
+                            .replace("{created}", String(importPreview.created))
+                            .replace("{updated}", String(importPreview.updated))
+                            .replace("{skipped}", String(importPreview.skipped))
+                            .replace("{total}", String(importPreview.total))}
+                        </div>
+                      </div>
+                      <div className="import-preview-controls">
+                        <label className="checkboxContainer" style={{ margin: 0 }}>
+                          <input
+                            id="importShowOnlyChanges"
+                            type="checkbox"
+                            checked={importShowOnlyChanges}
+                            onChange={(e) => setImportShowOnlyChanges(e.target.checked)}
+                          />
+                          <label htmlFor="importShowOnlyChanges" style={{ cursor: 'pointer', fontSize: '12px', margin: 0, fontWeight: '400' }}>
+                            {t("showChangesOnly") || "Show only changes"}
+                          </label>
+                        </label>
+                      </div>
+                    </div>
+                    <table className="table" style={{ marginTop: 10 }}>
+                      <thead>
+                        <tr>
+                          <th></th>
+                          <th>{t("name")}</th>
+                          <th>{t("price")}</th>
+                          <th>{t("availability")}</th>
+                          <th>{t("change")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importPreview.preview
+                          .filter((row) => (importShowOnlyChanges ? row.action !== "skip" : true))
+                          .map((row, idx) => (
+                            <tr key={`${row.barcode}-${idx}`}>
+                              <td>
+                                <span className={`import-change-badge ${row.action}`} title={t(`import.action.${row.action}`)}>
+                                  {renderImportActionIcon(row.action)}
+                                </span>
+                              </td>
+                              <td>{renderDiff(row.name, row.previousName)}</td>
+                              <td>{renderPriceDiff(row.price, row.previousPrice)}</td>
+                              <td>{renderAvailabilityDiff(row.hasStock, row.previousHasStock)}</td>
+                              <td>{getImportReasonLabel(row.reason, row.reasonDetail)}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+                {importResult && (
+                  <div className="success" style={{ marginTop: 10 }}>
+                    {t("importSummary")
+                      .replace("{created}", String(importResult.created))
+                      .replace("{updated}", String(importResult.updated))
+                      .replace("{skipped}", String(importResult.skipped))
+                      .replace("{total}", String(importResult.total))}
                   </div>
                 )}
               </div>
-              {importError && <div className="error">{importError}</div>}
-              {importPreview && !importPreviewLoading && (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                    <div>
-                      <div className="modal-title">
-                        {t("importPreviewSummaryPrefix")}
-                      </div>
-                      <div className="success">
-                        {t("importPreviewSummary")
-                          .replace("{created}", String(importPreview.created))
-                          .replace("{updated}", String(importPreview.updated))
-                          .replace("{skipped}", String(importPreview.skipped))
-                          .replace("{total}", String(importPreview.total))}
-                      </div>
-                    </div>
-                    <div className="import-preview-controls">
-                      <label className="checkboxContainer" style={{ margin: 0 }}>
-                        <input
-                          id="importShowOnlyChanges"
-                          type="checkbox"
-                          checked={importShowOnlyChanges}
-                          onChange={(e) => setImportShowOnlyChanges(e.target.checked)}
-                        />
-                        <label htmlFor="importShowOnlyChanges" style={{ cursor: 'pointer', fontSize: '12px', margin: 0, fontWeight: '400' }}>
-                          {t("showChangesOnly") || "Show only changes"}
-                        </label>
-                      </label>
-                    </div>
-                  </div>
-                  <table className="table" style={{ marginTop: 10 }}>
-                    <thead>
-                      <tr>
-                        <th></th>
-                        <th>{t("name")}</th>
-                        <th>{t("price")}</th>
-                        <th>{t("availability")}</th>
-                        <th>{t("change")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {importPreview.preview
-                        .filter((row) => (importShowOnlyChanges ? row.action !== "skip" : true))
-                        .map((row, idx) => (
-                          <tr key={`${row.barcode}-${idx}`}>
-                            <td>
-                              <span className={`import-change-badge ${row.action}`} title={t(`import.action.${row.action}`)}>
-                                {renderImportActionIcon(row.action)}
-                              </span>
-                            </td>
-                            <td>{renderDiff(row.name, row.previousName)}</td>
-                            <td>{renderPriceDiff(row.price, row.previousPrice)}</td>
-                            <td>{renderAvailabilityDiff(row.hasStock, row.previousHasStock)}</td>
-                            <td>{getImportReasonLabel(row.reason, row.reasonDetail)}</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </>
-              )}
-              {importResult && (
-                <div className="success" style={{ marginTop: 10 }}>
-                  {t("importSummary")
-                    .replace("{created}", String(importResult.created))
-                    .replace("{updated}", String(importResult.updated))
-                    .replace("{skipped}", String(importResult.skipped))
-                    .replace("{total}", String(importResult.total))}
-                </div>
-              )}
+              <div className="modal-actions">
+                <button className="ghost-btn" type="button" onClick={closeImportModal} disabled={importSaving}>
+                  {t("cancel")}
+                </button>
+                <button className="primary" type="button" onClick={submitImport} disabled={importSaving || !importPreview}>
+                  {importSaving ? t("saving") : t("import")}
+                </button>
+              </div>
             </div>
-            <div className="modal-actions">
-              <button className="ghost-btn" type="button" onClick={closeImportModal} disabled={importSaving}>
-                {t("cancel")}
-              </button>
-              <button className="primary" type="button" onClick={submitImport} disabled={importSaving || !importPreview}>
-                {importSaving ? t("saving") : t("import")}
-              </button>
-            </div>
-          </div>
-        </div >
-      )}
+          </div >
+        )
+      }
     </>
   );
 };
