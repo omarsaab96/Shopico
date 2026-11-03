@@ -693,9 +693,9 @@ const translations: Record<Language, Record<string, string>> = {
 };
 
 const statusTranslations: Record<string, { en: string; ar: string }> = {
-  PENDING: { en: "Pending", ar: "قيد الانتظار" },
-  PROCESSING: { en: "Processing", ar: "قيد المعالجة" },
-  SHIPPING: { en: "Shipping", ar: "قيد الشحن" },
+  PENDING: { en: "Pending", ar: "تم استلام الطلب" },
+  PROCESSING: { en: "Processing", ar: "قيد التجهيز" },
+  SHIPPING: { en: "Shipping", ar: "الطلب في طريقه اليك" },
   DELIVERED: { en: "Delivered", ar: "تم التوصيل" },
   CANCELLED: { en: "Cancelled", ar: "ملغي" },
   APPROVED: { en: "Approved", ar: "مقبول" },
