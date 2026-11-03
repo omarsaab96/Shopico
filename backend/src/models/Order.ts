@@ -7,6 +7,19 @@ export interface IOrderItem {
   variantAttributes?: Record<string, string>;
   quantity: number;
   price: number;
+  refundedQuantity?: number;
+}
+
+export interface IOrderRefund {
+  requestId: string;
+  itemIndex: number;
+  quantity: number;
+  amount: number;
+  walletAmount: number;
+  currency?: Types.ObjectId | string;
+  disposition: "WALLET" | "TOTAL_REDUCTION";
+  actor: Types.ObjectId | string;
+  at: Date;
 }
 
 export interface IOrderStatusEntry {
@@ -25,6 +38,10 @@ export interface IOrder extends Document {
   items: IOrderItem[];
   branchId: Types.ObjectId | string;
   currency?: Types.ObjectId | string;
+  currencyExchangeRate?: number;
+  deliveryDiscount?: number;
+  refundTotal: number;
+  refunds: IOrderRefund[];
   addressRef?: Types.ObjectId | string | null;
   driverId?: Types.ObjectId | string;
   driverLocation?: IOrderDriverLocation | null;
@@ -58,6 +75,7 @@ const OrderItemSchema = new Schema<IOrderItem>(
     variantAttributes: { type: Schema.Types.Mixed },
     quantity: { type: Number, required: true },
     price: { type: Number, required: true },
+    refundedQuantity: { type: Number, default: 0, min: 0 },
   },
   { _id: false }
 );
@@ -85,6 +103,20 @@ const OrderSchema = new Schema<IOrder>(
     items: { type: [OrderItemSchema], required: true },
     branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },
     currency: { type: Schema.Types.ObjectId, ref: "Currency" },
+    currencyExchangeRate: { type: Number },
+    deliveryDiscount: { type: Number },
+    refundTotal: { type: Number, default: 0 },
+    refunds: { type: [new Schema<IOrderRefund>({
+      requestId: { type: String, required: true },
+      itemIndex: { type: Number, required: true },
+      quantity: { type: Number, required: true },
+      amount: { type: Number, required: true },
+      walletAmount: { type: Number, required: true },
+      currency: { type: Schema.Types.ObjectId, ref: "Currency" },
+      disposition: { type: String, enum: ["WALLET", "TOTAL_REDUCTION"], required: true },
+      actor: { type: Schema.Types.ObjectId, ref: "User", required: true },
+      at: { type: Date, default: Date.now },
+    }, { _id: false })], default: [] },
     addressRef: { type: Schema.Types.ObjectId, ref: "Address", default: null },
     driverId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     driverLocation: { type: DriverLocationSchema, default: null },
@@ -108,7 +140,7 @@ const OrderSchema = new Schema<IOrder>(
     rewardApplied: { type: Boolean, default: false },
     statusHistory: { type: [StatusEntrySchema], default: [] },
   },
-  { timestamps: true }
+  { timestamps: true, optimisticConcurrency: true }
 );
 
 export const Order = mongoose.model<IOrder>("Order", OrderSchema);

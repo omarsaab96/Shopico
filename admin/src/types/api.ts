@@ -56,6 +56,7 @@ export interface Product {
 }
 
 export interface OrderItem {
+  refundedQuantity?: number;
   product: Product | string;
   quantity: number;
   price: number;
@@ -68,7 +69,19 @@ export interface OrderAddressRef {
   phone?: string;
 }
 
+export interface OrderRefund {
+  requestId: string;
+  itemIndex: number;
+  quantity: number;
+  amount: number;
+  walletAmount: number;
+  currency?: Currency | string;
+  disposition: "WALLET" | "TOTAL_REDUCTION";
+  at: string;
+}
 export interface Order {
+  refundTotal?: number;
+  refunds?: OrderRefund[];
   _id: string;
   user: ApiUser | string;
   items: OrderItem[];

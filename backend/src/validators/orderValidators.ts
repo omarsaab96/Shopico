@@ -52,3 +52,17 @@ export const driverStatusSchema = z.object({
 export const rateDriverSchema = z.object({
   rating: z.number().int().min(1).max(5),
 });
+
+export const refundItemPreviewSchema = z.object({
+  itemIndex: z.number().int().nonnegative(),
+  quantity: z.number().int().positive(),
+});
+
+export const refundItemSchema = refundItemPreviewSchema.extend({
+  requestId: z.string().uuid(),
+  expectedRefundedQuantity: z.number().int().nonnegative(),
+  expectedTotal: z.number().nonnegative(),
+  expectedAmount: z.number().nonnegative(),
+  expectedWalletAmount: z.number().nonnegative(),
+  expectedPaymentStatus: z.enum(["PENDING", "CONFIRMED"]),
+});

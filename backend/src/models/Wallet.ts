@@ -25,7 +25,7 @@ const WalletSchema = new Schema<IWallet>(
     balance: { type: Number, default: 0 },
     balances: { type: [WalletBalanceSchema], default: [] },
   },
-  { timestamps: true }
+  { timestamps: true, optimisticConcurrency: true }
 );
 
 export const Wallet = mongoose.model<IWallet>("Wallet", WalletSchema);

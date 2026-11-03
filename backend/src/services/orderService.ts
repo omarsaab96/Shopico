@@ -45,6 +45,7 @@ export const getOrdersForUser = async (userId: Types.ObjectId, branchId?: string
   return Order.find({ user: userId, ...(branchId ? { branchId } : {}), ...currencyFilter })
     .sort({ createdAt: -1 })
     .populate("currency")
+    .populate("refunds.currency")
     .populate("items.product")
     .populate("addressRef");
 };
@@ -123,6 +124,7 @@ export const getAllOrders = async (opts?: {
   return Order.find(filter)
     .sort({ createdAt: -1 })
     .populate("currency")
+    .populate("refunds.currency")
     .populate("user")
     .populate("items.product")
     .populate("addressRef");
@@ -133,6 +135,7 @@ export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId
   if (branchId) filter.branchId = branchId;
   const order = await Order.findOne(filter)
     .populate("currency")
+    .populate("refunds.currency")
     .populate("user")
     .populate("driverId")
     .populate("branchId")
@@ -150,6 +153,7 @@ export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId
 const populateOrderDetail = (query: ReturnType<typeof Order.findById>) =>
   query
     .populate("currency")
+    .populate("refunds.currency")
     .populate("user")
     .populate("driverId")
     .populate("branchId")
@@ -356,7 +360,7 @@ const applyCoupons = async (
   codes: string[],
   orderCurrencyId: string
 ) => {
-  if (!codes.length) return { coupons: [], discount: 0 };
+  if (!codes.length) return { coupons: [], discount: 0, deliveryDiscount: 0 };
   let freeDeliveryApplied = false;
   let discountTotal = 0;
   const coupons = [];
@@ -374,7 +378,7 @@ const applyCoupons = async (
     discountTotal += discount;
     coupons.push(result.coupon);
   }
-  return { coupons, discount: discountTotal };
+  return { coupons, discount: discountTotal, deliveryDiscount: freeDeliveryApplied ? deliveryFee : 0 };
 };
 
 const maybeGenerateReward = async (userId: Types.ObjectId, newPoints: number, branchId: string) => {
@@ -468,6 +472,8 @@ export const createOrder = async (
     user: userId,
     branchId,
     currency: orderCurrency._id,
+    currencyExchangeRate: orderCurrency.isPrimary ? 1 : Number(orderCurrency.exchangeRate || 1),
+    deliveryDiscount: couponResult.deliveryDiscount,
     items,
     status: "PENDING",
     paymentMethod: payload.paymentMethod,
@@ -658,6 +664,7 @@ export const getOrdersForDriver = async (driverId: Types.ObjectId) => {
   const orders = await Order.find({ driverId })
     .sort({ createdAt: -1 })
     .populate("currency")
+    .populate("refunds.currency")
     .populate("user", "name phone email")
     .populate("items.product")
     .populate("addressRef");

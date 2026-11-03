@@ -1,3 +1,4 @@
+import type { ClientSession } from "mongoose";
 import { IUser, User } from "../models/User";
 import { Settings } from "../models/Settings";
 import { Wallet } from "../models/Wallet";
@@ -46,17 +47,17 @@ export const determineMembershipLevelFromThresholds = (
   return "None";
 };
 
-export const determineMembershipLevel = async (walletBalance: number, branchId?: string, currencyId?: string): Promise<MembershipLevel> => {
-  const settings = branchId ? await Settings.findOne({ branchId }) : await Settings.findOne();
+export const determineMembershipLevel = async (walletBalance: number, branchId?: string, currencyId?: string, session?: ClientSession): Promise<MembershipLevel> => {
+  const settings = branchId ? await Settings.findOne({ branchId }).session(session || null) : await Settings.findOne().session(session || null);
   const thresholds = getThresholdsForCurrency(settings, currencyId);
   return determineMembershipLevelFromThresholds(walletBalance, thresholds);
 };
 
-export const updateMembershipOnBalanceChange = async (user: IUser, walletBalance: number, branchId?: string, currencyId?: string) => {
-  const settings = branchId ? await Settings.findOne({ branchId }) : await Settings.findOne();
+export const updateMembershipOnBalanceChange = async (user: IUser, walletBalance: number, branchId?: string, currencyId?: string, session?: ClientSession) => {
+  const settings = branchId ? await Settings.findOne({ branchId }).session(session || null) : await Settings.findOne().session(session || null);
   const graceDays = settings?.membershipGraceDays ?? 14;
 
-  const targetLevel = await determineMembershipLevel(walletBalance, branchId, currencyId);
+  const targetLevel = await determineMembershipLevel(walletBalance, branchId, currencyId, session);
   const currentIndex = Math.max(0, LEVEL_ORDER.indexOf(user.membershipLevel as MembershipLevel));
   const targetIndex = LEVEL_ORDER.indexOf(targetLevel);
 
@@ -75,7 +76,7 @@ export const updateMembershipOnBalanceChange = async (user: IUser, walletBalance
   } else {
     user.membershipGraceUntil = null;
   }
-  await user.save();
+  await user.save({ session });
 };
 
 export const recalculateMembershipsForThresholdChange = async (branchId: string) => {

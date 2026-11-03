@@ -603,7 +603,8 @@ export default function OrderDetail() {
                         <Text style={styles.itemName}>
                           {item?.product?.name || item?.product || t("product") || "Product"}
                         </Text>
-                        <Text style={styles.itemQty}>{item?.quantity || 0}</Text>
+                        <Text style={styles.itemQty}>{Math.max(0, (item?.quantity || 0) - (item?.refundedQuantity || 0))}</Text>
+                        {!!item?.refundedQuantity && <Text style={styles.itemQty}>{t("refundedQuantity")}: {item.refundedQuantity}</Text>}
                       </View>
                     </View>
                     <Text style={styles.itemPrice}>{formatMoney(item?.price || 0, orderCurrency)}</Text>

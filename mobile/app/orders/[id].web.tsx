@@ -75,7 +75,8 @@ export default function OrderDetailWeb() {
           {orderItems.map((item: any, index: number) => (
             <View key={getOrderItemKey(item, index)} style={styles.itemRow}>
               <Text style={styles.itemName}>
-                {item?.quantity || 0} x {item?.product?.name || item?.product || t("product") || "Product"}
+                {Math.max(0, (item?.quantity || 0) - (item?.refundedQuantity || 0))} x {item?.product?.name || item?.product || t("product") || "Product"}
+                {!!item?.refundedQuantity && ` (${t("refundedQuantity")}: ${item.refundedQuantity})`}
               </Text>
               <Text style={styles.itemPrice}>{formatMoney(item?.price || 0, orderCurrency)}</Text>
             </View>

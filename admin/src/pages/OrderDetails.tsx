@@ -1,9 +1,10 @@
+import OrderItems from "../components/OrderItems";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Card from "../components/Card";
 import StatusPill from "../components/StatusPill";
 import api, { fetchCoupons, fetchCurrencies, fetchDrivers, fetchOrderById, updateOrderDetails, updateOrderStatus } from "../api/client";
-import type { ApiUser, Coupon, Currency, Order, Product } from "../types/api";
+import type { ApiUser, Coupon, Currency, Order } from "../types/api";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 
@@ -37,15 +38,11 @@ const formatDateTime = (value?: string) => {
 const getOrderAddressLabel = (order: Order) =>
   order.addressRef && typeof order.addressRef !== "string" ? order.addressRef.label : "";
 
-const getProductName = (product: Product | string | null | undefined, fallbackLabel: string) => {
-  if (!product) return fallbackLabel;
-  return typeof product === "string" ? product : product.name;
-};
-
 type PickerType = "status" | "driver" | null;
 
-const OrderDetailsPage = () => {
-  const { id = "" } = useParams();
+const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; embedded?: boolean }) => {
+  const { id: routeId = "" } = useParams();
+  const id = orderId || routeId;
   const navigate = useNavigate();
   const { t, tStatus, lang } = useI18n();
   const { can, canAny } = usePermissions();
@@ -174,7 +171,6 @@ const OrderDetailsPage = () => {
     () => (order?.driverId && typeof order.driverId !== "string" ? order.driverId : driverUser),
     [order, driverUser]
   );
-  const unknownProductLabel = "Unknown product";
   const customerId = typeof order?.user === "string" ? order.user : order?.user?._id || "";
   const driverId = typeof order?.driverId === "string" ? order.driverId : order?.driverId?._id || "";
 
@@ -294,11 +290,11 @@ const OrderDetailsPage = () => {
       <Card
         title={t("orders.orderDetails")}
         subTitle=""
-        actions={
+        actions={embedded ? undefined : (
           <button className="ghost-btn" type="button" onClick={() => navigate("/orders")}>
             {t("back")}
           </button>
-        }
+        )}
       >
         <div className="error">{error || "Order not found"}</div>
       </Card>
@@ -310,11 +306,11 @@ const OrderDetailsPage = () => {
       <Card
         title={t("orders.orderDetails")}
         subTitle={`#${order._id.slice(-6)}`}
-        actions={
+        actions={embedded ? undefined : (
           <button className="ghost-btn" type="button" onClick={() => navigate("/orders")}>
             {t("back")}
           </button>
-        }
+        )}
       >
         <div className="detail-grid">
           <div className="stat">
@@ -323,7 +319,7 @@ const OrderDetailsPage = () => {
               {canUpdateOrders ? (
                 <button
                   className="onHoverEdit"
-                  style={{"backgroundColor":"transparent","border":"none","padding":0}}
+                  style={{ "backgroundColor": "transparent", "border": "none", "padding": 0 }}
                   type="button"
                   onClick={() => setActivePicker("status")}
                   disabled={statusSaving}
@@ -337,15 +333,21 @@ const OrderDetailsPage = () => {
           </div>
           <div className="stat">
             <div className="stat-label">{t("payment")}</div>
-            <div className="stat-value"><StatusPill value={order.paymentStatus} size="big"/></div>
+            <div className="stat-value">
+              <StatusPill value={order.paymentStatus} size="big" />
+            </div>
           </div>
           <div className="stat">
             <div className="stat-label">{t("total")}</div>
-            <div className="stat-value">{formatOrderMoney(order.total)}</div>
+            <div className="stat-value" style={{ fontSize: 20 }}>
+              {formatOrderMoney(order.total)}
+            </div>
           </div>
           <div className="stat">
             <div className="stat-label">{t("orders.dateTime")}</div>
-            <div className="stat-value">{formatDateTime(order.createdAt)}</div>
+            <div className="stat-value" style={{ fontSize: 20 }}>
+              {formatDateTime(order.createdAt)}
+            </div>
           </div>
         </div>
 
@@ -475,33 +477,16 @@ const OrderDetailsPage = () => {
                 <div className="detailsLabel">{t("total")}</div>
                 <div className="detailsValue"><strong>{formatOrderMoney(order.total)}</strong></div>
               </div>
+              {!!order.refundTotal && <div className="detailsRow">
+                <div className="detailsLabel">{t("orders.refundTotal")}</div>
+                <div className="detailsValue">{formatOrderMoney(order.refundTotal)}</div>
+              </div>}
             </div>
           </div>
         </div>
       </Card>
 
-      <Card title={t("orders.items")} subTitle={`(${order.items.length})`}>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{t("name")}</th>
-              <th>{t("price")}</th>
-              <th>{t("orders.quantity")}</th>
-              <th>{t("total")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.items.map((item, index) => (
-              <tr key={`${getProductName(item.product, unknownProductLabel)}-${index}`}>
-                <td>{getProductName(item.product, unknownProductLabel)}</td>
-                <td>{formatOrderMoney(item.price)}</td>
-                <td>{item.quantity}</td>
-                <td>{formatOrderMoney(item.price * item.quantity)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+      <OrderItems order={order} canRefund={canUpdateOrders} onChange={setOrder} formatMoney={formatOrderMoney} currencySymbol={getCurrencySymbol} />
 
       <Card title={t("orders.timeline")} subTitle={`(${order.statusHistory?.length || 0})`}>
         {order.statusHistory?.length ? (
@@ -589,13 +574,13 @@ const OrderDetailsPage = () => {
                 {t("close")}
               </button>
             </div>
-            <div className={activePicker === 'status' ? 'list-row' : 'list'} style={activePicker === 'status' ? {"gap":"10px"} : {}}>
+            <div className={activePicker === 'status' ? 'list-row' : 'list'} style={activePicker === 'status' ? { "gap": "10px" } : {}}>
               {activePicker === "status" ? (
                 statuses.map((status) => (
                   <button
                     key={status}
                     className="driver-picker-option"
-                    style={activePicker === 'status' ? {"textAlign": 'center'} : {}}
+                    style={activePicker === 'status' ? { "textAlign": 'center' } : {}}
                     type="button"
                     onClick={async () => {
                       if (status === statusDraft) {
@@ -609,7 +594,7 @@ const OrderDetailsPage = () => {
                     disabled={statusSaving}
                   >
                     {/* <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}> */}
-                      <StatusPill value={status} />
+                    <StatusPill value={status} />
                     {/* </div> */}
                   </button>
                 ))
@@ -724,5 +709,7 @@ const OrderDetailsPage = () => {
     </div>
   );
 };
+
+
 
 export default OrderDetailsPage;

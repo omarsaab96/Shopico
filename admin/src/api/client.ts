@@ -425,3 +425,19 @@ export const unpublishProductsWithoutImages = async () => {
   const res = await api.post<{ data: { modifiedCount: number } }>("/products/unpublish-without-images");
   return res.data.data;
 };
+
+export type ItemRefundPreview = {
+  amount: number; newTotal: number; walletAmount: number; currency: Currency; creditWallet: boolean;
+  expectedTotal: number; expectedRefundedQuantity: number; expectedPaymentStatus: "PENDING" | "CONFIRMED";
+};
+export const previewOrderItemRefund = async (orderId: string, itemIndex: number, quantity: number) => {
+  const res = await api.post<{ data: ItemRefundPreview }>(`/orders/${orderId}/refund-item/preview`, { itemIndex, quantity });
+  return res.data.data;
+};
+export const refundOrderItem = async (orderId: string, payload: {
+  itemIndex: number; quantity: number; requestId: string; expectedTotal: number; expectedRefundedQuantity: number;
+  expectedPaymentStatus: string; expectedAmount: number; expectedWalletAmount: number;
+}) => {
+  const res = await api.post<{ data: Order }>(`/orders/${orderId}/refund-item`, payload);
+  return res.data.data;
+};

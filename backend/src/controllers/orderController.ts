@@ -1,3 +1,5 @@
+import { previewOrderItemRefund, refundOrderItem } from "../services/orderRefundService";
+import { refundItemPreviewSchema, refundItemSchema } from "../validators/orderValidators";
 import { catchAsync } from "../utils/catchAsync";
 import {
   assignDriverSchema,
@@ -119,4 +121,17 @@ export const rateDriver = catchAsync(async (req: AuthRequest, res) => {
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const order = await rateDriverForOrder(req.params.id, req.user!._id, payload.rating, req.branchId);
   sendSuccess(res, order, "Driver rated");
+});
+
+export const previewItemRefund = catchAsync(async (req, res) => {
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const payload = refundItemPreviewSchema.parse(req.body);
+  sendSuccess(res, await previewOrderItemRefund(req.params.id, req.branchId, payload.itemIndex, payload.quantity));
+});
+
+export const adminRefundItem = catchAsync(async (req, res) => {
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const payload = refundItemSchema.parse(req.body);
+  await refundOrderItem(req.params.id, req.branchId, req.user!._id, payload);
+  sendSuccess(res, await getOrderById(req.params.id, undefined, req.branchId), "Item refunded");
 });

@@ -7,6 +7,7 @@ type Lang = "en" | "ar";
 const I18N_STORAGE_KEY = "app-language";
 
 const baseStrings = {
+  refundedQuantity: "Refunded quantity",
   needSupport: "Need support?",
   supportUnavailable: "Support is currently unavailable. Please try again later.",
   supportCallFailed: "Unable to open the phone dialer. Please call",
@@ -239,6 +240,7 @@ const baseStrings = {
 };
 
 const arStrings: Record<string, string> = {
+  refundedQuantity: "الكمية المستردة",
   needSupport: "بحاجة للمساعدة؟",
   supportUnavailable: "الدعم غير متاح حالياً. يُرجى المحاولة مرة أخرى لاحقاً.",
   supportCallFailed: "تعذّر فتح تطبيق الاتصال. يُرجى الاتصال يدوياً.",

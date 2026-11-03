@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, pointerWithin, rectIntersection, useSensor, useSensors } from "@dnd-kit/core";
+import { OrderDragCard, OrderDropBasket } from "../components/OrderBasketDrag";
+import OrderDetailsModal from "../components/OrderDetailsModal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Card from "../components/Card";
@@ -41,6 +44,11 @@ const toIso = (value?: Date | null) => {
 };
 
 const OrdersPage = () => {
+  const [view, setView] = useState<"table" | "basket">(() => localStorage.getItem("orders-view") === "basket" ? "basket" : "table");
+  const [draggedOrder, setDraggedOrder] = useState<Order | null>(null);
+  const [dragStatus, setDragStatus] = useState<string | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 7 } }), useSensor(KeyboardSensor));
+  const [boardUpdatingId, setBoardUpdatingId] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -61,7 +69,7 @@ const OrdersPage = () => {
   const { t, tStatus, lang } = useI18n();
   const { can, canAny } = usePermissions();
   const { selectedBranchId } = useBranch();
-  const navigate = useNavigate();
+  const [detailsOrderId, setDetailsOrderId] = useState<string | null>(null);
   const canViewOrders = can("orders:view");
   const canUpdateOrders = canViewOrders && can("orders:update");
   const canViewUsersPage = can("users:view");
@@ -156,7 +164,7 @@ const OrdersPage = () => {
 
   const openOrderDetails = (orderId: string) => {
     closeUserDetails();
-    navigate(`/orders/${orderId}`);
+    setDetailsOrderId(orderId);
   };
 
   const getFilterParams = () => ({
@@ -279,9 +287,62 @@ const OrdersPage = () => {
     setActiveEditPicker(null);
   };
 
+  const renderBasketCard = (order: Order) => (
+    <>
+      <div className="orders-basket-card-heading">
+        <button className="link-btn" type="button" onClick={() => openOrderDetails(order._id)}>#{order._id.slice(-6)}</button>
+        <strong style={{ pointerEvents: 'none' }}>
+          {formatOrderMoney(order.total, order.currency)}
+        </strong>
+      </div>
+
+      <div className="orders-basket-card-heading" style={{ marginBottom: 10 }}>
+        <div className="orders-basket-customer">
+          {typeof order.user === "string" ? order.user : order.user.name || order.user.email}
+        </div>
+
+        <time className="muted" dateTime={order.createdAt}>
+          {formatOrderDateTime(order.createdAt)}
+        </time>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 5 }}>
+        <div className="muted" style={{ pointerEvents: 'none' }}>
+          {t("payment")}
+        </div>
+        <div style={{ pointerEvents: 'none', display: 'flex', gap: 5 }}>
+          <StatusPill value={order.paymentStatus} />
+          <span>{order.paymentMethod}</span>
+        </div>
+      </div>
+
+      <div style={{}}>
+        <div className="muted">
+          {t("driver")}: {getDriverLabel(order.driverId)}
+        </div>
+      </div>
+
+      {/* {canUpdateOrders && ( 
+        <label className="orders-basket-status">
+          <span>{t("status")}</span>
+          <select value={order.status} disabled={boardUpdatingId !== null}
+            onChange={async event => {
+              setBoardUpdatingId(order._id);
+              try { await update(order, event.target.value); }
+              finally { setBoardUpdatingId(null); }
+            }}>
+            {statuses.map(value => <option key={value} value={value}>{tStatus(value)}</option>)}
+          </select>
+        </label>
+      )}*/}
+      <button type="button" className="ghost-btn viewOrderBtn" onClick={() => openOrderDetails(order._id)}>{t("orders.openOrder")}</button>
+    </>
+  );
+
   return (
     <Card title={t("titles.orders")} subTitle={`(${orders.length})`}>
-      <div className="page-header" style={{ padding: 0, marginBottom: 12 }}>
+
+      <div className="page-header" style={{ padding: 0, marginBottom: 15 }}>
         <form
           className="filters"
           onSubmit={(e) => {
@@ -357,148 +418,217 @@ const OrdersPage = () => {
             {t("clear")}
           </button>
         </form>
+
+        <div className="orders-view-switch" role="group" aria-label={t("orders.view")}>
+          {(["table", "basket"] as const).map(option => (
+            <button key={option} type="button" className={view === option ? "primary" : "ghost-btn"} aria-pressed={view === option}
+              onClick={() => { cancelEdit(); setView(option); localStorage.setItem("orders-view", option); }}>
+              {t(`orders.${option}View`)}
+            </button>
+          ))}
+        </div>
       </div>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>{t("customer")}</th>
-            <th>{t("orders.dateTime")}</th>
-            <th>{t("status")}</th>
-            <th>{t("payment")}</th>
-            <th>{t("total")}</th>
-            <th>{t("driver") ?? "Driver"}</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            Array.from({ length: 6 }).map((_, idx) => (
-              <tr key={`skeleton-${idx}`} className="productRow">
-                <td><span className="skeleton-line w-80" /></td>
-                <td><span className="skeleton-line w-140" /></td>
-                <td><span className="skeleton-line w-140" /></td>
-                <td><span className="skeleton-line w-100" /></td>
-                <td><span className="skeleton-line w-120" /></td>
-                <td><span className="skeleton-line w-80" /></td>
-                <td><span className="skeleton-line w-120" /></td>
-                <td><span className="skeleton-line w-120" /></td>
-              </tr>
-            ))
-          ) : orders.length == 0 ? (
+
+      {view === "basket" ? (
+        <DndContext sensors={sensors}
+          collisionDetection={args => args.pointerCoordinates ? pointerWithin(args) : rectIntersection(args)}
+          onDragStart={({ active }) => {
+            const order = orders.find(item => item._id === active.id);
+            if (!order || !canUpdateOrders || boardUpdatingId) return;
+            mutatingRef.current = true;
+            setDraggedOrder(order);
+            setDragStatus(order.status);
+          }}
+          onDragOver={({ over }) => setDragStatus(over ? String(over.id) : null)}
+          onDragCancel={() => { setDraggedOrder(null); setDragStatus(null); mutatingRef.current = false; }}
+          onDragEnd={async ({ over }) => {
+            const order = draggedOrder;
+            setDraggedOrder(null);
+            setDragStatus(null);
+            const status = over ? String(over.id) : "";
+            if (!order || !canUpdateOrders || !statuses.includes(status) || status === order.status) {
+              mutatingRef.current = false;
+              return;
+            }
+            setBoardUpdatingId(order._id);
+            try { await update(order, status); }
+            finally { setBoardUpdatingId(null); }
+          }}>
+          <div className="orders-board" aria-label={t("orders.basketView")} aria-busy={loading}>
+            {statuses.map(status => {
+              const group = orders.filter(order => (order._id === draggedOrder?._id && dragStatus ? dragStatus : order.status) === status);
+              return (
+                <OrderDropBasket key={status} status={status} label={tStatus(status)} disabled={!canUpdateOrders || boardUpdatingId !== null}>
+                  <header className="orders-basket-header">
+                    <StatusPill value={status} />
+                    <span className="orders-basket-count">{loading ? "—" : group.length}</span>
+                  </header>
+                  <div className="orders-basket-list">
+                    {loading ? Array.from({ length: 3 }, (_, index) => (
+                      <div className="orders-basket-card" key={index}>
+                        <span className="skeleton-line w-80" />
+                        <span className="skeleton-line w-140" />
+                        <span className="skeleton-line w-100" />
+                      </div>
+                    )) : group.length === 0 ? <p className="orders-basket-empty muted">{t("noOrders")}</p> : group.map(order => (
+                      <OrderDragCard key={order._id} id={order._id} disabled={!canUpdateOrders || boardUpdatingId !== null} label={`${t("orders.dragOrder")} #${order._id.slice(-6)}`} colorCode={tStatus(status)}>
+                        {renderBasketCard(order)}
+                      </OrderDragCard>
+                    ))}
+                  </div>
+                </OrderDropBasket>
+              );
+            })}
+          </div>
+          {createPortal(<DragOverlay dropAnimation={window.matchMedia("(prefers-reduced-motion: reduce)").matches ? null : { duration: 280, easing: "cubic-bezier(.2,.8,.2,1)" }}>
+            {draggedOrder ? <div className="orders-basket-card orders-card-ghost" aria-hidden="true">{renderBasketCard(draggedOrder)}</div> : null}
+          </DragOverlay>, document.body)}
+        </DndContext>
+      ) : (
+        <table className="table">
+          <thead>
             <tr>
-              <td colSpan={8} className="muted">{t("noOrders")}</td>
+              <th>#</th>
+              <th>{t("customer")}</th>
+              <th>{t("orders.dateTime")}</th>
+              <th>{t("status")}</th>
+              <th>{t("payment")}</th>
+              <th>{t("total")}</th>
+              <th>{t("driver") ?? "Driver"}</th>
+              <th></th>
             </tr>
-          ) : (
-            orders.map((order) => (
-              <tr key={order._id} id={`order-row-${order._id}`}>
-                <td>
-                  <button className="link-btn" type="button" onClick={() => openOrderDetails(order._id)}>
-                    {order._id.slice(-6)}
-                  </button>
-                </td>
-                <td>
-                  {canOpenUserDetails && getOrderUserId(order) ? (
-                    <button
-                      className="link-btn"
-                      type="button"
-                      onClick={() => loadUserDetails(getOrderUserId(order))}
-                      disabled={userDetailsLoading === getOrderUserId(order)}
-                    >
-                      {userDetailsLoading === getOrderUserId(order) ? <div className="spinner small"></div> : getOrderUserLabel(order)}
+          </thead>
+          <tbody>
+            {loading ? (
+              Array.from({ length: 6 }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`} className="productRow">
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-140" /></td>
+                  <td><span className="skeleton-line w-140" /></td>
+                  <td><span className="skeleton-line w-100" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-80" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                  <td><span className="skeleton-line w-120" /></td>
+                </tr>
+              ))
+            ) : orders.length == 0 ? (
+              <tr>
+                <td colSpan={8} className="muted">{t("noOrders")}</td>
+              </tr>
+            ) : (
+              orders.map((order) => (
+                <tr key={order._id} id={`order-row-${order._id}`}>
+                  <td>
+                    <button className="link-btn" type="button" onClick={() => openOrderDetails(order._id)}>
+                      {order._id.slice(-6)}
                     </button>
-                  ) : (
-                    getOrderUserLabel(order)
-                  )}
-                </td>
-                <td>{formatOrderDateTime(order.createdAt)}</td>
-                <td>
-                  {editingId === order._id && editDraft ? (
-                    <button className="onHoverEdit" style={{"backgroundColor":"transparent","border":"none","padding":0}} type="button" onClick={() => setActiveEditPicker("status")}>
-                      <StatusPill value={editDraft.status} />
-                    </button>
-                  ) : (
-                    <StatusPill value={order.status} />
-                  )}
-                </td>
-                <td>
-                  {editingId === order._id && editDraft ? (
-                    <>
-                      <StatusPill value={editDraft.paymentStatus} /> {order.paymentMethod}
-                      {(order.paymentMethod === "SHAM_CASH" || order.paymentMethod === "BANK_TRANSFER") && editDraft.paymentStatus !== "CONFIRMED" && (
-                        <button
-                          className="ghost-btn"
-                          type="button"
-                          onClick={() => setEditDraft((prev) => (prev ? { ...prev, paymentStatus: "CONFIRMED" } : prev))}
-                        >
-                          {t("confirmPayment")}
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <div style={{}}>
-                      <StatusPill value={order.paymentStatus} />
-                      <div style={{"fontSize":12}}>{order.paymentMethod}</div>
-                    </div>
-                  )}
-                </td>
-                <td>{formatOrderMoney(order.total, order.currency)}</td>
-                <td>
-                  {editingId === order._id && editDraft ? (
-                    drivers.length === 0 ? (
-                      <span className="muted">-</span>
-                    ) : (
+                  </td>
+                  <td>
+                    {canOpenUserDetails && getOrderUserId(order) ? (
                       <button
-                        className="link-btn onHoverEdit"
+                        className="link-btn"
                         type="button"
-                        onClick={() => setActiveEditPicker("driver")}
-                        disabled={assigning[order._id]}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 12,
-                        }}
+                        onClick={() => loadUserDetails(getOrderUserId(order))}
+                        disabled={userDetailsLoading === getOrderUserId(order)}
                       >
+                        {userDetailsLoading === getOrderUserId(order) ? <div className="spinner small"></div> : getOrderUserLabel(order)}
+                      </button>
+                    ) : (
+                      getOrderUserLabel(order)
+                    )}
+                  </td>
+                  <td>{formatOrderDateTime(order.createdAt)}</td>
+                  <td>
+                    {editingId === order._id && editDraft ? (
+                      <button className="onHoverEdit" style={{ "backgroundColor": "transparent", "border": "none", "padding": 0 }} type="button" onClick={() => setActiveEditPicker("status")}>
+                        <StatusPill value={editDraft.status} />
+                      </button>
+                    ) : (
+                      <StatusPill value={order.status} />
+                    )}
+                  </td>
+                  <td>
+                    {editingId === order._id && editDraft ? (
+                      <>
+                        <StatusPill value={editDraft.paymentStatus} /> {order.paymentMethod}
+                        {(order.paymentMethod === "SHAM_CASH" || order.paymentMethod === "BANK_TRANSFER") && editDraft.paymentStatus !== "CONFIRMED" && (
+                          <button
+                            className="ghost-btn"
+                            type="button"
+                            onClick={() => setEditDraft((prev) => (prev ? { ...prev, paymentStatus: "CONFIRMED" } : prev))}
+                          >
+                            {t("confirmPayment")}
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{}}>
+                        <StatusPill value={order.paymentStatus} />
+                        <div style={{ "fontSize": 12 }}>{order.paymentMethod}</div>
+                      </div>
+                    )}
+                  </td>
+                  <td>{formatOrderMoney(order.total, order.currency)}</td>
+                  <td>
+                    {editingId === order._id && editDraft ? (
+                      drivers.length === 0 ? (
+                        <span className="muted">-</span>
+                      ) : (
+                        <button
+                          className="link-btn onHoverEdit"
+                          type="button"
+                          onClick={() => setActiveEditPicker("driver")}
+                          disabled={assigning[order._id]}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 12,
+                          }}
+                        >
                           {editDraft.driverId
                             ? getDriver(editDraft.driverId)?.name || (t("selectDriver") ?? "Select driver")
                             : t("selectDriver") ?? "Select driver"}
-                      </button>
-                    )
-                  ) : (
-                    getDriverLabel(order.driverId)
-                  )}
-                </td>
-                <td>
-                  {canUpdateOrders ? (
-                    editingId === order._id ? (
-                      <div style={{ display: "flex", gap: 5 }}>
-                        <button
-                          className="primary"
-                          type="button"
-                          onClick={() => saveEdit(order)}
-                          disabled={assigning[order._id]}
-                        >
-                          {t("save")}
                         </button>
-                        <button className="ghost-btn" type="button" onClick={cancelEdit}>
-                          {t("cancel")}
-                        </button>
-                      </div>
+                      )
                     ) : (
-                      <button className="primary" type="button" onClick={() => startEdit(order)}>
-                        {t("edit")}
-                      </button>
-                    )
-                  ) : (
-                    <div className="muted"></div>
-                  )}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+                      getDriverLabel(order.driverId)
+                    )}
+                  </td>
+                  <td>
+                    {canUpdateOrders ? (
+                      editingId === order._id ? (
+                        <div style={{ display: "flex", gap: 5 }}>
+                          <button
+                            className="primary"
+                            type="button"
+                            onClick={() => saveEdit(order)}
+                            disabled={assigning[order._id]}
+                          >
+                            {t("save")}
+                          </button>
+                          <button className="ghost-btn" type="button" onClick={cancelEdit}>
+                            {t("cancel")}
+                          </button>
+                        </div>
+                      ) : (
+                        <button className="primary" type="button" onClick={() => startEdit(order)}>
+                          {t("edit")}
+                        </button>
+                      )
+                    ) : (
+                      <div className="muted"></div>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      )}
+
+      {detailsOrderId && <OrderDetailsModal orderId={detailsOrderId} onClose={() => { setDetailsOrderId(null); load(true); }} />}
       {selectedUser && (
         <div className="modal-backdrop" onClick={closeUserDetails}>
           <div className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
