@@ -166,6 +166,15 @@ export const deleteProduct = catchAsync(async (req, res) => {
   sendSuccess(res, deleted, "Product deleted");
 });
 
+export const unpublishProductsWithoutImages = catchAsync(async (req, res) => {
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const result = await Product.updateMany(
+    { branchId: req.branchId, isPublic: { $ne: false }, "images.0": { $exists: false } },
+    { $set: { isPublic: false } }
+  );
+  sendSuccess(res, { modifiedCount: result.modifiedCount }, "Products without images unpublished");
+});
+
 export const bulkUpdatePrices = catchAsync(async (req, res) => {
   const payload = bulkPriceSchema.parse(req.body);
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
@@ -486,7 +495,7 @@ export const importProductsFromExcel = catchAsync(async (req: AuthRequest, res) 
             description: undefined,
             promoPrice: undefined,
             isPromoted: false,
-            isPublic: true,
+            isPublic: false,
             isFeatured: false,
             categories: [],
             images: [],

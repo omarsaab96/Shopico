@@ -3,7 +3,7 @@ import type { DragEvent, FormEvent } from "react";
 import Card from "../components/Card";
 import ImageEditorModal from "../components/ImageEditorModal";
 import type { Category, Currency, Product, ProductImage, ProductVariant } from "../types/api";
-import { bulkUpdateProductCategories, bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchCurrencies, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
+import { unpublishProductsWithoutImages, bulkUpdateProductCategories, bulkUpdateProductPrices, deleteProduct, fetchCategories, fetchCurrencies, fetchProductsAdmin, getImageKitAuth, importProductsFromExcel, previewProductsImport, saveProduct } from "../api/client";
 import type { HasImageFilter } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
@@ -31,6 +31,9 @@ const formatCurrencyAmount = (amount: number, currency: Currency, lang: "en" | "
 };
 
 const ProductsPage = () => {
+  const [unpublishing, setUnpublishing] = useState(false);
+  const [unpublishResult, setUnpublishResult] = useState<number | null>(null);
+  const [unpublishError, setUnpublishError] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
@@ -174,6 +177,23 @@ const ProductsPage = () => {
     if (!selectedBranchId) return;
     load();
   }, [selectedBranchId]);
+
+  const unpublishWithoutImages = async () => {
+    if (!canManage || !selectedBranchId || unpublishing) return;
+    setUnpublishing(true);
+    setUnpublishResult(null);
+    setUnpublishError("");
+    try {
+      const result = await unpublishProductsWithoutImages();
+      setUnpublishResult(result.modifiedCount);
+      setSelectedProductsById({});
+      await loadProducts(getFilterParams(), 1, limit);
+    } catch (error: any) {
+      setUnpublishError(error?.response?.data?.message || t("unpublishWithoutImagesFailed"));
+    } finally {
+      setUnpublishing(false);
+    }
+  };
 
   const applyFilters = () => {
     loadProducts(getFilterParams(), 1, limit);
@@ -1113,6 +1133,11 @@ const ProductsPage = () => {
           </form>
           <div className="flex" style={{ gap: 10 }}>
             {canManage && (
+              <button className="ghost-btn" type="button" onClick={unpublishWithoutImages} disabled={unpublishing || !selectedBranchId}>
+                {unpublishing ? t("unpublishingProducts") : t("unpublishWithoutImages")}
+              </button>
+            )}
+            {canManage && (
               <button className="ghost-btn" type="button" onClick={openPriceModal}>
                 {t("changePrices") || "Change prices"}
               </button>
@@ -1130,6 +1155,8 @@ const ProductsPage = () => {
           </div>
         </div>
 
+        {unpublishResult !== null && <p role="status">{t("productsUnpublished")}: {unpublishResult}</p>}
+        {unpublishError && <div className="error" role="alert">{unpublishError}</div>}
         <div className="pagination" style={{ marginBottom: 15 }}>
           <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
             <button className="ghost-btn" disabled={page <= 1} onClick={() => loadProducts(getFilterParams(), page - 1, limit)}>

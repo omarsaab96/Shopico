@@ -420,3 +420,8 @@ export const saveBanner = async (payload: Partial<Announcement>) => {
 };
 
 export const deleteBanner = async (id: string) => api.delete(`/banners/${id}`);
+
+export const unpublishProductsWithoutImages = async () => {
+  const res = await api.post<{ data: { modifiedCount: number } }>("/products/unpublish-without-images");
+  return res.data.data;
+};
