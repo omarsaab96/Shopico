@@ -303,7 +303,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
 
   return (
     <div className="grid">
-      <Card
+      {/* <Card
         title={t("orders.orderDetails")}
         subTitle={`#${order._id.slice(-6)}`}
         actions={embedded ? undefined : (
@@ -311,7 +311,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
             {t("back")}
           </button>
         )}
-      >
+      > */}
         <div className="detail-grid">
           <div className="stat">
             <div className="stat-label">{t("status")}</div>
@@ -484,7 +484,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
             </div>
           </div>
         </div>
-      </Card>
+      {/* </Card> */}
 
       <OrderItems order={order} canRefund={canUpdateOrders} onChange={setOrder} formatMoney={formatOrderMoney} currencySymbol={getCurrencySymbol} />
 
