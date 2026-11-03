@@ -16,6 +16,10 @@ export function calculateItemRefund(order: RefundableOrder, itemIndex: number, q
   }
   const gross = refundMoney(item.price * quantity);
   if (gross < 0 || gross > order.subtotal + 1e-7) throw { status: 409, message: "Order totals have changed. Reload the order" };
+  const cancelOrder = order.items.every((line, index) => line.quantity - (line.refundedQuantity || 0) - (index === itemIndex ? quantity : 0) <= 0);
+  if (cancelOrder) {
+    return { amount: order.total, subtotal: 0, discount: 0, total: 0, discountReduction: order.discount, refundedQuantity, gross, deliveryFee: 0, deliveryDiscount: 0, cancelOrder: true };
+  }
   const deliveryDiscount = Math.min(order.deliveryFee, Math.max(0, order.deliveryDiscount || 0));
   const discountRate = order.subtotal > 0 ? Math.min(1, Math.max(0, order.discount - deliveryDiscount) / order.subtotal) : 0;
   const subtotal = refundMoney(Math.max(0, order.subtotal - gross));
@@ -24,5 +28,11 @@ export function calculateItemRefund(order: RefundableOrder, itemIndex: number, q
   const total = refundMoney(Math.max(0, subtotal + order.deliveryFee - discount));
   const amount = refundMoney(order.total - total);
   if (amount < 0 || amount > order.total + 1e-7) throw { status: 409, message: "Order totals are inconsistent. Reload the order" };
-  return { amount, subtotal, discount, total, discountReduction, refundedQuantity, gross };
+  return { amount, subtotal, discount, total, discountReduction, refundedQuantity, gross, deliveryFee: order.deliveryFee, deliveryDiscount, cancelOrder: false };
+}
+
+export function assertOrderCanRemainActive(order: Pick<RefundableOrder, "items">, status: string) {
+  if (status !== "CANCELLED" && !order.items.some(item => item.quantity > (item.refundedQuantity || 0))) {
+    throw { status: 400, message: "An order with no remaining items must stay cancelled" };
+  }
 }

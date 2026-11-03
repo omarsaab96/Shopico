@@ -44,7 +44,7 @@ const toIso = (value?: Date | null) => {
 };
 
 const OrdersPage = () => {
-  const [view, setView] = useState<"table" | "basket">(() => localStorage.getItem("orders-view") === "basket" ? "basket" : "table");
+  const [view, setView] = useState<"table" | "basket">(() => localStorage.getItem("orders-view") === "table" ? "table" : "basket");
   const [draggedOrder, setDraggedOrder] = useState<Order | null>(null);
   const [dragStatus, setDragStatus] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 7 } }), useSensor(KeyboardSensor));
@@ -420,10 +420,19 @@ const OrdersPage = () => {
         </form>
 
         <div className="orders-view-switch" role="group" aria-label={t("orders.view")}>
-          {(["table", "basket"] as const).map(option => (
-            <button key={option} type="button" className={view === option ? "primary" : "ghost-btn"} aria-pressed={view === option}
+          {(["basket", "table"] as const).map(option => (
+            <button key={option} type="button" className={`orders-view-icon ${view === option ? "primary" : "ghost-btn"}`} aria-pressed={view === option}
+              aria-label={t(`orders.${option}View`)} title={t(`orders.${option}View`)}
               onClick={() => { cancelEdit(); setView(option); localStorage.setItem("orders-view", option); }}>
-              {t(`orders.${option}View`)}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                {option === "basket" ? <>
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M9 3v18M15 3v18M5.5 7h1M11.5 7h1M17.5 7h1M5.5 11h1M11.5 11h1M17.5 11h1M5.5 15h1M11.5 15h1" />
+                </> : <>
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M3 9h18M3 15h18M9 3v18" />
+                </>}
+              </svg>
             </button>
           ))}
         </div>

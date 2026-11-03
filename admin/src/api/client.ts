@@ -427,6 +427,7 @@ export const unpublishProductsWithoutImages = async () => {
 };
 
 export type ItemRefundPreview = {
+  cancelOrder: boolean;
   amount: number; newTotal: number; walletAmount: number; currency: Currency; creditWallet: boolean;
   expectedTotal: number; expectedRefundedQuantity: number; expectedPaymentStatus: "PENDING" | "CONFIRMED";
 };
@@ -436,7 +437,7 @@ export const previewOrderItemRefund = async (orderId: string, itemIndex: number,
 };
 export const refundOrderItem = async (orderId: string, payload: {
   itemIndex: number; quantity: number; requestId: string; expectedTotal: number; expectedRefundedQuantity: number;
-  expectedPaymentStatus: string; expectedAmount: number; expectedWalletAmount: number;
+  expectedPaymentStatus: string; expectedAmount: number; expectedWalletAmount: number; expectedCancelOrder: boolean;
 }) => {
   const res = await api.post<{ data: Order }>(`/orders/${orderId}/refund-item`, payload);
   return res.data.data;

@@ -18,6 +18,9 @@ export interface IOrderRefund {
   walletAmount: number;
   currency?: Types.ObjectId | string;
   disposition: "WALLET" | "TOTAL_REDUCTION";
+  primaryCurrency?: Types.ObjectId | string;
+  settlementStatus: "PENDING" | "COMPLETED";
+  cancelledOrder?: boolean;
   actor: Types.ObjectId | string;
   at: Date;
 }
@@ -114,6 +117,9 @@ const OrderSchema = new Schema<IOrder>(
       walletAmount: { type: Number, required: true },
       currency: { type: Schema.Types.ObjectId, ref: "Currency" },
       disposition: { type: String, enum: ["WALLET", "TOTAL_REDUCTION"], required: true },
+      primaryCurrency: { type: Schema.Types.ObjectId, ref: "Currency" },
+      settlementStatus: { type: String, enum: ["PENDING", "COMPLETED"], default: "COMPLETED" },
+      cancelledOrder: { type: Boolean, default: false },
       actor: { type: Schema.Types.ObjectId, ref: "User", required: true },
       at: { type: Date, default: Date.now },
     }, { _id: false })], default: [] },
@@ -142,5 +148,7 @@ const OrderSchema = new Schema<IOrder>(
   },
   { timestamps: true, optimisticConcurrency: true }
 );
+
+OrderSchema.index({ "refunds.settlementStatus": 1 });
 
 export const Order = mongoose.model<IOrder>("Order", OrderSchema);

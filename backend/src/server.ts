@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import app from "./app";
+import { startRefundRecovery } from "./services/refundSettlementService";
 import { env } from "./config/env";
 import { ensureCategoryIndexes, ensureDefaultBranchSetup, ensureProductIndexes } from "./utils/branchMigration";
 
@@ -10,6 +11,7 @@ const start = async () => {
     await ensureDefaultBranchSetup();
     await ensureCategoryIndexes();
     await ensureProductIndexes();
+    startRefundRecovery();
     app.listen(env.port, () => {
       console.log(`Server running on port ${env.port}`);
     });

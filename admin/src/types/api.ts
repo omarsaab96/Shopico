@@ -70,6 +70,7 @@ export interface OrderAddressRef {
 }
 
 export interface OrderRefund {
+  settlementStatus?: "PENDING" | "COMPLETED";
   requestId: string;
   itemIndex: number;
   quantity: number;

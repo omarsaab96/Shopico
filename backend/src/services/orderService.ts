@@ -1,3 +1,4 @@
+import { assertOrderCanRemainActive } from "../utils/orderRefund";
 import { Types } from "mongoose";
 import { Cart } from "../models/Cart";
 import { Order } from "../models/Order";
@@ -555,6 +556,7 @@ export const updateOrderStatus = async (
   if (branchId) filter.branchId = branchId;
   const order = await Order.findOne(filter);
   if (!order) throw { status: 404, message: "Order not found" };
+  assertOrderCanRemainActive(order, status);
   order.status = status;
   if (paymentStatus) order.paymentStatus = paymentStatus;
   order.statusHistory.push({ status, at: new Date() });
@@ -684,6 +686,7 @@ export const updateOrderStatusAsDriver = async (orderId: string, userId: Types.O
   if (!order.driverId) throw { status: 403, message: "Driver not assigned" };
   if (order.driverId.toString() !== userId.toString()) throw { status: 403, message: "Forbidden" };
 
+  assertOrderCanRemainActive(order, status);
   order.status = status;
   order.statusHistory.push({ status, at: new Date() });
   await order.save();

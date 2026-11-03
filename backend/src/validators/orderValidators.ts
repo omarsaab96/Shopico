@@ -64,5 +64,6 @@ export const refundItemSchema = refundItemPreviewSchema.extend({
   expectedTotal: z.number().nonnegative(),
   expectedAmount: z.number().nonnegative(),
   expectedWalletAmount: z.number().nonnegative(),
+  expectedCancelOrder: z.boolean(),
   expectedPaymentStatus: z.enum(["PENDING", "CONFIRMED"]),
 });
