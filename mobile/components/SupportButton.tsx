@@ -26,15 +26,36 @@ export default function SupportButton({ branchId }: { branchId?: string }) {
   }, [branchId]));
 
   const callSupport = async () => {
-    const phone = contact?.branchId === branchId ? contact?.phone : "";
-    if (!phone) {
-      Alert.alert(t("needSupport"), t("supportUnavailable"));
-      return;
-    }
+    if (loading) return;
+    setLoading(true);
+    let phone = contact?.branchId === branchId ? contact?.phone || "" : "";
     try {
-      await Linking.openURL(`tel:${phone.replace(/[ ()-]/g, "")}`);
+      if (branchId) {
+        try {
+          const res = await api.get("/settings/support", { headers: { "x-branch-id": branchId } });
+          phone = res.data.data?.supportPhone?.trim() || "";
+          setContact({ branchId, phone });
+        } catch {
+          // Keep a previously loaded number if the latest request fails.
+        }
+        if (!phone) {
+          const res = await api.get("/branches/public");
+          phone = res.data.data?.find((branch: { _id: string; phone?: string }) => branch._id === branchId)?.phone?.trim() || "";
+        }
+      }
+      if (!phone) {
+        Alert.alert(t("needSupport"), t("supportUnavailable"));
+        return;
+      }
+      try {
+        await Linking.openURL(`tel:${phone.replace(/[^+0-9]/g, "")}`);
+      } catch {
+        Alert.alert(t("needSupport"), `${t("supportCallFailed")} ${phone}`);
+      }
     } catch {
-      Alert.alert(t("needSupport"), `${t("supportCallFailed")} ${phone}`);
+      Alert.alert(t("needSupport"), t("supportUnavailable"));
+    } finally {
+      setLoading(false);
     }
   };
 

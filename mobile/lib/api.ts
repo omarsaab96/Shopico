@@ -21,7 +21,7 @@ api.interceptors.request.use(async (config) => {
   if (!branchIdCache) {
     branchIdCache = await SecureStore.getItemAsync("branchId");
   }
-  if (branchIdCache) {
+  if (branchIdCache && !config.headers?.["x-branch-id"]) {
     config.headers = config.headers || {};
     config.headers["x-branch-id"] = branchIdCache;
   }

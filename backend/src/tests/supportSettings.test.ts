@@ -6,8 +6,12 @@ describe("support phone settings", () => {
     expect(supportPhoneSchema.parse(" +963 (944) 123-456 ")).toBe("+963 (944) 123-456");
     expect(supportPhoneSchema.parse("")).toBe("");
   });
+  test("accepts short hotline numbers", () => {
+    expect(supportPhoneSchema.parse("5050")).toBe("5050");
+    expect(supportPhoneSchema.parse("123")).toBe("123");
+  });
   test("rejects URLs, dial commands, and invalid numbers", () => {
-    for (const phone of ["https://example.com", "123", "+963123#123", "123;456", "1234567890123456"]) {
+    for (const phone of ["https://example.com", "12", "+963123#123", "123;456", "1234567890123456"]) {
       expect(supportPhoneSchema.safeParse(phone).success).toBe(false);
     }
   });

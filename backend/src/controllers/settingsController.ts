@@ -1,3 +1,4 @@
+import { Branch } from "../models/Branch";
 import { catchAsync } from "../utils/catchAsync";
 import { getSettings, updateSettings } from "../services/settingsService";
 import { sendSuccess } from "../utils/response";
@@ -6,7 +7,8 @@ import { updateSettingsSchema } from "../validators/settingsValidators";
 export const getSupportContactHandler = catchAsync(async (req, res) => {
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const settings = await getSettings(req.branchId);
-  sendSuccess(res, { supportPhone: settings.supportPhone || "" });
+  const branch = settings.supportPhone?.trim() ? null : await Branch.findById(req.branchId).select("phone");
+  sendSuccess(res, { supportPhone: settings.supportPhone?.trim() || branch?.phone?.trim() || "" });
 });
 
 export const getSettingsHandler = catchAsync(async (req, res) => {
