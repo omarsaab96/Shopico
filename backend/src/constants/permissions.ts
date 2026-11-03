@@ -29,6 +29,8 @@ export const PERMISSIONS = [
   "wallet:topups:view",
   "wallet:topups:create",
   "wallet:manage",
+  "banners:view",
+  "banners:manage",
   "announcements:view",
   "announcements:manage",
   "coupons:view",

@@ -33,6 +33,8 @@ export const PERMISSION_GROUPS = [
     key: "marketing",
     labelKey: "perm.group.marketing",
     permissions: [
+      { key: "banners:view", labelKey: "perm.banners.view" },
+      { key: "banners:manage", labelKey: "perm.banners.manage" },
       { key: "announcements:view", labelKey: "perm.announcements.view" },
       { key: "announcements:manage", labelKey: "perm.announcements.manage" },
       { key: "coupons:view", labelKey: "perm.coupons.view" },

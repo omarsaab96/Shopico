@@ -17,6 +17,7 @@ const navItems = [
     permissions: ["users:view"],
   },
   { to: "/wallet", key: "wallet", label: "Wallet Top-ups", permissions: ["wallet:topups:view"] },
+  { to: "/banners", key: "banners", label: "Banners", permissions: ["banners:view"] },
   { to: "/announcements", key: "announcements", label: "Announcements", permissions: ["announcements:view"] },
   { to: "/coupons", key: "coupons", label: "Coupons", permissions: ["coupons:view"] },
   { to: "/branches", key: "branches", label: "Branches", permissions: ["branches:view"] },

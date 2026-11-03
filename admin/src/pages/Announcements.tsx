@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import Card from "../components/Card";
 import ImageEditorModal from "../components/ImageEditorModal";
 import type { Announcement, AnnouncementImage } from "../types/api";
-import { deleteAnnouncement, fetchAnnouncements, getImageKitAuth, saveAnnouncement } from "../api/client";
+import { deleteAnnouncement, fetchAnnouncements, getImageKitAuth, saveAnnouncement, fetchBanners, saveBanner, deleteBanner } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import DatePicker from "react-datepicker";
@@ -42,7 +42,10 @@ const toDate = (value?: Date | string) => {
   return date;
 };
 
-const AnnouncementsPage = () => {
+const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
+  const fetchItems = banners ? fetchBanners : fetchAnnouncements;
+  const saveItem = banners ? saveBanner : saveAnnouncement;
+  const deleteItem = banners ? deleteBanner : deleteAnnouncement;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [draft, setDraft] = useState<AnnouncementDraft>({});
   const [showNewModal, setShowNewModal] = useState(false);
@@ -60,7 +63,7 @@ const AnnouncementsPage = () => {
   const { t } = useI18n();
   const { can } = usePermissions();
   const { selectedBranchId } = useBranch();
-  const canManage = can("announcements:manage");
+  const canManage = can(banners ? "banners:manage" : "announcements:manage");
   const canUpload = canManage;
 
   const getFilterParams = () => ({
@@ -72,7 +75,7 @@ const AnnouncementsPage = () => {
   const load = async (params?: { q?: string; from?: string; to?: string }) => {
     setLoading(true);
     try {
-      const data = await fetchAnnouncements(params);
+      const data = await fetchItems(params);
       setAnnouncements(data);
     } catch (err) {
       console.error(err);
@@ -84,7 +87,7 @@ const AnnouncementsPage = () => {
   useEffect(() => {
     if (!selectedBranchId) return;
     load(getFilterParams());
-  }, [selectedBranchId]);
+  }, [selectedBranchId, banners]);
 
   const applyFilters = () => {
     load(getFilterParams());
@@ -164,14 +167,15 @@ const AnnouncementsPage = () => {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!canManage) return;
+    if (!canManage || uploadingNew) return;
+    if (banners && !draft.image) { setFormError(t("bannerImageRequired")); return; }
     try {
       const payload = {
         ...draft,
         startsAt: toIso(draft.startsAt),
         endsAt: toIso(draft.endsAt),
       };
-      const saved = await saveAnnouncement(payload);
+      const saved = await saveItem(payload);
       setAnnouncements((prev) => [saved, ...prev]);
       setDraft({});
       setFormError("");
@@ -195,7 +199,8 @@ const AnnouncementsPage = () => {
   };
 
   const saveEdit = async () => {
-    if (!editingId) return;
+    if (!editingId || editUploadingId) return;
+    if (banners && !editDraft.image) { setEditError(t("bannerImageRequired")); return; }
     if (!canManage) return;
     try {
       const payload = {
@@ -204,7 +209,7 @@ const AnnouncementsPage = () => {
         startsAt: toIso(editDraft.startsAt),
         endsAt: toIso(editDraft.endsAt),
       };
-      const saved = await saveAnnouncement(payload);
+      const saved = await saveItem(payload);
       setAnnouncements((prev) => prev.map((p) => (p._id === saved._id ? saved : p)));
       setEditingId(null);
       setEditDraft({});
@@ -232,7 +237,8 @@ const AnnouncementsPage = () => {
 
   return (
     <>
-      <Card title={t("nav.announcements") || "Announcements"} subTitle={`(${announcements.length})`}>
+      <Card title={t(banners ? "nav.banners" : "nav.announcements") || "Announcements"} subTitle={`(${announcements.length})`}>
+        {banners && <p className="muted">{t("bannerImageHint")}</p>}
         <div className="page-header">
           <form
             className="filters"
@@ -278,7 +284,7 @@ const AnnouncementsPage = () => {
         </form>
           {canManage && (
             <button className="primary" onClick={openNewModal}>
-              {t("addAnnouncement") || "Add announcement"}
+              {t(banners ? "addBanner" : "addAnnouncement") || "Add announcement"}
             </button>
           )}
         </div>
@@ -467,7 +473,7 @@ const AnnouncementsPage = () => {
                         <button className="ghost-btn" onClick={cancelEdit}>
                           {t("cancel")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteAnnouncement(announcement._id).then(() => load(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteItem(announcement._id).then(() => load(getFilterParams()))}>
                           {t("delete")}
                         </button>
                         {editError && <div className="error">{editError}</div>}
@@ -477,7 +483,7 @@ const AnnouncementsPage = () => {
                         <button className="primary" onClick={() => startEdit(announcement)}>
                           {t("edit")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteAnnouncement(announcement._id).then(() => load(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteItem(announcement._id).then(() => load(getFilterParams()))}>
                           {t("delete")}
                         </button>
                       </div>
@@ -504,7 +510,7 @@ const AnnouncementsPage = () => {
         <div className="modal-backdrop" onClick={closeNewModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{t("newAnnouncement") || "New Announcement"}</div>
+              <div className="modal-title">{t(banners ? "newBanner" : "newAnnouncement") || "New Announcement"}</div>
               <button className="ghost-btn" type="button" onClick={closeNewModal}>
                 {t("close")}
               </button>

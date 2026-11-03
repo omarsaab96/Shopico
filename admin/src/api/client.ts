@@ -404,3 +404,19 @@ export const saveCoupon = async (payload: Partial<Coupon>) => {
 export const deleteCoupon = async (id: string) => api.delete(`/coupons/${id}`);
 
 export default api;
+
+export const fetchBanners = async (params?: { q?: string; from?: string; to?: string }) => {
+  const res = await api.get<{ data: Announcement[] }>("/banners", { params });
+  return res.data.data;
+};
+
+export const saveBanner = async (payload: Partial<Announcement>) => {
+  if (payload._id) {
+    const res = await api.put<{ data: Announcement }>(`/banners/${payload._id}`, payload);
+    return res.data.data;
+  }
+  const res = await api.post<{ data: Announcement }>("/banners", payload);
+  return res.data.data;
+};
+
+export const deleteBanner = async (id: string) => api.delete(`/banners/${id}`);

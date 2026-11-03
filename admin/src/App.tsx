@@ -15,6 +15,7 @@ const OrderDetailsPage = lazy(() => import("./pages/OrderDetails"));
 const UsersPage = lazy(() => import("./pages/Users"));
 const WalletPage = lazy(() => import("./pages/Wallet"));
 const AnnouncementsPage = lazy(() => import("./pages/Announcements"));
+const BannersPage = lazy(() => import("./pages/Banners"));
 const CouponsPage = lazy(() => import("./pages/Coupons"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const AuditLogsPage = lazy(() => import("./pages/AuditLogs"));
@@ -126,6 +127,10 @@ const App = () => {
                   </BranchScoped>
                 </RequirePermission>
               }
+            />
+            <Route
+              path="banners"
+              element={<RequirePermission anyOf={["banners:view"]}><BranchScoped><BannersPage /></BranchScoped></RequirePermission>}
             />
             <Route
               path="announcements"

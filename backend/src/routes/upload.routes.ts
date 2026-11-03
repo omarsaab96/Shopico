@@ -8,7 +8,7 @@ router.get(
   "/imagekit-auth",
   authenticate,
   authorize("admin", "manager", "staff"),
-  requireAnyPermissions("uploads:auth", "products:manage", "categories:manage", "announcements:manage"),
+  requireAnyPermissions("uploads:auth", "products:manage", "categories:manage", "announcements:manage", "banners:manage"),
   getImageKitAuth
 );
 

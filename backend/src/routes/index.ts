@@ -16,7 +16,10 @@ import couponRoutes from "./coupon.routes";
 import branchRoutes from "./branch.routes";
 import currencyRoutes from "./currency.routes";
 
+import bannerRoutes from "./banner.routes";
+
 const router = Router();
+router.use("/banners", bannerRoutes);
 
 router.get("/health", (_req, res) => res.json({ success: true, message: "OK" }));
 router.use("/auth", authRoutes);

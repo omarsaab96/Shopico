@@ -28,6 +28,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
+import HomeBanners from "../components/HomeBanners";
 import Screen from "../components/Screen";
 import api, { getBranchId, getBranchLock, setBranchId, setBranchLock } from "../lib/api";
 import * as Location from "expo-location";
@@ -182,11 +183,11 @@ export default function Home() {
   const fallbackLogoCat = require("../assets/adaptive-icon.png");
   const promoWidth = Math.min(360, windowWidth - 32);
   const hasAnnouncements = announcements.length > 0;
-  const featuredCategoryLimit = 10;
-  const categoryImageSize = 50;
-  const categoryGridColumns = 5;
-  const categoryCardHeight = 85;
-  const categoryGridRowGap = 12;
+  const featuredCategoryLimit = 8;
+  const categoryImageSize = 60;
+  const categoryGridColumns = 4;
+  const categoryCardHeight = 125;
+  const categoryGridRowGap = 14;
   const categoryGridHeight = useRef(new Animated.Value(categoryCardHeight * 2 + categoryGridRowGap)).current;
   const showFeaturedCategorySkeleton = categoriesLoading || refreshSkeleton || (!categoriesLoaded && Boolean(selectedBranch) && categories.length === 0);
   const getCategoryGridHeight = useCallback(
@@ -750,18 +751,17 @@ export default function Home() {
 
   const renderTopBar = () => (
     <View style={styles.topBar}>
-      <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/notifications")}>
+      {/* <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/notifications")}>
         <Feather name="bell" size={20} color={palette.text} />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       <View style={styles.brandWrap}>
         <Image source={fallbackLogo} style={styles.brandLogo} />
       </View>
 
-      <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/wallet")}>
-        {/* <Feather name="user" size={20} color={palette.text} /> */}
+      {/* <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/wallet")}>
         <Ionicons name="wallet-outline" size={20} color={palette.text} />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 
@@ -988,6 +988,7 @@ export default function Home() {
   const renderHeader = () => (
     <View style={[styles.headerWrap]}>
       {renderCategoriesGrid()}
+      <HomeBanners branchId={selectedBranch?._id} />
 
       <Text weight="black" style={[styles.sectionTitle, { marginBottom: 10 }]}>
         {hasQuery ? `${t("products") ?? "Products"} (${filteredAndSorted.length})` : (t("freshPicks") ?? "Fresh picks")}
@@ -1002,7 +1003,7 @@ export default function Home() {
         {
           // borderWidth: 1,
           opacity: scrollY.interpolate({ inputRange: [0, 70, 120], outputRange: [1, 0.35, 0], extrapolate: "clamp" }),
-          height: scrollY.interpolate({ inputRange: [0, 150], outputRange: [50, 0], extrapolate: "clamp" }),
+          height: scrollY.interpolate({ inputRange: [0, 150], outputRange: [100, 0], extrapolate: "clamp" }),
           // marginBottom: scrollY.interpolate({ inputRange: [0, 1], outputRange: [0, 16] }),
           transform: [
             {
@@ -1012,7 +1013,7 @@ export default function Home() {
         },
       ]}
     >
-      {/* {renderTopBar()} */}
+      {renderTopBar()}
       {/* {renderWalletCard()} */}
       <View style={styles.greetingWrap}>
         <View style={styles.greetingCol}>
@@ -2042,9 +2043,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
 
     topBar: {
-      flexDirection: row,
+      flexDirection: 'row',
       alignItems: "center",
-      justifyContent: "space-between",
+      justifyContent: "center",
+      marginBottom:10
     },
     iconBtn: {
       width: 42,
@@ -2058,15 +2060,17 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       ...cardShadow,
     },
     brandWrap: {
-      flex: 1,
+      // flex: 1,
       alignItems: "center",
       justifyContent: "center",
+      // borderWidth: 1,
     },
     brandLogo: {
       height: 26,
       width: 90,
       resizeMode: "contain",
       opacity: isDark ? 0.95 : 1,
+      tintColor: "#fff"
     },
 
     greetingWrap: {
@@ -2298,8 +2302,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       rowGap: 12,
     },
     catCard: {
-      flexBasis: "20%",
-      maxWidth: "20%",
+      flexBasis: "25%",
+      maxWidth: "25%",
       // flex: 1,
       // backgroundColor: palette.card,
       // borderRadius: 18,
@@ -2344,6 +2348,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       maxHeight: 30,
       overflow: "hidden",
       alignItems: "center",
+      justifyContent: "center",
     },
     catName: {
       width: "100%",
@@ -2351,7 +2356,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontSize: 11,
       lineHeight: 15,
       textAlign: "center",
-      fontWeight: isRTL ? "500" : "900",
+      fontWeight: isRTL ? "700" : "900",
       flexShrink: 1,
       flexWrap: "wrap",
     },
@@ -2534,8 +2539,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     // Sheets
     sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },
     sheetContent: { flex: 1, gap: 6, alignItems: isRTL ? "flex-end" : "flex-start" },
-    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign:isRTL?"right":"left", alignSelf: "stretch" },
-    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign:isRTL?"right":"left", alignSelf: "stretch" },
+    sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: isRTL ? "right" : "left", alignSelf: "stretch" },
+    sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign: isRTL ? "right" : "left", alignSelf: "stretch" },
     sheetPills: { flexDirection: row, flexWrap: "wrap", gap: 10, alignSelf: "stretch", justifyContent: "flex-start" },
 
     pill: {
