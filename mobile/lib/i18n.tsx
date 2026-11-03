@@ -7,6 +7,9 @@ type Lang = "en" | "ar";
 const I18N_STORAGE_KEY = "app-language";
 
 const baseStrings = {
+  needSupport: "Need support?",
+  supportUnavailable: "Support is currently unavailable. Please try again later.",
+  supportCallFailed: "Unable to open the phone dialer. Please call",
   add: "Add",
   store: "Store",
   cart: "Cart",
@@ -236,6 +239,9 @@ const baseStrings = {
 };
 
 const arStrings: Record<string, string> = {
+  needSupport: "بحاجة للمساعدة؟",
+  supportUnavailable: "الدعم غير متاح حالياً. يُرجى المحاولة مرة أخرى لاحقاً.",
+  supportCallFailed: "تعذّر فتح تطبيق الاتصال. يُرجى الاتصال يدوياً.",
   add: "أضف",
   store: "المتجر",
   cart: "السلة",

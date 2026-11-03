@@ -9,6 +9,7 @@ export interface IMembershipThresholds {
 
 export interface ISettings extends Document {
   branchId: Types.ObjectId | string;
+  supportPhone: string;
   deliveryFreeKm: number;
   deliveryRatePerKm: number;
   allowMultipleCoupons: boolean;
@@ -38,6 +39,7 @@ const MembershipThresholdSchema = new Schema<IMembershipThresholds>(
 const SettingsSchema = new Schema<ISettings>(
   {
     branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
+    supportPhone: { type: String, trim: true, default: "" },
     deliveryFreeKm: { type: Number, default: 1 },
     deliveryRatePerKm: { type: Number, default: 5000 },
     allowMultipleCoupons: { type: Boolean, default: false },

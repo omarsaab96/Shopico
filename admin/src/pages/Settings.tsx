@@ -11,6 +11,7 @@ const SettingsPage = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [loading, setLoading] = useState(true);
   const { t, lang } = useI18n();
   const { can } = usePermissions();
@@ -60,9 +61,12 @@ const SettingsPage = () => {
     if (!canManage) return;
     if (saving) return;
     setSaving(true);
+    setSaveError("");
     try {
       const res = await updateSettings(settings);
       setSettings(res);
+    } catch (error: any) {
+      setSaveError(error?.response?.data?.message || t("settingsSaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -120,6 +124,19 @@ const SettingsPage = () => {
     <>
       <form className="form" onSubmit={submit}>
         <Card title={t("settings.operational")} subTitle="">
+          <label>
+            {t("supportPhone")}
+            <input
+              type="tel"
+              dir="ltr"
+              value={settings.supportPhone || ""}
+              onChange={(e) => setSettings({ ...settings, supportPhone: e.target.value })}
+              pattern="[+0-9 ()-]*"
+              maxLength={40}
+              placeholder="+963 ..."
+              disabled={!canManage}
+            />
+          </label>
           <label>
             {t("deliveryFreeKm")}
             <input
@@ -216,6 +233,7 @@ const SettingsPage = () => {
           </label>
         </Card>
 
+        {saveError && <div className="error" role="alert">{saveError}</div>}
         {canManage && (
           <button className="primary" disabled={saving}>
             {saving ? (t("saving") || "Saving...") : t("saveSettings")}

@@ -1,6 +1,12 @@
 import { z } from "zod";
 
+export const supportPhoneSchema = z.string().trim().max(40).refine(
+  value => value === "" || (/^\+?[0-9 ()-]+$/.test(value) && value.replace(/\D/g, "").length >= 5 && value.replace(/\D/g, "").length <= 15),
+  "Enter a valid support phone number"
+);
+
 export const updateSettingsSchema = z.object({
+  supportPhone: supportPhoneSchema.optional(),
   deliveryFreeKm: z.number().nonnegative(),
   deliveryRatePerKm: z.number().nonnegative(),
   allowMultipleCoupons: z.boolean(),

@@ -3,6 +3,12 @@ import { getSettings, updateSettings } from "../services/settingsService";
 import { sendSuccess } from "../utils/response";
 import { updateSettingsSchema } from "../validators/settingsValidators";
 
+export const getSupportContactHandler = catchAsync(async (req, res) => {
+  if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
+  const settings = await getSettings(req.branchId);
+  sendSuccess(res, { supportPhone: settings.supportPhone || "" });
+});
+
 export const getSettingsHandler = catchAsync(async (req, res) => {
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const settings = await getSettings(req.branchId);

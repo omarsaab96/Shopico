@@ -110,6 +110,7 @@ export interface WalletTopUp {
 }
 
 export interface Settings {
+  supportPhone?: string;
   _id: string;
   deliveryFreeKm: number;
   deliveryRatePerKm: number;

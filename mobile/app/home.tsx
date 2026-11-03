@@ -28,6 +28,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
+import SupportButton from "../components/SupportButton";
 import HomeBanners from "../components/HomeBanners";
 import Screen from "../components/Screen";
 import api, { getBranchId, getBranchLock, setBranchId, setBranchLock } from "../lib/api";
@@ -97,6 +98,7 @@ export default function Home() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshSkeleton, setRefreshSkeleton] = useState(false);
+  const [bannerRefreshKey, setBannerRefreshKey] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [sortOption, setSortOption] = useState<SortOption>("relevance");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
@@ -126,6 +128,7 @@ export default function Home() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [promoIndex, setPromoIndex] = useState(0);
+  const [promoViewportWidth, setPromoViewportWidth] = useState(0);
   const [driverOrders, setDriverOrders] = useState<DriverDashboardOrder[]>([]);
   const [driverDashboardLoading, setDriverDashboardLoading] = useState(false);
 
@@ -182,11 +185,12 @@ export default function Home() {
   const fallbackLogo = isDark ? require("../assets/shopico_logo.png") : require("../assets/shopico_logo-black.png");
   const fallbackLogoCat = require("../assets/adaptive-icon.png");
   const promoWidth = Math.min(360, windowWidth - 32);
+  const promoSlideWidth = promoViewportWidth || promoWidth - 30;
   const hasAnnouncements = announcements.length > 0;
   const featuredCategoryLimit = 8;
   const categoryImageSize = 60;
   const categoryGridColumns = 4;
-  const categoryCardHeight = 125;
+  const categoryCardHeight = 100;
   const categoryGridRowGap = 14;
   const categoryGridHeight = useRef(new Animated.Value(categoryCardHeight * 2 + categoryGridRowGap)).current;
   const showFeaturedCategorySkeleton = categoriesLoading || refreshSkeleton || (!categoriesLoaded && Boolean(selectedBranch) && categories.length === 0);
@@ -759,9 +763,7 @@ export default function Home() {
         <Image source={fallbackLogo} style={styles.brandLogo} />
       </View>
 
-      {/* <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/wallet")}>
-        <Ionicons name="wallet-outline" size={20} color={palette.text} />
-      </TouchableOpacity> */}
+      <SupportButton branchId={selectedBranch?._id} />
     </View>
   );
 
@@ -927,6 +929,14 @@ export default function Home() {
       <View style={{ gap: 10, marginBottom: 10 }}>
         <View style={styles.sectionHead}>
           <Text weight="black" style={styles.sectionTitle}>{t("featuredCategories") ?? "Featured categories"}</Text>
+
+          {canToggleCategories ? (
+            <TouchableOpacity style={styles.categoryViewAllBtn} onPress={toggleCategoriesExpanded} activeOpacity={0.85}>
+              <Text style={styles.sectionAction}>
+                {categoriesExpanded ? (t("showLess") ?? "Show less") : (t("viewAll") ?? "View all")}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <Animated.View style={[styles.catGridClip, { height: categoryGridHeight }]}>
@@ -973,14 +983,6 @@ export default function Home() {
             )}
           </View>
         </Animated.View>
-
-        {canToggleCategories ? (
-          <TouchableOpacity style={styles.categoryViewAllBtn} onPress={toggleCategoriesExpanded} activeOpacity={0.85}>
-            <Text style={styles.sectionAction}>
-              {categoriesExpanded ? (t("showLess") ?? "Show less") : (t("viewAll") ?? "View all")}
-            </Text>
-          </TouchableOpacity>
-        ) : null}
       </View>
     );
   };
@@ -988,7 +990,8 @@ export default function Home() {
   const renderHeader = () => (
     <View style={[styles.headerWrap]}>
       {renderCategoriesGrid()}
-      <HomeBanners branchId={selectedBranch?._id} />
+
+      <HomeBanners branchId={selectedBranch?._id} refreshing={refreshSkeleton} refreshKey={bannerRefreshKey} />
 
       <Text weight="black" style={[styles.sectionTitle, { marginBottom: 10 }]}>
         {hasQuery ? `${t("products") ?? "Products"} (${filteredAndSorted.length})` : (t("freshPicks") ?? "Fresh picks")}
@@ -1287,14 +1290,16 @@ export default function Home() {
             <ScrollView
               horizontal
               pagingEnabled
+              style={styles.promoViewport}
+              onLayout={(event) => setPromoViewportWidth(event.nativeEvent.layout.width)}
               showsHorizontalScrollIndicator={false}
               onMomentumScrollEnd={(e) => {
-                const nextIndex = Math.round(e.nativeEvent.contentOffset.x / promoWidth);
+                const nextIndex = Math.round(e.nativeEvent.contentOffset.x / promoSlideWidth);
                 setPromoIndex(nextIndex);
               }}
             >
               {announcements.map((announcement) => (
-                <View key={announcement._id} style={[styles.promoSlide, { width: promoWidth }]}>
+                <View key={announcement._id} style={[styles.promoSlide, { width: promoSlideWidth }]}>
                   <View style={styles.promoImageWrap}>
                     {announcement.image?.url ? (
                       <Image source={{ uri: announcement.image.url }} style={styles.promoImage} />
@@ -1302,10 +1307,12 @@ export default function Home() {
                       <Image source={fallbackLogo} style={styles.promoFallback} />
                     )}
                   </View>
+
                   <View style={styles.promoContent}>
                     {announcement.title ? <Text style={styles.promoHeadline}>{announcement.title}</Text> : null}
                     {announcement.description ? <Text style={styles.promoCopy}>{announcement.description}</Text> : null}
                   </View>
+
                   {announcement.link ? (
                     <TouchableOpacity
                       style={styles.promoLinkBtn}
@@ -1364,6 +1371,7 @@ export default function Home() {
                   refreshing={false}
                   onRefresh={async () => {
                     setRefreshSkeleton(true);
+                    setBannerRefreshKey(key => key + 1);
                     setRefreshing(true);
                     fetchMembershipMeta();
                     setCategoriesLoading(true);
@@ -2045,8 +2053,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     topBar: {
       flexDirection: 'row',
       alignItems: "center",
-      justifyContent: "center",
-      marginBottom:10
+      justifyContent: "space-between",
+      marginBottom: 10
     },
     iconBtn: {
       width: 42,
@@ -2388,11 +2396,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       // width: "100%",
       // height: 110,
       borderRadius: 16,
+      borderWidth: 1,
+      borderColor: hairline,
       overflow: "hidden",
       alignItems: "center",
       justifyContent: "center",
-      borderWidth: 1,
-      borderColor: hairline,
       marginBottom: 10,
       position: 'relative'
     },
@@ -2508,7 +2516,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       borderColor: hairline,
     },
     promoCloseText: { color: palette.text, fontWeight: "800", fontSize: 12 },
-    promoSlide: { gap: 10 },
+    promoViewport: { alignSelf: "stretch", flexGrow: 0, direction: "ltr" },
+    promoSlide: { gap: 10, flexShrink: 0 },
     promoImageWrap: {
       height: 140,
       borderRadius: 16,
