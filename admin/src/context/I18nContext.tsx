@@ -4,6 +4,7 @@ type Language = "en" | "ar";
 
 const translations: Record<Language, Record<string, string>> = {
   en: {
+    "orders.backToOrders": "< Back to all orders",
     "syp":"syp",
     "unassign":"Unassign driver",
     // navigation
@@ -367,6 +368,7 @@ const translations: Record<Language, Record<string, string>> = {
   },
 
   ar: {
+    "orders.backToOrders": "< العودة إلى جميع الطلبات",
     bulkUpdateCategory: "تحديث التصنيف",
     clearSelection: "مسح التحديد",
     currentCategory: "التصنيف الحالي",

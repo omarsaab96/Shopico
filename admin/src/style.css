@@ -3016,7 +3016,8 @@ html[dir="rtl"] .unassignLabel {
 .order-refund-history { margin-top: 20px; }
 .order-refund-history-row { display: flex; flex-wrap: wrap; gap: 10px 20px; padding: 12px 0; border-bottom: 1px solid var(--gray-300); font-size: 13px; }
 
-.notification-root { position: relative; }
+.notification-root { position: relative; flex-shrink: 0; }
+.notification-trigger { display: inline-flex; align-items: center; justify-content: center; padding: 0; }
 .shipping-driver-dialog { width: min(440px, calc(100vw - 40px)); padding: 24px; border: 1px solid var(--gray-300); border-radius: 16px; background: var(--bg-card); color: var(--text-primary); box-shadow: 0 20px 80px #0004; }
 .shipping-driver-dialog::backdrop { background: #0007; }
 .shipping-driver-dialog h2 { margin-top: 0; }
@@ -3036,12 +3037,127 @@ html[dir="rtl"] .unassignLabel {
 .session-countdown-mini:hover { background: #ff7a1f18; }
 .session-countdown-mini:focus-visible { outline: 3px solid var(--orange-500); outline-offset: 3px; }
 .session-countdown-mini.urgent { color: #ef4444; border-color: #ef4444; background: #ef444414; }
-.notification-badge { background: #dc2626; color: #fff; border-radius: 20px; padding: 2px 7px; font-size: 12px; }
-.notification-panel { position: absolute; inset-inline-start: 0; top: 48px; width: min(390px, 90vw); z-index: 1500; background: var(--bg-card, #fff); color: var(--text-primary, #172033); border: 1px solid var(--gray-300, #ddd); border-radius: 14px; box-shadow: 0 14px 45px #0003; padding: 14px; }
+.notification-badge { position: absolute; top: -6px; right: -6px; min-width: 20px; text-align: center; line-height: 16px; background: #dc2626; color: #fff; border-radius: 20px; padding: 2px 7px; font-size: 12px; }
+.notification-panel {
+  position: fixed;
+  inset-block-start: 70px;
+  inset-inline-end: 16px;
+  width: min(400px, calc(100vw - 32px));
+  height: calc(100dvh - 100px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1500;
+  background: var(--bg-card, #fff);
+  color: var(--text-primary, #172033);
+  border: 1px solid var(--gray-300, #ddd);
+  border-radius: 20px;
+  box-shadow: 0 8px 28px #0003, 0 2px 6px #0001;
+  padding: 20px;
+  --notification-slide: calc(100% + 16px);
+}
+.notification-root[dir="rtl"] .notification-panel { --notification-slide: calc(-100% - 16px); }
+.notification-panel > .notification-heading { flex-shrink: 0; }
+.notification-panel > .notification-list { flex: 1; min-height: 0; max-height: none; }
+.notification-panel > button { flex-shrink: 0; }
 .notification-heading, .notification-controls { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
 .notification-controls { font-size: 12px; }
 .notification-list { max-height: 55vh; overflow-y: auto; }
 .notification-item { display: flex; flex-direction: column; gap: 6px; text-align: start; width: 100%; border: 0; border-bottom: 1px solid var(--gray-300, #ddd); padding: 14px 10px; background: transparent; color: inherit; cursor: pointer; }
 .notification-item.unread { background: #f9731614; border-inline-start: 3px solid #f97316; }
 .notification-item small { opacity: .6; }
-.notification-toast { position: fixed; bottom: 24px; inset-inline-end: 24px; width: min(380px, 90vw); display: flex; z-index: 1600; background: var(--bg-card, #fff); color: var(--text-primary, #172033); border: 1px solid #f97316; border-radius: 12px; box-shadow: 0 10px 35px #0003; padding: 6px; }
+.notification-toast { width: 100%; display: flex; z-index: 1600; background: var(--bg-card, #fff); color: var(--text-primary, #172033); border: 1px solid #f97316; border-radius: 12px; box-shadow: 0 10px 35px #0003; padding: 6px; align-items: flex-start; }
+
+.notification-actions { display: flex; align-items: center; gap: 6px; }
+.notification-action { display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; }
+.notification-action:disabled { opacity: .4; cursor: default; }
+.notification-action[aria-pressed="true"] { color: var(--orange-600); }
+
+.notification-root, .notification-toast-stack { --notification-slide: 24px; }
+.notification-root[dir="rtl"], .notification-toast-stack[dir="rtl"] { --notification-slide: -24px; }
+.notification-panel {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(var(--notification-slide));
+  transition: opacity 220ms ease, transform 220ms ease, visibility 0s linear 220ms;
+}
+.notification-panel.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0);
+  transition-delay: 0s;
+}
+.notification-toast-stack {
+  position: fixed;
+  top: 24px;
+  inset-inline-end: 24px;
+  width: min(380px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 1600;
+  pointer-events: none;
+}
+.notification-toast-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateX(0);
+  transition: grid-template-rows 220ms ease, opacity 220ms ease, transform 220ms ease;
+  animation: notification-toast-enter 220ms ease backwards;
+}
+.notification-toast-slot.leaving {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateX(var(--notification-slide));
+  pointer-events: none;
+}
+.notification-toast-clip { min-height: 0; overflow: hidden; }
+.notification-toast { margin-bottom: 12px; pointer-events: auto; }
+.notification-toast-slot.leaving .notification-toast { pointer-events: none; }
+.notification-toast .notification-item { min-width: 0; overflow-wrap: anywhere; border-bottom: 0; }
+@keyframes notification-toast-enter {
+  from { opacity: 0; transform: translateX(var(--notification-slide)); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notification-panel, .notification-toast-slot { transition: none; animation: none; }
+}
+
+/* Shared entrance for app dialogs and popup surfaces. */
+.modal,
+dialog[open],
+.driver-picker-menu,
+.react-datepicker-popper .react-datepicker,
+[popover]:popover-open {
+  animation: popup-slide-up 220ms ease-out backwards;
+}
+
+.modal-backdrop,
+dialog[open]::backdrop {
+  animation: popup-backdrop-fade 220ms ease-out backwards;
+}
+
+@keyframes popup-slide-up {
+  from { opacity: 0; translate: 0 24px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes popup-backdrop-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal,
+  dialog[open],
+  .driver-picker-menu,
+  .react-datepicker-popper .react-datepicker,
+  [popover]:popover-open,
+  .modal-backdrop,
+  dialog[open]::backdrop {
+    animation: none;
+  }
+}

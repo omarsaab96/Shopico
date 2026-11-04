@@ -78,7 +78,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
     canViewUsersPage && (canViewUserAbout || canViewUserLedger || canViewUserBranches);
   useEffect(() => {
     const refresh = (event: Event) => {
-      if ((event as CustomEvent).detail?.data?.orderId === id) void fetchOrderById(id).then(setOrder).catch(() => {});
+      if ((event as CustomEvent).detail?.data?.orderId === id) void fetchOrderById(id).then(setOrder).catch(() => { });
     };
     window.addEventListener("shopico:notification", refresh);
     return () => window.removeEventListener("shopico:notification", refresh);
@@ -294,12 +294,24 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
     }
   };
 
+  const backToOrders = !embedded && (
+    <button className="ghost-btn" type="button" onClick={() => navigate("/orders")}
+      style={{
+        padding:4,border:'none',borderRadius:4
+      }}>
+      {t("orders.backToOrders")}
+    </button>
+  );
+
   if (loading) {
     return (
-      <div className="loader">
-        <div className="spinner"></div>
-        <div className="loaderText">{t("loading")}</div>
-      </div>
+      <>
+        {backToOrders}
+        <div className="loader">
+          <div className="spinner"></div>
+          <div className="loaderText">{t("loading")}</div>
+        </div>
+      </>
     );
   }
 
@@ -308,11 +320,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
       <Card
         title={t("orders.orderDetails")}
         subTitle=""
-        actions={embedded ? undefined : (
-          <button className="ghost-btn" type="button" onClick={() => navigate("/orders")}>
-            {t("back")}
-          </button>
-        )}
+        actions={backToOrders}
       >
         <div className="error">{error || "Order not found"}</div>
       </Card>
@@ -321,11 +329,22 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
 
   return (
     <div className="grid">
-      {shippingRequired && <ShippingDriverModal onCancel={() => { setShippingRequired(false); setStatusDraft(order.status); }} onConfirm={async selectedDriverId => {
-        const saved = await saveStatus("SHIPPING", selectedDriverId);
-        if (saved) setShippingRequired(false);
-        return saved;
-      }} />}
+      {!embedded && <div className="page-header"
+        style={{
+          flexDirection: 'column',
+          alignItems: "flex-start",
+          margin: 0
+        }}>
+        {backToOrders}
+        <h3 style={{ margin: 0 }}>{t("orders.orderDetails")} #{order._id.slice(-6)}</h3>
+      </div>}
+      {
+        shippingRequired && <ShippingDriverModal onCancel={() => { setShippingRequired(false); setStatusDraft(order.status); }} onConfirm={async selectedDriverId => {
+          const saved = await saveStatus("SHIPPING", selectedDriverId);
+          if (saved) setShippingRequired(false);
+          return saved;
+        }} />
+      }
       {/* <Card
         title={t("orders.orderDetails")}
         subTitle={`#${order._id.slice(-6)}`}
@@ -335,178 +354,178 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
           </button>
         )}
       > */}
-        <div className="detail-grid">
-          <div className="stat">
-            <div className="stat-label">{t("status")}</div>
-            <div className="stat-value">
-              {canUpdateOrders ? (
-                <button
-                  className="onHoverEdit"
-                  style={{ "backgroundColor": "transparent", "border": "none", "padding": 0 }}
-                  type="button"
-                  onClick={() => setActivePicker("status")}
-                  disabled={statusSaving}
-                >
-                  {statusSaving ? <div className="spinner small"></div> : <StatusPill value={statusDraft || order.status} size="big" />}
-                </button>
-              ) : (
-                <StatusPill value={order.status} size="big" />
-              )}
-            </div>
+      <div className="detail-grid">
+        <div className="stat">
+          <div className="stat-label">{t("status")}</div>
+          <div className="stat-value">
+            {canUpdateOrders ? (
+              <button
+                className="onHoverEdit"
+                style={{ "backgroundColor": "transparent", "border": "none", "padding": 0 }}
+                type="button"
+                onClick={() => setActivePicker("status")}
+                disabled={statusSaving}
+              >
+                {statusSaving ? <div className="spinner small"></div> : <StatusPill value={statusDraft || order.status} size="big" />}
+              </button>
+            ) : (
+              <StatusPill value={order.status} size="big" />
+            )}
           </div>
-          <div className="stat">
-            <div className="stat-label">{t("payment")}</div>
-            <div className="stat-value">
-              <StatusPill value={order.paymentStatus} size="big" />
-            </div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">{t("payment")}</div>
+          <div className="stat-value">
+            <StatusPill value={order.paymentStatus} size="big" />
           </div>
-          <div className="stat">
-            <div className="stat-label">{t("total")}</div>
-            <div className="stat-value" style={{ fontSize: 20 }}>
-              {formatOrderMoney(order.total)}
-            </div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">{t("total")}</div>
+          <div className="stat-value" style={{ fontSize: 20 }}>
+            {formatOrderMoney(order.total)}
           </div>
-          <div className="stat">
-            <div className="stat-label">{t("orders.dateTime")}</div>
-            <div className="stat-value" style={{ fontSize: 20 }}>
-              {formatDateTime(order.createdAt)}
+        </div>
+        <div className="stat">
+          <div className="stat-label">{t("orders.dateTime")}</div>
+          <div className="stat-value" style={{ fontSize: 20 }}>
+            {formatDateTime(order.createdAt)}
+          </div>
+        </div>
+      </div>
+
+      <div className="two-col">
+        <div className="ledger-group">
+          <h4>{t("orders.summary")}</h4>
+          <div className="detailsTable">
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("customer")}</div>
+              <div className="detailsValue">
+                {canOpenUserDetails && customerId ? (
+                  <button
+                    className="link-btn"
+                    type="button"
+                    onClick={() => loadUserDetails(customerId)}
+                    disabled={userDetailsLoading === customerId}
+                  >
+                    {userDetailsLoading === customerId ? <div className="spinner small"></div> : customer?.name || customer?.email || String(order.user)}
+                  </button>
+                ) : (
+                  customer?.name || customer?.email || String(order.user)
+                )}
+              </div>
             </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("email")}</div>
+              <div className="detailsValue">{customer?.email || "-"}</div>
+            </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("phone")}</div>
+              <div className="detailsValue">{customer?.phone || t("noPhone")}</div>
+            </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("driver")}</div>
+              <div className="detailsValue">
+                {canUpdateOrders ? (
+                  <button
+                    className="link-btn onHoverEdit"
+                    type="button"
+                    onClick={() => setActivePicker("driver")}
+                    disabled={driverSaving}
+                  >
+                    {driverSaving ? <div className="spinner small"></div> : driver?.name || driver?.email || (t("selectDriver") ?? "Select driver")}
+                  </button>
+                ) : canOpenUserDetails && driverId ? (
+                  <button className="link-btn" type="button" onClick={() => loadUserDetails(driverId)} disabled={userDetailsLoading === driverId}>
+                    {userDetailsLoading === driverId ? <div className="spinner small"></div> : driver?.name || driver?.email || driverId}
+                  </button>
+                ) : (
+                  driver?.name || driver?.email || driverId || "-"
+                )}
+              </div>
+            </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("method")}</div>
+              <div className="detailsValue">{order.paymentMethod}</div>
+            </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("label")}</div>
+              <div className="detailsValue">{getOrderAddressLabel(order) || "-"}</div>
+            </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("deliveryAddress")}</div>
+              <div className="detailsValue">{order.address}</div>
+            </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("note")}</div>
+              <div className="detailsValue">{order.notes || "-"}</div>
+            </div>
+            {detailsError && <div className="error">{detailsError}</div>}
+            {detailsSuccess && <div className="success">{detailsSuccess}</div>}
           </div>
         </div>
 
-        <div className="two-col">
-          <div className="ledger-group">
-            <h4>{t("orders.summary")}</h4>
-            <div className="detailsTable">
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("customer")}</div>
-                <div className="detailsValue">
-                  {canOpenUserDetails && customerId ? (
-                    <button
-                      className="link-btn"
-                      type="button"
-                      onClick={() => loadUserDetails(customerId)}
-                      disabled={userDetailsLoading === customerId}
-                    >
-                      {userDetailsLoading === customerId ? <div className="spinner small"></div> : customer?.name || customer?.email || String(order.user)}
-                    </button>
-                  ) : (
-                    customer?.name || customer?.email || String(order.user)
-                  )}
-                </div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("email")}</div>
-                <div className="detailsValue">{customer?.email || "-"}</div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("phone")}</div>
-                <div className="detailsValue">{customer?.phone || t("noPhone")}</div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("driver")}</div>
-                <div className="detailsValue">
-                  {canUpdateOrders ? (
-                    <button
-                      className="link-btn onHoverEdit"
-                      type="button"
-                      onClick={() => setActivePicker("driver")}
-                      disabled={driverSaving}
-                    >
-                      {driverSaving ? <div className="spinner small"></div> : driver?.name || driver?.email || (t("selectDriver") ?? "Select driver")}
-                    </button>
-                  ) : canOpenUserDetails && driverId ? (
-                    <button className="link-btn" type="button" onClick={() => loadUserDetails(driverId)} disabled={userDetailsLoading === driverId}>
-                      {userDetailsLoading === driverId ? <div className="spinner small"></div> : driver?.name || driver?.email || driverId}
-                    </button>
-                  ) : (
-                    driver?.name || driver?.email || driverId || "-"
-                  )}
-                </div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("method")}</div>
-                <div className="detailsValue">{order.paymentMethod}</div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("label")}</div>
-                <div className="detailsValue">{getOrderAddressLabel(order) || "-"}</div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("deliveryAddress")}</div>
-                <div className="detailsValue">{order.address}</div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("note")}</div>
-                <div className="detailsValue">{order.notes || "-"}</div>
-              </div>
-              {detailsError && <div className="error">{detailsError}</div>}
-              {detailsSuccess && <div className="success">{detailsSuccess}</div>}
+        <div className="ledger-group">
+          <h4>{t("orders.charges")}</h4>
+          <div className="detailsTable">
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("orders.subtotal")}</div>
+              <div className="detailsValue">{formatOrderMoney(order.subtotal)}</div>
             </div>
-          </div>
-
-          <div className="ledger-group">
-            <h4>{t("orders.charges")}</h4>
-            <div className="detailsTable">
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("orders.subtotal")}</div>
-                <div className="detailsValue">{formatOrderMoney(order.subtotal)}</div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("orders.deliveryFee")}</div>
-                <div className="detailsValue">{formatOrderMoney(order.deliveryFee)}</div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("discount")}</div>
-                <div className="detailsValue">{formatOrderMoney(order.discount)}</div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("orders.couponCodes")}</div>
-                <div className="detailsValue">
-                  {order.couponCodes?.length ? (
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {order.couponCodes.map((code) =>
-                        canViewCoupons ? (
-                          <button key={code} className="link-btn" type="button" onClick={() => openCouponDetails(code)}>
-                            {code}
-                          </button>
-                        ) : (
-                          <span key={code}>{code}</span>
-                        )
-                      )}
-                    </div>
-                  ) : order.couponCode ? (
-                    canViewCoupons ? (
-                      <button className="link-btn" type="button" onClick={() => openCouponDetails(order.couponCode || "")}>
-                        {order.couponCode}
-                      </button>
-                    ) : (
-                      order.couponCode
-                    )
-                  ) : (
-                    "-"
-                  )}
-                </div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("orders.distance")}</div>
-                <div className="detailsValue">{typeof order.deliveryDistanceKm === "number" ? order.deliveryDistanceKm.toFixed(2) : "-"} {t("orders.km")}</div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("orders.rewardApplied")}</div>
-                <div className="detailsValue">{order.rewardApplied ? t("yes") : t("no")}</div>
-              </div>
-              <div className="detailsRow">
-                <div className="detailsLabel">{t("total")}</div>
-                <div className="detailsValue"><strong>{formatOrderMoney(order.total)}</strong></div>
-              </div>
-              {!!order.refundTotal && <div className="detailsRow">
-                <div className="detailsLabel">{t("orders.refundTotal")}</div>
-                <div className="detailsValue">{formatOrderMoney(order.refundTotal)}</div>
-              </div>}
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("orders.deliveryFee")}</div>
+              <div className="detailsValue">{formatOrderMoney(order.deliveryFee)}</div>
             </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("discount")}</div>
+              <div className="detailsValue">{formatOrderMoney(order.discount)}</div>
+            </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("orders.couponCodes")}</div>
+              <div className="detailsValue">
+                {order.couponCodes?.length ? (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {order.couponCodes.map((code) =>
+                      canViewCoupons ? (
+                        <button key={code} className="link-btn" type="button" onClick={() => openCouponDetails(code)}>
+                          {code}
+                        </button>
+                      ) : (
+                        <span key={code}>{code}</span>
+                      )
+                    )}
+                  </div>
+                ) : order.couponCode ? (
+                  canViewCoupons ? (
+                    <button className="link-btn" type="button" onClick={() => openCouponDetails(order.couponCode || "")}>
+                      {order.couponCode}
+                    </button>
+                  ) : (
+                    order.couponCode
+                  )
+                ) : (
+                  "-"
+                )}
+              </div>
+            </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("orders.distance")}</div>
+              <div className="detailsValue">{typeof order.deliveryDistanceKm === "number" ? order.deliveryDistanceKm.toFixed(2) : "-"} {t("orders.km")}</div>
+            </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("orders.rewardApplied")}</div>
+              <div className="detailsValue">{order.rewardApplied ? t("yes") : t("no")}</div>
+            </div>
+            <div className="detailsRow">
+              <div className="detailsLabel">{t("total")}</div>
+              <div className="detailsValue"><strong>{formatOrderMoney(order.total)}</strong></div>
+            </div>
+            {!!order.refundTotal && <div className="detailsRow">
+              <div className="detailsLabel">{t("orders.refundTotal")}</div>
+              <div className="detailsValue">{formatOrderMoney(order.refundTotal)}</div>
+            </div>}
           </div>
         </div>
+      </div>
       {/* </Card> */}
 
       <OrderItems order={order} canRefund={canUpdateOrders} onChange={setOrder} formatMoney={formatOrderMoney} currencySymbol={getCurrencySymbol} />
@@ -528,208 +547,214 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
           <div className="muted">{t("noOrders")}</div>
         )}
       </Card>
-      {selectedUser && (
-        <div className="modal-backdrop" onClick={closeUserDetails}>
-          <div className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">
-                {t("titles.userDetail")} <span className="muted" style={{ fontWeight: "normal", fontSize: "12px" }}>{selectedUser.user._id}</span>
+      {
+        selectedUser && (
+          <div className="modal-backdrop" onClick={closeUserDetails}>
+            <div className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="modal-title">
+                  {t("titles.userDetail")} <span className="muted" style={{ fontWeight: "normal", fontSize: "12px" }}>{selectedUser.user._id}</span>
+                </div>
+                <button className="ghost-btn" type="button" onClick={closeUserDetails}>
+                  {t("close")}
+                </button>
               </div>
-              <button className="ghost-btn" type="button" onClick={closeUserDetails}>
-                {t("close")}
-              </button>
-            </div>
 
-            <div className="user-details-tab-panel">
-              {canViewUserAbout && (
-                <div className="detailsTable">
-                  <div className="detailsRow">
-                    <div className="detailsLabel">{t("name")}</div>
-                    <div className="detailsValue">{selectedUser.user.name || "-"}</div>
-                  </div>
-                  <div className="detailsRow">
-                    <div className="detailsLabel">{t("email")}</div>
-                    <div className="detailsValue">{selectedUser.user.email || "-"}</div>
-                  </div>
-                  <div className="detailsRow">
-                    <div className="detailsLabel">{t("phone")}</div>
-                    <div className="detailsValue">{selectedUser.user.phone || t("noPhone")}</div>
-                  </div>
-                  <div className="detailsRow">
-                    <div className="detailsLabel">{t("role")}</div>
-                    <div className="detailsValue">{t(`role.${selectedUser.user.role}`) || selectedUser.user.role}</div>
-                  </div>
-                  <div className="detailsRow">
-                    <div className="detailsLabel">{t("membership")}</div>
-                    <div className="detailsValue">{selectedUser.user.membershipLevel || "-"}</div>
-                  </div>
-                  <div className="detailsRow">
-                    <div className="detailsLabel">{t("addresses")} ({selectedUser.addresses?.length || 0})</div>
-                    <div className="detailsValue">
-                      {selectedUser.addresses?.length ? (
-                        <ul className="addressList">
-                          {selectedUser.addresses.map((addr) => (
-                            <li key={addr._id}>
-                              {addr.label}: {addr.address}
-                              {addr.phone ? ` (${addr.phone})` : ""}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div className="muted">{t("noAddresses")}</div>
-                      )}
+              <div className="user-details-tab-panel">
+                {canViewUserAbout && (
+                  <div className="detailsTable">
+                    <div className="detailsRow">
+                      <div className="detailsLabel">{t("name")}</div>
+                      <div className="detailsValue">{selectedUser.user.name || "-"}</div>
+                    </div>
+                    <div className="detailsRow">
+                      <div className="detailsLabel">{t("email")}</div>
+                      <div className="detailsValue">{selectedUser.user.email || "-"}</div>
+                    </div>
+                    <div className="detailsRow">
+                      <div className="detailsLabel">{t("phone")}</div>
+                      <div className="detailsValue">{selectedUser.user.phone || t("noPhone")}</div>
+                    </div>
+                    <div className="detailsRow">
+                      <div className="detailsLabel">{t("role")}</div>
+                      <div className="detailsValue">{t(`role.${selectedUser.user.role}`) || selectedUser.user.role}</div>
+                    </div>
+                    <div className="detailsRow">
+                      <div className="detailsLabel">{t("membership")}</div>
+                      <div className="detailsValue">{selectedUser.user.membershipLevel || "-"}</div>
+                    </div>
+                    <div className="detailsRow">
+                      <div className="detailsLabel">{t("addresses")} ({selectedUser.addresses?.length || 0})</div>
+                      <div className="detailsValue">
+                        {selectedUser.addresses?.length ? (
+                          <ul className="addressList">
+                            {selectedUser.addresses.map((addr) => (
+                              <li key={addr._id}>
+                                {addr.label}: {addr.address}
+                                {addr.phone ? ` (${addr.phone})` : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="muted">{t("noAddresses")}</div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {activePicker && (
-        <div className="modal-backdrop" onClick={closePicker}>
-          <div className="modal" style={{ width: "min(420px, 100%)" }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">
-                {activePicker === "status" ? t("status") : t("driver")}
+        )
+      }
+      {
+        activePicker && (
+          <div className="modal-backdrop" onClick={closePicker}>
+            <div className="modal" style={{ width: "min(420px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="modal-title">
+                  {activePicker === "status" ? t("status") : t("driver")}
+                </div>
+                <button className="ghost-btn" type="button" onClick={closePicker} disabled={driverSaving || statusSaving}>
+                  {t("close")}
+                </button>
               </div>
-              <button className="ghost-btn" type="button" onClick={closePicker} disabled={driverSaving || statusSaving}>
-                {t("close")}
-              </button>
-            </div>
-            <div className={activePicker === 'status' ? 'list-row' : 'list'} style={activePicker === 'status' ? { "gap": "10px" } : {}}>
-              {activePicker === "status" ? (
-                statuses.map((status) => (
-                  <button
-                    key={status}
-                    className="driver-picker-option"
-                    style={activePicker === 'status' ? { "textAlign": 'center' } : {}}
-                    type="button"
-                    onClick={async () => {
-                      if (status === statusDraft) {
-                        closePicker();
-                        return;
-                      }
-                      setStatusDraft(status);
-                      await saveStatus(status);
-                      setActivePicker(null);
-                    }}
-                    disabled={statusSaving}
-                  >
-                    {/* <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}> */}
-                    <StatusPill value={status} />
-                    {/* </div> */}
-                  </button>
-                ))
-              ) : (
-                <>
-                  <button
-                    className={`driver-picker-option${driverDraft === "" ? " active" : ""}`}
-                    type="button"
-                    onClick={async () => {
-                      if (driverDraft === "") {
-                        closePicker();
-                        return;
-                      }
-                      setDriverDraft("");
-                      await saveDriver("");
-                      setActivePicker(null);
-                    }}
-                    disabled={driverSaving}
-                  >
-                    <strong className="unassignLabel">{t("unassign") ?? "Unassign driver"}</strong>
-                  </button>
-                  {drivers.map((item) => (
+              <div className={activePicker === 'status' ? 'list-row' : 'list'} style={activePicker === 'status' ? { "gap": "10px" } : {}}>
+                {activePicker === "status" ? (
+                  statuses.map((status) => (
                     <button
-                      key={item._id}
-                      className={`driver-picker-option${driverDraft === item._id ? " active" : ""}`}
+                      key={status}
+                      className="driver-picker-option"
+                      style={activePicker === 'status' ? { "textAlign": 'center' } : {}}
                       type="button"
                       onClick={async () => {
-                        if (driverDraft === item._id) {
+                        if (status === statusDraft) {
                           closePicker();
                           return;
                         }
-                        setDriverDraft(item._id);
-                        await saveDriver(item._id);
+                        setStatusDraft(status);
+                        await saveStatus(status);
+                        setActivePicker(null);
+                      }}
+                      disabled={statusSaving}
+                    >
+                      {/* <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}> */}
+                      <StatusPill value={status} />
+                      {/* </div> */}
+                    </button>
+                  ))
+                ) : (
+                  <>
+                    <button
+                      className={`driver-picker-option${driverDraft === "" ? " active" : ""}`}
+                      type="button"
+                      onClick={async () => {
+                        if (driverDraft === "") {
+                          closePicker();
+                          return;
+                        }
+                        setDriverDraft("");
+                        await saveDriver("");
                         setActivePicker(null);
                       }}
                       disabled={driverSaving}
                     >
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                        <strong>{item.name}</strong>
-                        <span className={item.driverStatus === "BUSY" ? "driver-picker-status busy" : "driver-picker-status available"}>
-                          {item.driverStatus === "BUSY" ? t("driverStatus.busy") : t("driverStatus.available")}
-                        </span>
-                      </div>
-                      <span className="rtlFix" style={{ opacity: 0.6 }}>{item.email}</span>
+                      <strong className="unassignLabel">{t("unassign") ?? "Unassign driver"}</strong>
                     </button>
-                  ))}
-                </>
-              )}
+                    {drivers.map((item) => (
+                      <button
+                        key={item._id}
+                        className={`driver-picker-option${driverDraft === item._id ? " active" : ""}`}
+                        type="button"
+                        onClick={async () => {
+                          if (driverDraft === item._id) {
+                            closePicker();
+                            return;
+                          }
+                          setDriverDraft(item._id);
+                          await saveDriver(item._id);
+                          setActivePicker(null);
+                        }}
+                        disabled={driverSaving}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                          <strong>{item.name}</strong>
+                          <span className={item.driverStatus === "BUSY" ? "driver-picker-status busy" : "driver-picker-status available"}>
+                            {item.driverStatus === "BUSY" ? t("driverStatus.busy") : t("driverStatus.available")}
+                          </span>
+                        </div>
+                        <span className="rtlFix" style={{ opacity: 0.6 }}>{item.email}</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {(couponLoading || selectedCoupon || couponError) && (
-        <div className="modal-backdrop" onClick={closeCoupon}>
-          <div className="modal" style={{ width: "min(560px, 100%)" }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">{t("discountCoupon")}</div>
-              <button className="ghost-btn" type="button" onClick={closeCoupon}>
-                {t("close")}
-              </button>
-            </div>
-            {couponLoading ? (
-              <div className="loader" style={{ height: 120, width: "100%" }}>
-                <div className="spinner"></div>
-                <div className="loaderText">{t("loading")}</div>
+        )
+      }
+      {
+        (couponLoading || selectedCoupon || couponError) && (
+          <div className="modal-backdrop" onClick={closeCoupon}>
+            <div className="modal" style={{ width: "min(560px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="modal-title">{t("discountCoupon")}</div>
+                <button className="ghost-btn" type="button" onClick={closeCoupon}>
+                  {t("close")}
+                </button>
               </div>
-            ) : couponError ? (
-              <div className="error">{couponError}</div>
-            ) : selectedCoupon ? (
-              <div className="detailsTable">
-                <div className="detailsRow">
-                  <div className="detailsLabel">{t("code")}</div>
-                  <div className="detailsValue">{selectedCoupon.code}</div>
+              {couponLoading ? (
+                <div className="loader" style={{ height: 120, width: "100%" }}>
+                  <div className="spinner"></div>
+                  <div className="loaderText">{t("loading")}</div>
                 </div>
-                <div className="detailsRow">
-                  <div className="detailsLabel">{t("title")}</div>
-                  <div className="detailsValue">{selectedCoupon.title || "-"}</div>
-                </div>
-                <div className="detailsRow">
-                  <div className="detailsLabel">{t("description")}</div>
-                  <div className="detailsValue">{selectedCoupon.description || "-"}</div>
-                </div>
-                <div className="detailsRow">
-                  <div className="detailsLabel">{t("discount")}</div>
-                  <div className="detailsValue">
-                    {selectedCoupon.freeDelivery
-                      ? t("freeDelivery")
-                      : `${selectedCoupon.discountValue}${selectedCoupon.discountType === "PERCENT" ? "%" : ` ${getCurrencySymbol(selectedCoupon.currency)}`}`}
+              ) : couponError ? (
+                <div className="error">{couponError}</div>
+              ) : selectedCoupon ? (
+                <div className="detailsTable">
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("code")}</div>
+                    <div className="detailsValue">{selectedCoupon.code}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("title")}</div>
+                    <div className="detailsValue">{selectedCoupon.title || "-"}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("description")}</div>
+                    <div className="detailsValue">{selectedCoupon.description || "-"}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("discount")}</div>
+                    <div className="detailsValue">
+                      {selectedCoupon.freeDelivery
+                        ? t("freeDelivery")
+                        : `${selectedCoupon.discountValue}${selectedCoupon.discountType === "PERCENT" ? "%" : ` ${getCurrencySymbol(selectedCoupon.currency)}`}`}
+                    </div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("usage")}</div>
+                    <div className="detailsValue">{selectedCoupon.usageType}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("used")}</div>
+                    <div className="detailsValue">{selectedCoupon.usedCount ?? 0}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("expires")}</div>
+                    <div className="detailsValue">{selectedCoupon.expiresAt ? formatDateTime(selectedCoupon.expiresAt) : "-"}</div>
+                  </div>
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("status")}</div>
+                    <div className="detailsValue">{selectedCoupon.isActive ? t("active") : t("inactive")}</div>
                   </div>
                 </div>
-                <div className="detailsRow">
-                  <div className="detailsLabel">{t("usage")}</div>
-                  <div className="detailsValue">{selectedCoupon.usageType}</div>
-                </div>
-                <div className="detailsRow">
-                  <div className="detailsLabel">{t("used")}</div>
-                  <div className="detailsValue">{selectedCoupon.usedCount ?? 0}</div>
-                </div>
-                <div className="detailsRow">
-                  <div className="detailsLabel">{t("expires")}</div>
-                  <div className="detailsValue">{selectedCoupon.expiresAt ? formatDateTime(selectedCoupon.expiresAt) : "-"}</div>
-                </div>
-                <div className="detailsRow">
-                  <div className="detailsLabel">{t("status")}</div>
-                  <div className="detailsValue">{selectedCoupon.isActive ? t("active") : t("inactive")}</div>
-                </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

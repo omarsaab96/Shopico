@@ -80,7 +80,6 @@ const Layout = () => {
       </aside>
       <main className="content">
         <header className="topbar">
-          <Notifications />
           {/* <Link to="/" className="muted">
             Home
           </Link> */}
@@ -111,6 +110,7 @@ const Layout = () => {
           {/* <div className="pill">Orange Pulse</div> */}
           <div className="flex">
             <SessionExpiry />
+            <Notifications />
             <button className="ghost-btn dark icon" type="button" onClick={toggleTheme}>
               <img src="themeIcon.png" alt="" />
             </button>

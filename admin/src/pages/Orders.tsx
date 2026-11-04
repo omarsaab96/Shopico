@@ -240,7 +240,12 @@ const OrdersPage = () => {
     );
     try {
       const updated = await updateOrderStatus(order._id, status, paymentStatus, driverId);
-      setOrders((prev) => prev.map((item) => (item._id === order._id ? updated : item)));
+      setOrders((prev) => prev.map((item) => (item._id === order._id ? {
+        ...updated,
+        // Status updates return reference IDs; keep the details already loaded for this order.
+        user: typeof updated.user === "string" && typeof item.user !== "string" && item.user._id === updated.user ? item.user : updated.user,
+        currency: typeof updated.currency === "string" && typeof item.currency !== "string" && item.currency?._id === updated.currency ? item.currency : updated.currency,
+      } : item)));
       return true;
     } catch (error: any) {
       setOrders((prev) =>
