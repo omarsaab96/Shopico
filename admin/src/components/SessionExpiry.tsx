@@ -58,7 +58,7 @@ export default function SessionExpiry() {
     <div dir={ar ? "rtl" : "ltr"}>
       <h2 id="session-expiry-title">{ar ? "ستنتهي جلستك قريباً" : "Your session will end soon"}</h2>
       <p>{ar ? `ستنتهي جلستك خلال ${minutes} دقيقة. اختر تحديث الجلسة لتسجيل الخروج والدخول مجدداً.` : `Your session will end in ${minutes} minute${minutes === 1 ? "" : "s"}. Refresh session signs you out so you can log in again.`}</p>
-      <div className="shipping-driver-actions"><button type="button" className="ghost-btn" onClick={() => acknowledge.current()}>{ar ? "حسناً، فهمت" : "OK, understood"}</button><button type="button" className="primary-btn" onClick={() => endSession.current()}>{ar ? "تحديث الجلسة" : "Refresh session"}</button></div>
+      <div className="shipping-driver-actions"><button type="button" className="ghost-btn" onClick={() => acknowledge.current()}>{ar ? "حسناً، فهمت" : "OK, understood"}</button><button type="button" className="primary" onClick={() => endSession.current()}>{ar ? "تحديث الجلسة" : "Refresh session"}</button></div>
     </div>
   </dialog>, document.body);
 }

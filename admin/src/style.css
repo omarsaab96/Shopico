@@ -3024,6 +3024,8 @@ html[dir="rtl"] .unassignLabel {
 .shipping-driver-dialog label { display: flex; flex-direction: column; gap: 8px; }
 .shipping-driver-dialog select { width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; background: var(--bg-card); color: inherit; }
 .shipping-driver-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.shipping-driver-actions .primary:disabled { opacity: 0.5; background: #ffb347; }
+.shipping-driver-actions button:focus-visible { outline: 3px solid var(--orange-500); outline-offset: 3px; }
 .notification-badge { background: #dc2626; color: #fff; border-radius: 20px; padding: 2px 7px; font-size: 12px; }
 .notification-panel { position: absolute; inset-inline-start: 0; top: 48px; width: min(390px, 90vw); z-index: 1500; background: var(--bg-card, #fff); color: var(--text-primary, #172033); border: 1px solid var(--gray-300, #ddd); border-radius: 14px; box-shadow: 0 14px 45px #0003; padding: 14px; }
 .notification-heading, .notification-controls { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }

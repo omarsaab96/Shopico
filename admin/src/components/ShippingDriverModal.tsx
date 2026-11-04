@@ -32,7 +32,7 @@ export default function ShippingDriverModal({ onCancel, onConfirm }: { onCancel:
       {loading ? <p role="status">{ar ? "جارٍ التحميل…" : "Loading drivers…"}</p> : <label>{ar ? "السائق" : "Driver"}<select autoFocus required value={selected} disabled={saving} onChange={event => setSelected(event.target.value)}><option value="">{ar ? "اختر سائقاً" : "Select a driver"}</option>{drivers.map(driver => <option key={driver._id} value={driver._id}>{driver.name}{driver.driverStatus === "BUSY" ? (ar ? " — مشغول" : " — Busy") : ""}</option>)}</select></label>}
       {!loading && !error && !drivers.length && <p>{ar ? "لا يوجد سائقون في هذا الفرع." : "No drivers are available in this branch."}</p>}
       {error && <p role="alert">{error}</p>}
-      <div className="shipping-driver-actions"><button type="button" className="ghost-btn" disabled={saving} onClick={onCancel}>{ar ? "إلغاء" : "Cancel"}</button><button type="submit" className="primary-btn" disabled={loading || saving || !selected}>{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "تعيين وشحن" : "Assign and ship")}</button></div>
+      <div className="shipping-driver-actions"><button type="button" className="ghost-btn" disabled={saving} onClick={onCancel}>{ar ? "إلغاء" : "Cancel"}</button><button type="submit" className="primary" disabled={loading || saving || !selected}>{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "تعيين وشحن" : "Assign and ship")}</button></div>
     </form>
   </dialog>, document.body);
 }
