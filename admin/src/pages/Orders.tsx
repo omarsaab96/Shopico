@@ -308,11 +308,12 @@ const OrdersPage = () => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 5 }}>
         <div className="muted" style={{ pointerEvents: 'none' }}>
-          {t("payment")}
+          {t("payment")} {order.paymentStatus.charAt(0)}{order.paymentStatus.substring(1,order.paymentStatus.length).toLowerCase()}
         </div>
         <div style={{ pointerEvents: 'none', display: 'flex', gap: 5 }}>
-          <StatusPill value={order.paymentStatus} />
-          <span>{order.paymentMethod}</span>
+          <span className="muted">{order.paymentMethod}</span>
+          {/* <StatusPill value={order.paymentStatus} /> */}
+          
         </div>
       </div>
 

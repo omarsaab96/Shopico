@@ -710,6 +710,4 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
   );
 };
 
-
-
 export default OrderDetailsPage;

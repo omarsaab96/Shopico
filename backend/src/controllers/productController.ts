@@ -188,13 +188,13 @@ export const bulkUpdatePrices = catchAsync(async (req, res) => {
 
   const rawPrice = isPercent
     ? {
-        $multiply: [
-          "$price",
-          payload.mode === "INCREASE"
-            ? { $add: [1, multiplier] }
-            : { $subtract: [1, multiplier] },
-        ],
-      }
+      $multiply: [
+        "$price",
+        payload.mode === "INCREASE"
+          ? { $add: [1, multiplier] }
+          : { $subtract: [1, multiplier] },
+      ],
+    }
     : payload.mode === "INCREASE"
       ? { $add: ["$price", amountValue] }
       : { $subtract: ["$price", amountValue] };
@@ -294,10 +294,10 @@ const readImportEntries = (buffer: Buffer) => {
       .toLowerCase();
 
   const headerLabels = {
-    barcode: ["\u0627\u0644\u0631\u0645\u0632"],
-    name: ["\u0627\u0644\u0645\u0627\u062f\u0629"],
-    price: ["\u0633\u0639\u0631"],
-    stock: ["\u0627\u0644\u0631\u0635\u064a\u062f"],
+    barcode: ["الرمز"],
+    name: ["الاسم"],
+    price: ["المستهلك"],
+    stock: ["الرصيد الحالي"],
   };
 
   let headerRowIndex = -1;

@@ -24,14 +24,20 @@ export const ensureDefaultBranchSetup = async () => {
     });
   }
   const branchId = defaultBranch._id;
+  const existingSettings = await Settings.exists({ branchId });
 
+  if (!existingSettings) {
+    await Settings.updateOne(
+      { branchId: { $exists: false } },
+      { $set: { branchId } }
+    );
+  }
   await Promise.all([
     Category.updateMany({ branchId: { $exists: false } }, { $set: { branchId } }),
     Product.updateMany({ branchId: { $exists: false } }, { $set: { branchId } }),
     Order.updateMany({ branchId: { $exists: false } }, { $set: { branchId } }),
     Announcement.updateMany({ branchId: { $exists: false } }, { $set: { branchId } }),
     Coupon.updateMany({ branchId: { $exists: false } }, { $set: { branchId } }),
-    Settings.updateMany({ branchId: { $exists: false } }, { $set: { branchId } }),
     TopUpRequest.updateMany({ branchId: { $exists: false } }, { $set: { branchId } }),
     User.updateMany(
       { $or: [{ branchIds: { $exists: false } }, { branchIds: { $size: 0 } }] },
