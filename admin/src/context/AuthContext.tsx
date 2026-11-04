@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { fetchProfile, login as apiLogin } from "../api/client";
 import type { AuthResponse } from "../api/client";
 import type { ApiUser } from "../types/api";
-import SessionExpiry from "../components/SessionExpiry";
 
 interface AuthContextValue {
   user?: ApiUser;
@@ -59,7 +58,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(undefined);
   };
 
-  return <AuthContext.Provider value={{ user, loading, login, logout, refreshProfile }}>{children}<SessionExpiry /></AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login, logout, refreshProfile }}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

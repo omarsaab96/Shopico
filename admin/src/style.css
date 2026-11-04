@@ -3026,6 +3026,16 @@ html[dir="rtl"] .unassignLabel {
 .shipping-driver-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
 .shipping-driver-actions .primary:disabled { opacity: 0.5; background: #ffb347; }
 .shipping-driver-actions button:focus-visible { outline: 3px solid var(--orange-500); outline-offset: 3px; }
+.session-countdown { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 24px 0; padding: 20px; border: 1px solid var(--orange-500); border-radius: 14px; background: #ff7a1f12; }
+.session-countdown-label { font-size: 14px; font-weight: 600; }
+.session-countdown-value { font-size: clamp(44px, 12vw, 64px); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; letter-spacing: 2px; color: var(--orange-600); }
+.session-countdown-units { font-size: 12px; opacity: 0.75; }
+.session-countdown.urgent { border-color: #ef4444; background: #ef444414; }
+.session-countdown.urgent .session-countdown-value { color: #ef4444; }
+.session-countdown-mini { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 7px; margin-inline-end: 8px; padding: 9px 12px; border: 1px solid var(--orange-500); border-radius: 24px; background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; box-shadow: 0 3px 12px #0001; }
+.session-countdown-mini:hover { background: #ff7a1f18; }
+.session-countdown-mini:focus-visible { outline: 3px solid var(--orange-500); outline-offset: 3px; }
+.session-countdown-mini.urgent { color: #ef4444; border-color: #ef4444; background: #ef444414; }
 .notification-badge { background: #dc2626; color: #fff; border-radius: 20px; padding: 2px 7px; font-size: 12px; }
 .notification-panel { position: absolute; inset-inline-start: 0; top: 48px; width: min(390px, 90vw); z-index: 1500; background: var(--bg-card, #fff); color: var(--text-primary, #172033); border: 1px solid var(--gray-300, #ddd); border-radius: 14px; box-shadow: 0 14px 45px #0003; padding: 14px; }
 .notification-heading, .notification-controls { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }

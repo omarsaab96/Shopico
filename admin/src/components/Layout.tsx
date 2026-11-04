@@ -1,4 +1,5 @@
 import Notifications from "./Notifications";
+import SessionExpiry from "./SessionExpiry";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -109,7 +110,7 @@ const Layout = () => {
           </div>
           {/* <div className="pill">Orange Pulse</div> */}
           <div className="flex">
-
+            <SessionExpiry />
             <button className="ghost-btn dark icon" type="button" onClick={toggleTheme}>
               <img src="themeIcon.png" alt="" />
             </button>
