@@ -131,14 +131,15 @@ export const getAllOrders = async (opts?: {
     .populate("addressRef");
 };
 
-export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId?: string) => {
+export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId?: string, driverId?: Types.ObjectId) => {
   const filter: Record<string, unknown> = { _id: id };
   if (branchId) filter.branchId = branchId;
+  if (driverId) filter.driverId = driverId;
   const order = await Order.findOne(filter)
     .populate("currency")
     .populate("refunds.currency")
-    .populate("user")
-    .populate("driverId")
+    .populate("user", "name phone email")
+    .populate("driverId", "name phone email driverStatus ratingAverage ratingCount")
     .populate("branchId")
     .populate("items.product")
     .populate("addressRef");
@@ -395,7 +396,7 @@ const maybeGenerateReward = async (userId: Types.ObjectId, newPoints: number, br
   await user.save();
   if (newRewards > 0) {
     const tokens = Array.from({ length: newRewards }).map(() => ({ user: userId }));
-    await RewardToken.insertMany(tokens);
+    await RewardToken.create(tokens);
   }
 };
 
@@ -550,20 +551,44 @@ export const updateOrderStatus = async (
   orderId: string,
   status: OrderStatus,
   paymentStatus?: "PENDING" | "CONFIRMED",
-  branchId?: string
+  branchId?: string,
+  driverId?: string,
+  expectedDriverId?: string
 ) => {
   const filter: Record<string, unknown> = { _id: orderId };
   if (branchId) filter.branchId = branchId;
   const order = await Order.findOne(filter);
   if (!order) throw { status: 404, message: "Order not found" };
+  if (expectedDriverId) {
+    if (String(order.driverId || "") !== expectedDriverId) throw { status: 403, message: "This order is no longer assigned to you" };
+    if (order.status === "CANCELLED") throw { status: 400, message: "This order has been cancelled" };
+    if (order.status === "DELIVERED" && status !== "DELIVERED") throw { status: 400, message: "This order is already completed" };
+    if (status === "DELIVERED" && !["SHIPPING", "DELIVERED"].includes(order.status)) throw { status: 400, message: "Start delivery before completing this order" };
+    if (!["SHIPPING", "DELIVERED"].includes(status)) throw { status: 400, message: "Invalid driver status" };
+  }
   assertOrderCanRemainActive(order, status);
+  const previousDriverId = order.driverId;
+  if (driverId) {
+    const driver = await User.findOne({ _id: driverId, role: "driver", branchIds: order.branchId });
+    if (!driver) throw { status: 400, message: "Choose a driver from this branch" };
+    order.driverId = driver._id;
+    if (String(previousDriverId || "") !== driverId) order.driverLocation = null;
+  }
+  if (status === "SHIPPING" && !order.driverId) {
+    throw { status: 400, message: "A driver must be assigned before shipping" };
+  }
+  if (status === "SHIPPING" && !driverId && !await User.exists({ _id: order.driverId, role: "driver", branchIds: order.branchId })) {
+    throw { status: 400, message: "Choose a driver from this branch" };
+  }
+  const previousStatus = order.status;
   order.status = status;
   if (paymentStatus) order.paymentStatus = paymentStatus;
   order.statusHistory.push({ status, at: new Date() });
   await order.save();
   await syncDriverStatus(order.driverId);
+  if (previousDriverId && String(previousDriverId) !== String(order.driverId)) await syncDriverStatus(previousDriverId);
 
-  if (status === "DELIVERED") {
+  if (status === "DELIVERED" && previousStatus !== "DELIVERED") {
     const settings = await getSettingsSnapshot(order.branchId.toString());
     const earned = calculatePointsEarned(order.subtotal, settings.pointsPerAmount);
     await PointsTransaction.create({ user: order.user, points: earned, type: "EARN", reference: order._id.toString() });
@@ -581,7 +606,7 @@ export const assignDriverToOrder = async (orderId: string, driverId: string, bra
   if (!order) throw { status: 404, message: "Order not found" };
   const previousDriverId = order.driverId;
 
-  const driver = await User.findById(driverId);
+  const driver = await User.findOne({ _id: driverId, role: "driver", branchIds: order.branchId });
   if (!driver) throw { status: 404, message: "Driver not found" };
 
   order.driverId = driver._id;
@@ -611,6 +636,7 @@ export const updateOrderDetails = async (
   if (payload.driverId !== undefined) {
     const previousDriverId = order.driverId;
     if (!payload.driverId) {
+      if (order.status === "SHIPPING") throw { status: 400, message: "A shipping order must keep an assigned driver" };
       order.driverId = null as any;
       order.driverLocation = null;
       await order.save();
@@ -618,7 +644,7 @@ export const updateOrderDetails = async (
         await syncDriverStatus(previousDriverId);
       }
     } else {
-      const driver = await User.findById(payload.driverId);
+      const driver = await User.findOne({ _id: payload.driverId, role: "driver", branchIds: order.branchId });
       if (!driver) throw { status: 404, message: "Driver not found" };
       order.driverId = driver._id;
       order.driverLocation = null;
@@ -686,12 +712,9 @@ export const updateOrderStatusAsDriver = async (orderId: string, userId: Types.O
   if (!order.driverId) throw { status: 403, message: "Driver not assigned" };
   if (order.driverId.toString() !== userId.toString()) throw { status: 403, message: "Forbidden" };
 
-  assertOrderCanRemainActive(order, status);
-  order.status = status;
-  order.statusHistory.push({ status, at: new Date() });
-  await order.save();
-  await syncDriverStatus(order.driverId);
-  return order;
+  // Use the same completion path for drivers and staff so delivered orders also
+  // award points/rewards and capture their notifications consistently.
+  return updateOrderStatus(orderId, status, undefined, order.branchId.toString(), undefined, userId.toString());
 };
 
 export const rateDriverForOrder = async (

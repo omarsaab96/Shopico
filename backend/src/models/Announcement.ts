@@ -6,6 +6,7 @@ export interface IAnnouncementImage {
 }
 
 export interface IAnnouncement extends Document {
+  notificationSent?: boolean;
   title?: string;
   description?: string;
   link?: string;
@@ -35,6 +36,7 @@ const defaultEndsAt = () => {
 
 const AnnouncementSchema = new Schema<IAnnouncement>(
   {
+    notificationSent: { type: Boolean, default: false },
     title: { type: String },
     description: { type: String },
     link: { type: String },

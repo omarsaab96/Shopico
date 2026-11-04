@@ -1,3 +1,4 @@
+import { notificationOutbox } from "../notifications/outbox";
 import mongoose, { Document, Schema, Types } from "mongoose";
 import { TopUpMethod, TopUpStatus } from "../types";
 
@@ -27,5 +28,7 @@ const TopUpRequestSchema = new Schema<ITopUpRequest>(
   },
   { timestamps: true }
 );
+
+notificationOutbox(TopUpRequestSchema, "topup");
 
 export const TopUpRequest = mongoose.model<ITopUpRequest>("TopUpRequest", TopUpRequestSchema);

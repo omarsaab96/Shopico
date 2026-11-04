@@ -3,7 +3,7 @@
     "name": "Shopico",
     "slug": "shopico",
     "scheme": "shopico",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -71,7 +71,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "orders",
+          "color": "#ff7a1f"
+        }
+      ]
     ],
     "extra": {
       "EXPO_PUBLIC_API_BASE": "https://api.shopico-sy.com/api",
@@ -82,4 +89,3 @@
     }
   }
 }
-

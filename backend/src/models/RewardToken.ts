@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
+import { notificationOutbox } from "../notifications/outbox";
 
 export interface IRewardToken extends Document {
   user: mongoose.Types.ObjectId;
@@ -14,4 +15,5 @@ const RewardTokenSchema = new Schema<IRewardToken>(
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 
+notificationOutbox(RewardTokenSchema, "reward");
 export const RewardToken = mongoose.model<IRewardToken>("RewardToken", RewardTokenSchema);

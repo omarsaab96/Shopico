@@ -7,7 +7,9 @@ export const env = {
   mongoUri: process.env.MONGO_URI || "mongodb://localhost:27017/shopico",
   jwtSecret: process.env.JWT_SECRET || "dev-secret",
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || "dev-refresh-secret",
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || "1h",
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || "24h",
+  sessionExpiryWarningMinutes: Number.isFinite(Number(process.env.SESSION_EXPIRY_WARNING_MINUTES)) && Number(process.env.SESSION_EXPIRY_WARNING_MINUTES) >= 0
+    ? Number(process.env.SESSION_EXPIRY_WARNING_MINUTES) : 10,
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   trustProxy: process.env.TRUST_PROXY ? parseInt(process.env.TRUST_PROXY, 10) : 0,
   corsOrigins: (process.env.CORS_ORIGINS || "*").split(","),

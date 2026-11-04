@@ -1,6 +1,6 @@
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, View, StyleSheet, TouchableOpacity } from "react-native";
+import { ActivityIndicator, View, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
@@ -192,6 +192,7 @@ export default function Profile() {
         <View style={{ flex: 1, justifyContent: 'space-between' }}>
           <View>
             <Text style={styles.title}>{t("profile")}</Text>
+            <TouchableOpacity style={{ paddingVertical: 12 }} onPress={() => router.push("/notifications")}><Text style={{ color: palette.accent }}>{lang === "ar" ? "الإشعارات والإعدادات" : "Notifications and settings"}</Text></TouchableOpacity>
 
             {user ? (
               <>
@@ -489,7 +490,7 @@ export default function Profile() {
           </View>
 
           {user && <View style={{ paddingBottom: 16 }}>
-            <Button title={t("logout")} onPress={logout} secondary />
+            <Button title={t("logout")} onPress={() => { void logout().catch(() => Alert.alert(lang === "ar" ? "تعذر تسجيل الخروج" : "Could not sign out", lang === "ar" ? "تحقق من الاتصال وحاول مجدداً." : "Check your connection and retry.")); }} secondary />
           </View>}
         </View>
 

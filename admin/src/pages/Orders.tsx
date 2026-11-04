@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, pointerWithin, rectIntersection, useSensor, useSensors } from "@dnd-kit/core";
 import { OrderDragCard, OrderDropBasket } from "../components/OrderBasketDrag";
 import OrderDetailsModal from "../components/OrderDetailsModal";
+import ShippingDriverModal from "../components/ShippingDriverModal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Card from "../components/Card";
@@ -70,6 +71,8 @@ const OrdersPage = () => {
   const { can, canAny } = usePermissions();
   const { selectedBranchId } = useBranch();
   const [detailsOrderId, setDetailsOrderId] = useState<string | null>(null);
+  const [shippingOrder, setShippingOrder] = useState<{ order: Order; paymentStatus?: string } | null>(null);
+  useEffect(() => { setShippingOrder(null); }, [selectedBranchId]);
   const canViewOrders = can("orders:view");
   const canUpdateOrders = canViewOrders && can("orders:update");
   const canViewUsersPage = can("users:view");
@@ -181,6 +184,7 @@ const OrdersPage = () => {
     try {
       const data = await fetchOrders(getFilterParams());
       setOrders(data);
+      if (silent) return;
 
       if (canViewUsersPage) {
         try {
@@ -208,11 +212,22 @@ const OrdersPage = () => {
     if (!selectedBranchId) return;
     const interval = setInterval(() => {
       if (!mutatingRef.current && !loading) load(true);
-    }, 5000);
+    }, 60000);
     return () => clearInterval(interval);
   }, [selectedBranchId, searchTerm, statusFilter, paymentFilter, currencyFilter, fromDate, toDate, loading]);
 
-  const update = async (order: Order, status: string, paymentStatus?: string) => {
+  useEffect(() => {
+    const refresh = () => { if (!mutatingRef.current) void load(true).catch(() => {}); };
+    window.addEventListener("shopico:notification", refresh);
+    return () => window.removeEventListener("shopico:notification", refresh);
+  }, [selectedBranchId, searchTerm, statusFilter, paymentFilter, currencyFilter, fromDate, toDate]);
+
+  const update = async (order: Order, status: string, paymentStatus?: string, driverId?: string): Promise<boolean> => {
+    if (status === "SHIPPING" && !(driverId === undefined ? getDriverIdValue(order.driverId) : driverId)) {
+      setShippingOrder({ order, paymentStatus });
+      mutatingRef.current = false;
+      return false;
+    }
     mutatingRef.current = true;
     const previousStatus = order.status;
     const previousPayment = order.paymentStatus;
@@ -224,8 +239,9 @@ const OrdersPage = () => {
       )
     );
     try {
-      const updated = await updateOrderStatus(order._id, status, paymentStatus);
+      const updated = await updateOrderStatus(order._id, status, paymentStatus, driverId);
       setOrders((prev) => prev.map((item) => (item._id === order._id ? updated : item)));
+      return true;
     } catch (error: any) {
       setOrders((prev) =>
         prev.map((item) =>
@@ -236,7 +252,8 @@ const OrdersPage = () => {
       );
       const message = error?.response?.data?.message || error?.message || "Failed to update order status";
       console.error("Order status update failed:", message);
-      window.alert(message);
+      if (!driverId) window.alert(message);
+      return false;
     } finally {
       mutatingRef.current = false;
     }
@@ -272,6 +289,11 @@ const OrdersPage = () => {
 
   const saveEdit = async (order: Order) => {
     if (!editDraft) return;
+    if (editDraft.status === "SHIPPING") {
+      const saved = await update(order, editDraft.status, editDraft.paymentStatus, editDraft.driverId);
+      if (saved || !editDraft.driverId) cancelEdit();
+      return;
+    }
     if (editDraft.driverId !== getDriverIdValue(order.driverId)) {
       await saveDriverAssignment(order, editDraft.driverId);
     }
@@ -791,6 +813,11 @@ const OrdersPage = () => {
           </div>
         </div>
       )}
+      {shippingOrder && <ShippingDriverModal onCancel={() => setShippingOrder(null)} onConfirm={async driverId => {
+        const saved = await update(shippingOrder.order, "SHIPPING", shippingOrder.paymentStatus, driverId);
+        if (saved) setShippingOrder(null);
+        return saved;
+      }} />}
     </Card>
   );
 };

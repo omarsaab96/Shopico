@@ -1,3 +1,4 @@
+import { activateNotifications, startNotificationWorker } from "./notifications/worker";
 import mongoose from "mongoose";
 import app from "./app";
 import { startRefundRecovery } from "./services/refundSettlementService";
@@ -11,7 +12,9 @@ const start = async () => {
     await ensureDefaultBranchSetup();
     await ensureCategoryIndexes();
     await ensureProductIndexes();
+    await activateNotifications();
     startRefundRecovery();
+    startNotificationWorker();
     app.listen(env.port, () => {
       console.log(`Server running on port ${env.port}`);
     });

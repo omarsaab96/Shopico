@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from "react-native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from "react-native";
@@ -88,6 +89,18 @@ export default function DriverOrders() {
   const [now, setNow] = useState(() => Date.now());
 
   const canDeliver = user?.role === "driver";
+  useEffect(() => {
+    if (!trackingOrderId) return;
+    const active = orders.find(item => item._id === trackingOrderId);
+    if (!active || active.status === "CANCELLED") {
+      const stoppedId = trackingOrderId;
+      setTrackingOrderId(null);
+      if (trackingRef.current) clearInterval(trackingRef.current);
+      trackingRef.current = null;
+      void stopDriverBackgroundTracking(stoppedId).catch(() => {});
+      Alert.alert(t("driver"), t(active ? "driverOrderCancelled" : "driverOrderUnassigned"));
+    }
+  }, [orders, trackingOrderId, t]);
 
   const loadDriverLocation = useCallback(async () => {
     if (!canDeliver) return;
@@ -134,6 +147,11 @@ export default function DriverOrders() {
       if (showSpinner) setLoading(false);
     }
   }, [canDeliver]);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("shopico:notification", () => { void load(false).catch(() => {}); });
+    return () => sub.remove();
+  }, [load]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -288,7 +306,12 @@ export default function DriverOrders() {
     setUpdating((prev) => ({ ...prev, [order._id]: true }));
     try {
       await api.put(`/orders/${order._id}/driver-status`, { status: "SHIPPING" });
-      const tracking = await startDriverBackgroundTracking(order._id);
+      setOrders(current => current.map(item => item._id === order._id ? { ...item, status: "SHIPPING" } : item));
+      DeviceEventEmitter.emit("shopico:notification");
+      await load(false);
+      let tracking = { background: false };
+      try { tracking = await startDriverBackgroundTracking(order._id); }
+      catch { Alert.alert(t("startDelivery"), t("driverTrackingPermission")); }
       if (!tracking.background) {
         Alert.alert(
           t("locationDenied") ?? "Location denied",
@@ -312,9 +335,11 @@ export default function DriverOrders() {
     setUpdating((prev) => ({ ...prev, [orderId]: true }));
     try {
       await api.put(`/orders/${orderId}/driver-status`, { status: "DELIVERED" });
+      setOrders(current => current.map(item => item._id === orderId ? { ...item, status: "DELIVERED" } : item));
+      DeviceEventEmitter.emit("shopico:notification");
       if (trackingRef.current) clearInterval(trackingRef.current);
       trackingRef.current = null;
-      await stopDriverBackgroundTracking();
+      await stopDriverBackgroundTracking(orderId);
       setTrackingOrderId(null);
       await load();
     } finally {
@@ -499,7 +524,7 @@ export default function DriverOrders() {
             <View style={styles.card}>
               <View style={styles.cardRow}>
                 {/* <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                  <Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text>
+                  <TouchableOpacity onPress={() => router.push(`/driver-orders/${item._id}` as any)}><Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text></TouchableOpacity>
                 </View> */}
 
                 <View style={{ flexDirection: 'row', gap: 15, marginBottom: 10, alignItems: 'center' }}>
@@ -527,7 +552,7 @@ export default function DriverOrders() {
 
                   <View style={{ flex: 1, gap: 2 }}>
                     <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
-                      <Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text>
+                      <TouchableOpacity onPress={() => router.push(`/driver-orders/${item._id}` as any)}><Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text></TouchableOpacity>
                       <View style={styles.textSeperator}></View>
                       <Text style={[
                         styles.status,
@@ -537,7 +562,7 @@ export default function DriverOrders() {
                         // item.status && item.status === "DELIVERED" && { color: '#16a34a' },
                         // item.status && item.status === "CANCELLED" && { color: '#ef4444' },
                       ]}>
-                        {t(item.status) ?? item.status}
+                        {item.status === "DELIVERED" ? t("driverOrderCompleted") : t(item.status) ?? item.status}
                       </Text>
                     </View>
                     <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>

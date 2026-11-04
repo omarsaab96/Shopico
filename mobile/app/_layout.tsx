@@ -1,3 +1,4 @@
+import { NotificationProvider } from "../lib/notifications";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
@@ -69,10 +70,12 @@ const FontGate = ({ children }: { children: React.ReactNode }) => {
       writingDirection: isRTL ? "rtl" : "ltr",
       textAlign: isRTL ? "right" : "left",
     };
-    Text.defaultProps = Text.defaultProps || {};
-    Text.defaultProps.style = [Text.defaultProps.style, baseStyle].filter(Boolean);
-    TextInput.defaultProps = TextInput.defaultProps || {};
-    TextInput.defaultProps.style = [TextInput.defaultProps.style, baseStyle].filter(Boolean);
+    const nativeText = Text as typeof Text & { defaultProps?: { style?: unknown } };
+    const nativeInput = TextInput as typeof TextInput & { defaultProps?: { style?: unknown } };
+    nativeText.defaultProps = nativeText.defaultProps || {};
+    nativeText.defaultProps.style = [nativeText.defaultProps.style, baseStyle].filter(Boolean);
+    nativeInput.defaultProps = nativeInput.defaultProps || {};
+    nativeInput.defaultProps.style = [nativeInput.defaultProps.style, baseStyle].filter(Boolean);
   }, [fontsLoaded, isRTL]);
 
   if (!fontsLoaded) return null;
@@ -120,18 +123,20 @@ const I18nInner = () => {
     return (
       <FontGate>
         <AuthProvider>
-          <CurrencyProvider>
-            <CartProvider>
-              <Stack
-                key={lang}
-                initialRouteName="(tabs)"
-                screenOptions={{
-                  headerShown: false,
-                  gestureEnabled: true,
-                }}
-              />
-            </CartProvider>
-          </CurrencyProvider>
+          <NotificationProvider>
+            <CurrencyProvider>
+              <CartProvider>
+                <Stack
+                  key={lang}
+                  initialRouteName="(tabs)"
+                  screenOptions={{
+                    headerShown: false,
+                    gestureEnabled: true,
+                  }}
+                />
+              </CartProvider>
+            </CurrencyProvider>
+          </NotificationProvider>
         </AuthProvider>
       </FontGate>
     );
@@ -139,11 +144,13 @@ const I18nInner = () => {
   return (
     <FontGate>
       <AuthProvider>
-        <CurrencyProvider>
-          <CartProvider>
-            <ThemedStack lang={lang} />
-          </CartProvider>
-        </CurrencyProvider>
+        <NotificationProvider>
+          <CurrencyProvider>
+            <CartProvider>
+              <ThemedStack lang={lang} />
+            </CartProvider>
+          </CurrencyProvider>
+        </NotificationProvider>
       </AuthProvider>
     </FontGate>
   );

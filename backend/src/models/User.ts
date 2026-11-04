@@ -1,3 +1,4 @@
+import { notificationOutbox } from "../notifications/outbox";
 import mongoose, { Document, Schema, Types } from "mongoose";
 import { DriverStatus, UserRole } from "../types";
 
@@ -49,5 +50,7 @@ const UserSchema = new Schema<IUser>(
   },
   { timestamps: true }
 );
+
+notificationOutbox(UserSchema, "user");
 
 export const User = mongoose.model<IUser>("User", UserSchema);

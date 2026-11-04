@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from "react-native";
 import { useEffect, useMemo, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, StyleSheet, TouchableOpacity, FlatList } from "react-native";
@@ -57,6 +58,11 @@ export default function WalletScreen() {
   useEffect(() => {
     setProfile(user);
   }, [user]);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("shopico:notification", () => { if (user) void load(); });
+    return () => sub.remove();
+  }, [user?._id]);
 
   const balance = getWalletBalance(wallet, selectedCurrency);
   const thresholds = getMembershipThresholds(settings, selectedCurrency);

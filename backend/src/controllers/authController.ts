@@ -12,6 +12,8 @@ import { User } from "../models/User";
 import { AuditLog } from "../models/AuditLog";
 import bcrypt from "bcryptjs";
 import { Cart } from "../models/Cart";
+import jwt from "jsonwebtoken";
+import { NotificationDevice } from "../models/Notification";
 
 const EMAIL_VERIFICATION_OTP_TTL_MS = 10 * 60 * 1000;
 const EMAIL_VERIFICATION_RESEND_MS = 60 * 1000;
@@ -56,11 +58,15 @@ export const setPassword = catchAsync(async (req: AuthRequest, res) => {
 });
 
 export const refresh = catchAsync(async (req: AuthRequest, res) => {
-  const token = (req.cookies?.refreshToken as string) || req.body.refreshToken;
+  const token = req.body.refreshToken || (req.cookies?.refreshToken as string);
   if (!token) {
     return res.status(401).json({ success: false, message: "No refresh token" });
   }
   const result = await refreshTokens(token);
+  if (typeof req.body.deviceToken === "string") {
+    const payload = jwt.decode(result.refreshToken) as jwt.JwtPayload;
+    await NotificationDevice.updateOne({ user: result.user._id, token: req.body.deviceToken }, { $set: { sessionExpiresAt: new Date(payload.exp! * 1000) } });
+  }
   setRefreshCookie(res, result.refreshToken);
   sendSuccess(res, { user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken }, "Refreshed");
 });
@@ -188,6 +194,9 @@ export const deleteMe = catchAsync(async (req: AuthRequest, res) => {
   await Wallet.deleteOne({ user: user._id });
   await Cart.deleteOne({ user: user._id });
   await User.findByIdAndDelete(user._id);
+  // Remove device bindings and private inbox data when the account is deleted.
+  const { Notification, NotificationDevice, NotificationPreferences, NotificationPush } = await import("../models/Notification");
+  await Promise.all([Notification.deleteMany({ user: user._id }), NotificationDevice.deleteMany({ user: user._id }), NotificationPreferences.deleteMany({ user: user._id }), NotificationPush.deleteMany({ user: user._id })]);
   await AuditLog.create({ user: req.user._id, type: "auth", action: "USER_DELETE_PROFILE", result: "SUCCESS" });
   sendSuccess(res, { _id: req.user._id }, "Profile deleted");
 });

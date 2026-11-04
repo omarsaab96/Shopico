@@ -224,8 +224,8 @@ export const updateOrderDetails = async (id: string, payload: { notes?: string; 
   return res.data.data;
 };
 
-export const updateOrderStatus = async (id: string, status: string, paymentStatus?: string) => {
-  const res = await api.put<{ data: Order }>(`/orders/${id}/status`, { status, paymentStatus });
+export const updateOrderStatus = async (id: string, status: string, paymentStatus?: string, driverId?: string) => {
+  const res = await api.put<{ data: Order }>(`/orders/${id}/status`, { status, paymentStatus, driverId });
   return res.data.data;
 };
 

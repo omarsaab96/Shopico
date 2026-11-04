@@ -1,3 +1,4 @@
+import { useNotifications } from "../lib/notifications";
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
@@ -60,6 +61,7 @@ type Product = {
   variants?: { _id: string }[];
 };
 type SortOption = "relevance" | "priceAsc" | "priceDesc";
+type SkeletonProduct = { _id: string; __skeleton: true };
 type PriceFilter = "all" | "lt50k" | "lt100k" | "gte100k";
 type SavedAddress = { _id: string; address: string; label?: string; lat: number; lng: number; updatedAt?: string; createdAt?: string };
 type Branch = { _id: string; name: string; address: string; lat: number; lng: number };
@@ -81,6 +83,7 @@ type DriverDashboardOrder = {
 };
 
 export default function Home() {
+  const { unreadCount } = useNotifications();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -722,7 +725,7 @@ export default function Home() {
     };
   }, [driverOrders, profile, user]);
 
-  const skeletonProducts = useMemo(
+  const skeletonProducts = useMemo<SkeletonProduct[]>(
     () => Array.from({ length: 6 }, (_, i) => ({ _id: `skeleton-${i}`, __skeleton: true })),
     []
   );
@@ -755,9 +758,10 @@ export default function Home() {
 
   const renderTopBar = () => (
     <View style={styles.topBar}>
-      {/* <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/notifications")}>
+      <TouchableOpacity style={styles.iconBtn} accessibilityLabel={t("pushNotifications")} onPress={() => router.push("/notifications")}>
         <Feather name="bell" size={20} color={palette.text} />
-      </TouchableOpacity> */}
+        {unreadCount > 0 && <View style={{ position: "absolute", top: -4, right: -4, backgroundColor: "#dc2626", borderRadius: 10, minWidth: 18, paddingHorizontal: 3 }}><Text style={{ color: "#fff", fontSize: 10, textAlign: "center" }}>{unreadCount > 99 ? "99+" : unreadCount}</Text></View>}
+      </TouchableOpacity>
 
       <View style={styles.brandWrap}>
         <Image source={fallbackLogo} style={styles.brandLogo} />
@@ -1317,7 +1321,7 @@ export default function Home() {
                     <TouchableOpacity
                       style={styles.promoLinkBtn}
                       onPress={() => {
-                        Linking.openURL(announcement.link);
+                        if (announcement.link) void Linking.openURL(announcement.link);
                       }}
                     >
                       <Text style={styles.promoLinkText}>{t("view") ?? "View"}</Text>
@@ -1352,7 +1356,7 @@ export default function Home() {
 
               <View style={{ flex: 1, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: palette.background, borderWidth: 1, borderColor: palette.background }}>
 
-                <FlatList
+                <FlatList<Product | SkeletonProduct>
                   data={(refreshSkeleton || (loadingProducts && filteredAndSorted.length === 0)) ? skeletonProducts : filteredAndSorted}
                   numColumns={2}
                   showsVerticalScrollIndicator={false}
@@ -1392,7 +1396,7 @@ export default function Home() {
                   onEndReached={handleLoadMore}
                   onEndReachedThreshold={0.4}
                   renderItem={({ item, index }) => {
-                    if ((item as any).__skeleton) {
+                    if ("__skeleton" in item) {
                       return (
                         <View style={{ width: "48%" }}>
                           <View style={styles.productCard}>
@@ -1646,7 +1650,7 @@ export default function Home() {
                       {Array.from({ length: 3 }).map((_, index) => (
                         <View key={`address-skeleton-${index}`} style={styles.addressItem}>
                           <Skeleton width={140} height={16} colorScheme={isDark ? "dark" : "light"} />
-                          <Skeleton width={"100%"} height={14} colorScheme={isDark ? "dark" : "light"} />
+                          <Skeleton width={Math.max(100, windowWidth - 64)} height={14} colorScheme={isDark ? "dark" : "light"} />
                         </View>
                       ))}
                     </View>

@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from "react-native";
 import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
@@ -36,6 +37,13 @@ export default function PointsScreen() {
       setPoints(res.data.data.points || 0);
       setThreshold(res.data.data.rewardThreshold || 100);
     });
+  }, []);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("shopico:notification", () => {
+      void api.get("/points").then(res => { setPoints(res.data.data.points || 0); setThreshold(res.data.data.rewardThreshold || 100); }).catch(() => {});
+    });
+    return () => sub.remove();
   }, []);
 
   const progress = Math.min(1, points / threshold);

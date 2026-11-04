@@ -59,12 +59,13 @@ export const listOrdersAdmin = catchAsync(async (req, res) => {
 
 export const getOrder = catchAsync(async (req: AuthRequest, res) => {
   const isCustomer = req.user?.role === "customer";
-  const branchId = isCustomer ? undefined : req.branchId;
-  if (!isCustomer && !branchId) {
+  const isDriver = req.user?.role === "driver";
+  const branchId = isCustomer || isDriver ? undefined : req.branchId;
+  if (!isCustomer && !isDriver && !branchId) {
     return res.status(400).json({ success: false, message: "Branch access required" });
   }
-  const order = await getOrderById(req.params.id, isCustomer ? req.user!._id : undefined, branchId);
-  if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+  const order = await getOrderById(req.params.id, isCustomer ? req.user!._id : undefined, branchId, isDriver ? req.user!._id : undefined);
+  if (!order) return res.status(404).json({ success: false, code: isDriver ? "ORDER_NOT_ASSIGNED" : "ORDER_NOT_FOUND", message: isDriver ? "This order is no longer assigned to you" : "Order not found" });
   sendSuccess(res, order);
 });
 
@@ -85,7 +86,7 @@ export const estimateDelivery = catchAsync(async (req: AuthRequest, res) => {
 export const adminUpdateOrder = catchAsync(async (req, res) => {
   const payload = updateOrderStatusSchema.parse(req.body);
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
-  const order = await updateOrderStatus(req.params.id, payload.status, payload.paymentStatus, req.branchId);
+  const order = await updateOrderStatus(req.params.id, payload.status, payload.paymentStatus, req.branchId, payload.driverId);
   sendSuccess(res, order, "Order updated");
 });
 
@@ -105,7 +106,7 @@ export const adminUpdateOrderDetails = catchAsync(async (req, res) => {
 
 export const updateDriverLocation = catchAsync(async (req: AuthRequest, res) => {
   const payload = driverLocationSchema.parse(req.body);
-  const isPrivileged = ["admin", "manager", "staff", "driver"].includes(req.user?.role || "");
+  const isPrivileged = ["admin", "manager", "staff"].includes(req.user?.role || "");
   const order = await updateOrderDriverLocation(req.params.id, req.user!._id, payload.lat, payload.lng, isPrivileged);
   sendSuccess(res, order, "Driver location updated");
 });

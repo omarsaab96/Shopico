@@ -1,3 +1,4 @@
+import notificationRoutes from "./notification.routes";
 import { Router } from "express";
 import authRoutes from "./auth.routes";
 import categoryRoutes from "./category.routes";
@@ -23,6 +24,7 @@ router.use("/banners", bannerRoutes);
 
 router.get("/health", (_req, res) => res.json({ success: true, message: "OK" }));
 router.use("/auth", authRoutes);
+router.use("/notifications", notificationRoutes);
 router.use("/categories", categoryRoutes);
 router.use("/products", productRoutes);
 router.use("/cart", cartRoutes);

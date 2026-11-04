@@ -16,11 +16,18 @@ import {
 } from "../controllers/orderController";
 import { authenticate, authorize, requirePermissions } from "../middleware/auth";
 import { attachBranchContext, requireBranchContext } from "../middleware/branch";
+import { User } from "../models/User";
+import { catchAsync } from "../utils/catchAsync";
+import { sendSuccess } from "../utils/response";
 
 const router = Router();
 
 router.get("/", authenticate, attachBranchContext, listOrders);
 router.get("/driver", authenticate, authorize("driver"), listDriverOrders);
+router.get("/drivers", authenticate, authorize("admin", "manager", "staff"), requirePermissions("orders:view", "orders:update"), requireBranchContext, catchAsync(async (req, res) => {
+  const drivers = await User.find({ role: "driver", branchIds: req.branchId }).select("name driverStatus").sort({ name: 1 });
+  sendSuccess(res, drivers);
+}));
 router.get(
   "/admin",
   authenticate,

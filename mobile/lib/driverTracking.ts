@@ -16,7 +16,7 @@ const pushDriverLocation = async (orderId: string, coords: { latitude: number; l
   const token = await SecureStore.getItemAsync("accessToken");
   if (!token) return;
 
-  await axios.put(
+  try { await axios.put(
     `${apiBase}/orders/${orderId}/driver-location`,
     {
       lat: coords.latitude,
@@ -27,7 +27,10 @@ const pushDriverLocation = async (orderId: string, coords: { latitude: number; l
         Authorization: `Bearer ${token}`,
       },
     }
-  );
+  ); } catch (error: any) {
+    if ([400, 401, 403, 404].includes(error.response?.status)) await stopDriverBackgroundTracking(orderId);
+    throw error;
+  }
 };
 
 TaskManager.defineTask(DRIVER_LOCATION_TASK, async ({ data, error }) => {
@@ -79,7 +82,8 @@ export const startDriverBackgroundTracking = async (orderId: string) => {
   return { background: true };
 };
 
-export const stopDriverBackgroundTracking = async () => {
+export const stopDriverBackgroundTracking = async (orderId?: string) => {
+  if (orderId && await SecureStore.getItemAsync(ACTIVE_DRIVER_ORDER_KEY) !== orderId) return;
   await SecureStore.deleteItemAsync(ACTIVE_DRIVER_ORDER_KEY);
   const started = await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK);
   if (started) {

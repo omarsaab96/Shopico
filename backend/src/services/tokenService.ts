@@ -15,5 +15,9 @@ export const signRefreshToken = (user: IUser) => {
 };
 
 export const verifyRefreshToken = (token: string) => {
-  return jwt.verify(token, env.jwtRefreshSecret as Secret) as { sub: string };
+  try {
+    return jwt.verify(token, env.jwtRefreshSecret as Secret) as { sub: string };
+  } catch {
+    throw { status: 401, message: "Session expired. Please log in again" };
+  }
 };

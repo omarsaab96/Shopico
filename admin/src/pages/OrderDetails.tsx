@@ -1,4 +1,5 @@
 import OrderItems from "../components/OrderItems";
+import ShippingDriverModal from "../components/ShippingDriverModal";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Card from "../components/Card";
@@ -58,6 +59,8 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
   const [statusDraft, setStatusDraft] = useState("");
   const [driverSaving, setDriverSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [shippingRequired, setShippingRequired] = useState(false);
+  useEffect(() => { setShippingRequired(false); }, [id]);
   const [detailsError, setDetailsError] = useState("");
   const [detailsSuccess, setDetailsSuccess] = useState("");
   const [activePicker, setActivePicker] = useState<PickerType>(null);
@@ -73,6 +76,13 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
   const canViewUserBranches = canAny(...USER_BRANCHES_VIEW_PERMISSIONS);
   const canOpenUserDetails =
     canViewUsersPage && (canViewUserAbout || canViewUserLedger || canViewUserBranches);
+  useEffect(() => {
+    const refresh = (event: Event) => {
+      if ((event as CustomEvent).detail?.data?.orderId === id) void fetchOrderById(id).then(setOrder).catch(() => {});
+    };
+    window.addEventListener("shopico:notification", refresh);
+    return () => window.removeEventListener("shopico:notification", refresh);
+  }, [id]);
   const resolveCurrency = (currency?: Currency | string) => {
     const currencyId = typeof currency === "string" ? currency : currency?._id;
     const fromList = currencyId ? currencies.find((item) => item._id === currencyId) : undefined;
@@ -258,19 +268,27 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
     }
   };
 
-  const saveStatus = async (nextStatus: string) => {
-    if (!order || !canUpdateOrders) return;
+  const saveStatus = async (nextStatus: string, selectedDriverId?: string): Promise<boolean> => {
+    if (!order || !canUpdateOrders) return false;
+    if (nextStatus === "SHIPPING" && !driverId && !selectedDriverId) {
+      setStatusDraft(order.status);
+      setActivePicker(null);
+      setShippingRequired(true);
+      return false;
+    }
     setStatusSaving(true);
     setDetailsError("");
     setDetailsSuccess("");
     try {
-      await updateOrderStatus(order._id, nextStatus, order.paymentStatus);
+      await updateOrderStatus(order._id, nextStatus, order.paymentStatus, selectedDriverId);
       await refreshOrder(order._id);
       setDetailsSuccess(t("save") || "Saved");
+      return true;
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || "Failed to update order";
       setDetailsError(message);
       setStatusDraft(order.status);
+      return false;
     } finally {
       setStatusSaving(false);
     }
@@ -303,6 +321,11 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
 
   return (
     <div className="grid">
+      {shippingRequired && <ShippingDriverModal onCancel={() => { setShippingRequired(false); setStatusDraft(order.status); }} onConfirm={async selectedDriverId => {
+        const saved = await saveStatus("SHIPPING", selectedDriverId);
+        if (saved) setShippingRequired(false);
+        return saved;
+      }} />}
       {/* <Card
         title={t("orders.orderDetails")}
         subTitle={`#${order._id.slice(-6)}`}

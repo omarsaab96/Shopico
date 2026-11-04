@@ -1,3 +1,4 @@
+import { notificationOutbox } from "../notifications/outbox";
 import mongoose, { Document, Schema } from "mongoose";
 
 export interface IWalletTransaction extends Document {
@@ -25,5 +26,7 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>(
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
+
+notificationOutbox(WalletTransactionSchema, "wallet");
 
 export const WalletTransaction = mongoose.model<IWalletTransaction>("WalletTransaction", WalletTransactionSchema);

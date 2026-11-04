@@ -3015,3 +3015,21 @@ html[dir="rtl"] .unassignLabel {
 .order-refund-preview { display: grid; gap: 8px; margin: 12px 0; padding: 12px; border-radius: 8px; background: var(--bg-card); }
 .order-refund-history { margin-top: 20px; }
 .order-refund-history-row { display: flex; flex-wrap: wrap; gap: 10px 20px; padding: 12px 0; border-bottom: 1px solid var(--gray-300); font-size: 13px; }
+
+.notification-root { position: relative; }
+.shipping-driver-dialog { width: min(440px, calc(100vw - 40px)); padding: 24px; border: 1px solid var(--gray-300); border-radius: 16px; background: var(--bg-card); color: var(--text-primary); box-shadow: 0 20px 80px #0004; }
+.shipping-driver-dialog::backdrop { background: #0007; }
+.shipping-driver-dialog h2 { margin-top: 0; }
+.shipping-driver-dialog p { line-height: 1.6; }
+.shipping-driver-dialog label { display: flex; flex-direction: column; gap: 8px; }
+.shipping-driver-dialog select { width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; background: var(--bg-card); color: inherit; }
+.shipping-driver-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.notification-badge { background: #dc2626; color: #fff; border-radius: 20px; padding: 2px 7px; font-size: 12px; }
+.notification-panel { position: absolute; inset-inline-start: 0; top: 48px; width: min(390px, 90vw); z-index: 1500; background: var(--bg-card, #fff); color: var(--text-primary, #172033); border: 1px solid var(--gray-300, #ddd); border-radius: 14px; box-shadow: 0 14px 45px #0003; padding: 14px; }
+.notification-heading, .notification-controls { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.notification-controls { font-size: 12px; }
+.notification-list { max-height: 55vh; overflow-y: auto; }
+.notification-item { display: flex; flex-direction: column; gap: 6px; text-align: start; width: 100%; border: 0; border-bottom: 1px solid var(--gray-300, #ddd); padding: 14px 10px; background: transparent; color: inherit; cursor: pointer; }
+.notification-item.unread { background: #f9731614; border-inline-start: 3px solid #f97316; }
+.notification-item small { opacity: .6; }
+.notification-toast { position: fixed; bottom: 24px; inset-inline-end: 24px; width: min(380px, 90vw); display: flex; z-index: 1600; background: var(--bg-card, #fff); color: var(--text-primary, #172033); border: 1px solid #f97316; border-radius: 12px; box-shadow: 0 10px 35px #0003; padding: 6px; }

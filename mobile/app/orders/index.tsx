@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from "react-native";
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -89,6 +90,11 @@ export default function Orders() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("shopico:notification", () => { void loadSilently(); });
+    return () => sub.remove();
+  }, [loadSilently]);
 
   const startPolling = useCallback(() => {
     if (pollRef.current) return;

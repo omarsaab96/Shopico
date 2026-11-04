@@ -1,3 +1,4 @@
+import Notifications from "./Notifications";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -78,6 +79,7 @@ const Layout = () => {
       </aside>
       <main className="content">
         <header className="topbar">
+          <Notifications />
           {/* <Link to="/" className="muted">
             Home
           </Link> */}

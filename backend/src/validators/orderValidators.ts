@@ -29,6 +29,7 @@ export const deliveryEstimateSchema = z.object({
 export const updateOrderStatusSchema = z.object({
   status: z.enum(["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"]),
   paymentStatus: z.enum(["PENDING", "CONFIRMED"]).optional(),
+  driverId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
 });
 
 export const updateOrderDetailsSchema = z.object({

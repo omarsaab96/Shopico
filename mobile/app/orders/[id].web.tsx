@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
@@ -32,6 +33,13 @@ export default function OrderDetailWeb() {
 
     return `${item?.product?.name ?? "item"}-${item?.price ?? 0}-${item?.quantity ?? 0}-${index}`;
   };
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("shopico:notification", () => {
+      if (orderId) void api.get(`/orders/${orderId}`).then(res => setOrder(res.data.data || {})).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [orderId]);
 
   useEffect(() => {
     if (!orderId) return;

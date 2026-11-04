@@ -7,6 +7,10 @@ type Lang = "en" | "ar";
 const I18N_STORAGE_KEY = "app-language";
 
 const baseStrings = {
+  driverOrderCancelled: "This order has been cancelled.",
+  driverOrderUnassigned: "This order is no longer assigned to you.",
+  driverTrackingPermission: "The order is now shipping. Allow location access to enable tracking.",
+  driverOrderCompleted: "Completed",
   refundedQuantity: "Refunded quantity",
   needSupport: "Need support?",
   supportUnavailable: "Support is currently unavailable. Please try again later.",
@@ -240,6 +244,10 @@ const baseStrings = {
 };
 
 const arStrings: Record<string, string> = {
+  driverOrderCancelled: "تم إلغاء هذا الطلب.",
+  driverOrderUnassigned: "هذا الطلب لم يعد مسنداً إليك.",
+  driverTrackingPermission: "حالة الطلب الآن قيد الشحن. اسمح بالموقع لتفعيل التتبع.",
+  driverOrderCompleted: "مكتمل",
   refundedQuantity: "الكمية المستردة",
   needSupport: "بحاجة للمساعدة؟",
   supportUnavailable: "الدعم غير متاح حالياً. يُرجى المحاولة مرة أخرى لاحقاً.",

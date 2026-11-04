@@ -1,12 +1,22 @@
+import { useNotifications } from "../lib/notifications";
 import { useMemo, useState } from "react";
-import { View, StyleSheet, Switch, TouchableOpacity } from "react-native";
+import { View, StyleSheet, Switch, TouchableOpacity, Alert, Linking } from "react-native";
 import Screen from "../components/Screen";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import Text from "../components/Text";
+import { useRouter } from "expo-router";
 
 export default function SettingsScreen() {
-  const [notifications, setNotifications] = useState(true);
+  const router = useRouter();
+  const { pushEnabled, promotionsEnabled, pushStatus, setPreference, enablePush } = useNotifications();
+  const [saving, setSaving] = useState(false);
+  const change = async (name: "pushEnabled" | "promotionsEnabled", enabled: boolean) => {
+    setSaving(true);
+    try { await setPreference(name, enabled); }
+    catch { Alert.alert(lang === "ar" ? "تعذر حفظ الإعدادات" : "Could not save preferences"); }
+    finally { setSaving(false); }
+  };
   const { palette } = useTheme();
   const { lang, setLang, t, isRTL } = useI18n();
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
@@ -17,8 +27,14 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <View style={styles.row}>
           <Text style={styles.muted}>{t("pushNotifications")}</Text>
-          <Switch value={notifications} onValueChange={setNotifications} />
+          <Switch disabled={saving} value={pushEnabled} onValueChange={value => void change("pushEnabled", value)} />
         </View>
+      </View>
+      <View style={styles.card}>
+        <View style={styles.row}><Text style={styles.muted}>{lang === "ar" ? "العروض والإعلانات" : "Promotions and announcements"}</Text><Switch disabled={saving} value={promotionsEnabled} onValueChange={value => void change("promotionsEnabled", value)} /></View>
+        {pushEnabled && pushStatus === "permission-required" && <TouchableOpacity onPress={() => void Linking.openSettings()}><Text style={styles.muted}>{lang === "ar" ? "اسمح بالإشعارات في إعدادات الجهاز" : "Allow notifications in device settings"}</Text></TouchableOpacity>}
+        {pushEnabled && ["error", "device-required", "build-required"].includes(pushStatus) && <TouchableOpacity onPress={() => void enablePush().catch(() => Alert.alert(lang === "ar" ? "تعذر تفعيل الإشعارات" : "Could not enable push notifications"))}><Text style={styles.muted}>{pushStatus === "error" ? (lang === "ar" ? "إعادة محاولة تفعيل الإشعارات" : "Retry enabling notifications") : (lang === "ar" ? "إشعارات الدفع متاحة في نسخة التطبيق المثبتة على جهاز حقيقي" : "Push notifications require an installed build on a physical device")}</Text></TouchableOpacity>}
+        <TouchableOpacity onPress={() => router.push("/notifications")}><Text style={styles.muted}>{lang === "ar" ? "عرض الإشعارات" : "View notifications"}</Text></TouchableOpacity>
       </View>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t("language")}</Text>

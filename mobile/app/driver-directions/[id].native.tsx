@@ -1,3 +1,4 @@
+import { AppState, DeviceEventEmitter, Alert } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, StyleSheet, TouchableOpacity, View } from "react-native";
@@ -93,15 +94,33 @@ export default function DriverDirections() {
   const lastRouteOriginRef = useRef<Coordinate | null>(null);
   const lastRouteRefreshRef = useRef(0);
 
+  const [accessMessage, setAccessMessage] = useState("");
+  const loadOrder = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await api.get(`/orders/${id}`);
+      setOrder(res.data.data);
+      if (res.data.data.status === "CANCELLED") {
+        setAccessMessage(t("driverOrderCancelled"));
+        await stopDriverBackgroundTracking(id).catch(() => {});
+      } else {
+        setAccessMessage("");
+        if (res.data.data.status === "DELIVERED") await stopDriverBackgroundTracking(id).catch(() => {});
+      }
+    } catch (error: any) {
+      if ([403, 404].includes(error.response?.status)) {
+        setOrder(null); setAccessMessage(t("driverOrderUnassigned"));
+        await stopDriverBackgroundTracking(id).catch(() => {});
+      }
+    }
+  }, [id, t]);
   useEffect(() => {
-    api
-      .get("/orders/driver")
-      .then((res) => {
-        const list: DriverOrder[] = res.data.data || [];
-        setOrder(list.find((item) => item._id === id) || null);
-      })
-      .catch(() => setOrder(null));
-  }, [id]);
+    void loadOrder();
+    const notification = DeviceEventEmitter.addListener("shopico:notification", () => { void loadOrder(); });
+    const appState = AppState.addEventListener("change", state => { if (state === "active") void loadOrder(); });
+    const timer = setInterval(() => { if (AppState.currentState === "active") void loadOrder(); }, 15000);
+    return () => { notification.remove(); appState.remove(); clearInterval(timer); };
+  }, [loadOrder]);
 
   const destination = useMemo(() => {
     const addressRef = typeof order?.addressRef === "object" && order.addressRef ? order.addressRef : null;
@@ -217,11 +236,16 @@ export default function DriverDirections() {
     setStartingDelivery(true);
     try {
       await api.put(`/orders/${id}/driver-status`, { status: "SHIPPING" });
-      await startDriverBackgroundTracking(id);
+      setOrder(current => current ? { ...current, status: "SHIPPING" } : current);
+      DeviceEventEmitter.emit("shopico:notification");
+      try { await startDriverBackgroundTracking(id); }
+      catch { Alert.alert(t("startDelivery"), t("driverTrackingPermission")); }
       if (origin) {
         syncDriverLocation(origin);
       }
       setOrder((current) => current ? { ...current, status: "SHIPPING" } : current);
+    } catch (error: any) {
+      await loadOrder(); Alert.alert(t("networkError"), error.response?.data?.message || error.message);
     } finally {
       setStartingDelivery(false);
     }
@@ -232,8 +256,12 @@ export default function DriverDirections() {
     setDelivering(true);
     try {
       await api.put(`/orders/${id}/driver-status`, { status: "DELIVERED" });
-      await stopDriverBackgroundTracking();
+      setOrder(current => current ? { ...current, status: "DELIVERED" } : current);
+      DeviceEventEmitter.emit("shopico:notification");
+      await stopDriverBackgroundTracking(id);
       router.back();
+    } catch (error: any) {
+      await loadOrder(); Alert.alert(t("networkError"), error.response?.data?.message || error.message);
     } finally {
       setDelivering(false);
     }
@@ -251,6 +279,7 @@ export default function DriverDirections() {
 
   return (
     <View style={styles.root}>
+      {accessMessage ? <View accessibilityRole="alert" style={{ position: "absolute", top: 90, left: 16, right: 16, zIndex: 100, padding: 18, borderRadius: 12, backgroundColor: palette.card }}><Text style={{ color: "#dc2626", fontWeight: "700" }}>{accessMessage}</Text></View> : null}
       <MapView
         ref={mapRef}
         style={styles.map}

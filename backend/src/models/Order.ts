@@ -1,3 +1,4 @@
+import { notificationOutbox } from "../notifications/outbox";
 import mongoose, { Document, Schema, Types } from "mongoose";
 import { OrderStatus, PaymentMethod } from "../types";
 
@@ -21,6 +22,7 @@ export interface IOrderRefund {
   primaryCurrency?: Types.ObjectId | string;
   settlementStatus: "PENDING" | "COMPLETED";
   cancelledOrder?: boolean;
+  notificationSent?: boolean;
   actor: Types.ObjectId | string;
   at: Date;
 }
@@ -120,6 +122,7 @@ const OrderSchema = new Schema<IOrder>(
       primaryCurrency: { type: Schema.Types.ObjectId, ref: "Currency" },
       settlementStatus: { type: String, enum: ["PENDING", "COMPLETED"], default: "COMPLETED" },
       cancelledOrder: { type: Boolean, default: false },
+      notificationSent: { type: Boolean, default: false },
       actor: { type: Schema.Types.ObjectId, ref: "User", required: true },
       at: { type: Date, default: Date.now },
     }, { _id: false })], default: [] },
@@ -150,5 +153,7 @@ const OrderSchema = new Schema<IOrder>(
 );
 
 OrderSchema.index({ "refunds.settlementStatus": 1 });
+
+notificationOutbox(OrderSchema, "order");
 
 export const Order = mongoose.model<IOrder>("Order", OrderSchema);
