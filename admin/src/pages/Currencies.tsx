@@ -80,7 +80,8 @@ const CurrenciesPage = () => {
   };
 
   const openNewModal = () => {
-    if (!canManage) return;
+    if (!canManage || saving) return;
+    cancelEdit();
     setDraft({ ...emptyDraft, isPrimary: currencies.length === 0 });
     setError("");
     setShowNewModal(true);
@@ -109,6 +110,8 @@ const CurrenciesPage = () => {
   };
 
   const startEdit = (currency: Currency) => {
+    if (!canManage) return;
+    setShowNewModal(false);
     setEditingId(currency._id);
     setEditDraft(currency);
     setError("");
@@ -165,6 +168,10 @@ const CurrenciesPage = () => {
     const primarySymbol = primary ? getCurrencySymbol(primary, lang, t) : t("primaryCurrency") || "Primary";
     return `1 ${symbol} = ${currency.exchangeRate.toLocaleString()} ${primarySymbol}`;
   };
+
+  const modalDraft = editingId ? editDraft : draft;
+  const setModalDraft = editingId ? setEditDraft : setDraft;
+  const closeEditor = () => { if (saving) return; cancelEdit(); closeNewModal(); };
 
   return (
     <>
@@ -228,48 +235,17 @@ const CurrenciesPage = () => {
               currencies.map((currency) => (
                 <tr key={currency._id} className="productRow">
                   <td>
-                    {editingId === currency._id ? (
-                      <div className="flex">
-                        <input
-                          value={editDraft.symbol?.en || ""}
-                          placeholder={t("symbolEn") || "English symbol"}
-                          onChange={(e) => setEditDraft({ ...editDraft, symbol: { ...editDraft.symbol, en: e.target.value } })}
-                        />
-                        <input
-                          value={editDraft.symbol?.ar || ""}
-                          placeholder={t("symbolAr") || "Arabic symbol"}
-                          onChange={(e) => setEditDraft({ ...editDraft, symbol: { en: editDraft.symbol?.en || "", ar: e.target.value } })}
-                        />
-                      </div>
-                    ) : (
+                    {(
                       getCurrencySymbol(currency, lang, t) || "-"
                     )}
                   </td>
                   <td>
-                    {editingId === currency._id && !currency.isPrimary ? (
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.0001"
-                        value={editDraft.exchangeRate ?? ""}
-                        onChange={(e) => setEditDraft({ ...editDraft, exchangeRate: Number(e.target.value) })}
-                      />
-                    ) : (
+                    {(
                       renderRate(currency)
                     )}
                   </td>
                   <td>
-                    {editingId === currency._id ? (
-                      <div className="checkboxContainer">
-                        <input
-                          id={`currencyPrimary${currency._id}`}
-                          type="checkbox"
-                          checked={Boolean(editDraft.isPrimary)}
-                          onChange={(e) => setEditDraft({ ...editDraft, isPrimary: e.target.checked })}
-                        />
-                        <label htmlFor={`currencyPrimary${currency._id}`}></label>
-                      </div>
-                    ) : currency.isPrimary ? (
+                    {currency.isPrimary ? (
                       t("yes") || "Yes"
                     ) : canManage ? (
                       <button className="ghost-btn" type="button" onClick={() => setPrimary(currency)}>
@@ -280,33 +256,14 @@ const CurrenciesPage = () => {
                     )}
                   </td>
                   <td>
-                    {editingId === currency._id && !currency.isPrimary ? (
-                      <div className="checkboxContainer">
-                        <input
-                          id={`currencyActive${currency._id}`}
-                          type="checkbox"
-                          checked={editDraft.isActive !== false}
-                          onChange={(e) => setEditDraft({ ...editDraft, isActive: e.target.checked })}
-                        />
-                        <label htmlFor={`currencyActive${currency._id}`}></label>
-                      </div>
-                    ) : currency.isActive ? (
+                    {currency.isActive ? (
                       t("yes") || "Yes"
                     ) : (
                       t("no") || "No"
                     )}
                   </td>
                   <td>
-                    {editingId === currency._id ? (
-                      <div className="flex">
-                        <button className="primary" type="button" onClick={saveEdit} disabled={saving}>
-                          {t("save")}
-                        </button>
-                        <button className="ghost-btn" type="button" onClick={cancelEdit} disabled={saving}>
-                          {t("cancel")}
-                        </button>
-                      </div>
-                    ) : canManage ? (
+                    {canManage ? (
                       <div className="flex">
                         <button className="primary" type="button" onClick={() => startEdit(currency)}>
                           {t("edit")}
@@ -331,28 +288,29 @@ const CurrenciesPage = () => {
         </table>
       </Card>
 
-      {showNewModal && canManage && (
-        <div className="modal-backdrop" onClick={closeNewModal}>
+      {(showNewModal || editingId) && canManage && (
+        <div className="modal-backdrop" onClick={closeEditor}>
           <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{t("newCurrency") || "New currency"}</div>
-              <button className="ghost-btn" type="button" onClick={closeNewModal}>
+              <div className="modal-title">{t(editingId ? "editCurrency" : "newCurrency") || "New currency"}</div>
+              <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving}>
                 {t("close")}
               </button>
             </div>
-            <form className="form" onSubmit={submitNew}>
+            <form className="form" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submitNew}>
               <label>
                 {t("symbolEn") || "English symbol"}
                 <input
-                  value={draft.symbol?.en || ""}
-                  onChange={(e) => setDraft({ ...draft, symbol: { ...draft.symbol, en: e.target.value } })}
+                  autoFocus
+                  value={modalDraft.symbol?.en || ""}
+                  onChange={(e) => setModalDraft({ ...modalDraft, symbol: { ...modalDraft.symbol, en: e.target.value } })}
                 />
               </label>
               <label>
                 {t("symbolAr") || "Arabic symbol"}
                 <input
-                  value={draft.symbol?.ar || ""}
-                  onChange={(e) => setDraft({ ...draft, symbol: { en: draft.symbol?.en || "", ar: e.target.value } })}
+                  value={modalDraft.symbol?.ar || ""}
+                  onChange={(e) => setModalDraft({ ...modalDraft, symbol: { en: modalDraft.symbol?.en || "", ar: e.target.value } })}
                 />
               </label>
               <label>
@@ -361,17 +319,17 @@ const CurrenciesPage = () => {
                   type="number"
                   min="0"
                   step="0.0001"
-                  value={draft.exchangeRate ?? ""}
-                  onChange={(e) => setDraft({ ...draft, exchangeRate: Number(e.target.value) })}
-                  disabled={Boolean(draft.isPrimary)}
+                  value={modalDraft.exchangeRate ?? ""}
+                  onChange={(e) => setModalDraft({ ...modalDraft, exchangeRate: Number(e.target.value) })}
+                  disabled={Boolean(modalDraft.isPrimary)}
                 />
               </label>
               <div className="checkboxContainer">
                 <input
                   id="newCurrencyPrimary"
                   type="checkbox"
-                  checked={Boolean(draft.isPrimary)}
-                  onChange={(e) => setDraft({ ...draft, isPrimary: e.target.checked, exchangeRate: e.target.checked ? 1 : draft.exchangeRate })}
+                  checked={Boolean(modalDraft.isPrimary)}
+                  onChange={(e) => setModalDraft({ ...modalDraft, isPrimary: e.target.checked, exchangeRate: e.target.checked ? 1 : modalDraft.exchangeRate })}
                 />
                 <label htmlFor="newCurrencyPrimary">{t("primaryCurrency") || "Primary"}</label>
               </div>
@@ -379,22 +337,23 @@ const CurrenciesPage = () => {
                 <input
                   id="newCurrencyActive"
                   type="checkbox"
-                  checked={draft.isActive !== false}
-                  onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })}
-                  disabled={Boolean(draft.isPrimary)}
+                  checked={modalDraft.isActive !== false}
+                  onChange={(e) => setModalDraft({ ...modalDraft, isActive: e.target.checked })}
+                  disabled={Boolean(modalDraft.isPrimary)}
                 />
                 <label htmlFor="newCurrencyActive">{t("active")}</label>
               </div>
               {error && <div className="error">{error}</div>}
-              <div className="modal-actions">
-                <button className="ghost-btn" type="button" onClick={closeNewModal} disabled={saving}>
-                  {t("cancel")}
-                </button>
-                <button className="primary" type="submit" disabled={saving}>
-                  {saving ? (t("saving") || "Saving...") : t("save")}
-                </button>
-              </div>
+
             </form>
+            <div className="modal-actions">
+              <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving}>
+                {t("cancel")}
+              </button>
+              <button className="primary" type="submit" disabled={saving}>
+                {saving ? (t("saving") || "Saving...") : t("save")}
+              </button>
+            </div>
           </ModalSurface>
         </div>
       )}

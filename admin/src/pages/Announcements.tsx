@@ -49,6 +49,7 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
   const deleteItem = banners ? deleteBanner : deleteAnnouncement;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [draft, setDraft] = useState<AnnouncementDraft>({});
+  const [saving, setSaving] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
   const [uploadingNew, setUploadingNew] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -102,7 +103,8 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
   };
 
   const openNewModal = () => {
-    if (!canManage) return;
+    if (!canManage || saving) return;
+    cancelEdit();
     const defaults = getDefaultDates();
     setDraft({ ...defaults, isEnabled: true });
     setFormError("");
@@ -168,8 +170,10 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     if (!canManage || uploadingNew) return;
     if (banners && !draft.image) { setFormError(t("bannerImageRequired")); return; }
+    setSaving(true);
     try {
       const payload = {
         ...draft,
@@ -185,11 +189,12 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Create failed";
       setFormError(msg);
-    }
+    } finally { setSaving(false); }
   };
 
   const startEdit = (announcement: Announcement) => {
     if (!canManage) return;
+    setShowNewModal(false);
     setEditingId(announcement._id);
     setEditDraft({
       ...announcement,
@@ -200,9 +205,11 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
   };
 
   const saveEdit = async () => {
+    if (saving) return;
     if (!editingId || editUploadingId) return;
     if (banners && !editDraft.image) { setEditError(t("bannerImageRequired")); return; }
     if (!canManage) return;
+    setSaving(true);
     try {
       const payload = {
         ...editDraft,
@@ -218,7 +225,7 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Update failed";
       setEditError(msg);
-    }
+    } finally { setSaving(false); }
   };
 
   const cancelEdit = () => {
@@ -235,6 +242,12 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
     if (!(await confirmDelete(t))) return;
     setEditDraft((prev) => ({ ...prev, image: undefined }));
   };
+
+  const modalDraft = editingId ? editDraft : draft;
+  const setModalDraft = editingId ? setEditDraft : setDraft;
+  const modalError = editingId ? editError : formError;
+  const modalUploading = editingId ? editUploadingId === editingId : uploadingNew;
+  const closeEditor = () => { if (saving || modalUploading) return; cancelEdit(); closeNewModal(); };
 
   return (
     <>
@@ -326,47 +339,7 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
               announcements.map((announcement) => (
                 <tr key={announcement._id} className="productRow">
                   <td className="prodImgCell">
-                    {editingId === announcement._id ? (
-                      <div className="thumb-row">
-                        {editDraft.image?.url ? (
-                          <div className="listImage">
-                            <img src={editDraft.image.url} alt="" />
-                            <button type="button" className="removeImageBtn" onClick={removeEditImage}>
-                              <img src="deleteIcon.png" alt="" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="defaultImage">
-                            <img src="announcementIcon.png" alt="" className="medium" />
-                          </div>
-                        )}
-                        <div className="uploadDiv" style={{ marginBottom: 10 }}>
-                          <label htmlFor={`promoImg${announcement._id}`} className="uploadBtn">
-                            {editUploadingId === announcement._id ?
-                              <img src="loading.gif" className="noFilter" />
-                              :
-                              editDraft.image?.url ?
-                                <img src="editIcon.png" />
-                                :
-                                <img src="plusIcon.png" />
-                            }
-                          </label>
-                          <input
-                            id={`promoImg${announcement._id}`}
-                            type="file"
-                            accept="image/*"
-                            className="uploadForm"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                setImageEditor({ file, target: "edit", announcementId: announcement._id });
-                              }
-                            }}
-                            disabled={editUploadingId === announcement._id || !canUpload}
-                          />
-                        </div>
-                      </div>
-                    ) : announcement.image?.url ? (
+                    {announcement.image?.url ? (
                       <div className="listImage">
                         <img src={announcement.image.url} alt="" />
                       </div>
@@ -377,35 +350,17 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                     )}
                   </td>
                   <td>
-                    {editingId === announcement._id ? (
-                      <input
-                        value={editDraft.title || ""}
-                        onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
-                        placeholder={t("announcements.optional")}
-                      />
-                    ) : (
+                    {(
                       announcement.title || "-"
                     )}
                   </td>
                   <td>
-                    {editingId === announcement._id ? (
-                      <input
-                        value={editDraft.description || ""}
-                        onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
-                        placeholder={t("announcements.optional")}
-                      />
-                    ) : (
+                    {(
                       announcement.description || "-"
                     )}
                   </td>
                   <td>
-                    {editingId === announcement._id ? (
-                      <input
-                        value={editDraft.link || ""}
-                        onChange={(e) => setEditDraft({ ...editDraft, link: e.target.value })}
-                        placeholder="https://..."
-                      />
-                    ) : announcement.link ? (
+                    {announcement.link ? (
                       <a href={announcement.link} target="_blank" rel="noreferrer">
                         {announcement.link}
                       </a>
@@ -414,72 +369,26 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                     )}
                   </td>
                   <td>
-                    {editingId === announcement._id ? (
-                      <DatePicker
-                        className="filter-input date-picker"
-                        selected={toDate(editDraft.startsAt)}
-                        onChange={(date: Date | null) => setEditDraft({ ...editDraft, startsAt: date || undefined })}
-                        showTimeInput
-                        timeFormat="HH:mm"
-                        timeIntervals={15}
-                        dateFormat="MM/dd/yyyy h:mm aa"
-                        isClearable
-                      />
-                    ) : announcement.startsAt ? (
+                    {announcement.startsAt ? (
                       new Date(announcement.startsAt).toLocaleString()
                     ) : (
                       "-"
                     )}
                   </td>
                   <td>
-                    {editingId === announcement._id ? (
-                      <DatePicker
-                        className="filter-input date-picker"
-                        selected={toDate(editDraft.endsAt)}
-                        onChange={(date: Date | null) => setEditDraft({ ...editDraft, endsAt: date || undefined })}
-                        showTimeInput
-                        timeFormat="HH:mm"
-                        timeIntervals={15}
-                        dateFormat="MM/dd/yyyy h:mm aa"
-                        isClearable
-                      />
-                    ) : announcement.endsAt ? (
+                    {announcement.endsAt ? (
                       new Date(announcement.endsAt).toLocaleString()
                     ) : (
                       "-"
                     )}
                   </td>
                   <td>
-                    {editingId === announcement._id ? (
-                      <div className="checkboxContainer">
-                        <input
-                          id={`editCheckbox${announcement._id}`}
-                          type="checkbox"
-                          checked={Boolean(editDraft.isEnabled)}
-                          onChange={(e) => setEditDraft({ ...editDraft, isEnabled: e.target.checked })}
-                        />
-                        <label htmlFor={`editCheckbox${announcement._id}`}></label>
-                      </div>
-
-                    ) : (
+                    {(
                       announcement.isEnabled ? (t("yes") || "Yes") : (t("no") || "No")
                     )}
                   </td>
                   <td>
-                    {editingId === announcement._id ? (
-                      <div className="flex">
-                        <button className="primary" onClick={saveEdit}>
-                          {t("save")}
-                        </button>
-                        <button className="ghost-btn" onClick={cancelEdit}>
-                          {t("cancel")}
-                        </button>
-                        <button className="ghost-btn danger" onClick={async () => (await confirmDelete(t)) && deleteItem(announcement._id).then(() => load(getFilterParams()))}>
-                          {t("delete")}
-                        </button>
-                        {editError && <div className="error">{editError}</div>}
-                      </div>
-                    ) : canManage ? (
+                    {canManage ? (
                       <div className="flex">
                         <button className="primary" onClick={() => startEdit(announcement)}>
                           {t("edit")}
@@ -507,29 +416,29 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
         />
       )}
 
-      {showNewModal && canManage && (
-        <div className="modal-backdrop" onClick={closeNewModal}>
+      {(showNewModal || editingId) && canManage && (
+        <div className="modal-backdrop" onClick={closeEditor}>
           <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{t(banners ? "newBanner" : "newAnnouncement") || "New Announcement"}</div>
-              <button className="ghost-btn" type="button" onClick={closeNewModal}>
+              <div className="modal-title">{t(banners ? (editingId ? "editBanner" : "newBanner") : (editingId ? "editAnnouncement" : "newAnnouncement")) || "New Announcement"}</div>
+              <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving || modalUploading}>
                 {t("close")}
               </button>
             </div>
-            <form className="form productRow" onSubmit={submit}>
+            <form className="form productRow" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
               <label>
                 {t("title") || "Title"}
-                <input value={draft.title || ""} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+                <input autoFocus value={modalDraft.title || ""} onChange={(e) => setModalDraft({ ...modalDraft, title: e.target.value })} />
               </label>
 
               <label>
                 {t("description")}
-                <input value={draft.description || ""} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+                <input value={modalDraft.description || ""} onChange={(e) => setModalDraft({ ...modalDraft, description: e.target.value })} />
               </label>
 
               <label>
                 {t("link") || "Link"}
-                <input value={draft.link || ""} onChange={(e) => setDraft({ ...draft, link: e.target.value })} placeholder="https://..." />
+                <input value={modalDraft.link || ""} onChange={(e) => setModalDraft({ ...modalDraft, link: e.target.value })} placeholder="https://..." />
               </label>
 
               <div style={{ display: 'flex', gap: '20px' }}>
@@ -537,8 +446,8 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                   {t("from") || "From"}
                   <DatePicker
                     className="filter-input date-picker"
-                    selected={toDate(draft.startsAt)}
-                    onChange={(date: Date | null) => setDraft({ ...draft, startsAt: date || undefined })}
+                    selected={toDate(modalDraft.startsAt)}
+                    onChange={(date: Date | null) => setModalDraft({ ...modalDraft, startsAt: date || undefined })}
                     showTimeInput
                     timeFormat="HH:mm"
                     timeIntervals={15}
@@ -551,8 +460,8 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                   {t("till") || "Till"}
                   <DatePicker
                     className="filter-input date-picker"
-                    selected={toDate(draft.endsAt)}
-                    onChange={(date: Date | null) => setDraft({ ...draft, endsAt: date || undefined })}
+                    selected={toDate(modalDraft.endsAt)}
+                    onChange={(date: Date | null) => setModalDraft({ ...modalDraft, endsAt: date || undefined })}
                     showTimeInput
                     timeFormat="HH:mm"
                     timeIntervals={15}
@@ -566,8 +475,8 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                 <input
                   id="isEnabled"
                   type="checkbox"
-                  checked={Boolean(draft.isEnabled)}
-                  onChange={(e) => setDraft({ ...draft, isEnabled: e.target.checked })}
+                  checked={Boolean(modalDraft.isEnabled)}
+                  onChange={(e) => setModalDraft({ ...modalDraft, isEnabled: e.target.checked })}
                 />
                 <label htmlFor="isEnabled">
                   {t("enabled") || "Enabled"}
@@ -578,10 +487,10 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                 {t("image")}
               </label>
               <div className="thumb-row prodImgCell">
-                {draft.image?.url ? (
+                {modalDraft.image?.url ? (
                   <div className="thumb listImage newThumb">
-                    <img src={draft.image.url} alt="" />
-                    <button type="button" className="removeImageBtn" onClick={removeNewImage}>
+                    <img src={modalDraft.image.url} alt="" />
+                    <button type="button" className="removeImageBtn" onClick={editingId ? removeEditImage : removeNewImage}>
                       <img src="deleteIcon.png" alt="" />
                     </button>
                   </div>
@@ -593,10 +502,10 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
 
                 <div className="uploadDiv">
                   <label htmlFor="promoImgUpload" className="uploadBtn">
-                    {uploadingNew ?
+                    {modalUploading ?
                       <img src="loading.gif" className="noFilter" />
                       :
-                      draft.image?.url ?
+                      modalDraft.image?.url ?
                         <img src="editIcon.png" />
                         :
                         <img src="plusIcon.png" />
@@ -609,24 +518,25 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                     className="uploadForm"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) setImageEditor({ file, target: "new" });
+                      if (file) setImageEditor({ file, target: editingId ? "edit" : "new", announcementId: editingId || undefined });
                     }}
-                    disabled={uploadingNew || !canUpload}
+                    disabled={modalUploading || !canUpload}
                   />
                 </div>
               </div>
-              {formError && <div className="error">{formError}</div>}
-              <div className="modal-actions">
-                <button className="ghost-btn" type="button" onClick={closeNewModal}>
+              {modalError && <div className="error" role="alert">{modalError}</div>}
+              
+            </form>
+            <div className="modal-actions">
+                <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving || modalUploading}>
                   {t("cancel")}
                 </button>
                 {canManage && (
-                  <button className="primary" type="submit">
-                    {t("save")}
+                  <button className="primary" type="submit" disabled={saving || modalUploading}>
+                    {t(saving ? "saving" : "save")}
                   </button>
                 )}
               </div>
-            </form>
           </ModalSurface>
         </div>
       )}

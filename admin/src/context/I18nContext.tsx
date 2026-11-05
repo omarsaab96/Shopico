@@ -4,6 +4,11 @@ type Language = "en" | "ar";
 
 const translations: Record<Language, Record<string, string>> = {
   en: {
+    editBanner: "Edit home banner",
+    editAnnouncement: "Edit announcement",
+    editCoupon: "Edit coupon",
+    editBranch: "Edit branch",
+    editCurrency: "Edit currency",
     errorTitle: "Something went wrong",
     editCategory: "Edit category",
     confirmUnpublishWithoutImages: "Unpublish all products without images in the selected branch? This applies to the entire branch, including products outside your current filters.",
@@ -97,6 +102,7 @@ const translations: Record<Language, Record<string, string>> = {
     inactive: "Inactive",
     images: "Images",
     image: "Image",
+    id: "ID",
     name: "Name",
     description: "Description",
     category: "Category",
@@ -371,6 +377,11 @@ const translations: Record<Language, Record<string, string>> = {
   },
 
   ar: {
+    editBanner: "تعديل بانر الصفحة الرئيسية",
+    editAnnouncement: "تعديل الإعلان",
+    editCoupon: "تعديل القسيمة",
+    editBranch: "تعديل الفرع",
+    editCurrency: "تعديل العملة",
     errorTitle: "حدث خطأ",
     editCategory: "تعديل التصنيف",
     confirmUnpublishWithoutImages: "هل تريد إلغاء نشر جميع المنتجات بدون صور في الفرع المحدد؟ يشمل ذلك جميع منتجات الفرع، حتى المنتجات خارج عوامل التصفية الحالية.",
@@ -477,6 +488,7 @@ const translations: Record<Language, Record<string, string>> = {
     inactive: "غير نشط",
     images: "الصور",
     image: "صورة",
+    id: "المعرف",
     name: "الاسم",
     description: "الوصف",
     category: "التصنيف",

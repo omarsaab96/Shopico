@@ -1395,7 +1395,7 @@ const ProductsPage = () => {
               <button type="button" role="tab" id="product-categories-tab" aria-controls="product-categories-panel" aria-selected={editTab === "categories"} onClick={() => setEditTab("categories")}>{t("category")} <span className="tab-count">{productDraft.categories?.length || 0}</span></button>
               <button type="button" role="tab" id="product-variants-tab" aria-controls="product-variants-panel" aria-selected={editTab === "variants"} onClick={() => setEditTab("variants")}>{t("variants")} <span className="tab-count">{productDraft.variants?.length || 0}</span></button>
             </div>
-            <form className="form productRow" onSubmit={(e) => { if (creatingProduct) { void submit(e); return; } e.preventDefault(); if (!productDraft.name?.trim()) { setEditTab("details"); setProductError(t("name")); return; } if (!productSaving && !productUploading) void saveEdit(); }}>
+            <form className="form productRow nopadding" onSubmit={(e) => { if (creatingProduct) { void submit(e); return; } e.preventDefault(); if (!productDraft.name?.trim()) { setEditTab("details"); setProductError(t("name")); return; } if (!productSaving && !productUploading) void saveEdit(); }}>
               <div id="product-details-panel" className="modal-body" role="tabpanel" aria-labelledby="product-details-tab" hidden={editTab !== "details"}>
 
                 <div className="editProductToggles">
@@ -1686,15 +1686,16 @@ const ProductsPage = () => {
                   />
                 </label>
                 {priceError && <div className="error">{priceError}</div>}
-                <div className="modal-actions">
-                  <button className="ghost-btn" type="button" onClick={closePriceModal} disabled={priceSaving}>
-                    {t("cancel")}
-                  </button>
-                  <button className="primary" type="submit" disabled={priceSaving}>
-                    {priceSaving ? (t("saving") || "Saving...") : t("apply")}
-                  </button>
-                </div>
+
               </form>
+              <div className="modal-actions">
+                <button className="ghost-btn" type="button" onClick={closePriceModal} disabled={priceSaving}>
+                  {t("cancel")}
+                </button>
+                <button className="primary" type="submit" disabled={priceSaving}>
+                  {priceSaving ? (t("saving") || "Saving...") : t("apply")}
+                </button>
+              </div>
             </ModalSurface>
           </div>
         )

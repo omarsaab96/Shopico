@@ -231,6 +231,7 @@ const BranchesPage = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [draft, setDraft] = useState<Partial<Branch>>({ isActive: true, deliveryRadiusKm: 5 });
+  const [saving, setSaving] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<Branch>>({});
@@ -269,7 +270,9 @@ const BranchesPage = () => {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     if (!canManage) return;
+    setSaving(true);
     try {
       setFormError("");
       if (draft.lat === undefined || draft.lng === undefined || Number.isNaN(draft.lat) || Number.isNaN(draft.lng)) {
@@ -286,19 +289,22 @@ const BranchesPage = () => {
     } catch (err: any) {
       const message = err?.response?.data?.message || t("branches.couldNotSave");
       setFormError(message);
-    }
+    } finally { setSaving(false); }
   };
 
   const startEdit = (branch: Branch) => {
     if (!canManage) return;
+    setShowNewModal(false);
     setEditingId(branch._id);
     setEditDraft({ ...branch, isActive: normalizeBoolean(branch.isActive, true) });
     setEditError("");
   };
 
   const saveEdit = async () => {
+    if (saving) return;
     if (!editingId) return;
     if (!canManage) return;
+    setSaving(true);
     try {
       setEditError("");
       if (editDraft.lat === undefined || editDraft.lng === undefined || Number.isNaN(editDraft.lat) || Number.isNaN(editDraft.lng)) {
@@ -319,7 +325,7 @@ const BranchesPage = () => {
     } catch (err: any) {
       const message = err?.response?.data?.message || t("branches.couldNotUpdate");
       setEditError(message);
-    }
+    } finally { setSaving(false); }
   };
 
   const cancelEdit = () => {
@@ -329,7 +335,8 @@ const BranchesPage = () => {
   };
 
   const openNewModal = () => {
-    if (!canManage) return;
+    if (!canManage || saving) return;
+    cancelEdit();
     setDraft({ isActive: true, deliveryRadiusKm: 5 });
     setFormError("");
     setShowNewModal(true);
@@ -364,6 +371,11 @@ const BranchesPage = () => {
         setMapsError(err?.message || t("branches.googleMapsFailed"));
       });
   }, [mapOpen]);
+
+  const modalDraft = editingId ? editDraft : draft;
+  const setModalDraft = editingId ? setEditDraft : setDraft;
+  const modalError = editingId ? editError : formError;
+  const closeEditor = () => { if (saving) return; cancelEdit(); closeNewModal(); };
 
   return (
     <>
@@ -430,89 +442,32 @@ const BranchesPage = () => {
               branches.map((branch) => (
                 <tr key={branch._id} className="productRow">
                   <td>
-                    {editingId === branch._id ? (
-                      <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
-                    ) : (
+                    {(
                       branch.name
                     )}
                   </td>
                   <td>
-                    {editingId === branch._id ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {/* <input
-                          value={editDraft.address || ""}
-                          onChange={(e) => setEditDraft({ ...editDraft, address: e.target.value })}
-                        /> */}
-                        {/* <div className="muted">
-                          {editDraft.lat !== undefined && editDraft.lng !== undefined
-                            ? `${formatNumber(editDraft.lat)}, ${formatNumber(editDraft.lng)}`
-                            : "No coordinates set"}
-                        </div> */}
-                        <BranchLocationPicker
-                          isOpen
-                          compact
-                          value={{ lat: editDraft.lat, lng: editDraft.lng, address: editDraft.address }}
-                          onChange={(next) =>
-                            setEditDraft((prev) => ({ ...prev, lat: next.lat, lng: next.lng, address: next.address }))
-                          }
-                          mapsReady={mapsReady}
-                          mapsError={mapsError}
-                        />
-                      </div>
-                    ) : (
+                    {(
                       branch.address
                     )}
                   </td>
                   <td>
-                    {editingId === branch._id ? (
-                      <input value={editDraft.phone || ""} onChange={(e) => setEditDraft({ ...editDraft, phone: e.target.value })} />
-                    ) : (
+                    {(
                       branch.phone || "-"
                     )}
                   </td>
                   <td>
-                    {editingId === branch._id ? (
-                      <input
-                        type="number"
-                        value={editDraft.deliveryRadiusKm ?? ""}
-                        onChange={(e) =>
-                          setEditDraft({ ...editDraft, deliveryRadiusKm: e.target.value ? Number(e.target.value) : undefined })
-                        }
-                      />
-                    ) : (
+                    {(
                       branch.deliveryRadiusKm
                     )}
                   </td>
                   <td>
-                    {editingId === branch._id ? (
-                      <div className="checkboxContainer">
-                        <input
-                          id={`branchActiveEdit${branch._id}`}
-                          type="checkbox"
-                          checked={Boolean(editDraft.isActive)}
-                          onChange={(e) => setEditDraft((prev) => ({ ...prev, isActive: e.target.checked }))}
-                        />
-                        <label htmlFor={`branchActiveEdit${branch._id}`}></label>
-                      </div>
-                    ) : (
+                    {(
                       branch.isActive ? (t("yes") || "Yes") : (t("no") || "No")
                     )}
                   </td>
                   <td>
-                    {editingId === branch._id ? (
-                      <div className="flex">
-                        <button className="primary" onClick={saveEdit}>
-                          {t("save")}
-                        </button>
-                        <button className="ghost-btn" onClick={cancelEdit}>
-                          {t("cancel")}
-                        </button>
-                        <button className="ghost-btn danger" onClick={() => removeBranch(branch._id)}>
-                          {t("delete")}
-                        </button>
-                        {editError && <div className="error">{editError}</div>}
-                      </div>
-                    ) : canManage ? (
+                    {canManage ? (
                       <div className="flex">
                         <button className="primary mr-10" onClick={() => startEdit(branch)}>
                           {t("edit")}
@@ -532,45 +487,45 @@ const BranchesPage = () => {
         </table>
       </Card>
 
-      {showNewModal && canManage && (
-        <div className="modal-backdrop" onClick={closeNewModal}>
+      {(showNewModal || editingId) && canManage && (
+        <div className="modal-backdrop" onClick={closeEditor}>
           <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{t("newBranch")}</div>
-              <button className="ghost-btn" type="button" onClick={closeNewModal}>
+              <div className="modal-title">{t(editingId ? "editBranch" : "newBranch")}</div>
+              <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving}>
                 {t("close")}
               </button>
             </div>
-            <form className="form" onSubmit={submit}>
+            <form className="form" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <label style={{ flex: 1 }}>
                   {t("name")}
-                  <input value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
+                  <input autoFocus value={modalDraft.name || ""} onChange={(e) => setModalDraft({ ...modalDraft, name: e.target.value })} required />
                 </label>
                 <label style={{ flex: 1 }}>
                   {t("phone")}
-                  <input value={draft.phone || ""} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
+                  <input value={modalDraft.phone || ""} onChange={(e) => setModalDraft({ ...modalDraft, phone: e.target.value })} />
                 </label>
                 <label style={{ flex: 1 }}>
                   {t("deliveryRadiusKm")}
                   <input
                     type="number"
-                    value={draft.deliveryRadiusKm ?? ""}
+                    value={modalDraft.deliveryRadiusKm ?? ""}
                     onChange={(e) =>
-                      setDraft({ ...draft, deliveryRadiusKm: e.target.value ? Number(e.target.value) : undefined })
+                      setModalDraft({ ...modalDraft, deliveryRadiusKm: e.target.value ? Number(e.target.value) : undefined })
                     }
                   />
                 </label>
               </div>
               <label style={{ display: 'none' }}>
                 {t("address")}
-                <input value={draft.address || ""} onChange={(e) => setDraft({ ...draft, address: e.target.value })} />
+                <input value={modalDraft.address || ""} onChange={(e) => setModalDraft({ ...modalDraft, address: e.target.value })} />
               </label>
               <BranchLocationPicker
-                isOpen={showNewModal}
-                value={{ lat: draft.lat, lng: draft.lng, address: draft.address }}
+                isOpen={showNewModal || Boolean(editingId)}
+                value={{ lat: modalDraft.lat, lng: modalDraft.lng, address: modalDraft.address }}
                 onChange={(next) =>
-                  setDraft((prev) => ({ ...prev, lat: next.lat, lng: next.lng, address: next.address }))
+                  setModalDraft((prev) => ({ ...prev, lat: next.lat, lng: next.lng, address: next.address }))
                 }
                 mapsReady={mapsReady}
                 mapsError={mapsError}
@@ -579,8 +534,8 @@ const BranchesPage = () => {
               {/* <label>
                 {t("openHours")}
                 <input
-                  value={draft.openHours || ""}
-                  onChange={(e) => setDraft({ ...draft, openHours: e.target.value })}
+                  value={modalDraft.openHours || ""}
+                  onChange={(e) => setModalDraft({ ...modalDraft, openHours: e.target.value })}
                   placeholder="09:00 - 18:00"
                 />
               </label> */}
@@ -589,28 +544,28 @@ const BranchesPage = () => {
                 <input
                   id="branchActiveNew"
                   type="checkbox"
-                  checked={Boolean(draft.isActive)}
-                  onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })}
+                  checked={Boolean(modalDraft.isActive)}
+                  onChange={(e) => setModalDraft({ ...modalDraft, isActive: e.target.checked })}
                 />
                 <label htmlFor="branchActiveNew">{t("active")}</label>
               </div>
-              {formError && <div className="error">{formError}</div>}
-              <div className="modal-actions">
-                <button className="ghost-btn" type="button" onClick={closeNewModal}>
+              {modalError && <div className="error" role="alert">{modalError}</div>}
+              
+            </form>
+            <div className="modal-actions">
+                <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving}>
                   {t("cancel")}
                 </button>
                 {canManage && (
-                  <button className="primary" type="submit">
-                    {t("save")}
+                  <button className="primary" type="submit" disabled={saving}>
+                    {t(saving ? "saving" : "save")}
                   </button>
                 )}
               </div>
-            </form>
           </ModalSurface>
         </div>
       )}
 
-      {editingId && canManage && null}
     </>
   );
 };

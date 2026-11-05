@@ -221,10 +221,10 @@ const CategoriesPage = () => {
             <button className="primary" type="submit">
               {t("filter")}
             </button>
-          <button className="ghost-btn" type="button" onClick={clearFilters}>
-            {t("clear")}
-          </button>
-        </form>
+            <button className="ghost-btn" type="button" onClick={clearFilters}>
+              {t("clear")}
+            </button>
+          </form>
           {canManage && (
             <button className="primary" onClick={openNewModal}>
               {t("addCategory")}
@@ -347,17 +347,17 @@ const CategoriesPage = () => {
                 </div>
               </div>
               {modalError && <div className="error" role="alert">{modalError}</div>}
-              <div className="modal-actions">
-                <button className="ghost-btn" type="button" onClick={closeCategoryModal}>
-                  {t("cancel")}
-                </button>
-                {canManage && (
-                  <button className="primary" type="submit" disabled={saving || modalUploading}>
-                    {t(saving ? "saving" : "save")}
-                  </button>
-                )}
-              </div>
             </form>
+            <div className="modal-actions">
+              <button className="ghost-btn" type="button" onClick={closeCategoryModal}>
+                {t("cancel")}
+              </button>
+              {canManage && (
+                <button className="primary" type="submit" disabled={saving || modalUploading}>
+                  {t(saving ? "saving" : "save")}
+                </button>
+              )}
+            </div>
           </ModalSurface>
         </div>
       )}

@@ -60,6 +60,7 @@ const CouponsPage = () => {
   const [expiresFrom, setExpiresFrom] = useState<Date | null>(null);
   const [expiresTo, setExpiresTo] = useState<Date | null>(null);
   const [draft, setDraft] = useState<CouponDraft>({});
+  const [saving, setSaving] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<CouponDraft>({});
@@ -71,9 +72,6 @@ const CouponsPage = () => {
   const [editProductSearch, setEditProductSearch] = useState("");
   const [levelSearch, setLevelSearch] = useState("");
   const [editLevelSearch, setEditLevelSearch] = useState("");
-  const [showEditProducts, setShowEditProducts] = useState(false);
-  const [showEditLevels, setShowEditLevels] = useState(false);
-  const [showEditAssigned, setShowEditAssigned] = useState(false);
   const [loading, setLoading] = useState(false);
   const { t } = useI18n();
   const { can } = usePermissions();
@@ -127,7 +125,8 @@ const CouponsPage = () => {
   }, [selectedBranchId]);
 
   const openNewModal = () => {
-    if (!canManage) return;
+    if (!canManage || saving) return;
+    cancelEdit();
     setDraft({
       usageType: "SINGLE",
       maxUsesPerUser: undefined,
@@ -159,7 +158,9 @@ const CouponsPage = () => {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     if (!canManage) return;
+    setSaving(true);
     try {
       const { assignmentType, ...rest } = draft;
       const restricted = assignmentType === "RESTRICTED";
@@ -185,7 +186,7 @@ const CouponsPage = () => {
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Create failed";
       setFormError(msg);
-    }
+    } finally { setSaving(false); }
   };
 
   const startEdit = (coupon: Coupon) => {
@@ -201,6 +202,7 @@ const CouponsPage = () => {
           : coupon.assignedMembershipLevels && coupon.assignedMembershipLevels.length > 0
             ? "LEVELS"
             : "RESTRICTED";
+    setShowNewModal(false);
     setEditingId(coupon._id);
     setEditDraft({
       ...coupon,
@@ -222,8 +224,10 @@ const CouponsPage = () => {
   };
 
   const saveEdit = async () => {
+    if (saving) return;
     if (!editingId) return;
     if (!canManage) return;
+    setSaving(true);
     try {
       const { assignmentType, ...rest } = editDraft;
       const restricted = assignmentType === "RESTRICTED";
@@ -249,16 +253,13 @@ const CouponsPage = () => {
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Update failed";
       setEditError(msg);
-    }
+    } finally { setSaving(false); }
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditDraft({});
     setEditError("");
-    setShowEditAssigned(false);
-    setShowEditProducts(false);
-    setShowEditLevels(false);
     setEditUserSearch("");
     setEditProductSearch("");
     setEditLevelSearch("");
@@ -513,6 +514,17 @@ const CouponsPage = () => {
     );
   };
 
+  const modalDraft = editingId ? editDraft : draft;
+  const setModalDraft = editingId ? setEditDraft : setDraft;
+  const modalError = editingId ? editError : formError;
+  const modalUserSearch = editingId ? editUserSearch : userSearch;
+  const setModalUserSearch = editingId ? setEditUserSearch : setUserSearch;
+  const modalProductSearch = editingId ? editProductSearch : productSearch;
+  const setModalProductSearch = editingId ? setEditProductSearch : setProductSearch;
+  const modalLevelSearch = editingId ? editLevelSearch : levelSearch;
+  const setModalLevelSearch = editingId ? setEditLevelSearch : setLevelSearch;
+  const closeEditor = () => { if (saving) return; cancelEdit(); closeNewModal(); };
+
   return (
     <>
 
@@ -619,86 +631,17 @@ const CouponsPage = () => {
               coupons.map((coupon) => (
                 <tr key={coupon._id} className="productRow">
                   <td>
-                    {editingId === coupon._id ? (
-                      <input value={editDraft.code || ""} onChange={(e) => setEditDraft({ ...editDraft, code: e.target.value })} />
-                    ) : (
+                    {(
                       coupon.code
                     )}
                   </td>
                   <td>
-                    {editingId === coupon._id ? (
-                      <input value={editDraft.title || ""} onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })} />
-                    ) : (
+                    {(
                       coupon.title || "-"
                     )}
                   </td>
                   <td>
-                    {editingId === coupon._id ? (
-                      <div className="flex">
-                        <div className="radioRow">
-                          <div className="radioOption">
-                            <input
-                              id={`editingisDiscount${coupon._id}`}
-                              type="radio"
-                              name={`couponType-${coupon._id}`}
-                              checked={!editDraft.freeDelivery}
-                              onChange={() =>
-                                setEditDraft({
-                                  ...editDraft,
-                                  freeDelivery: false,
-                                  discountValue: editDraft.discountValue || 10,
-                                })
-                              }
-                            />
-                            <label htmlFor={`editingisDiscount${coupon._id}`}>{t("discountCoupon") || "Discount coupon"}</label>
-                          </div>
-                          <div className="radioOption">
-                            <input
-                              id={`editingisFreeDelivery${coupon._id}`}
-                              type="radio"
-                              name={`couponType-${coupon._id}`}
-                              checked={Boolean(editDraft.freeDelivery)}
-                              onChange={() =>
-                                setEditDraft({
-                                  ...editDraft,
-                                  freeDelivery: true,
-                                  discountValue: 0,
-                                })
-                              }
-                            />
-                            <label htmlFor={`editingisFreeDelivery${coupon._id}`}>{t("freeDelivery") || "Free delivery"}</label>
-                          </div>
-                        </div>
-                        {!editDraft.freeDelivery && (
-                          <div className="flex align-center">
-                            <select
-                              value={editDraft.discountType || "PERCENT"}
-                              onChange={(e) => setEditDraft({ ...editDraft, discountType: e.target.value as any })}
-                            >
-                              <option value="PERCENT">{t("percent") || "Percent"}</option>
-                              <option value="FIXED">{t("fixed") || "Fixed"}</option>
-                            </select>
-                            <input
-                              type="number"
-                              value={editDraft.discountValue ?? 0}
-                              onChange={(e) => setEditDraft({ ...editDraft, discountValue: Number(e.target.value) })}
-                            />
-                            {(editDraft.discountType || "PERCENT") === "FIXED" && (
-                              <select
-                                value={editDraft.currencyId || primaryCurrencyId}
-                                onChange={(e) => setEditDraft({ ...editDraft, currencyId: e.target.value })}
-                              >
-                                {currencies.map((currency) => (
-                                  <option key={currency._id} value={currency._id}>
-                                    {getCurrencySymbol(currency)}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ) : coupon.freeDelivery ? (
+                    {coupon.freeDelivery ? (
                       t("freeDelivery") || "Free delivery"
                     ) : coupon.discountType === "PERCENT" ? (
                       `${coupon.discountValue}%`
@@ -707,37 +650,7 @@ const CouponsPage = () => {
                     )}
                   </td>
                   <td>
-                    {editingId === coupon._id ? (
-                      <div className="flex">
-                        <select
-                          value={editDraft.usageType || "SINGLE"}
-                          onChange={(e) => setEditDraft({ ...editDraft, usageType: e.target.value as any })}
-                        >
-                          <option value="SINGLE">{t("singleUse") || "Single"}</option>
-                          <option value="MULTIPLE">{t("multiUse") || "Multiple"}</option>
-                        </select>
-                        {editDraft.usageType === "MULTIPLE" && (
-                          <>
-                            <input
-                              type="number"
-                              placeholder={t("maxUsesPerUser") || "Max per user"}
-                              value={editDraft.maxUsesPerUser ?? ""}
-                              onChange={(e) =>
-                                setEditDraft({ ...editDraft, maxUsesPerUser: e.target.value ? Number(e.target.value) : undefined })
-                              }
-                            />
-                            <input
-                              type="number"
-                              placeholder={t("maxUsesGlobal") || "Max global"}
-                              value={editDraft.maxUsesGlobal ?? ""}
-                              onChange={(e) =>
-                                setEditDraft({ ...editDraft, maxUsesGlobal: e.target.value ? Number(e.target.value) : undefined })
-                              }
-                            />
-                          </>
-                        )}
-                      </div>
-                    ) : (
+                    {(
                       coupon.usageType === "SINGLE"
                         ? (t("singleUse") || "Single")
                         : (() => {
@@ -754,141 +667,45 @@ const CouponsPage = () => {
                   </td>
                   <td>{coupon.usedCount ?? 0}</td>
                   <td>
-                    {editingId === coupon._id ? (
-                        <DatePicker
-                          className="filter-input date-picker"
-                          selected={toDate(editDraft.expiresAt)}
-                          onChange={(date: Date | null) => setEditDraft({ ...editDraft, expiresAt: date || undefined })}
-                          showTimeInput
-                          timeFormat="HH:mm"
-                        timeIntervals={15}
-                        dateFormat="yyyy-MM-dd HH:mm"
-                        isClearable
-                      />
-                    ) : coupon.expiresAt ? (
+                    {coupon.expiresAt ? (
                       new Date(coupon.expiresAt).toLocaleString()
                     ) : (
                       "-"
                     )}
                   </td>
                   <td>
-                    {editingId === coupon._id ? (
-                      <div className="flex align-center">
-                        <select
-                          value={editDraft.assignmentType || "RESTRICTED"}
-                          onChange={(e) =>
-                            setEditDraft({
-                              ...editDraft,
-                              assignmentType: e.target.value as CouponDraft["assignmentType"],
-                              assignedUsers: e.target.value === "USERS" ? editDraft.assignedUsers : [],
-                              assignedProducts: e.target.value === "PRODUCTS" ? editDraft.assignedProducts : [],
-                              assignedMembershipLevels: e.target.value === "LEVELS" ? editDraft.assignedMembershipLevels : [],
-                              restricted: e.target.value === "RESTRICTED",
-                            })
-                          }
-                        >
-                          <option value="RESTRICTED">{t("assignmentRestricted") || "Restricted"}</option>
-                          <option value="USERS">{t("assignmentUsers") || "Users"}</option>
-                          <option value="PRODUCTS">{t("assignmentProducts") || "Products"}</option>
-                          <option value="LEVELS">{t("assignmentLevels") || "Levels"}</option>
-                        </select>
-                        {editDraft.assignmentType === "USERS" && (
-                          <>
-                            <span>{getAssignedLabel(editDraft.assignedUsers)}</span>
-                            <button className="ghost-btn" type="button" onClick={() => setShowEditAssigned(true)}>
-                              {t("changeAssigned") || "Change assigned"}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    ) : (
+                    {(
                       coupon.assignedUsers && coupon.assignedUsers.length > 0
                         ? getAssignedLabel(coupon.assignedUsers)
                         : "-"
                     )}
                   </td>
                   <td>
-                    {editingId === coupon._id ? (
-                      editDraft.assignmentType === "PRODUCTS" ? (
-                        <div className="flex align-center">
-                          <span>{(editDraft.assignedProducts || []).length || 0}</span>
-                          <button className="ghost-btn" type="button" onClick={() => setShowEditProducts(true)}>
-                            {t("changeProducts") || "Change products"}
-                          </button>
-                        </div>
-                      ) : (
-                        "-"
-                      )
-                    ) : (
+                    {(
                       coupon.assignedProducts && coupon.assignedProducts.length > 0
                         ? (coupon.assignedProducts || []).length
                         : "-"
                     )}
                   </td>
                   <td>
-                    {editingId === coupon._id ? (
-                      editDraft.assignmentType === "LEVELS" ? (
-                        <div className="flex align-center">
-                          <span>{(editDraft.assignedMembershipLevels || []).length || 0}</span>
-                          <button className="ghost-btn" type="button" onClick={() => setShowEditLevels(true)}>
-                            {t("changeLevels") || "Change levels"}
-                          </button>
-                        </div>
-                      ) : (
-                        "-"
-                      )
-                    ) : (
+                    {(
                       coupon.assignedMembershipLevels && coupon.assignedMembershipLevels.length > 0
                         ? (coupon.assignedMembershipLevels || []).length
                         : "-"
                     )}
                   </td>
                   <td>
-                    {editingId === coupon._id ? (
-                      <div className="checkboxContainer">
-                        <input
-                          id={`couponRestricted${coupon._id}`}
-                          type="checkbox"
-                          checked={Boolean(editDraft.restricted)}
-                          onChange={(e) => setEditDraft({ ...editDraft, restricted: e.target.checked })}
-                        />
-                        <label htmlFor={`couponRestricted${coupon._id}`}></label>
-                      </div>
-                    ) : (
+                    {(
                       coupon.restricted ? (t("yes") || "Yes") : (t("no") || "No")
                     )}
                   </td>
                   <td>
-                    {editingId === coupon._id ? (
-                      <div className="checkboxContainer">
-                        <input
-                          id={`couponIsEnabled${coupon._id}`}
-                          type="checkbox"
-                          checked={Boolean(editDraft.isActive)}
-                          onChange={(e) => setEditDraft({ ...editDraft, isActive: e.target.checked })}
-                        />
-                        <label htmlFor={`couponIsEnabled${coupon._id}`}></label>
-                      </div>
-
-                    ) : (
+                    {(
                       coupon.isActive ? (t("yes") || "Yes") : (t("no") || "No")
                     )}
                   </td>
                   <td>
-                    {editingId === coupon._id ? (
-                      <div className="flex">
-                        <button className="primary" onClick={saveEdit}>
-                          {t("save")}
-                        </button>
-                        <button className="ghost-btn" onClick={cancelEdit}>
-                          {t("cancel")}
-                        </button>
-                        <button className="ghost-btn danger" onClick={async () => (await confirmDelete(t)) && deleteCoupon(coupon._id).then(() => loadCoupons(getFilterParams()))}>
-                          {t("delete")}
-                        </button>
-                        {editError && <div className="error">{editError}</div>}
-                      </div>
-                    ) : canManage ? (
+                    {canManage ? (
                       <div className="flex">
                         <button className="primary" onClick={() => startEdit(coupon)}>
                           {t("edit")}
@@ -908,110 +725,29 @@ const CouponsPage = () => {
         </table>
       </Card>
 
-      {showEditAssigned && editingId && canManage && (
-        <div className="modal-backdrop" onClick={() => {
-          setShowEditAssigned(false);
-          setEditUserSearch("");
-        }}>
+      {(showNewModal || editingId) && canManage && (
+        <div className="modal-backdrop" onClick={closeEditor}>
           <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{t("changeAssigned") || "Change assigned"}</div>
-              <button
-                className="ghost-btn"
-                type="button"
-                onClick={() => {
-                  setShowEditAssigned(false);
-                  setEditUserSearch("");
-                }}
-              >
+              <div className="modal-title">{t(editingId ? "editCoupon" : "newCoupon") || "New Coupon"}</div>
+              <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving}>
                 {t("close")}
               </button>
             </div>
-            {renderUserSelect(
-              editDraft.assignedUsers,
-              (ids) => setEditDraft({ ...editDraft, assignedUsers: ids }),
-              editUserSearch,
-              setEditUserSearch
-            )}
-          </ModalSurface>
-        </div>
-      )}
-
-      {showEditProducts && editingId && canManage && (
-        <div className="modal-backdrop" onClick={() => {
-          setShowEditProducts(false);
-          setEditProductSearch("");
-        }}>
-          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">{t("changeProducts") || "Change products"}</div>
-              <button
-                className="ghost-btn"
-                type="button"
-                onClick={() => {
-                  setShowEditProducts(false);
-                  setEditProductSearch("");
-                }}
-              >
-                {t("close")}
-              </button>
-            </div>
-            {renderProductSelect(
-              editDraft.assignedProducts,
-              (ids) => setEditDraft({ ...editDraft, assignedProducts: ids }),
-              editProductSearch,
-              setEditProductSearch
-            )}
-          </ModalSurface>
-        </div>
-      )}
-
-      {showEditLevels && editingId && canManage && (
-        <div className="modal-backdrop" onClick={() => setShowEditLevels(false)}>
-          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">{t("changeLevels") || "Change levels"}</div>
-              <button
-                className="ghost-btn"
-                type="button"
-                onClick={() => setShowEditLevels(false)}
-              >
-                {t("close")}
-              </button>
-            </div>
-            {renderLevelSelect(
-              editDraft.assignedMembershipLevels,
-              (ids) => setEditDraft({ ...editDraft, assignedMembershipLevels: ids }),
-              editLevelSearch,
-              setEditLevelSearch
-            )}
-          </ModalSurface>
-        </div>
-      )}
-
-      {showNewModal && canManage && (
-        <div className="modal-backdrop" onClick={closeNewModal}>
-          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">{t("newCoupon") || "New Coupon"}</div>
-              <button className="ghost-btn" type="button" onClick={closeNewModal}>
-                {t("close")}
-              </button>
-            </div>
-            <form className="form productRow" onSubmit={submit}>
+            <form className="form productRow" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
               <label>
                 {t("code") || "Code"}
-                <input value={draft.code || ""} onChange={(e) => setDraft({ ...draft, code: e.target.value })} required />
+                <input autoFocus value={modalDraft.code || ""} onChange={(e) => setModalDraft({ ...modalDraft, code: e.target.value })} required />
               </label>
 
               <label>
                 {t("title") || "Title"}
-                <input value={draft.title || ""} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+                <input value={modalDraft.title || ""} onChange={(e) => setModalDraft({ ...modalDraft, title: e.target.value })} />
               </label>
 
               <label>
                 {t("description")}
-                <input value={draft.description || ""} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+                <input value={modalDraft.description || ""} onChange={(e) => setModalDraft({ ...modalDraft, description: e.target.value })} />
               </label>
 
               <div className="flex align-center">
@@ -1021,12 +757,12 @@ const CouponsPage = () => {
                       id="newCouponIsDiscount"
                       type="radio"
                       name="couponType"
-                      checked={!draft.freeDelivery}
+                      checked={!modalDraft.freeDelivery}
                       onChange={() =>
-                        setDraft({
-                          ...draft,
+                        setModalDraft({
+                          ...modalDraft,
                           freeDelivery: false,
-                          discountValue: draft.discountValue || 10,
+                          discountValue: modalDraft.discountValue || 10,
                         })
                       }
                     />
@@ -1037,10 +773,10 @@ const CouponsPage = () => {
                       id="newCouponIsFreeDelivery"
                       type="radio"
                       name="couponType"
-                      checked={Boolean(draft.freeDelivery)}
+                      checked={Boolean(modalDraft.freeDelivery)}
                       onChange={() =>
-                        setDraft({
-                          ...draft,
+                        setModalDraft({
+                          ...modalDraft,
                           freeDelivery: true,
                           discountValue: 0,
                         })
@@ -1050,12 +786,12 @@ const CouponsPage = () => {
                   </div>
                 </div>
 
-                <label style={{ flex: 1, marginBottom: 0, opacity: !draft.freeDelivery ? 1 : 0 }}>
+                <label style={{ flex: 1, marginBottom: 0, opacity: !modalDraft.freeDelivery ? 1 : 0 }}>
                   {t("discount") || "Discount"}
                   <div className="flex">
                     <select
-                      value={draft.discountType || "PERCENT"}
-                      onChange={(e) => setDraft({ ...draft, discountType: e.target.value as any })}
+                      value={modalDraft.discountType || "PERCENT"}
+                      onChange={(e) => setModalDraft({ ...modalDraft, discountType: e.target.value as any })}
                     >
                       <option value="PERCENT">{t("percent") || "Percent"}</option>
                       <option value="FIXED">{t("fixed") || "Fixed"}</option>
@@ -1063,13 +799,13 @@ const CouponsPage = () => {
                     <input
                       className="fullWidthInput"
                       type="number"
-                      value={draft.discountValue ?? 0}
-                      onChange={(e) => setDraft({ ...draft, discountValue: Number(e.target.value) })}
+                      value={modalDraft.discountValue ?? 0}
+                      onChange={(e) => setModalDraft({ ...modalDraft, discountValue: Number(e.target.value) })}
                     />
-                    {(draft.discountType || "PERCENT") === "FIXED" && (
+                    {(modalDraft.discountType || "PERCENT") === "FIXED" && (
                       <select
-                        value={draft.currencyId || primaryCurrencyId}
-                        onChange={(e) => setDraft({ ...draft, currencyId: e.target.value })}
+                        value={modalDraft.currencyId || primaryCurrencyId}
+                        onChange={(e) => setModalDraft({ ...modalDraft, currencyId: e.target.value })}
                       >
                         {currencies.map((currency) => (
                           <option key={currency._id} value={currency._id}>
@@ -1087,30 +823,30 @@ const CouponsPage = () => {
                 <label style={{ marginBottom: 0, flex: 1 }}>
                   {t("usage") || "Usage"}
                   <select
-                    value={draft.usageType || "SINGLE"}
-                    onChange={(e) => setDraft({ ...draft, usageType: e.target.value as any })}
+                    value={modalDraft.usageType || "SINGLE"}
+                    onChange={(e) => setModalDraft({ ...modalDraft, usageType: e.target.value as any })}
                   >
                     <option value="SINGLE">{t("singleUse") || "Single"}</option>
                     <option value="MULTIPLE">{t("multiUse") || "Multiple"}</option>
                   </select>
                 </label>
 
-                {draft.usageType === "MULTIPLE" && (
+                {modalDraft.usageType === "MULTIPLE" && (
                   <>
                     <label style={{ flex: 1, marginBottom: 0 }}>
                       {t("maxUsesPerUser") || "Max per user"}
                       <input
                         type="number"
-                        value={draft.maxUsesPerUser ?? ""}
-                        onChange={(e) => setDraft({ ...draft, maxUsesPerUser: e.target.value ? Number(e.target.value) : undefined })}
+                        value={modalDraft.maxUsesPerUser ?? ""}
+                        onChange={(e) => setModalDraft({ ...modalDraft, maxUsesPerUser: e.target.value ? Number(e.target.value) : undefined })}
                       />
                     </label>
                     <label style={{ flex: 1, marginBottom: 0 }}>
                       {t("maxUsesGlobal") || "Max global"}
                       <input
                         type="number"
-                        value={draft.maxUsesGlobal ?? ""}
-                        onChange={(e) => setDraft({ ...draft, maxUsesGlobal: e.target.value ? Number(e.target.value) : undefined })}
+                        value={modalDraft.maxUsesGlobal ?? ""}
+                        onChange={(e) => setModalDraft({ ...modalDraft, maxUsesGlobal: e.target.value ? Number(e.target.value) : undefined })}
                       />
                     </label>
                   </>
@@ -1121,19 +857,19 @@ const CouponsPage = () => {
                 {t("assignmentType") || "Assignment"}
                 <div className="tab-row">
                   {(() => {
-                    const currentType = draft.assignmentType || "RESTRICTED";
+                    const currentType = modalDraft.assignmentType || "RESTRICTED";
                     return (["RESTRICTED", "USERS", "PRODUCTS", "LEVELS"] as const).map((type) => (
                       <button
                         key={type}
                         className={`tab-btn ${currentType === type ? "active" : ""}`}
                         type="button"
                         onClick={() =>
-                          setDraft({
-                            ...draft,
+                          setModalDraft({
+                            ...modalDraft,
                             assignmentType: type,
-                            assignedUsers: type === "USERS" ? draft.assignedUsers : [],
-                            assignedProducts: type === "PRODUCTS" ? draft.assignedProducts : [],
-                            assignedMembershipLevels: type === "LEVELS" ? draft.assignedMembershipLevels : [],
+                            assignedUsers: type === "USERS" ? modalDraft.assignedUsers : [],
+                            assignedProducts: type === "PRODUCTS" ? modalDraft.assignedProducts : [],
+                            assignedMembershipLevels: type === "LEVELS" ? modalDraft.assignedMembershipLevels : [],
                             restricted: type === "RESTRICTED",
                           })
                         }
@@ -1150,22 +886,22 @@ const CouponsPage = () => {
                   })()}
                 </div>
               </label>
-              {(draft.assignmentType || "RESTRICTED") === "USERS" && (
+              {(modalDraft.assignmentType || "RESTRICTED") === "USERS" && (
                 <label>
                   {t("assignmentUsers") || "Users"}
-                  {renderUserSelect(draft.assignedUsers, (ids) => setDraft({ ...draft, assignedUsers: ids }), userSearch, setUserSearch)}
+                  {renderUserSelect(modalDraft.assignedUsers, (ids) => setModalDraft({ ...modalDraft, assignedUsers: ids }), modalUserSearch, setModalUserSearch)}
                 </label>
               )}
-              {(draft.assignmentType || "RESTRICTED") === "PRODUCTS" && (
+              {(modalDraft.assignmentType || "RESTRICTED") === "PRODUCTS" && (
                 <label>
                   {t("assignedProducts") || "Products"}
-                  {renderProductSelect(draft.assignedProducts, (ids) => setDraft({ ...draft, assignedProducts: ids }), productSearch, setProductSearch)}
+                  {renderProductSelect(modalDraft.assignedProducts, (ids) => setModalDraft({ ...modalDraft, assignedProducts: ids }), modalProductSearch, setModalProductSearch)}
                 </label>
               )}
-              {(draft.assignmentType || "RESTRICTED") === "LEVELS" && (
+              {(modalDraft.assignmentType || "RESTRICTED") === "LEVELS" && (
                 <label>
                   {t("assignedLevels") || "Membership levels"}
-                  {renderLevelSelect(draft.assignedMembershipLevels, (ids) => setDraft({ ...draft, assignedMembershipLevels: ids }), levelSearch, setLevelSearch)}
+                  {renderLevelSelect(modalDraft.assignedMembershipLevels, (ids) => setModalDraft({ ...modalDraft, assignedMembershipLevels: ids }), modalLevelSearch, setModalLevelSearch)}
                 </label>
               )}
 
@@ -1173,8 +909,8 @@ const CouponsPage = () => {
                 {t("expires") || "Expires"}
                 <DatePicker
                   className="filter-input date-picker"
-                  selected={toDate(draft.expiresAt)}
-                  onChange={(date: Date | null) => setDraft({ ...draft, expiresAt: date || undefined })}
+                  selected={toDate(modalDraft.expiresAt)}
+                  onChange={(date: Date | null) => setModalDraft({ ...modalDraft, expiresAt: date || undefined })}
                   showTimeInput
                   timeFormat="HH:mm"
                   timeIntervals={15}
@@ -1187,8 +923,8 @@ const CouponsPage = () => {
                 <input
                   id="isEnabled"
                   type="checkbox"
-                  checked={Boolean(draft.isActive)}
-                  onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })}
+                  checked={Boolean(modalDraft.isActive)}
+                  onChange={(e) => setModalDraft({ ...modalDraft, isActive: e.target.checked })}
                 />
                 <label htmlFor="isEnabled">
                   {t("enabled") || "Enabled"}
@@ -1198,26 +934,27 @@ const CouponsPage = () => {
                 <input
                   id="isRestricted"
                   type="checkbox"
-                  checked={Boolean(draft.restricted)}
-                  onChange={(e) => setDraft({ ...draft, restricted: e.target.checked })}
+                  checked={Boolean(modalDraft.restricted)}
+                  onChange={(e) => setModalDraft({ ...modalDraft, restricted: e.target.checked })}
                 />
                 <label htmlFor="isRestricted">
                   {t("restricted") || "Restricted"}
                 </label>
               </div> */}
 
-              {formError && <div className="error">{formError}</div>}
-              <div className="modal-actions">
-                <button className="ghost-btn" type="button" onClick={closeNewModal}>
+              {modalError && <div className="error" role="alert">{modalError}</div>}
+              
+            </form>
+            <div className="modal-actions">
+                <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving}>
                   {t("cancel")}
                 </button>
                 {canManage && (
-                  <button className="primary" type="submit">
-                    {t("save")}
+                  <button className="primary" type="submit" disabled={saving}>
+                    {t(saving ? "saving" : "save")}
                   </button>
                 )}
               </div>
-            </form>
           </ModalSurface>
         </div>
       )}
