@@ -46,6 +46,9 @@ npm run seed
 - Auth tokens stored locally (httpOnly cookies also supported by backend)
 
 ## Mobile app (Expo)
+
+For Android publishing, follow [the release and policy checks](mobile/ANDROID_RELEASE.md). Native permission changes require a new app bundle; EAS Update alone does not apply them.
+
 - expo-router navigation; SecureStore for tokens; AsyncStorage cart sync
 - Screens: Auth (login/register/forgot), Home, Categories, Product details, Cart, Checkout (delivery breakdown + payment method + reward toggle), Orders list/details (status stepper), Wallet (top-up request + ledger), Membership (level, progress, congrats modal), Points (progress to reward), Profile, Settings
 - Delivery fee preview uses Haversine on client; server recalculates on checkout

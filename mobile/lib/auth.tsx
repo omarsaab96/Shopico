@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import api, { clearTokens, storeTokens, renewMobileSession, SessionChangedError, beginSessionLogout } from "./api";
 import { AppState, DeviceEventEmitter } from "react-native";
 import { useRouter } from "expo-router";
-import { stopDriverBackgroundTracking } from "./driverTracking";
+import { stopDriverTracking } from "./driverTracking";
 
 interface AuthContextValue {
   user?: any;
@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     authEpoch.current += 1;
     beginSessionLogout();
     try { await unregisterPush(); } catch { /* An expired/offline session still signs out locally. */ }
-    try { await stopDriverBackgroundTracking(); } catch { /* Tracking may not be available on this platform. */ }
+    try { await stopDriverTracking(); } catch { /* Tracking may not be available on this platform. */ }
     await clearTokens();
     setUser(undefined);
   };

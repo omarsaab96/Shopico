@@ -10,6 +10,7 @@ const baseStrings = {
   driverOrderCancelled: "This order has been cancelled.",
   driverOrderUnassigned: "This order is no longer assigned to you.",
   driverTrackingPermission: "The order is now shipping. Allow location access to enable tracking.",
+  driverTrackingForeground: "Keep Shopico open to share your delivery location. Tracking pauses when you leave the app or lock your phone.",
   driverOrderCompleted: "Completed",
   refundedQuantity: "Refunded quantity",
   needSupport: "Need support?",
@@ -244,6 +245,7 @@ const baseStrings = {
 };
 
 const arStrings: Record<string, string> = {
+  driverTrackingForeground: "أبقِ تطبيق شوبيكو مفتوحاً لمشاركة موقع التوصيل. يتوقف التتبع عند مغادرة التطبيق أو قفل الهاتف.",
   driverOrderCancelled: "تم إلغاء هذا الطلب.",
   driverOrderUnassigned: "هذا الطلب لم يعد مسنداً إليك.",
   driverTrackingPermission: "حالة الطلب الآن قيد الشحن. اسمح بالموقع لتفعيل التتبع.",

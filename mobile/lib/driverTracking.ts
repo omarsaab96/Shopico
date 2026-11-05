@@ -2,93 +2,75 @@ import axios from "axios";
 import Constants from "expo-constants";
 import * as Location from "expo-location";
 import * as SecureStore from "expo-secure-store";
-import * as TaskManager from "expo-task-manager";
+import { AppState } from "react-native";
 
-const DRIVER_LOCATION_TASK = "shopico-driver-location-task";
-const ACTIVE_DRIVER_ORDER_KEY = "activeDriverOrderId";
+// Android/default implementation: no location tasks or foreground services.
+// iOS retains its existing implementation in driverTracking.ios.ts.
+const apiBase = Constants.expoConfig?.extra?.EXPO_PUBLIC_API_BASE ||
+  (Constants as any).manifest?.extra?.EXPO_PUBLIC_API_BASE || "http://localhost:4000/api";
+let activeOrderId: string | null = null;
+let watcher: Location.LocationSubscription | null = null;
+let appStateListener: ReturnType<typeof AppState.addEventListener> | null = null;
+let generation = 0;
 
-const apiBase =
-  Constants.expoConfig?.extra?.EXPO_PUBLIC_API_BASE ||
-  (Constants as any).manifest?.extra?.EXPO_PUBLIC_API_BASE ||
-  "http://localhost:4000/api";
-
-const pushDriverLocation = async (orderId: string, coords: { latitude: number; longitude: number }) => {
+export const pushDriverLocationOnce = async (orderId: string, coords: { latitude: number; longitude: number }) => {
+  if (AppState.currentState !== "active") return;
+  const requestGeneration = generation;
   const token = await SecureStore.getItemAsync("accessToken");
-  if (!token) return;
-
-  try { await axios.put(
-    `${apiBase}/orders/${orderId}/driver-location`,
-    {
-      lat: coords.latitude,
-      lng: coords.longitude,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  ); } catch (error: any) {
-    if ([400, 401, 403, 404].includes(error.response?.status)) await stopDriverBackgroundTracking(orderId);
+  if (!token || requestGeneration !== generation || AppState.currentState !== "active") return;
+  try {
+    await axios.put(`${apiBase}/orders/${orderId}/driver-location`, {
+      lat: coords.latitude, lng: coords.longitude,
+    }, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (error: any) {
+    if ([400, 401, 403, 404].includes(error.response?.status)) await stopDriverTracking(orderId);
     throw error;
   }
 };
 
-TaskManager.defineTask(DRIVER_LOCATION_TASK, async ({ data, error }) => {
-  if (error) return;
+const pause = () => {
+  generation++;
+  watcher?.remove();
+  watcher = null;
+};
 
-  const orderId = await SecureStore.getItemAsync(ACTIVE_DRIVER_ORDER_KEY);
-  if (!orderId) return;
-
-  const locations = (data as { locations?: Location.LocationObject[] })?.locations || [];
-  const latest = locations[locations.length - 1];
-  if (!latest) return;
-
-  await pushDriverLocation(orderId, latest.coords);
-});
-
-export const startDriverBackgroundTracking = async (orderId: string) => {
-  const foreground = await Location.requestForegroundPermissionsAsync();
-  if (foreground.status !== "granted") {
-    throw new Error("Foreground location permission denied");
-  }
-
-  await SecureStore.setItemAsync(ACTIVE_DRIVER_ORDER_KEY, orderId);
-
-  const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
-  await pushDriverLocation(orderId, current.coords);
-
-  const background = await Location.requestBackgroundPermissionsAsync();
-  if (background.status !== "granted") {
-    return { background: false };
-  }
-
-  const alreadyStarted = await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK);
-  if (alreadyStarted) {
-    await Location.stopLocationUpdatesAsync(DRIVER_LOCATION_TASK);
-  }
-
-  await Location.startLocationUpdatesAsync(DRIVER_LOCATION_TASK, {
-    accuracy: Location.Accuracy.Highest,
-    distanceInterval: 10,
-    timeInterval: 10000,
-    pausesUpdatesAutomatically: false,
-    foregroundService: {
-      notificationTitle: "Shopico delivery tracking",
-      notificationBody: "Sharing your location while this delivery is active.",
-      notificationColor: "#f97316",
-    },
+const watch = async () => {
+  pause();
+  const currentGeneration = generation;
+  const orderId = activeOrderId;
+  if (!orderId || AppState.currentState !== "active") return;
+  const permission = await Location.getForegroundPermissionsAsync();
+  if (permission.status !== "granted" || currentGeneration !== generation || AppState.currentState !== "active") return;
+  const subscription = await Location.watchPositionAsync({
+    accuracy: Location.Accuracy.High, distanceInterval: 10, timeInterval: 10000,
+  }, position => {
+    if (currentGeneration === generation && activeOrderId === orderId && AppState.currentState === "active") {
+      void pushDriverLocationOnce(orderId, position.coords).catch(() => {});
+    }
   });
-
-  return { background: true };
+  if (currentGeneration !== generation || AppState.currentState !== "active") subscription.remove();
+  else watcher = subscription;
 };
 
-export const stopDriverBackgroundTracking = async (orderId?: string) => {
-  if (orderId && await SecureStore.getItemAsync(ACTIVE_DRIVER_ORDER_KEY) !== orderId) return;
-  await SecureStore.deleteItemAsync(ACTIVE_DRIVER_ORDER_KEY);
-  const started = await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK);
-  if (started) {
-    await Location.stopLocationUpdatesAsync(DRIVER_LOCATION_TASK);
-  }
+export const startDriverTracking = async (orderId: string) => {
+  if (AppState.currentState !== "active") throw new Error("Open Shopico to start location sharing");
+  const permissionGeneration = generation;
+  const permission = await Location.requestForegroundPermissionsAsync();
+  if (permission.status !== "granted") throw new Error("Location permission denied");
+  if (permissionGeneration !== generation || AppState.currentState !== "active") return;
+  activeOrderId = orderId;
+  appStateListener ??= AppState.addEventListener("change", state => {
+    if (state === "active") void watch().catch(() => {});
+    else pause();
+  });
+  try { await watch(); }
+  catch (error) { await stopDriverTracking(orderId); throw error; }
 };
 
-export const pushDriverLocationOnce = pushDriverLocation;
+export const stopDriverTracking = async (orderId?: string) => {
+  if (orderId && activeOrderId !== orderId) return;
+  activeOrderId = null;
+  pause();
+  appStateListener?.remove();
+  appStateListener = null;
+};

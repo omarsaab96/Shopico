@@ -48,6 +48,8 @@ Signing out removes the current device binding before clearing authentication. D
 
 The native app uses `expo-notifications` and `expo-device`, installed for Expo SDK 54. Web retains the inbox without loading native push APIs. Mobile inboxes refresh every thirty seconds while active, on resume, on push receipt, and when opened; affected order, driver, wallet and points screens refresh when a notification arrives.
 
+Native push loads only after checking that its native module exists. Expo Go and older installed builds return `build-required` without crashing; the API-backed inbox remains available. If `ExpoPushTokenManager` is missing, rebuild and install the native app from `mobile/` with `npx expo run:android`, or build/install the EAS development profile. An OTA update or Metro reload cannot add native modules. Android remote push requires a development/standalone build rather than Expo Go.
+
 The native app version is prepared as `1.0.1`. Its existing `runtimeVersion: appVersion` policy therefore separates these notification-capable binaries from older `1.0.0` binaries when publishing later OTA updates.
 
 ## Push credentials and release

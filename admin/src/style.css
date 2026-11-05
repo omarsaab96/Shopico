@@ -3132,12 +3132,12 @@ dialog[open],
 .driver-picker-menu,
 .react-datepicker-popper .react-datepicker,
 [popover]:popover-open {
-  animation: popup-slide-up 220ms ease-out backwards;
+  animation: popup-slide-up 220ms ease backwards;
 }
 
 .modal-backdrop,
 dialog[open]::backdrop {
-  animation: popup-backdrop-fade 220ms ease-out backwards;
+  animation: popup-backdrop-fade 220ms ease backwards;
 }
 
 @keyframes popup-slide-up {

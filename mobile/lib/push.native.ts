@@ -1,11 +1,21 @@
-import * as Notifications from "expo-notifications";
-import * as Device from "expo-device";
+import { requireOptionalNativeModule } from "expo";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import api, { isSessionEnding } from "./api";
 
-Notifications.setNotificationHandler({ handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }) });
+type NotificationsApi = typeof import("expo-notifications");
+let notificationApi: Promise<NotificationsApi | null> | undefined;
+function getNotifications(): Promise<NotificationsApi | null> {
+  if (Constants.appOwnership === "expo" || !requireOptionalNativeModule("ExpoPushTokenManager")) return Promise.resolve(null);
+  return notificationApi ??= import("expo-notifications").then(api => {
+    api.setNotificationHandler({ handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }) });
+    return api;
+  }).catch(error => {
+    if (error instanceof Error && /Cannot find native module/.test(error.message)) return null;
+    throw error;
+  });
+}
 
 let operations: Promise<unknown> = Promise.resolve();
 function serial<T>(task: () => Promise<T>): Promise<T> {
@@ -20,8 +30,10 @@ async function register(language: string, requestPermission: boolean): Promise<s
   if (isSessionEnding()) return "signed-out";
   const session = await SecureStore.getItemAsync("accessToken");
   if (!session) return "signed-out";
+  const Notifications = await getNotifications();
+  if (!Notifications || !requireOptionalNativeModule("ExpoDevice")) return "build-required";
+  const Device = await import("expo-device");
   if (!Device.isDevice) return "device-required";
-  if (Constants.appOwnership === "expo") return "build-required";
   if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("orders", { name: "Shopico updates", importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 250, 250, 250], sound: "default" });
   let permission = await Notifications.getPermissionsAsync();
   if (!permission.granted && permission.canAskAgain && requestPermission) permission = await Notifications.requestPermissionsAsync();
@@ -43,15 +55,25 @@ async function unregister(): Promise<void> {
   if (token) {
     await SecureStore.deleteItemAsync("notificationPushToken");
   }
-  await Notifications.setBadgeCountAsync(0);
+  await updateBadge(0);
 }
-export async function updateBadge(count: number): Promise<void> { await Notifications.setBadgeCountAsync(count); }
+export async function updateBadge(count: number): Promise<void> {
+  const Notifications = await getNotifications();
+  if (Notifications) await Notifications.setBadgeCountAsync(count);
+}
 export function listenPush(received: (data: any) => void, opened: (data: any) => void, rotated: () => void): () => void {
-  if (Constants.appOwnership === "expo") return () => {};
-  const receipt = Notifications.addNotificationReceivedListener(value => received(value.request.content.data));
-  const response = Notifications.addNotificationResponseReceivedListener(value => { opened(value.notification.request.content.data); void Notifications.clearLastNotificationResponseAsync(); });
-  const token = Notifications.addPushTokenListener(rotated);
   let active = true;
-  void Notifications.getLastNotificationResponseAsync().then(value => { if (active && value) { opened(value.notification.request.content.data); void Notifications.clearLastNotificationResponseAsync(); } }).catch(() => {});
-  return () => { active = false; receipt.remove(); response.remove(); token.remove(); };
+  const subscriptions: Array<{ remove: () => void }> = [];
+  void getNotifications().then(Notifications => {
+    if (!active || !Notifications) return;
+    subscriptions.push(
+      Notifications.addNotificationReceivedListener(value => received(value.request.content.data)),
+      Notifications.addNotificationResponseReceivedListener(value => { opened(value.notification.request.content.data); void Notifications.clearLastNotificationResponseAsync(); }),
+      Notifications.addPushTokenListener(rotated),
+    );
+    void Notifications.getLastNotificationResponseAsync().then(value => {
+      if (active && value) { opened(value.notification.request.content.data); void Notifications.clearLastNotificationResponseAsync(); }
+    }).catch(() => {});
+  }).catch(() => {});
+  return () => { active = false; subscriptions.forEach(subscription => subscription.remove()); };
 }

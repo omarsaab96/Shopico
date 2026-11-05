@@ -11,7 +11,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Text from "../../components/Text";
 import api from "../../lib/api";
-import { pushDriverLocationOnce, startDriverBackgroundTracking, stopDriverBackgroundTracking } from "../../lib/driverTracking";
+import { pushDriverLocationOnce, startDriverTracking, stopDriverTracking } from "../../lib/driverTracking";
 import { useI18n } from "../../lib/i18n";
 import { useTheme } from "../../lib/theme";
 
@@ -102,15 +102,15 @@ export default function DriverDirections() {
       setOrder(res.data.data);
       if (res.data.data.status === "CANCELLED") {
         setAccessMessage(t("driverOrderCancelled"));
-        await stopDriverBackgroundTracking(id).catch(() => {});
+        await stopDriverTracking(id).catch(() => {});
       } else {
         setAccessMessage("");
-        if (res.data.data.status === "DELIVERED") await stopDriverBackgroundTracking(id).catch(() => {});
+        if (res.data.data.status === "DELIVERED") await stopDriverTracking(id).catch(() => {});
       }
     } catch (error: any) {
       if ([403, 404].includes(error.response?.status)) {
         setOrder(null); setAccessMessage(t("driverOrderUnassigned"));
-        await stopDriverBackgroundTracking(id).catch(() => {});
+        await stopDriverTracking(id).catch(() => {});
       }
     }
   }, [id, t]);
@@ -238,7 +238,7 @@ export default function DriverDirections() {
       await api.put(`/orders/${id}/driver-status`, { status: "SHIPPING" });
       setOrder(current => current ? { ...current, status: "SHIPPING" } : current);
       DeviceEventEmitter.emit("shopico:notification");
-      try { await startDriverBackgroundTracking(id); }
+      try { await startDriverTracking(id); }
       catch { Alert.alert(t("startDelivery"), t("driverTrackingPermission")); }
       if (origin) {
         syncDriverLocation(origin);
@@ -258,7 +258,7 @@ export default function DriverDirections() {
       await api.put(`/orders/${id}/driver-status`, { status: "DELIVERED" });
       setOrder(current => current ? { ...current, status: "DELIVERED" } : current);
       DeviceEventEmitter.emit("shopico:notification");
-      await stopDriverBackgroundTracking(id);
+      await stopDriverTracking(id);
       router.back();
     } catch (error: any) {
       await loadOrder(); Alert.alert(t("networkError"), error.response?.data?.message || error.message);
@@ -345,6 +345,7 @@ export default function DriverDirections() {
       </TouchableOpacity>
 
       <View style={styles.panel}>
+        {Platform.OS === "android" && <Text style={{ color: palette.muted }}>{t("driverTrackingForeground")}</Text>}
         <View style={styles.panelHeader}>
           <View style={{ }}>
             {/* <Text style={styles.title}>{t("directions") ?? "Directions"}</Text> */}

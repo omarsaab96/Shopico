@@ -1,7 +1,7 @@
 import { DeviceEventEmitter } from "react-native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from "react-native";
+import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Platform } from "react-native";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
 import Screen from "../../components/Screen";
@@ -10,7 +10,7 @@ import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
-import { startDriverBackgroundTracking, stopDriverBackgroundTracking } from "../../lib/driverTracking";
+import { startDriverTracking, stopDriverTracking } from "../../lib/driverTracking";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -97,7 +97,7 @@ export default function DriverOrders() {
       setTrackingOrderId(null);
       if (trackingRef.current) clearInterval(trackingRef.current);
       trackingRef.current = null;
-      void stopDriverBackgroundTracking(stoppedId).catch(() => {});
+      void stopDriverTracking(stoppedId).catch(() => {});
       Alert.alert(t("driver"), t(active ? "driverOrderCancelled" : "driverOrderUnassigned"));
     }
   }, [orders, trackingOrderId, t]);
@@ -309,22 +309,15 @@ export default function DriverOrders() {
       setOrders(current => current.map(item => item._id === order._id ? { ...item, status: "SHIPPING" } : item));
       DeviceEventEmitter.emit("shopico:notification");
       await load(false);
-      let tracking = { background: false };
-      try { tracking = await startDriverBackgroundTracking(order._id); }
+      try { await startDriverTracking(order._id); }
       catch { Alert.alert(t("startDelivery"), t("driverTrackingPermission")); }
-      if (!tracking.background) {
-        Alert.alert(
-          t("locationDenied") ?? "Location denied",
-          "Background location is not enabled. Customers can track you while Shopico is open, but tracking may stop if you switch apps."
-        );
-      }
       setTrackingOrderId(order._id);
       await load();
       openDirections(order);
     } catch (error: any) {
       Alert.alert(
         t("locationDenied") ?? "Location denied",
-        error?.message || "Please allow background location so customers can track this delivery."
+        error?.message || "Allow location access and keep Shopico open to share your delivery location."
       );
     } finally {
       setUpdating((prev) => ({ ...prev, [order._id]: false }));
@@ -339,7 +332,7 @@ export default function DriverOrders() {
       DeviceEventEmitter.emit("shopico:notification");
       if (trackingRef.current) clearInterval(trackingRef.current);
       trackingRef.current = null;
-      await stopDriverBackgroundTracking(orderId);
+      await stopDriverTracking(orderId);
       setTrackingOrderId(null);
       await load();
     } finally {
@@ -492,6 +485,7 @@ export default function DriverOrders() {
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.title}>{t("orders") ?? "Orders"}</Text>
+            {Platform.OS === "android" && <Text style={styles.subtitle}>{t("driverTrackingForeground")}</Text>}
             <Text style={styles.subtitle}>
               {t("pendingOrders") ?? "Pending"}: {pendingCount} · {t("deliveredOrders") ?? "Delivered"}: {deliveredCount}
             </Text>

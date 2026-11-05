@@ -7,12 +7,12 @@ import api from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { useTheme } from "../../lib/theme";
-import { startDriverBackgroundTracking, stopDriverBackgroundTracking } from "../../lib/driverTracking";
+import { startDriverTracking, stopDriverTracking } from "../../lib/driverTracking";
 
 export default function DriverOrderDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   const { palette } = useTheme();
   const router = useRouter();
   const ar = lang === "ar";
@@ -26,12 +26,12 @@ export default function DriverOrderDetails() {
     try {
       const res = await api.get(`/orders/${id}`);
       setOrder(res.data.data); setMessage(""); setUnassigned(false);
-      if (["CANCELLED", "DELIVERED"].includes(res.data.data.status)) await stopDriverBackgroundTracking(id).catch(() => {});
+      if (["CANCELLED", "DELIVERED"].includes(res.data.data.status)) await stopDriverTracking(id).catch(() => {});
     } catch (error: any) {
       if ([403, 404].includes(error.response?.status)) {
         setOrder(null); setUnassigned(true);
         setMessage(ar ? "هذا الطلب لم يعد مسنداً إليك." : "This order is no longer assigned to you.");
-        await stopDriverBackgroundTracking(id).catch(() => {});
+        await stopDriverTracking(id).catch(() => {});
       } else setMessage(ar ? "تعذر تحميل الطلب. حاول مجدداً." : "Could not load order. Please retry.");
     } finally { setLoading(false); }
   }, [id, user?.role, ar]);
@@ -50,10 +50,10 @@ export default function DriverOrderDetails() {
       setOrder((current: any) => ({ ...current, ...res.data.data }));
       DeviceEventEmitter.emit("shopico:notification");
       if (status === "SHIPPING" && Platform.OS !== "web") {
-        try { await startDriverBackgroundTracking(id); }
+        try { await startDriverTracking(id); }
         catch { Alert.alert(ar ? "بدأ التوصيل" : "Delivery started", ar ? "حالة الطلب الآن قيد الشحن. اسمح بالموقع لتفعيل التتبع." : "The order is now shipping. Allow location access to enable tracking."); }
       }
-      if (status === "DELIVERED") await stopDriverBackgroundTracking(id).catch(() => {});
+      if (status === "DELIVERED") await stopDriverTracking(id).catch(() => {});
       await load();
     } catch (error: any) { await load(); Alert.alert(ar ? "تعذر تحديث الطلب" : "Could not update order", error.response?.data?.message || (ar ? "حاول مجدداً." : "Please retry.")); }
     finally { setSaving(false); }
@@ -63,6 +63,7 @@ export default function DriverOrderDetails() {
   const cancelled = order?.status === "CANCELLED";
   return <Screen showBack backLabel={ar ? "رجوع" : "Back"}>
     <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 30 }}>
+      {Platform.OS === "android" && <Text style={{ color: palette.muted }}>{t("driverTrackingForeground")}</Text>}
       <Text style={{ color: palette.text, fontSize: 24, fontWeight: "800" }}>{ar ? "تفاصيل الطلب" : "Order details"} #{String(id || "").slice(-6)}</Text>
       {loading && <ActivityIndicator color={palette.accent} />}
       {message ? <View accessibilityRole="alert" style={{ padding: 16, backgroundColor: palette.card, borderRadius: 12 }}><Text style={{ color: palette.text }}>{message}</Text>{!unassigned && <TouchableOpacity onPress={() => void load()}><Text style={{ color: palette.accent }}>{ar ? "إعادة المحاولة" : "Retry"}</Text></TouchableOpacity>}</View> : null}
