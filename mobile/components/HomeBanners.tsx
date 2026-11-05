@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { AppState, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Skeleton } from "./Skeleton";
 import api from "../lib/api";
@@ -14,6 +14,7 @@ export default function HomeBanners({ branchId, refreshing = false, refreshKey =
   refreshing?: boolean;
   refreshKey?: number;
 }) {
+  const router = useRouter();
   const [banners, setBanners] = useState<Banner[]>([]);
   const [width, setWidth] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -102,7 +103,7 @@ export default function HomeBanners({ branchId, refreshing = false, refreshKey =
             disabled={!banner.link}
             accessibilityRole={banner.link ? "link" : "image"}
             accessibilityLabel={banner.title || "Promotion"}
-            onPress={() => { if (banner.link && /^https?:\/\//i.test(banner.link)) Linking.openURL(banner.link).catch(() => { }); }}
+            onPress={() => { if (banner.link && /^\/(products|categories)\/[a-f0-9]{24}$/i.test(banner.link)) router.push(banner.link as `/products/${string}` | `/categories/${string}`); else if (banner.link && /^https?:\/\//i.test(banner.link)) Linking.openURL(banner.link).catch(() => { }); }}
           >
             <Image source={{ uri: banner.image.url }} style={styles.image} resizeMode="cover" />
           </TouchableOpacity>

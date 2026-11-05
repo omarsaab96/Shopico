@@ -13,7 +13,7 @@ const response = () => {
 beforeEach(() => vi.clearAllMocks());
 
 describe("home banners", () => {
-  test("requires an image and accepts only web links", () => {
+  test("requires an image and rejects unsafe links", () => {
     expect(bannerSchema.safeParse({ title: "Sale" }).success).toBe(false);
     const image = { url: "https://example.com/banner.jpg", fileId: "image-id" };
     expect(bannerSchema.safeParse({ image, link: "https://example.com/sale" }).success).toBe(true);

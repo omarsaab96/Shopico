@@ -4,6 +4,12 @@ type Language = "en" | "ar";
 
 const translations: Record<Language, Record<string, string>> = {
   en: {
+    promotionLinkType: "Link to",
+    promotionNoLink: "No link",
+    promotionWebLink: "Web address",
+    promotionProduct: "Product",
+    promotionChooseDestination: "Choose a destination",
+    promotionLoadError: "Could not load categories and products. Reopen the editor to retry.",
     editBanner: "Edit home banner",
     editAnnouncement: "Edit announcement",
     editCoupon: "Edit coupon",
@@ -377,6 +383,12 @@ const translations: Record<Language, Record<string, string>> = {
   },
 
   ar: {
+    promotionLinkType: "رابط إلى",
+    promotionNoLink: "بدون رابط",
+    promotionWebLink: "عنوان ويب",
+    promotionProduct: "منتج",
+    promotionChooseDestination: "اختر الوجهة",
+    promotionLoadError: "تعذر التحميل. أعد فتح المحرر للمحاولة مجدداً.",
     editBanner: "تعديل بانر الصفحة الرئيسية",
     editAnnouncement: "تعديل الإعلان",
     editCoupon: "تعديل القسيمة",

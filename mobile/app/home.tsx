@@ -1341,7 +1341,12 @@ export default function Home() {
                     <TouchableOpacity
                       style={styles.promoLinkBtn}
                       onPress={() => {
-                        if (announcement.link) void Linking.openURL(announcement.link);
+                        if (announcement.link && /^\/(products|categories)\/[a-f0-9]{24}$/i.test(announcement.link)) {
+                          setShowAnnouncements(false);
+                          router.push(announcement.link as `/products/${string}` | `/categories/${string}`);
+                        } else if (announcement.link && /^https?:\/\//i.test(announcement.link)) {
+                          void Linking.openURL(announcement.link).catch(() => {});
+                        }
                       }}
                     >
                       <Text style={styles.promoLinkText}>{t("view") ?? "View"}</Text>

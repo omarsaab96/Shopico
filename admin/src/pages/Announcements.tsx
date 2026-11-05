@@ -1,10 +1,11 @@
+import ItemPicker from "../components/ItemPicker";
 import ModalSurface from "../components/ModalSurface";
 import { useEffect, useId, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
 import ImageEditorModal from "../components/ImageEditorModal";
-import type { Announcement, AnnouncementImage } from "../types/api";
-import { deleteAnnouncement, fetchAnnouncements, getImageKitAuth, saveAnnouncement, fetchBanners, saveBanner, deleteBanner } from "../api/client";
+import type { Announcement, AnnouncementImage, Category, Product } from "../types/api";
+import { deleteAnnouncement, fetchAnnouncements, getImageKitAuth, saveAnnouncement, fetchBanners, saveBanner, deleteBanner, fetchCategories, fetchProducts } from "../api/client";
 import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import DatePicker from "react-datepicker";
@@ -50,6 +51,12 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
   const deleteItem = banners ? deleteBanner : deleteAnnouncement;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [draft, setDraft] = useState<AnnouncementDraft>({});
+  const [destinationSearch, setDestinationSearch] = useState("");
+  const [linkType, setLinkType] = useState("none");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [destinationsLoading, setDestinationsLoading] = useState(false);
+  const [destinationsError, setDestinationsError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
   const [uploadingNew, setUploadingNew] = useState(false);
@@ -92,6 +99,32 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
     load(getFilterParams());
   }, [selectedBranchId, banners]);
 
+  useEffect(() => {
+    if (!(showNewModal || editingId) || !selectedBranchId) return;
+    let cancelled = false;
+    setCategories([]);
+    setProducts([]);
+    setDestinationsLoading(true);
+    setDestinationsError(false);
+    const loadProducts = async () => {
+      const items: Product[] = [];
+      for (let page = 1; ; page++) {
+        const result = await fetchProducts({ page, limit: 100 });
+        if (cancelled) return [];
+        if (Array.isArray(result)) return result;
+        items.push(...result.items);
+        if (!result.hasMore) return items;
+      }
+    };
+    Promise.all([fetchCategories(), loadProducts()])
+      .then(([categoryList, productList]) => {
+        if (!cancelled) { setCategories(categoryList); setProducts(productList); }
+      })
+      .catch(() => { if (!cancelled) setDestinationsError(true); })
+      .finally(() => { if (!cancelled) setDestinationsLoading(false); });
+    return () => { cancelled = true; };
+  }, [showNewModal, editingId, selectedBranchId]);
+
   const applyFilters = () => {
     load(getFilterParams());
   };
@@ -108,6 +141,8 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
     cancelEdit();
     const defaults = getDefaultDates();
     setDraft({ ...defaults, isEnabled: true });
+    setLinkType("none");
+    setDestinationSearch("");
     setFormError("");
     setShowNewModal(true);
   };
@@ -197,6 +232,8 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
     if (!canManage) return;
     setShowNewModal(false);
     setEditingId(announcement._id);
+    setDestinationSearch("");
+    setLinkType(announcement.link?.startsWith("/categories/") ? "categories" : announcement.link?.startsWith("/products/") ? "products" : announcement.link ? "external" : "none");
     setEditDraft({
       ...announcement,
       startsAt: announcement.startsAt,
@@ -293,10 +330,10 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
             <button className="primary" type="submit">
               {t("filter")}
             </button>
-          <button className="ghost-btn" type="button" onClick={resetFilters}>
-            {t("clear")}
-          </button>
-        </form>
+            <button className="ghost-btn" type="button" onClick={resetFilters}>
+              {t("clear")}
+            </button>
+          </form>
           {canManage && (
             <button className="primary" onClick={openNewModal}>
               {t(banners ? "addBanner" : "addAnnouncement") || "Add announcement"}
@@ -361,7 +398,9 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                     )}
                   </td>
                   <td>
-                    {announcement.link ? (
+                    {announcement.link?.startsWith("/") ? (
+                      `${t(announcement.link.startsWith("/categories/") ? "category" : "promotionProduct")}: ${[...categories, ...products].find(item => announcement.link?.endsWith(item._id))?.name || announcement.link.split("/").pop()}`
+                    ) : announcement.link ? (
                       <a href={announcement.link} target="_blank" rel="noreferrer">
                         {announcement.link}
                       </a>
@@ -426,6 +465,7 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                 {t("close")}
               </button>
             </div>
+
             <form id={editorFormId} className="form productRow" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
               <label>
                 {t("title") || "Title"}
@@ -437,10 +477,45 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                 <input value={modalDraft.description || ""} onChange={(e) => setModalDraft({ ...modalDraft, description: e.target.value })} />
               </label>
 
-              <label>
-                {t("link") || "Link"}
-                <input value={modalDraft.link || ""} onChange={(e) => setModalDraft({ ...modalDraft, link: e.target.value })} placeholder="https://..." />
-              </label>
+              <div>
+                <label id={`${editorFormId}-link-type`}>{t("promotionLinkType")}</label>
+                <div className="tab-row" role="group" aria-labelledby={`${editorFormId}-link-type`}>
+                  {([
+                    ["none", "promotionNoLink"],
+                    ["external", "promotionWebLink"],
+                    ["categories", "category"],
+                    ["products", "promotionProduct"],
+                  ] as const).map(([value, label]) => (
+                    <button key={value} className={`tab-btn ${linkType === value ? "active" : ""}`} type="button" aria-pressed={linkType === value}
+                      onClick={() => {
+                        if (linkType === value) return;
+                        setLinkType(value);
+                        setDestinationSearch("");
+                        setModalDraft({ ...modalDraft, link: "" });
+                      }}>
+                      {t(label)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {linkType === "external" && <label>
+                {t("link")}
+                <input required type="url" value={modalDraft.link || ""} onChange={e => setModalDraft({ ...modalDraft, link: e.target.value })} placeholder="https://..." />
+              </label>}
+              {(linkType === "categories" || linkType === "products") && <div>
+                <p>{t(linkType === "categories" ? "category" : "promotionProduct")}</p>
+                <ItemPicker
+                  items={linkType === "categories" ? categories : products}
+                  selectedIds={modalDraft.link ? [modalDraft.link.split("/").pop()!] : []}
+                  onChange={ids => setModalDraft({ ...modalDraft, link: ids[0] ? `/${linkType}/${ids[0]}` : "" })}
+                  search={destinationSearch}
+                  onSearchChange={setDestinationSearch}
+                  searchPlaceholder={t(linkType === "categories" ? "searchCategory" : "searchProducts")}
+                  multiple={false}
+                  loading={destinationsLoading}
+                />
+                {destinationsError && <span className="error">{t("promotionLoadError")}</span>}
+              </div>}
 
               <div style={{ display: 'flex', gap: '20px' }}>
                 <label style={{ flex: 1 }}>
@@ -526,18 +601,19 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                 </div>
               </div>
               {modalError && <div className="error" role="alert">{modalError}</div>}
-              
+
             </form>
+
             <div className="modal-actions">
-                <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving || modalUploading}>
-                  {t("cancel")}
+              <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving || modalUploading}>
+                {t("cancel")}
+              </button>
+              {canManage && (
+                <button className="primary" type="submit" form={editorFormId} disabled={saving || modalUploading || ((linkType === "categories" || linkType === "products") && !modalDraft.link)}>
+                  {t(saving ? "saving" : "save")}
                 </button>
-                {canManage && (
-                  <button className="primary" type="submit" form={editorFormId} disabled={saving || modalUploading}>
-                    {t(saving ? "saving" : "save")}
-                  </button>
-                )}
-              </div>
+              )}
+            </div>
           </ModalSurface>
         </div>
       )}

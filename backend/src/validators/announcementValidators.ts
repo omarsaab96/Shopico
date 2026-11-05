@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { promotionLinkSchema } from "./promotionLink";
 
 const optionalText = z
   .string()
@@ -6,18 +7,10 @@ const optionalText = z
   .optional()
   .transform((value) => (value ? value : undefined));
 
-const optionalUrl = z
-  .string()
-  .trim()
-  .url()
-  .optional()
-  .or(z.literal(""))
-  .transform((value) => (value ? value : undefined));
-
 export const announcementSchema = z.object({
   title: optionalText,
   description: optionalText,
-  link: optionalUrl,
+  link: promotionLinkSchema,
   image: z
     .object({
       url: z.string().url(),

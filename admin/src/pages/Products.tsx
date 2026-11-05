@@ -1,3 +1,4 @@
+import ItemPicker from "../components/ItemPicker";
 import ModalSurface from "../components/ModalSurface";
 import { useEffect, useId, useRef, useState } from "react";
 import type { DragEvent, FormEvent } from "react";
@@ -977,78 +978,8 @@ const ProductsPage = () => {
     search: string,
     setSearch: (value: string) => void
   ) => {
-    const list = selectedIds || [];
-    const filtered = categories.filter((c) => {
-      const term = search.trim().toLowerCase();
-      if (!term) return true;
-      return c.name?.toLowerCase().includes(term) || c.description?.toLowerCase().includes(term);
-    });
-
-    return (
-      <div className="multi-select">
-        <div className="flex">
-          <div className="multiSelectSearch flex">
-            <input
-              className="filter-input"
-              placeholder={t("searchCategory")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button className="ghost-btn" type="button" onClick={() => setSearch("")}>
-                {t("clear")}
-              </button>
-            )}
-          </div>
-
-          <div className="multi-select-actions">
-            <button
-              className="ghost-btn"
-              type="button"
-              onClick={() => {
-                if (list.length === categories.length) {
-                  setSelected([]);
-                } else {
-                  setSelected(categories.map((c) => c._id));
-                }
-              }}
-            >
-              {list.length === categories.length ? (t("clearAll") || "Clear all") : (t("selectAll") || "Select all")}
-            </button>
-            {list.length > 0 && (
-              <div className="multi-select-count">
-                {t("selected") || "Selected"}: {list.length}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="multi-select-list">
-          {filtered.length === 0 ? (
-            <div className="muted">{t("noResults") || "No results"}</div>
-          ) : (
-            filtered.map((c) => {
-              const checked = list.includes(c._id);
-              return (
-                <div key={c._id} className="checkboxContainer multi-select-item">
-                  <input
-                    id={`userSelect${c._id}`}
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() =>
-                      setSelected(checked ? list.filter((id) => id !== c._id) : [...list, c._id])
-                    }
-                  />
-                  <label htmlFor={`userSelect${c._id}`}>
-                    {c.name}
-                  </label>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-    );
+    return <ItemPicker items={categories} selectedIds={selectedIds || []} onChange={setSelected}
+      search={search} onSearchChange={setSearch} searchPlaceholder={t("searchCategory")} />;
   };
 
   const getCategoryLabels = (value?: Product["categories"]) => {
