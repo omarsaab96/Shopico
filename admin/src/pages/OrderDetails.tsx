@@ -299,7 +299,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
   const backToOrders = !embedded && (
     <button className="ghost-btn" type="button" onClick={() => navigate("/orders")}
       style={{
-        padding:4,border:'none',borderRadius:4
+        padding: 4, border: 'none', borderRadius: 4
       }}>
       {t("orders.backToOrders")}
     </button>
@@ -347,6 +347,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
           return saved;
         }} />
       }
+
       {/* <Card
         title={t("orders.orderDetails")}
         subTitle={`#${order._id.slice(-6)}`}
@@ -356,6 +357,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
           </button>
         )}
       > */}
+      
       <div className="detail-grid">
         <div className="stat">
           <div className="stat-label">{t("status")}</div>
@@ -375,21 +377,24 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
             )}
           </div>
         </div>
+
         <div className="stat">
           <div className="stat-label">{t("payment")}</div>
           <div className="stat-value">
             <StatusPill value={order.paymentStatus} size="big" />
           </div>
         </div>
+
         <div className="stat">
           <div className="stat-label">{t("total")}</div>
           <div className="stat-value" style={{ fontSize: 20 }}>
             {formatOrderMoney(order.total)}
           </div>
         </div>
+
         <div className="stat">
           <div className="stat-label">{t("orders.dateTime")}</div>
-          <div className="stat-value" style={{ fontSize: 20 }}>
+          <div className="stat-value" style={{ fontSize: 20, whiteSpace: "normal", overflowWrap: "anywhere" }}>
             {formatDateTime(order.createdAt)}
           </div>
         </div>
@@ -621,75 +626,78 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
                   {t("close")}
                 </button>
               </div>
-              <div className={activePicker === 'status' ? 'list-row' : 'list'} style={activePicker === 'status' ? { "gap": "10px" } : {}}>
-                {activePicker === "status" ? (
-                  statuses.map((status) => (
-                    <button
-                      key={status}
-                      className="driver-picker-option"
-                      style={activePicker === 'status' ? { "textAlign": 'center' } : {}}
-                      type="button"
-                      onClick={async () => {
-                        if (status === statusDraft) {
-                          closePicker();
-                          return;
-                        }
-                        setStatusDraft(status);
-                        await saveStatus(status);
-                        setActivePicker(null);
-                      }}
-                      disabled={statusSaving}
-                    >
-                      {/* <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}> */}
-                      <StatusPill value={status} />
-                      {/* </div> */}
-                    </button>
-                  ))
-                ) : (
-                  <>
-                    <button
-                      className={`driver-picker-option${driverDraft === "" ? " active" : ""}`}
-                      type="button"
-                      onClick={async () => {
-                        if (driverDraft === "") {
-                          closePicker();
-                          return;
-                        }
-                        setDriverDraft("");
-                        await saveDriver("");
-                        setActivePicker(null);
-                      }}
-                      disabled={driverSaving}
-                    >
-                      <strong className="unassignLabel">{t("unassign") ?? "Unassign driver"}</strong>
-                    </button>
-                    {drivers.map((item) => (
+
+              <div className="form">
+                <div className={activePicker === 'status' ? 'list-row' : 'list'} style={activePicker === 'status' ? { "gap": "10px" } : {}}>
+                  {activePicker === "status" ? (
+                    statuses.map((status) => (
                       <button
-                        key={item._id}
-                        className={`driver-picker-option${driverDraft === item._id ? " active" : ""}`}
+                        key={status}
+                        className="driver-picker-option"
+                        style={activePicker === 'status' ? { "textAlign": 'center' } : {}}
                         type="button"
                         onClick={async () => {
-                          if (driverDraft === item._id) {
+                          if (status === statusDraft) {
                             closePicker();
                             return;
                           }
-                          setDriverDraft(item._id);
-                          await saveDriver(item._id);
+                          setStatusDraft(status);
+                          await saveStatus(status);
+                          setActivePicker(null);
+                        }}
+                        disabled={statusSaving}
+                      >
+                        {/* <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}> */}
+                        <StatusPill value={status} />
+                        {/* </div> */}
+                      </button>
+                    ))
+                  ) : (
+                    <>
+                      <button
+                        className={`driver-picker-option${driverDraft === "" ? " active" : ""}`}
+                        type="button"
+                        onClick={async () => {
+                          if (driverDraft === "") {
+                            closePicker();
+                            return;
+                          }
+                          setDriverDraft("");
+                          await saveDriver("");
                           setActivePicker(null);
                         }}
                         disabled={driverSaving}
                       >
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                          <strong>{item.name}</strong>
-                          <span className={item.driverStatus === "BUSY" ? "driver-picker-status busy" : "driver-picker-status available"}>
-                            {item.driverStatus === "BUSY" ? t("driverStatus.busy") : t("driverStatus.available")}
-                          </span>
-                        </div>
-                        <span className="rtlFix" style={{ opacity: 0.6 }}>{item.email}</span>
+                        <strong className="unassignLabel">{t("unassign") ?? "Unassign driver"}</strong>
                       </button>
-                    ))}
-                  </>
-                )}
+                      {drivers.map((item) => (
+                        <button
+                          key={item._id}
+                          className={`driver-picker-option${driverDraft === item._id ? " active" : ""}`}
+                          type="button"
+                          onClick={async () => {
+                            if (driverDraft === item._id) {
+                              closePicker();
+                              return;
+                            }
+                            setDriverDraft(item._id);
+                            await saveDriver(item._id);
+                            setActivePicker(null);
+                          }}
+                          disabled={driverSaving}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                            <strong>{item.name}</strong>
+                            <span className={item.driverStatus === "BUSY" ? "driver-picker-status busy" : "driver-picker-status available"}>
+                              {item.driverStatus === "BUSY" ? t("driverStatus.busy") : t("driverStatus.available")}
+                            </span>
+                          </div>
+                          <span className="rtlFix" style={{ opacity: 0.6 }}>{item.email}</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
               </div>
             </ModalSurface>
           </div>

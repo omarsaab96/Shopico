@@ -3512,7 +3512,7 @@ dialog[open]::backdrop {
 }
 
 .modal.product-edit-modal {
-  --modal-max-width: 1200px;
+  --modal-max-width: 1300px;
   width: fit-content;
 }
 

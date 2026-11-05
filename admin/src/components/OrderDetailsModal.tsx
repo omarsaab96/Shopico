@@ -31,7 +31,7 @@ export default function OrderDetailsModal({ orderId, onClose }: { orderId: strin
         <h2 id="order-details-modal-title">{t("orders.orderDetails")} #{orderId.slice(-6)}</h2>
         <button type="button" className="ghost-btn" autoFocus onClick={onClose}>{t("close")}</button>
       </div>
-      <div className="order-details-modal-body">
+      <div className="order-details-modal-body" >
         <OrderDetailsPage key={orderId} orderId={orderId} embedded />
       </div>
     </ModalContent></dialog>,
