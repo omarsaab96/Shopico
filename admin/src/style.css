@@ -2325,11 +2325,11 @@ html[dir="rtl"] .unassignLabel {
 }
 
 .modal.product-edit-modal .modal-body {
-  padding: 20px;
+  padding: 20px 10px;
 }
 
 .modal.product-edit-modal .modal-actions {
-  padding: 20px 20px;
+  padding: 10px;
   margin: 0;
   border-top: 1px solid #e9e9e9;
 }
@@ -2339,7 +2339,7 @@ html[dir="rtl"] .unassignLabel {
 }
 
 .modal.product-edit-modal .product-edit-tabs {
-  padding: 0px 20px;
+  padding: 0px 10px;
   background-color: #dce2e8;
   display: flex;
   gap: 20px;
@@ -3209,7 +3209,7 @@ dialog[open]::backdrop {
   margin: -20px -20px 20px;
   padding: 20px;
   background: #dce2e8;
-  border-bottom: 1px solid var(--gray-300);
+  /* border-bottom: 1px solid var(--gray-300); */
 }
 .modal-content > h2:first-child,
 .modal-content > form > h2:first-child { font-size: 18px; }
@@ -3241,7 +3241,7 @@ dialog[open]::backdrop {
 }
 .modal.product-edit-modal > .modal-content,
 .order-details-dialog > .modal-content { padding: 0; }
-.modal.product-edit-modal .modal-content > .modal-header { margin: 0; padding: 20px 20px 0; }
+.modal.product-edit-modal .modal-content > .modal-header { margin: 0; padding: 10px 10px 0; }
 .order-details-modal-header { background: #dce2e8; }
 .order-details-modal-body { max-height: none; overflow: visible; }
 .confirmation-message { margin: 0; line-height: 1.6; }
