@@ -13,7 +13,7 @@ const baseStrings = {
   driverTrackingForeground: "Keep Shopico open to share your delivery location. Tracking pauses when you leave the app or lock your phone.",
   driverOrderCompleted: "Completed",
   refundedQuantity: "Refunded quantity",
-  needSupport: "Need support?",
+  needSupport: "Help",
   supportUnavailable: "Support is currently unavailable. Please try again later.",
   supportCallFailed: "Unable to open the phone dialer. Please call",
   add: "Add",
@@ -28,6 +28,7 @@ const baseStrings = {
   wallet: "Wallet",
   cashOnDelivery: "Cash on delivery",
   settings: "Settings",
+  notificationSettings: "Notifications settings",
   announcements: "Announcements",
   view: "View",
   addToCart: "Add to cart",
@@ -111,7 +112,7 @@ const baseStrings = {
   earnPoints: "How to earn",
   earnPointsCopy: "Earn points on subtotal after delivery.",
   pointsBalance: "Points balance",
-  points:"Points",
+  points: "Points",
   pointEarnRate: "1 point per {amount} SYP on subtotal.",
   viewPoints: "View points",
   usePointsTitle: "How to use",
@@ -251,7 +252,7 @@ const arStrings: Record<string, string> = {
   driverTrackingPermission: "حالة الطلب الآن قيد الشحن. اسمح بالموقع لتفعيل التتبع.",
   driverOrderCompleted: "مكتمل",
   refundedQuantity: "الكمية المستردة",
-  needSupport: "بحاجة للمساعدة؟",
+  needSupport: "مساعدة",
   supportUnavailable: "الدعم غير متاح حالياً. يُرجى المحاولة مرة أخرى لاحقاً.",
   supportCallFailed: "تعذّر فتح تطبيق الاتصال. يُرجى الاتصال يدوياً.",
   add: "أضف",
@@ -264,6 +265,7 @@ const arStrings: Record<string, string> = {
   membership: "العضوية",
   wallet: "المحفظة",
   cashOnDelivery: "عند الاستلام",
+  notificationSettings: "إعدادات الإشعارات",
   settings: "الإعدادات",
   addToCart: "أضف إلى السلة",
   placeOrder: "تأكيد الطلب",
@@ -539,8 +541,8 @@ const extraBaseStrings: Record<string, string> = {
   emailVerificationFailed: "Could not verify email",
   emailVerified: "Email verified",
   clipboardReadFailed: "Could not read clipboard",
-  lan_ar:"Arabic",
-  lan_en:"English"
+  lan_ar: "Arabic",
+  lan_en: "English"
 };
 
 const extraArStrings: Record<string, string> = {
@@ -618,8 +620,8 @@ const extraArStrings: Record<string, string> = {
   orderPlacedCopy: "تم تأكيد طلبك وهو في الطريق إليك.",
   trackOrder: "تتبع الطلب",
   view: "عرض",
-  lan_ar:"العربية",
-  lan_en:"الانكليزية"
+  lan_ar: "العربية",
+  lan_en: "الانكليزية"
 };
 
 const messages: Record<Lang, Record<string, string>> = {

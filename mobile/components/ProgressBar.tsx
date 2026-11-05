@@ -13,10 +13,9 @@ const ProgressBar = ({ progress }: { progress: number }) => {
           backgroundColor: palette.border,
           borderRadius: 999,
           overflow: "hidden",
-          padding:2,
         },
         bar: {
-          height: 5,
+          height: 3,
           backgroundColor: palette.accent,
           borderRadius:999
         },

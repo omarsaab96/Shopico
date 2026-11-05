@@ -17,6 +17,7 @@ import { useCurrency } from "../lib/currency";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function Profile() {
   const router = useRouter();
@@ -192,11 +193,108 @@ export default function Profile() {
         <View style={{ flex: 1, justifyContent: 'space-between' }}>
           <View>
             <Text style={styles.title}>{t("profile")}</Text>
-            <TouchableOpacity style={{ paddingVertical: 12 }} onPress={() => router.push("/notifications")}><Text style={{ color: palette.accent }}>{lang === "ar" ? "الإشعارات والإعدادات" : "Notifications and settings"}</Text></TouchableOpacity>
 
             {user ? (
               <>
-                <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg, marginBottom: 20 }]}>
+                <View style={{ flexDirection: 'row', gap: 5, alignItems: 'flex-start', marginBottom: 20, }}>
+                  <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg, flex: 1 }]}>
+
+                    <View style={[styles.walletGlowA, { backgroundColor: membershipTone.accent }]} />
+                    <View style={[styles.walletGlowB, { backgroundColor: membershipTone.accent }]} />
+
+                    <View style={styles.walletRow}>
+                      <View style={[styles.walletTextCol, { gap: 0 }]}>
+                        <View style={[styles.walletHeader]}>
+                          <View style={{ gap: 0 }}>
+                            <Text style={styles.walletLabel}>
+                              {user?.name}
+                            </Text>
+                            {/* <Text style={[styles.muted]}>{user?.email}</Text> */}
+                            {/* <Entypo name="info-with-circle" size={18} color={palette.muted} /> */}
+                          </View>
+
+                          <View style={
+                            [
+                              styles.levelPill,
+                              { backgroundColor: membershipTone.badgeBg, borderColor: membershipTone.ring }
+                            ]
+                          }>
+                            <Feather name="award" size={14} color={membershipTone.badgeText} />
+                            <Text style={[styles.levelPillText, { color: membershipTone.badgeText }]}>
+                              {membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={[styles.walletValue, {}]}>
+                          <Entypo name="wallet" size={22} color={palette.text} />
+                          <View style={styles.walletValueTextRow}>
+                            <Text style={styles.walletValueText}>
+                              {balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}
+                            </Text>
+                            <Text style={{ fontWeight: "400", fontSize: 12 }}>
+                              {getCurrencySymbol(selectedCurrency)}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={{ marginTop: 10 }}>
+                      {hasThresholds ? (
+                        <>
+                          <ProgressBar progress={progress} />
+                          <View style={styles.walletFooterRow}>
+                            {remaining > 0 &&
+                              <Text style={styles.walletMiniLabel}>
+                                {t("remainingToNext") ?? "Remaining to"}{nextLabel}
+                              </Text>
+                            }
+                            <Text style={styles.walletMiniValue}>
+                              {remaining > 0 ? `${remaining.toLocaleString()} ${getCurrencySymbol(selectedCurrency)}` : t("congrats") ?? "Top level"}
+                            </Text>
+                          </View>
+                        </>
+                      ) : (
+                        <Text style={styles.walletMiniLabel}>{t("membershipLoadError") ?? "Could not load membership details."}</Text>
+                      )}
+
+                      {inGrace && (
+                        <View style={[styles.graceBox, { borderColor: membershipTone.ring, backgroundColor: isDark ? palette.surface : "#fffaf0" }]}>
+                          <Text style={styles.graceTitle}>{t("gracePeriodActive") ?? "Grace period active"}</Text>
+                          <Text style={styles.graceCopy}>
+                            {(t("graceKeepLevel") ?? "Keep your balance above")} {currentThreshold.toLocaleString()} {getCurrencySymbol(selectedCurrency)}
+                          </Text>
+                          <Text style={[styles.graceCopy, { color: palette.muted }]}>
+                            {(t("graceUntil") ?? "Grace until")}: {graceUntil?.toLocaleDateString()}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg, padding: 0 }]}>
+                    <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBoxFull, {
+                      flexDirection: 'column', padding: 10, justifyContent: 'center', alignItems: 'center'
+                    }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <MaterialCommunityIcons name="star-four-points-circle" size={26} color="black" />
+                        {/* <Text style={[styles.pointsValue, { fontWeight: "600", flexDirection: 'row', alignItems: 'center', gap: 5 }, isRTL ? null : { transform: [{ translateY: -2 }] }]}>
+                          {t("points")}
+                        </Text> */}
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
+                        <Text style={styles.walletValueText}>
+                          {formattedPoints}
+                        </Text>
+                        {/* <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.muted} /> */}
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {false && <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg, marginBottom: 20 }]}>
                   <View style={[styles.walletGlowA, { backgroundColor: membershipTone.accent }]} />
                   <View style={[styles.walletGlowB, { backgroundColor: membershipTone.accent }]} />
                   <View style={styles.walletRow}>
@@ -253,9 +351,9 @@ export default function Profile() {
                       </View>
                     )}
                   </View>
-                </View>
+                </View>}
 
-                <View style={styles.card}>
+                {false && <View style={styles.card}>
                   <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBoxFull]}>
                     {/* <View> */}
                     {/* <Text style={[styles.pointsValue, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
@@ -284,7 +382,7 @@ export default function Profile() {
                       <Text style={styles.link}>{t("learnMore")}</Text>
                     </TouchableOpacity> */}
                   </TouchableOpacity>
-                </View>
+                </View>}
 
                 {false && <View style={styles.card}>
                   <View style={{ padding: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -369,14 +467,73 @@ export default function Profile() {
               </View>
             )}
 
-            <View>
+            <View style={{ marginBottom: 30 }}>
               <Text style={styles.sectionTitle}>{t("settings")}</Text>
               <View style={styles.profileLinks}>
-                {/* <TouchableOpacity style={styles.profileLink} onPress={() => { router.push("/settings") }}>
-                <Text style={styles.profileLinkText}>{t("settings")}</Text>
-                <Entypo name="chevron-right" size={20} color="black" />
-              </TouchableOpacity> */}
+                <TouchableOpacity style={styles.profileLink} onPress={() => router.push("/notificationsSettings")}>
+                  <Text style={styles.profileLinkText}>{lang === "ar" ? "الإشعارات" : "Notifications"}</Text>
+                  <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
+                </TouchableOpacity>
 
+                {user && currencies.length > 1 && (
+                  <View style={[styles.profileLink, styles.isLast]}>
+                    <Text style={styles.profileLinkText}>{t("currency") ?? "Currency"}</Text>
+                    <View style={styles.inlineRow}>
+                      {currencies.map((currency) => (
+                        <TouchableOpacity
+                          key={currency._id}
+                          style={[styles.pill, (selectedCurrencyId || selectedCurrency?._id) === currency._id && styles.pillActive]}
+                          onPress={() => setSelectedCurrencyId(currency._id)}
+                        >
+                          <Text style={[styles.pillText, (selectedCurrencyId || selectedCurrency?._id) === currency._id && styles.pillActiveText]}>
+                            {getCurrencySymbol(currency)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* MVP: theme selection is temporarily disabled while the app ships light-only.
+                <View style={[styles.profileLink, { paddingVertical: 10 }, (!user || currencies.length <= 1) && styles.isLast]}>
+                  <Text style={styles.profileLinkText}>{t("theme")}</Text>
+                  <View style={styles.inlineRow}>
+                    {(["system", "light", "dark"] as const).map((opt) => (
+                      <TouchableOpacity
+                        key={opt}
+                        style={[styles.pill, mode === opt && styles.pillActive]}
+                        onPress={() => setMode(opt)}
+                      >
+                        <Text style={[styles.pillText, mode === opt && styles.pillActiveText]}>{t(opt)}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+                */}
+
+                <View style={[styles.profileLink, { paddingVertical: 10, borderBottomWidth: 0 }]}>
+                  <Text style={styles.profileLinkText}>{t("language")}</Text>
+                  <View style={styles.inlineRow}>
+                    {["en", "ar"].map((code) => (
+                      <TouchableOpacity
+                        key={code}
+                        style={[styles.pill, lang === code && styles.pillActive]}
+                        onPress={() => setLang(code as any)}
+                      >
+                        <Text style={[styles.pillText, lang === code && styles.pillActiveText]}>
+                          {/* {code.toUpperCase()} */}
+                          {t("lan_" + code)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            <View>
+              <Text style={styles.sectionTitle}>{t("Account")}</Text>
+              <View style={styles.profileLinks}>
                 {user && (
                   <>
                     <TouchableOpacity style={[styles.profileLink]} onPress={() => { handleEdit() }} >
@@ -415,61 +572,19 @@ export default function Profile() {
                         )}
                       </View>
                     </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.profileLink, { borderBottomWidth: 0, justifyContent: 'flex-start', gap: 10 }]}
+                      onPress={() => {
+                        void logout().catch(() => {
+                          Alert.alert(lang === "ar" ? "تعذر تسجيل الخروج" : "Could not sign out", lang === "ar" ? "تحقق من الاتصال وحاول مجدداً." : "Check your connection and retry.")
+                        })
+                      }}
+                    >
+                      <MaterialIcons name="logout" size={20} color={palette.text} style={!isRTL && { transform: [{ scaleX: -1 }] }} />
+                      <Text style={styles.profileLinkText}>{t("logout") ?? "Logout"}</Text>
+                      {/* <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={} color={palette.text} /> */}
+                    </TouchableOpacity>
                   </>
-                )}
-
-                <View style={[styles.profileLink, { paddingVertical: 10 }]}>
-                  <Text style={styles.profileLinkText}>{t("language")}</Text>
-                  <View style={styles.inlineRow}>
-                    {["en", "ar"].map((code) => (
-                      <TouchableOpacity
-                        key={code}
-                        style={[styles.pill, lang === code && styles.pillActive]}
-                        onPress={() => setLang(code as any)}
-                      >
-                        <Text style={[styles.pillText, lang === code && styles.pillActiveText]}>
-                          {/* {code.toUpperCase()} */}
-                          {t("lan_" + code)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                {/* MVP: theme selection is temporarily disabled while the app ships light-only.
-                <View style={[styles.profileLink, { paddingVertical: 10 }, (!user || currencies.length <= 1) && styles.isLast]}>
-                  <Text style={styles.profileLinkText}>{t("theme")}</Text>
-                  <View style={styles.inlineRow}>
-                    {(["system", "light", "dark"] as const).map((opt) => (
-                      <TouchableOpacity
-                        key={opt}
-                        style={[styles.pill, mode === opt && styles.pillActive]}
-                        onPress={() => setMode(opt)}
-                      >
-                        <Text style={[styles.pillText, mode === opt && styles.pillActiveText]}>{t(opt)}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-                */}
-
-                {user && currencies.length > 1 && (
-                  <View style={[styles.profileLink, styles.isLast]}>
-                    <Text style={styles.profileLinkText}>{t("currency") ?? "Currency"}</Text>
-                    <View style={styles.inlineRow}>
-                      {currencies.map((currency) => (
-                        <TouchableOpacity
-                          key={currency._id}
-                          style={[styles.pill, (selectedCurrencyId || selectedCurrency?._id) === currency._id && styles.pillActive]}
-                          onPress={() => setSelectedCurrencyId(currency._id)}
-                        >
-                          <Text style={[styles.pillText, (selectedCurrencyId || selectedCurrency?._id) === currency._id && styles.pillActiveText]}>
-                            {getCurrencySymbol(currency)}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
                 )}
               </View>
             </View>
@@ -489,9 +604,9 @@ export default function Profile() {
             )} */}
           </View>
 
-          {user && <View style={{ paddingBottom: 16 }}>
+          {/* {user && <View style={{ paddingBottom: 16 }}>
             <Button title={t("logout")} onPress={() => { void logout().catch(() => Alert.alert(lang === "ar" ? "تعذر تسجيل الخروج" : "Could not sign out", lang === "ar" ? "تحقق من الاتصال وحاول مجدداً." : "Check your connection and retry.")); }} secondary />
-          </View>}
+          </View>} */}
         </View>
 
       </Screen >
@@ -551,7 +666,7 @@ export default function Profile() {
           </View>
         </BottomSheetScrollView>
       </BottomSheetModal>
-    </BottomSheetModalProvider>
+    </BottomSheetModalProvider >
   );
 }
 
@@ -753,7 +868,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       color: palette.text,
       fontSize: 20,
       fontWeight: "900",
-      marginVertical: 10,
+      // marginVertical: 10,
     },
 
     pointsLink: {
@@ -799,7 +914,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     walletCard: {
       borderRadius: 20,
-      padding: 14,
+      padding: 8,
       borderWidth: 1,
       borderColor: hairline,
       overflow: "hidden",
@@ -807,31 +922,31 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     walletGlowA: {
       position: "absolute",
-      width: 220,
-      height: 220,
+      width: 140,
+      height: 110,
       borderRadius: 999,
       opacity: isDark ? 0.08 : 0.14,
-      top: -120,
-      left: isRTL ? undefined : -110,
-      right: isRTL ? -110 : undefined,
+      top: -55,
+      left: isRTL ? undefined : -55,
+      right: isRTL ? -55 : undefined,
     },
     walletGlowB: {
       position: "absolute",
-      width: 260,
-      height: 260,
+      width: 140,
+      height: 140,
       borderRadius: 999,
       opacity: isDark ? 0.06 : 0.12,
-      bottom: -160,
-      left: isRTL ? -140 : undefined,
-      right: isRTL ? undefined : -140,
+      bottom: -80,
+      left: isRTL ? -70 : undefined,
+      right: isRTL ? undefined : -70,
     },
-    walletRow: { flexDirection: 'row', gap: 12, alignItems: "flex-start" },
+    walletRow: { flexDirection: 'row', gap: 10, alignItems: "flex-start" },
     walletTextCol: { flex: 1, gap: 8 },
 
-    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", lineHeight: 24 },
+    walletLabel: { color: palette.text, fontSize: 18, fontWeight: "700", lineHeight: 24 },
     walletValue: { flexDirection: 'row', gap: 5, alignItems: isRTL ? 'baseline' : 'center' },
     walletValueTextRow: { flexDirection: 'row', gap: 5, alignItems: 'baseline' },
-    walletValueText: { color: palette.text, fontSize: 28, lineHeight: 40, fontWeight: "900", textAlign: align },
+    walletValueText: { color: palette.text, fontSize: 28, lineHeight: 34, fontWeight: "900", textAlign: align },
 
     walletBadgeRow: { flexDirection: 'row', justifyContent: isRTL ? "flex-end" : "flex-start" },
     levelPill: {
@@ -847,9 +962,9 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     walletMini: {
       paddingTop: 5
     },
-    walletMiniLabel: { color: palette.muted, fontWeight: "800", fontSize: 12, textAlign: align },
-    walletMiniValue: { color: palette.text, fontWeight: "900", fontSize: 13, marginTop: 4, textAlign: align },
-    walletMiniHint: { color: palette.muted, fontWeight: "700", fontSize: 12, marginTop: 2, textAlign: align },
+    walletMiniLabel: { color: palette.muted, fontWeight: "800", fontSize: 10, textAlign: align },
+    walletMiniValue: { color: palette.text, fontWeight: "900", fontSize: 10, textAlign: align },
+    walletMiniHint: { color: palette.muted, fontWeight: "700", fontSize: 8, textAlign: align },
     sheetContainer: {
       padding: 16,
       // paddingBottom: insets.bottom,
@@ -946,7 +1061,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     graceTitle: { color: palette.accent, fontWeight: "800", fontSize: 13 },
     graceCopy: { color: palette.text, fontSize: 12 },
-    walletFooterRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 5, alignItems: "center" },
+    walletFooterRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     walletHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   });
 };

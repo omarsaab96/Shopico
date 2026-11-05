@@ -6,6 +6,7 @@ import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import Text from "../components/Text";
 import { useRouter } from "expo-router";
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -22,8 +23,16 @@ export default function SettingsScreen() {
   const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
 
   return (
-    <Screen showBack backLabel={t("back") ?? "Back"}>
-      <Text style={styles.title}>{t("settings")}</Text>
+    <Screen>
+      <View style={{}}>
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }} onPress={() => router.back()} activeOpacity={0.85}>
+          {/* <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} color={palette.text} /> */}
+          <FontAwesome6 name={isRTL ? "chevron-right" : "chevron-left"} size={18} color="black" style={{}} />
+
+          <Text weight="bold" style={styles.title}>{t("notificationSettings") ?? "Notifications settings"}</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.card}>
         <View style={styles.row}>
           <Text style={styles.muted}>{t("pushNotifications")}</Text>
@@ -31,21 +40,50 @@ export default function SettingsScreen() {
         </View>
       </View>
       <View style={styles.card}>
-        <View style={styles.row}><Text style={styles.muted}>{lang === "ar" ? "العروض والإعلانات" : "Promotions and announcements"}</Text><Switch disabled={saving} value={promotionsEnabled} onValueChange={value => void change("promotionsEnabled", value)} /></View>
-        {pushEnabled && pushStatus === "permission-required" && <TouchableOpacity onPress={() => void Linking.openSettings()}><Text style={styles.muted}>{lang === "ar" ? "اسمح بالإشعارات في إعدادات الجهاز" : "Allow notifications in device settings"}</Text></TouchableOpacity>}
-        {pushEnabled && ["error", "device-required", "build-required"].includes(pushStatus) && <TouchableOpacity onPress={() => void enablePush().catch(() => Alert.alert(lang === "ar" ? "تعذر تفعيل الإشعارات" : "Could not enable push notifications"))}><Text style={styles.muted}>{pushStatus === "error" ? (lang === "ar" ? "إعادة محاولة تفعيل الإشعارات" : "Retry enabling notifications") : (lang === "ar" ? "إشعارات الدفع متاحة في نسخة التطبيق المثبتة على جهاز حقيقي" : "Push notifications require an installed build on a physical device")}</Text></TouchableOpacity>}
-        <TouchableOpacity onPress={() => router.push("/notifications")}><Text style={styles.muted}>{lang === "ar" ? "عرض الإشعارات" : "View notifications"}</Text></TouchableOpacity>
+        <View style={styles.row}>
+          <Text style={styles.muted}>
+            {lang === "ar" ? "العروض والإعلانات" : "Promotions and announcements"}
+          </Text>
+          <Switch disabled={saving} value={promotionsEnabled} onValueChange={value => void change("promotionsEnabled", value)} />
+
+        </View>
+
+        {pushEnabled && pushStatus === "permission-required" &&
+          <TouchableOpacity onPress={() => void Linking.openSettings()}>
+            <Text style={styles.muted}>
+              {lang === "ar" ? "اسمح بالإشعارات في إعدادات الجهاز" : "Allow notifications in device settings"}
+            </Text>
+          </TouchableOpacity>
+        }
+
+
+        {/* <TouchableOpacity onPress={() => router.push("/notifications")}>
+        <Text style={styles.muted}>
+        {lang === "ar" ? "عرض الإشعارات" : "View notifications"}
+        </Text>
+        </TouchableOpacity> */}
       </View>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t("language")}</Text>
+
+      {pushEnabled && ["error", "device-required", "build-required"].includes(pushStatus) &&
+        <TouchableOpacity onPress={() => void enablePush().catch(() => Alert.alert(lang === "ar" ? "تعذر تفعيل الإشعارات" : "Could not enable push notifications"))}>
+          <Text style={styles.muted}>
+            {pushStatus === "error" ?
+              (lang === "ar" ? "إعادة محاولة تفعيل الإشعارات" : "Retry enabling notifications")
+              : (lang === "ar" ? "إشعارات الدفع متاحة في نسخة التطبيق المثبتة على جهاز حقيقي" : "Push notifications require an installed build on a physical device")
+            }
+          </Text>
+        </TouchableOpacity>
+      }
+      {/* <View style={styles.card}> */}
+      {/* <Text style={styles.cardTitle}>{t("language")}</Text>
         <View style={styles.row}>
           {["en", "ar"].map((code) => (
             <TouchableOpacity key={code} style={[styles.pill, lang === code && styles.pillActive]} onPress={() => setLang(code as any)}>
               <Text style={styles.pillText}>{code.toUpperCase()}</Text>
             </TouchableOpacity>
           ))}
-        </View>
-        {/* MVP: theme selection is temporarily disabled while the app ships light-only.
+        </View> */}
+      {/* MVP: theme selection is temporarily disabled while the app ships light-only.
         <Text style={[styles.cardTitle, { marginTop: 12 }]}>{t("theme")}</Text>
         <View style={styles.row}>
           {(["system", "light", "dark"] as const).map((opt) => (
@@ -55,7 +93,7 @@ export default function SettingsScreen() {
           ))}
         </View>
         */}
-      </View>
+      {/* </View> */}
     </Screen>
   );
 }

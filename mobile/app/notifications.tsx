@@ -7,6 +7,7 @@ import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import { useNotifications } from "../lib/notifications";
 import { useAuth } from "../lib/auth";
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
 export default function NotificationsScreen() {
   const { items, unreadCount, loading, error, refresh, loadMore, hasMore, open, readAll } = useNotifications();
@@ -15,14 +16,100 @@ export default function NotificationsScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const ar = lang === "ar";
+  const { t, isRTL } = useI18n();
+
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
   const failed = () => Alert.alert(ar ? "تعذر التحديث" : "Could not update notification", ar ? "حاول مجدداً." : "Please retry.");
-  return <Screen showBack backLabel={ar ? "رجوع" : "Back"}>
-    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}><Text style={{ fontSize: 24, color: palette.text, fontWeight: "700" }}>{ar ? "الإشعارات" : "Notifications"}</Text><TouchableOpacity onPress={() => router.push("/settings")} accessibilityLabel={ar ? "إعدادات الإشعارات" : "Notification settings"}><Text style={{ color: palette.accent }}>{ar ? "الإعدادات" : "Settings"}</Text></TouchableOpacity></View>
+  return <Screen>
+    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+
+      <View style={{}}>
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
+          onPress={() => router.back()}
+          activeOpacity={0.85}>
+          <FontAwesome6 name={isRTL ? "chevron-right" : "chevron-left"} size={18} color="black" style={{}} />
+
+          <Text weight="bold" style={{
+            color: palette.text,
+            fontSize: 22,
+            lineHeight: 22,
+            textAlign: "center",
+          }}>
+            {ar ? "الإشعارات" : "Notifications"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* <TouchableOpacity onPress={() => router.push("/settings")} accessibilityLabel={ar ? "إعدادات الإشعارات" : "Notification settings"}>
+        <Text style={{ color: palette.accent }}>{ar ? "الإعدادات" : "Settings"}</Text>
+      </TouchableOpacity> */}
+      <TouchableOpacity disabled={!unreadCount} onPress={() => void readAll().catch(failed)} style={{ paddingVertical: 12 }}>
+        <Text style={{ color: unreadCount ? palette.accent : palette.muted }}>
+          {ar ? "قراءة الكل" : "Mark all as read"} ({unreadCount})
+        </Text>
+      </TouchableOpacity>
+    </View>
+
     {!user ? <TouchableOpacity onPress={() => router.push("/auth/login")}><Text>{ar ? "سجّل الدخول لعرض الإشعارات" : "Sign in to view notifications"}</Text></TouchableOpacity> : <>
-      <TouchableOpacity disabled={!unreadCount} onPress={() => void readAll().catch(failed)} style={{ paddingVertical: 12 }}><Text style={{ color: unreadCount ? palette.accent : palette.muted }}>{ar ? "قراءة الكل" : "Mark all as read"} ({unreadCount})</Text></TouchableOpacity>
-      {error ? <TouchableOpacity onPress={() => void refresh()}><Text style={{ color: palette.accent }}>{error}</Text></TouchableOpacity> : null}
-      <FlatList data={items} keyExtractor={item => item._id} refreshing={loading} onRefresh={() => void refresh()} contentContainerStyle={{ gap: 10, paddingBottom: 30 }} ListEmptyComponent={loading ? <ActivityIndicator color={palette.accent} /> : <Text style={{ color: palette.muted, marginTop: 30 }}>{ar ? "لا توجد إشعارات بعد" : "No notifications yet"}</Text>} renderItem={({ item }) => <TouchableOpacity accessibilityRole="button" onPress={() => void open(item).catch(failed)} style={{ backgroundColor: palette.card, borderRadius: 14, borderWidth: 1, borderColor: item.readAt ? palette.border : palette.accent, padding: 16, gap: 8 }}><Text style={{ color: palette.text, fontWeight: item.readAt ? "500" : "800" }}>{item.title[ar ? "ar" : "en"]}</Text><Text style={{ color: palette.text }}>{item.body[ar ? "ar" : "en"]}</Text><Text style={{ color: palette.muted, fontSize: 11 }}>{new Date(item.createdAt).toLocaleString(ar ? "ar" : "en")}</Text></TouchableOpacity>} ListFooterComponent={hasMore ? <TouchableOpacity style={{ padding: 16 }} onPress={() => void loadMore()}><Text style={{ color: palette.accent }}>{ar ? "المزيد" : "Load more"}</Text></TouchableOpacity> : null} />
+
+      {error ?
+        <TouchableOpacity onPress={() => void refresh()}>
+          <Text style={{ color: palette.accent }}>{error}</Text>
+        </TouchableOpacity>
+        : null
+      }
+      <FlatList
+        data={items}
+        keyExtractor={item => item._id}
+        refreshing={loading}
+        onRefresh={() => void refresh()}
+        contentContainerStyle={{ gap: 0, paddingBottom: 30 }}
+        ListEmptyComponent={loading ? <ActivityIndicator color={palette.accent} /> : <Text style={{ color: palette.muted, marginTop: 30 }}>{ar ? "لا توجد إشعارات بعد" : "No notifications yet"}</Text>}
+        renderItem={({ item }) => {
+          return (
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => void open(item).catch(failed)}
+              style={[{
+                // backgroundColor: palette.card,
+                borderRadius: 0,
+                borderBottomWidth: 1,
+                borderColor: palette.border,
+                padding: 5,
+              },
+              item.readAt && { opacity: 0.7 }
+              ]
+              }
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                  {!item.readAt && <View style={{ width: 8, height: 8, backgroundColor: palette.accent, borderRadius: 5 }} />}
+                  <Text style={{ color: palette.text, fontWeight: item.readAt ? "500" : "800" }}>
+                    {item.title[ar ? "ar" : "en"]}
+                  </Text>
+                </View>
+
+                <Text style={{ color: palette.muted, fontSize: 11 }}>
+                  {new Date(item.createdAt).toLocaleString(ar ? "ar" : "en")}
+                </Text>
+              </View>
+
+              <Text style={{ color: palette.muted }}>
+                {item.body[ar ? "ar" : "en"]}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
+        ListFooterComponent={hasMore ?
+          <TouchableOpacity
+            style={{ padding: 16 }}
+            onPress={() => void loadMore()}>
+            <Text style={{ color: palette.accent }}>
+              {ar ? "المزيد" : "Load more"}
+            </Text>
+          </TouchableOpacity>
+          : null} />
     </>}
   </Screen>;
 }

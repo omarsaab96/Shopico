@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 7,
+    gap: 5,
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 22,
@@ -90,4 +90,6 @@ const styles = StyleSheet.create({
     flexShrink: 1
   },
   label: { color: "#fff", fontSize: 12, flexShrink: 1 },
+
+
 });

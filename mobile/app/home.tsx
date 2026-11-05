@@ -758,16 +758,36 @@ export default function Home() {
 
   const renderTopBar = () => (
     <View style={styles.topBar}>
-      <TouchableOpacity style={styles.iconBtn} accessibilityLabel={t("pushNotifications")} onPress={() => router.push("/notifications")}>
-        <Feather name="bell" size={20} color={palette.text} />
-        {unreadCount > 0 && <View style={{ position: "absolute", top: -4, right: -4, backgroundColor: "#dc2626", borderRadius: 10, minWidth: 18, paddingHorizontal: 3 }}><Text style={{ color: "#fff", fontSize: 10, textAlign: "center" }}>{unreadCount > 99 ? "99+" : unreadCount}</Text></View>}
-      </TouchableOpacity>
-
       <View style={styles.brandWrap}>
         <Image source={fallbackLogo} style={styles.brandLogo} />
       </View>
 
-      <SupportButton branchId={selectedBranch?._id} />
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <TouchableOpacity style={[styles.iconBtn]} accessibilityLabel={t("pushNotifications")} onPress={() => router.push("/notifications")}>
+          <Feather name="bell" size={16} color={"#fff"} />
+
+          {unreadCount > 0 &&
+            <View style={[{
+              position: "absolute",
+              top: -5,
+              right: -6,
+              backgroundColor: "#dc2626",
+              borderRadius: 10,
+              paddingHorizontal:3,
+              paddingVertical:1,
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "row",
+            }]}>
+              <Text weight="bold" style={{ color: "#fff", fontSize: 10,lineHeight: 12, flexShrink: 1 }}>
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </Text>
+            </View>
+          }
+        </TouchableOpacity>
+
+        <SupportButton branchId={selectedBranch?._id} />
+      </View>
     </View>
   );
 
@@ -2060,17 +2080,23 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "space-between",
       marginBottom: 10
     },
+
     iconBtn: {
-      width: 42,
-      height: 42,
-      borderRadius: 999,
-      backgroundColor: palette.card,
+      width: 24,
+      height: 24,
+      // paddingHorizontal: 5,
+      // paddingVertical: 2,
+      borderRadius: 22,
       borderWidth: 1,
-      borderColor: hairline,
+      borderColor: "rgba(255,255,255,0.5)",
+      backgroundColor: "rgba(255,255,255,0.12)",
       alignItems: "center",
       justifyContent: "center",
-      ...cardShadow,
+      // ...cardShadow,
+      flexDirection: "row",
+      gap: 5,
     },
+
     brandWrap: {
       // flex: 1,
       alignItems: "center",
