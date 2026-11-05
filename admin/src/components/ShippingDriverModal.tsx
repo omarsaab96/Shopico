@@ -1,3 +1,4 @@
+import { ModalContent } from "./ModalSurface";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import api from "../api/client";
@@ -25,7 +26,7 @@ export default function ShippingDriverModal({ onCancel, onConfirm }: { onCancel:
     catch (err: any) { setError(err?.response?.data?.message || (ar ? "تعذر تحديث الطلب" : "Could not update order")); }
     finally { setSaving(false); }
   };
-  return createPortal(<dialog ref={dialog} className="shipping-driver-dialog" aria-labelledby="shipping-driver-title" onCancel={event => { event.preventDefault(); event.stopPropagation(); if (!saving) onCancel(); }}>
+  return createPortal(<dialog ref={dialog} className="shipping-driver-dialog" aria-labelledby="shipping-driver-title" onCancel={event => { event.preventDefault(); event.stopPropagation(); if (!saving) onCancel(); }}><ModalContent>
     <form onSubmit={event => { event.preventDefault(); void submit(); }} dir={ar ? "rtl" : "ltr"}>
       <h2 id="shipping-driver-title">{ar ? "اختر سائقاً للتوصيل" : "Choose a delivery driver"}</h2>
       <p>{ar ? "يجب تعيين سائق قبل نقل الطلب إلى الشحن. الإلغاء يُبقي الحالة الأصلية." : "Assign a driver before moving this order to shipping. Cancelling keeps its original status."}</p>
@@ -34,5 +35,5 @@ export default function ShippingDriverModal({ onCancel, onConfirm }: { onCancel:
       {error && <p role="alert">{error}</p>}
       <div className="shipping-driver-actions"><button type="button" className="ghost-btn" disabled={saving} onClick={onCancel}>{ar ? "إلغاء" : "Cancel"}</button><button type="submit" className="primary" disabled={loading || saving || !selected}>{saving ? (ar ? "جارٍ الحفظ…" : "Saving…") : (ar ? "تعيين وشحن" : "Assign and ship")}</button></div>
     </form>
-  </dialog>, document.body);
+  </ModalContent></dialog>, document.body);
 }

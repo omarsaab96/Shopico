@@ -1,3 +1,4 @@
+import { ModalContent } from "./ModalSurface";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import OrderDetailsPage from "../pages/OrderDetails";
@@ -25,7 +26,7 @@ export default function OrderDetailsModal({ orderId, onClose }: { orderId: strin
         const bounds = event.currentTarget.getBoundingClientRect();
         if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose();
       }}
-    >
+    ><ModalContent>
       <div className="order-details-modal-header">
         <h2 id="order-details-modal-title">{t("orders.orderDetails")} #{orderId.slice(-6)}</h2>
         <button type="button" className="ghost-btn" autoFocus onClick={onClose}>{t("close")}</button>
@@ -33,7 +34,7 @@ export default function OrderDetailsModal({ orderId, onClose }: { orderId: strin
       <div className="order-details-modal-body">
         <OrderDetailsPage key={orderId} orderId={orderId} embedded />
       </div>
-    </dialog>,
+    </ModalContent></dialog>,
     document.body
   );
 }

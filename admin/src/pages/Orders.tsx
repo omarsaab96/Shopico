@@ -1,3 +1,5 @@
+import { confirmAction } from "../utils/confirmation";
+import ModalSurface from "../components/ModalSurface";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, pointerWithin, rectIntersection, useSensor, useSensors } from "@dnd-kit/core";
@@ -155,7 +157,7 @@ const OrdersPage = () => {
     } catch (error: any) {
       const message = error?.response?.data?.message || error?.message || "Failed to load user details";
       console.error("User details load failed:", message);
-      window.alert(message);
+      (await confirmAction({ title: t("errorTitle"), message, confirmLabel: t("close") }));
     } finally {
       setUserDetailsLoading("");
     }
@@ -257,7 +259,7 @@ const OrdersPage = () => {
       );
       const message = error?.response?.data?.message || error?.message || "Failed to update order status";
       console.error("Order status update failed:", message);
-      if (!driverId) window.alert(message);
+      if (!driverId) (await confirmAction({ title: t("errorTitle"), message, confirmLabel: t("close") }));
       return false;
     } finally {
       mutatingRef.current = false;
@@ -668,7 +670,7 @@ const OrdersPage = () => {
       {detailsOrderId && <OrderDetailsModal orderId={detailsOrderId} onClose={() => { setDetailsOrderId(null); load(true); }} />}
       {selectedUser && (
         <div className="modal-backdrop" onClick={closeUserDetails}>
-          <div className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">
                 {t("titles.userDetail")} <span className="muted" style={{ fontWeight: "normal", fontSize: "12px" }}>{selectedUser.user._id}</span>
@@ -753,12 +755,12 @@ const OrdersPage = () => {
                 </div>
               )}
             </div>
-          </div>
+          </ModalSurface>
         </div>
       )}
       {editingId && editDraft && activeEditPicker && (
         <div className="modal-backdrop" onClick={() => setActiveEditPicker(null)}>
-          <div className="modal" style={{ width: "min(420px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal" style={{ width: "min(420px, 100%)" }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">{activeEditPicker === "status" ? t("status") : (t("driver") ?? "Driver")}</div>
               <button className="ghost-btn" type="button" onClick={() => setActiveEditPicker(null)}>
@@ -815,7 +817,7 @@ const OrdersPage = () => {
                 </>
               )}
             </div>
-          </div>
+          </ModalSurface>
         </div>
       )}
       {shippingOrder && <ShippingDriverModal onCancel={() => setShippingOrder(null)} onConfirm={async driverId => {

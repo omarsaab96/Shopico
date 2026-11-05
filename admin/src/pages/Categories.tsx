@@ -1,3 +1,4 @@
+import ModalSurface from "../components/ModalSurface";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
@@ -20,6 +21,7 @@ const CategoriesPage = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<Category>>({});
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
@@ -114,6 +116,8 @@ const CategoriesPage = () => {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (saving || newUploading) return;
+    setSaving(true);
     try {
       setFormError("");
       await api.post("/categories", draft);
@@ -123,17 +127,20 @@ const CategoriesPage = () => {
     } catch (err: any) {
       const message = err?.response?.data?.message || "Could not save category";
       setFormError(message);
-    }
+    } finally { setSaving(false); }
   };
 
   const startEdit = (cat: Category) => {
+    if (!canManage) return;
+    setShowNewModal(false);
     setEditingId(cat._id);
     setEditDraft(cat);
     setEditError("");
   };
 
   const saveEdit = async () => {
-    if (!editingId) return;
+    if (!editingId || saving || editUploadingId) return;
+    setSaving(true);
     try {
       setEditError("");
       await api.put(`/categories/${editingId}`, editDraft);
@@ -143,7 +150,7 @@ const CategoriesPage = () => {
     } catch (err: any) {
       const message = err?.response?.data?.message || "Could not update category";
       setEditError(message);
-    }
+    } finally { setSaving(false); }
   };
 
   const cancelEdit = () => {
@@ -173,15 +180,21 @@ const CategoriesPage = () => {
     load(getFilterParams());
   };
 
-  const removeNewImage = () => {
-    if (!confirmDelete(t)) return;
+  const removeNewImage = async () => {
+    if (!(await confirmDelete(t))) return;
     setDraft((prev) => ({ ...prev, imageUrl: null }));
   };
 
-  const removeEditImage = () => {
-    if (!confirmDelete(t)) return;
+  const removeEditImage = async () => {
+    if (!(await confirmDelete(t))) return;
     setEditDraft((prev) => ({ ...prev, imageUrl: null }));
   };
+
+  const modalDraft = editingId ? editDraft : draft;
+  const setModalDraft = editingId ? setEditDraft : setDraft;
+  const modalUploading = editingId ? editUploadingId === editingId : newUploading;
+  const modalError = editingId ? editError : formError;
+  const closeCategoryModal = () => { if (saving || modalUploading) return; closeNewModal(); cancelEdit(); };
 
   return (
     <>
@@ -248,102 +261,15 @@ const CategoriesPage = () => {
               categories.map((cat) => (
                 <tr key={cat._id} className="productRow">
                   <td className="prodImgCell">
-                    {editingId === cat._id ? (
-                      <div className="thumb-row">
-                        {(() => {
-                          const currentImage = editDraft.imageUrl !== undefined ? editDraft.imageUrl : cat.imageUrl;
-                          return currentImage ? (
-                            <div className="listImage">
-                              <img src={currentImage} alt={cat.name} />
-                              <button type="button" className="removeImageBtn" onClick={removeEditImage}>
-                                <img src="deleteIcon.png" alt="" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="defaultImage">
-                              <img src="categoryIcon.png" alt="" className="small" />
-                            </div>
-                          );
-                        })()}
-                        <div className="uploadDiv" style={{ marginBottom: 10 }}>
-                          <label htmlFor={`catImg${cat._id}`} className="uploadBtn">
-                            {editUploadingId === cat._id ? <img src="loading.gif" className="noFilter" /> : <img src="plusIcon.png" />}
-                          </label>
-                          <input
-                            id={`catImg${cat._id}`}
-                            type="file"
-                            accept="image/*"
-                            className="uploadForm"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                setImageEditor({ file, target: "edit", categoryId: cat._id });
-                              }
-                            }}
-                            disabled={editUploadingId === cat._id || !canUpload}
-                          />
-                        </div>
-                      </div>
-                    ) : cat.imageUrl ? (
-                      <div className="listImage" >
-                        <img src={cat.imageUrl} alt={cat.name} />
-                      </div>
-                    ) : (
-                      <div className="defaultImage">
-                        <img src="categoryIcon.png" alt="" className="small" />
-                      </div>
-                    )}
+                    {cat.imageUrl ? <div className="listImage"><img src={cat.imageUrl} alt={cat.name} /></div>
+                      : <div className="defaultImage"><img src="categoryIcon.png" alt="" className="small" /></div>}
                   </td>
-                  <td>
-                    {editingId === cat._id ? (
-                      <input value={editDraft.name || ""} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
-                    ) : (
-                      cat.name
-                    )}
-                  </td>
-                  <td>
-                    {editingId === cat._id ? (
-                      <input
-                        value={editDraft.description || ""}
-                        onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
-                      />
-                    ) : (
-                      cat.description
-                    )}
-                  </td>
-                  <td style={{}}>
-                    {editingId === cat._id ? (
-                      <div className="flex">
-                        <button className="primary mr-10" onClick={saveEdit}>
-                          {t("save")}
-                        </button>
-                        <button className="ghost-btn mr-10" onClick={cancelEdit}>
-                          {t("cancel")}
-                        </button>
-                        <button
-                          className="ghost-btn danger"
-                          onClick={() => confirmDelete(t) && api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
-                        >
-                          {t("delete")}
-                        </button>
-                        {editError && <div className="error">{editError}</div>}
-                      </div>
-                    ) : canManage ? (
-                      <div className="flex">
-                        <button className="primary mr-10" onClick={() => startEdit(cat)}>
-                          {t("edit")}
-                        </button>
-                        <button
-                          className="ghost-btn danger"
-                          onClick={() => confirmDelete(t) && api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}
-                        >
-                          {t("delete")}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="muted"></div>
-                    )}
-                  </td>
+                  <td>{cat.name}</td>
+                  <td>{cat.description}</td>
+                  <td>{canManage && <div className="flex">
+                    <button className="primary mr-10" type="button" onClick={() => startEdit(cat)}>{t("edit")}</button>
+                    <button className="ghost-btn danger" type="button" onClick={async () => (await confirmDelete(t)) && api.delete(`/categories/${cat._id}`).then(() => load(getFilterParams()))}>{t("delete")}</button>
+                  </div>}</td>
                 </tr>
               ))
             )}
@@ -359,25 +285,25 @@ const CategoriesPage = () => {
         />
       )}
 
-      {showNewModal && canManage && (
-        <div className="modal-backdrop" onClick={closeNewModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+      {(showNewModal || editingId) && canManage && (
+        <div className="modal-backdrop" onClick={closeCategoryModal}>
+          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{t("newCategory")}</div>
-              <button className="ghost-btn" type="button" onClick={closeNewModal}>
+              <div className="modal-title">{t(editingId ? "editCategory" : "newCategory")}</div>
+              <button className="ghost-btn" type="button" onClick={closeCategoryModal}>
                 {t("close")}
               </button>
             </div>
-            <form className="form productRow" onSubmit={submit}>
+            <form className="form productRow" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
               <label>
                 {t("name")}
-                <input value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
+                <input value={modalDraft.name || ""} onChange={(e) => setModalDraft({ ...modalDraft, name: e.target.value })} required />
               </label>
               <label>
                 {t("description")}
                 <input
-                  value={draft.description || ""}
-                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                  value={modalDraft.description || ""}
+                  onChange={(e) => setModalDraft({ ...modalDraft, description: e.target.value })}
                   placeholder="Optional"
                 />
               </label>
@@ -386,13 +312,13 @@ const CategoriesPage = () => {
               </label>
 
               <div className="thumb-row prodImgCell">
-                {draft.imageUrl ? (
+                {modalDraft.imageUrl ? (
                   <div className="thumb listImage newThumb">
-                    <img src={draft.imageUrl} alt="preview" />
+                    <img src={modalDraft.imageUrl} alt="preview" />
                     <button
                       type="button"
                       className="removeImageBtn"
-                      onClick={removeNewImage}
+                      onClick={editingId ? removeEditImage : removeNewImage}
                     >
                       <img src="deleteIcon.png" alt="" />
                     </button>
@@ -405,7 +331,7 @@ const CategoriesPage = () => {
 
                 <div className="uploadDiv">
                   <label htmlFor="catImgUpload" className="uploadBtn">
-                    {newUploading ? <img src="loading.gif" className="noFilter" /> : draft.imageUrl ? <img src="editIcon.png" /> : <img src="plusIcon.png" />}
+                    {modalUploading ? <img src="loading.gif" className="noFilter" /> : modalDraft.imageUrl ? <img src="editIcon.png" /> : <img src="plusIcon.png" />}
                   </label>
                   <input
                     id="catImgUpload"
@@ -414,25 +340,25 @@ const CategoriesPage = () => {
                     className="uploadForm"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) setImageEditor({ file, target: "new" });
+                      if (file) setImageEditor({ file, target: editingId ? "edit" : "new", categoryId: editingId || undefined });
                     }}
-                    disabled={newUploading || !canUpload}
+                    disabled={modalUploading || !canUpload}
                   />
                 </div>
               </div>
-              {formError && <div className="error">{formError}</div>}
+              {modalError && <div className="error" role="alert">{modalError}</div>}
               <div className="modal-actions">
-                <button className="ghost-btn" type="button" onClick={closeNewModal}>
+                <button className="ghost-btn" type="button" onClick={closeCategoryModal}>
                   {t("cancel")}
                 </button>
                 {canManage && (
-                  <button className="primary" type="submit">
-                    {t("save")}
+                  <button className="primary" type="submit" disabled={saving || modalUploading}>
+                    {t(saving ? "saving" : "save")}
                   </button>
                 )}
               </div>
             </form>
-          </div>
+          </ModalSurface>
         </div>
       )}
     </>

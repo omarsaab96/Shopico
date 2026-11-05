@@ -5,6 +5,7 @@ import "./style.css";
 import { AuthProvider } from "./context/AuthContext";
 import { I18nProvider } from "./context/I18nContext";
 import { BranchProvider } from "./context/BranchContext";
+import ConfirmationDialog from "./components/ConfirmationDialog";
 
 const storedTheme = (localStorage.getItem("theme") as "light" | "dark") || "light";
 document.documentElement.setAttribute("data-theme", storedTheme);
@@ -12,6 +13,7 @@ document.documentElement.setAttribute("data-theme", storedTheme);
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <I18nProvider>
+      <ConfirmationDialog />
       <AuthProvider>
         <BranchProvider>
           <App />

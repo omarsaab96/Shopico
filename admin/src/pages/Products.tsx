@@ -1,3 +1,4 @@
+import ModalSurface from "../components/ModalSurface";
 import { useEffect, useRef, useState } from "react";
 import type { DragEvent, FormEvent } from "react";
 import Card from "../components/Card";
@@ -9,6 +10,7 @@ import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
 import { confirmDelete } from "../utils/confirm";
+import { confirmAction } from "../utils/confirmation";
 
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
 const NO_CATEGORY_FILTER = "__no_category__";
@@ -32,6 +34,7 @@ const formatCurrencyAmount = (amount: number, currency: Currency, lang: "en" | "
 
 const ProductsPage = () => {
   const [unpublishing, setUnpublishing] = useState(false);
+  const unpublishPending = useRef(false);
   const [unpublishResult, setUnpublishResult] = useState<number | null>(null);
   const [unpublishError, setUnpublishError] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -113,6 +116,8 @@ const ProductsPage = () => {
   const importPreviewTimerRef = useRef<number | null>(null);
   const { t, lang } = useI18n();
   const { selectedBranchId } = useBranch();
+  const currentBranchId = useRef(selectedBranchId);
+  currentBranchId.current = selectedBranchId;
   const { can } = usePermissions();
   const tx = (key: string, fallback: string) => {
     const value = t(key);
@@ -179,11 +184,19 @@ const ProductsPage = () => {
   }, [selectedBranchId]);
 
   const unpublishWithoutImages = async () => {
-    if (!canManage || !selectedBranchId || unpublishing) return;
-    setUnpublishing(true);
-    setUnpublishResult(null);
-    setUnpublishError("");
+    if (!canManage || !selectedBranchId || unpublishing || unpublishPending.current) return;
+    unpublishPending.current = true;
     try {
+      if (!await confirmAction({
+        title: t("unpublishWithoutImages"),
+        message: t("confirmUnpublishWithoutImages"),
+        confirmLabel: t("unpublishWithoutImages"),
+        cancelLabel: t("cancel"),
+      })) return;
+      if (currentBranchId.current !== selectedBranchId) return;
+      setUnpublishing(true);
+      setUnpublishResult(null);
+      setUnpublishError("");
       const result = await unpublishProductsWithoutImages();
       setUnpublishResult(result.modifiedCount);
       setSelectedProductsById({});
@@ -191,6 +204,7 @@ const ProductsPage = () => {
     } catch (error: any) {
       setUnpublishError(error?.response?.data?.message || t("unpublishWithoutImagesFailed"));
     } finally {
+      unpublishPending.current = false;
       setUnpublishing(false);
     }
   };
@@ -594,7 +608,7 @@ const ProductsPage = () => {
             <div className="thumb" key={img.fileId}>
               <div className="listImage" style={{ width: 120, height: 120 }}>
                 <img src={img.url} alt={formatVariantAttributes(variant.attributes) || t("variants")} style={{ borderRadius: 0 }} />
-                <button type="button" className="removeImageBtn" aria-label={t("delete")} onClick={() => confirmDelete(t) && onChange({ ...variant, images: (variant.images || []).filter((image) => image.fileId !== img.fileId) })}>
+                <button type="button" className="removeImageBtn" aria-label={t("delete")} onClick={async () => (await confirmDelete(t)) && onChange({ ...variant, images: (variant.images || []).filter((image) => image.fileId !== img.fileId) })}>
                   <img src="deleteIcon.png" alt="" />
                 </button>
               </div>
@@ -782,8 +796,8 @@ const ProductsPage = () => {
     setEditCategorySearch("");
   };
 
-  const removeEditImage = (fileId: string) => {
-    if (!confirmDelete(t)) return;
+  const removeEditImage = async (fileId: string) => {
+    if (!(await confirmDelete(t))) return;
     setEditDraft((prev) => ({
       ...prev,
       images: (prev.images as ProductImage[] | undefined)?.filter((img) => img.fileId !== fileId) || [],
@@ -824,9 +838,9 @@ const ProductsPage = () => {
 
   const closeProductModal = () => creatingProduct ? closeNewModal() : cancelEdit();
 
-  const removeProductImage = (fileId: string) => {
+  const removeProductImage = async (fileId: string) => {
     if (!creatingProduct) { removeEditImage(fileId); return; }
-    if (!confirmDelete(t)) return;
+    if (!(await confirmDelete(t))) return;
     setDraft((prev) => ({ ...prev, images: (prev.images || []).filter((img) => img.fileId !== fileId) }));
   };
 
@@ -1306,7 +1320,7 @@ const ProductsPage = () => {
                       <div className="flex">
                         <button className="primary" onClick={() => startEdit(product)}>{t("edit")}</button>
                         <button className="ghost-btn" onClick={() => openPromote(product)}>{t("promote") || "Promote"}</button>
-                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteProduct(product._id).then(load)}>{t("delete")}</button>
+                        <button className="ghost-btn danger" onClick={async () => (await confirmDelete(t)) && deleteProduct(product._id).then(load)}>{t("delete")}</button>
                       </div>
                     )}
                   </td>
@@ -1371,7 +1385,7 @@ const ProductsPage = () => {
 
       {(editingId || showNewModal) && canManage && (
         <div className="modal-backdrop" onClick={closeProductModal}>
-          <div className="modal product-edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-product-title" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal product-edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-product-title" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header newModalHeader">
               <div className="modal-title" id="edit-product-title">{creatingProduct ? t("newProduct") : t("editProduct")}</div>
               <button className="ghost-btn" type="button" onClick={closeProductModal} disabled={productSaving || productUploading}>{t("close")}</button>
@@ -1527,7 +1541,7 @@ const ProductsPage = () => {
                         </summary>
                         <div className="variant-card-body">
                           {renderVariantFields(variant, (next) => setProductDraft((prev) => ({ ...prev, variants: (prev.variants || []).map((item, idx) => idx === index ? next : item) })), `existing-variant-${index}`, index)}
-                          <div className="variant-card-actions"><button className="ghost-btn danger" type="button" onClick={() => confirmDelete(t) && setProductDraft((prev) => ({ ...prev, variants: (prev.variants || []).filter((_, idx) => idx !== index) }))}>{t("delete")}</button></div>
+                          <div className="variant-card-actions"><button className="ghost-btn danger" type="button" onClick={async () => (await confirmDelete(t)) && setProductDraft((prev) => ({ ...prev, variants: (prev.variants || []).filter((_, idx) => idx !== index) }))}>{t("delete")}</button></div>
                         </div>
                       </details>
                     ))}
@@ -1541,7 +1555,7 @@ const ProductsPage = () => {
                 <button className="primary" type="submit" disabled={productSaving || productUploading}>{productSaving ? t("saving") : t("save")}</button>
               </div>
             </form>
-          </div >
+          </ModalSurface >
         </div >
       )}
 
@@ -1558,7 +1572,7 @@ const ProductsPage = () => {
       {
         showPromoteModal && promoteProduct && canManage && (
           <div className="modal-backdrop" onClick={closePromote}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div className="modal-title">{t("promote") || "Promote"}</div>
                 <button className="ghost-btn" type="button" onClick={closePromote}>
@@ -1610,7 +1624,7 @@ const ProductsPage = () => {
                   {promoteSaving ? (t("saving") || "Saving...") : t("save")}
                 </button>
               </div>
-            </div>
+            </ModalSurface>
           </div>
         )
       }
@@ -1618,7 +1632,7 @@ const ProductsPage = () => {
       {
         showPriceModal && canManage && (
           <div className="modal-backdrop" onClick={closePriceModal}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div className="modal-title">{t("changePrices") || "Change prices"}</div>
                 <button className="ghost-btn" type="button" onClick={closePriceModal}>
@@ -1681,7 +1695,7 @@ const ProductsPage = () => {
                   </button>
                 </div>
               </form>
-            </div>
+            </ModalSurface>
           </div>
         )
       }
@@ -1689,7 +1703,7 @@ const ProductsPage = () => {
       {
         showBulkCategoryModal && canManage && (
           <div className="modal-backdrop" onClick={closeBulkCategoryModal}>
-            <div className="modal bulk-category-modal" onClick={(e) => e.stopPropagation()}>
+            <ModalSurface className="modal bulk-category-modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div className="modal-title">
                   {bulkCategoryStep === "select"
@@ -1778,7 +1792,7 @@ const ProductsPage = () => {
                   </div>
                 </div>
               )}
-            </div>
+            </ModalSurface>
           </div>
         )
       }
@@ -1786,7 +1800,7 @@ const ProductsPage = () => {
       {
         showImportModal && canImport && (
           <div className="modal-backdrop" onClick={closeImportModal}>
-            <div className="modal import-modal" onClick={(e) => e.stopPropagation()}>
+            <ModalSurface className="modal import-modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div className="modal-title">{t("importProducts")}</div>
                 <button className="ghost-btn" type="button" onClick={closeImportModal}>
@@ -1972,7 +1986,7 @@ const ProductsPage = () => {
                   {importSaving ? t("saving") : t("import")}
                 </button>
               </div>
-            </div>
+            </ModalSurface>
           </div >
         )
       }

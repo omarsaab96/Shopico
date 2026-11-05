@@ -1,3 +1,4 @@
+import ModalSurface from "../components/ModalSurface";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
@@ -226,12 +227,12 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
     setEditError("");
   };
 
-  const removeNewImage = () => {
-    if (!confirmDelete(t)) return;
+  const removeNewImage = async () => {
+    if (!(await confirmDelete(t))) return;
     setDraft((prev) => ({ ...prev, image: undefined }));
   };
-  const removeEditImage = () => {
-    if (!confirmDelete(t)) return;
+  const removeEditImage = async () => {
+    if (!(await confirmDelete(t))) return;
     setEditDraft((prev) => ({ ...prev, image: undefined }));
   };
 
@@ -473,7 +474,7 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                         <button className="ghost-btn" onClick={cancelEdit}>
                           {t("cancel")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteItem(announcement._id).then(() => load(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={async () => (await confirmDelete(t)) && deleteItem(announcement._id).then(() => load(getFilterParams()))}>
                           {t("delete")}
                         </button>
                         {editError && <div className="error">{editError}</div>}
@@ -483,7 +484,7 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                         <button className="primary" onClick={() => startEdit(announcement)}>
                           {t("edit")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteItem(announcement._id).then(() => load(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={async () => (await confirmDelete(t)) && deleteItem(announcement._id).then(() => load(getFilterParams()))}>
                           {t("delete")}
                         </button>
                       </div>
@@ -508,7 +509,7 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
 
       {showNewModal && canManage && (
         <div className="modal-backdrop" onClick={closeNewModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">{t(banners ? "newBanner" : "newAnnouncement") || "New Announcement"}</div>
               <button className="ghost-btn" type="button" onClick={closeNewModal}>
@@ -626,7 +627,7 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                 )}
               </div>
             </form>
-          </div>
+          </ModalSurface>
         </div>
       )}
     </>

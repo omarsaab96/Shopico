@@ -1,3 +1,5 @@
+import { confirmAction } from "../utils/confirmation";
+import ModalSurface from "../components/ModalSurface";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
@@ -135,7 +137,7 @@ const CurrenciesPage = () => {
 
   const removeCurrency = async (currency: Currency) => {
     if (!canManage) return;
-    if (!window.confirm(t("confirmDeleteCurrency") || "Delete this currency?")) return;
+    if (!(await confirmAction({ title: t("delete"), message: t("confirmDeleteCurrency") || "Delete this currency?", confirmLabel: t("delete"), cancelLabel: t("cancel") }))) return;
     setError("");
     try {
       await deleteCurrency(currency._id);
@@ -331,7 +333,7 @@ const CurrenciesPage = () => {
 
       {showNewModal && canManage && (
         <div className="modal-backdrop" onClick={closeNewModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">{t("newCurrency") || "New currency"}</div>
               <button className="ghost-btn" type="button" onClick={closeNewModal}>
@@ -393,7 +395,7 @@ const CurrenciesPage = () => {
                 </button>
               </div>
             </form>
-          </div>
+          </ModalSurface>
         </div>
       )}
     </>

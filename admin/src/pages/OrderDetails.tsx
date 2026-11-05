@@ -1,3 +1,5 @@
+import { confirmAction } from "../utils/confirmation";
+import ModalSurface from "../components/ModalSurface";
 import OrderItems from "../components/OrderItems";
 import ShippingDriverModal from "../components/ShippingDriverModal";
 import { useEffect, useMemo, useState } from "react";
@@ -201,7 +203,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
       setSelectedUser(res.data.data);
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || "Failed to load user details";
-      window.alert(message);
+      (await confirmAction({ title: t("errorTitle"), message, confirmLabel: t("close") }));
     } finally {
       setUserDetailsLoading("");
     }
@@ -550,7 +552,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
       {
         selectedUser && (
           <div className="modal-backdrop" onClick={closeUserDetails}>
-            <div className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
+            <ModalSurface className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div className="modal-title">
                   {t("titles.userDetail")} <span className="muted" style={{ fontWeight: "normal", fontSize: "12px" }}>{selectedUser.user._id}</span>
@@ -603,14 +605,14 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
                   </div>
                 )}
               </div>
-            </div>
+            </ModalSurface>
           </div>
         )
       }
       {
         activePicker && (
           <div className="modal-backdrop" onClick={closePicker}>
-            <div className="modal" style={{ width: "min(420px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+            <ModalSurface className="modal" style={{ width: "min(420px, 100%)" }} onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div className="modal-title">
                   {activePicker === "status" ? t("status") : t("driver")}
@@ -689,14 +691,14 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
                   </>
                 )}
               </div>
-            </div>
+            </ModalSurface>
           </div>
         )
       }
       {
         (couponLoading || selectedCoupon || couponError) && (
           <div className="modal-backdrop" onClick={closeCoupon}>
-            <div className="modal" style={{ width: "min(560px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+            <ModalSurface className="modal" style={{ width: "min(560px, 100%)" }} onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div className="modal-title">{t("discountCoupon")}</div>
                 <button className="ghost-btn" type="button" onClick={closeCoupon}>
@@ -750,7 +752,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
                   </div>
                 </div>
               ) : null}
-            </div>
+            </ModalSurface>
           </div>
         )
       }

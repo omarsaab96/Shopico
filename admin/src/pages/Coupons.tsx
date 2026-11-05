@@ -1,3 +1,4 @@
+import ModalSurface from "../components/ModalSurface";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import DatePicker from "react-datepicker";
@@ -882,7 +883,7 @@ const CouponsPage = () => {
                         <button className="ghost-btn" onClick={cancelEdit}>
                           {t("cancel")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteCoupon(coupon._id).then(() => loadCoupons(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={async () => (await confirmDelete(t)) && deleteCoupon(coupon._id).then(() => loadCoupons(getFilterParams()))}>
                           {t("delete")}
                         </button>
                         {editError && <div className="error">{editError}</div>}
@@ -892,7 +893,7 @@ const CouponsPage = () => {
                         <button className="primary" onClick={() => startEdit(coupon)}>
                           {t("edit")}
                         </button>
-                        <button className="ghost-btn danger" onClick={() => confirmDelete(t) && deleteCoupon(coupon._id).then(() => loadCoupons(getFilterParams()))}>
+                        <button className="ghost-btn danger" onClick={async () => (await confirmDelete(t)) && deleteCoupon(coupon._id).then(() => loadCoupons(getFilterParams()))}>
                           {t("delete")}
                         </button>
                       </div>
@@ -912,7 +913,7 @@ const CouponsPage = () => {
           setShowEditAssigned(false);
           setEditUserSearch("");
         }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">{t("changeAssigned") || "Change assigned"}</div>
               <button
@@ -932,7 +933,7 @@ const CouponsPage = () => {
               editUserSearch,
               setEditUserSearch
             )}
-          </div>
+          </ModalSurface>
         </div>
       )}
 
@@ -941,7 +942,7 @@ const CouponsPage = () => {
           setShowEditProducts(false);
           setEditProductSearch("");
         }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">{t("changeProducts") || "Change products"}</div>
               <button
@@ -961,13 +962,13 @@ const CouponsPage = () => {
               editProductSearch,
               setEditProductSearch
             )}
-          </div>
+          </ModalSurface>
         </div>
       )}
 
       {showEditLevels && editingId && canManage && (
         <div className="modal-backdrop" onClick={() => setShowEditLevels(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">{t("changeLevels") || "Change levels"}</div>
               <button
@@ -984,13 +985,13 @@ const CouponsPage = () => {
               editLevelSearch,
               setEditLevelSearch
             )}
-          </div>
+          </ModalSurface>
         </div>
       )}
 
       {showNewModal && canManage && (
         <div className="modal-backdrop" onClick={closeNewModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">{t("newCoupon") || "New Coupon"}</div>
               <button className="ghost-btn" type="button" onClick={closeNewModal}>
@@ -1217,7 +1218,7 @@ const CouponsPage = () => {
                 )}
               </div>
             </form>
-          </div>
+          </ModalSurface>
         </div>
       )}
     </>

@@ -4,6 +4,9 @@ type Language = "en" | "ar";
 
 const translations: Record<Language, Record<string, string>> = {
   en: {
+    errorTitle: "Something went wrong",
+    editCategory: "Edit category",
+    confirmUnpublishWithoutImages: "Unpublish all products without images in the selected branch? This applies to the entire branch, including products outside your current filters.",
     "orders.backToOrders": "< Back to all orders",
     "syp":"syp",
     "unassign":"Unassign driver",
@@ -368,6 +371,9 @@ const translations: Record<Language, Record<string, string>> = {
   },
 
   ar: {
+    errorTitle: "حدث خطأ",
+    editCategory: "تعديل التصنيف",
+    confirmUnpublishWithoutImages: "هل تريد إلغاء نشر جميع المنتجات بدون صور في الفرع المحدد؟ يشمل ذلك جميع منتجات الفرع، حتى المنتجات خارج عوامل التصفية الحالية.",
     "orders.backToOrders": "< العودة إلى جميع الطلبات",
     bulkUpdateCategory: "تحديث التصنيف",
     clearSelection: "مسح التحديد",

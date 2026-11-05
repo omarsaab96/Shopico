@@ -1,3 +1,4 @@
+import ModalSurface from "../components/ModalSurface";
 import { useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -283,7 +284,7 @@ const WalletPage = () => {
 
       {showCreateModal && canAddTopup && (
         <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">
                 {canManageWallet ? (t("topUpWallet") || "Top up wallet") : (t("topUpRequest") || "Top-up request")}
@@ -342,7 +343,7 @@ const WalletPage = () => {
                 {createSaving ? (t("saving") || "Saving...") : (t("save") || "Save")}
               </button>
             </div>
-          </div>
+          </ModalSurface>
         </div>
       )}
     </>

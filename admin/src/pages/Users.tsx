@@ -1,3 +1,5 @@
+import { confirmAction } from "../utils/confirmation";
+import ModalSurface from "../components/ModalSurface";
 import { useEffect, useState } from "react";
 import Card from "../components/Card";
 import api, { createUser, deleteUser, updateUser, updateUserBranches, updateUserPermissions } from "../api/client";
@@ -375,7 +377,7 @@ const UsersPage = () => {
 
   const removeUser = async () => {
     if (!selected || !canManageUserAbout) return;
-    const ok = window.confirm(t("confirmDeleteUser") ?? "Delete this user?");
+    const ok = (await confirmAction({ title: t("delete"), message: t("confirmDeleteUser") ?? "Delete this user?", confirmLabel: t("delete"), cancelLabel: t("cancel") }));
     if (!ok) return;
     setDeleteSaving(true);
     try {
@@ -495,7 +497,7 @@ const UsersPage = () => {
       </Card>
       {selected && (
         <div className="modal-backdrop" onClick={closeDetails}>
-          <div className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">
                 {t("titles.userDetail")} <span className="muted" style={{ fontWeight: 'normal', fontSize: '12px' }}>{selected.user._id}</span>
@@ -834,12 +836,12 @@ const UsersPage = () => {
                 </div>
               )}
             </div>
-          </div>
+          </ModalSurface>
         </div>
       )}
       {showCreateModal && canOpenCreateUser && (
         <div className="modal-backdrop" onClick={closeCreateModal}>
-          <div className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">{t("newUser")}</div>
               <button className="ghost-btn" type="button" onClick={closeCreateModal}>
@@ -990,7 +992,7 @@ const UsersPage = () => {
                 </button>
               )}
             </div>
-          </div>
+          </ModalSurface>
         </div>
       )}
     </div>

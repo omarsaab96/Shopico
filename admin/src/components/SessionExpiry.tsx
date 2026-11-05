@@ -1,3 +1,4 @@
+import { ModalContent } from "./ModalSurface";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import api from "../api/client";
@@ -65,7 +66,7 @@ export default function SessionExpiry() {
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
       <span role="timer" aria-live="off" dir="ltr">{countdown}</span>
     </button>}
-    {open && createPortal(<dialog ref={dialog} className="shipping-driver-dialog" aria-labelledby="session-expiry-title" onCancel={event => { event.preventDefault(); event.stopPropagation(); acknowledge.current(); }}>
+    {open && createPortal(<dialog ref={dialog} className="shipping-driver-dialog" aria-labelledby="session-expiry-title" onCancel={event => { event.preventDefault(); event.stopPropagation(); acknowledge.current(); }}><ModalContent>
     <div dir={ar ? "rtl" : "ltr"}>
       <h2 id="session-expiry-title">{ar ? "ستنتهي جلستك قريباً" : "Your session will end soon"}</h2>
       <div className={`session-countdown${remainingSeconds <= 60 ? " urgent" : ""}`}>
@@ -76,6 +77,6 @@ export default function SessionExpiry() {
       <p>{ar ? "عند انتهاء الوقت سيتم تسجيل خروجك. اختر تحديث الجلسة لتسجيل الخروج والدخول مجدداً الآن." : "You will be signed out when the timer reaches zero. Choose Refresh session to sign out and log in again now."}</p>
       <div className="shipping-driver-actions"><button type="button" className="ghost-btn" onClick={() => acknowledge.current()}>{ar ? "حسناً، فهمت" : "OK, understood"}</button><button type="button" className="primary" onClick={() => endSession.current()}>{ar ? "تحديث الجلسة" : "Refresh session"}</button></div>
     </div>
-  </dialog>, document.body)}
+  </ModalContent></dialog>, document.body)}
   </>;
 }

@@ -1,3 +1,4 @@
+import ModalSurface from "../components/ModalSurface";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
@@ -345,7 +346,7 @@ const BranchesPage = () => {
   };
 
   const removeBranch = async (id: string) => {
-    if (!confirmDelete(t)) return;
+    if (!(await confirmDelete(t))) return;
     await deleteBranch(id);
     await refreshBranches();
     load(getFilterParams());
@@ -533,7 +534,7 @@ const BranchesPage = () => {
 
       {showNewModal && canManage && (
         <div className="modal-backdrop" onClick={closeNewModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">{t("newBranch")}</div>
               <button className="ghost-btn" type="button" onClick={closeNewModal}>
@@ -605,7 +606,7 @@ const BranchesPage = () => {
                 )}
               </div>
             </form>
-          </div>
+          </ModalSurface>
         </div>
       )}
 

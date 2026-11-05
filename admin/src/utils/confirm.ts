@@ -1,3 +1,4 @@
+import { confirmAction } from "./confirmation";
 type Translate = (key: string) => string;
 
 const translate = (t: Translate, key: string, fallback: string) => {
@@ -6,5 +7,10 @@ const translate = (t: Translate, key: string, fallback: string) => {
 };
 
 export const confirmDelete = (t: Translate) => {
-  return window.confirm(translate(t, "confirmDelete", "Delete this item?"));
+  return confirmAction({
+    title: translate(t, "delete", "Delete"),
+    message: translate(t, "confirmDelete", "Delete this item?"),
+    confirmLabel: translate(t, "delete", "Delete"),
+    cancelLabel: translate(t, "cancel", "Cancel"),
+  });
 };

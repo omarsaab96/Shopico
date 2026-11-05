@@ -1,3 +1,4 @@
+import ModalSurface from "./ModalSurface";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { useI18n } from "../context/I18nContext";
@@ -290,7 +291,7 @@ const ImageEditorModal = ({ file, onApply, onCancel }: Props) => {
 
   return (
     <div className="modal-backdrop image-editor-backdrop" onClick={onCancel}>
-      <div className="modal image-editor-modal" onClick={(e) => e.stopPropagation()}>
+      <ModalSurface className="modal image-editor-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">{t("editImage") || "Edit image"}</div>
           <button className="ghost-btn" type="button" onClick={onCancel} disabled={processing}>
@@ -450,7 +451,7 @@ const ImageEditorModal = ({ file, onApply, onCancel }: Props) => {
             {processing ? t("saving") || "Saving..." : t("apply")}
           </button>
         </div>
-      </div>
+      </ModalSurface>
     </div>
   );
 };
