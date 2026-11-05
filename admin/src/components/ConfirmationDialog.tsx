@@ -38,7 +38,7 @@ export default function ConfirmationDialog() {
       <p className="confirmation-message" id="confirmation-message">{request.message}</p>
       <div className="modal-actions">
         {request.cancelLabel && <button className="ghost-btn" type="button" autoFocus onClick={() => finish(false)}>{request.cancelLabel}</button>}
-        <button className="primary" type="button" onClick={() => finish(true)}>{request.confirmLabel}</button>
+        <button className={`primary${request.danger ? " danger" : ""}`} type="button" onClick={() => finish(true)}>{request.confirmLabel}</button>
       </div>
     </ModalContent>
   </dialog>, document.body);

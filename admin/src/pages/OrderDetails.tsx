@@ -358,7 +358,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
         )}
       > */}
       
-      <div className="detail-grid">
+      <div className="detail-grid order-overview">
         <div className="stat">
           <div className="stat-label">{t("status")}</div>
           <div className="stat-value">
@@ -392,9 +392,9 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
           </div>
         </div>
 
-        <div className="stat">
+        <div className="stat order-overview-date">
           <div className="stat-label">{t("orders.dateTime")}</div>
-          <div className="stat-value" style={{ fontSize: 20, whiteSpace: "normal", overflowWrap: "anywhere" }}>
+          <div className="stat-value">
             {formatDateTime(order.createdAt)}
           </div>
         </div>

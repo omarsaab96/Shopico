@@ -3,6 +3,7 @@ export interface Confirmation {
   message: string;
   confirmLabel: string;
   cancelLabel?: string;
+  danger?: boolean;
 }
 export type ConfirmationRequest = Confirmation & { resolve: (confirmed: boolean) => void };
 let present: ((request: ConfirmationRequest) => void) | undefined;

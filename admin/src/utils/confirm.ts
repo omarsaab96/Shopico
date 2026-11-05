@@ -8,6 +8,7 @@ const translate = (t: Translate, key: string, fallback: string) => {
 
 export const confirmDelete = (t: Translate) => {
   return confirmAction({
+    danger: true,
     title: translate(t, "delete", "Delete"),
     message: translate(t, "confirmDelete", "Delete this item?"),
     confirmLabel: translate(t, "delete", "Delete"),

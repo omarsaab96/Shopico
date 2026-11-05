@@ -141,7 +141,7 @@ const CurrenciesPage = () => {
 
   const removeCurrency = async (currency: Currency) => {
     if (!canManage) return;
-    if (!(await confirmAction({ title: t("delete"), message: t("confirmDeleteCurrency") || "Delete this currency?", confirmLabel: t("delete"), cancelLabel: t("cancel") }))) return;
+    if (!(await confirmAction({ danger: true, title: t("delete"), message: t("confirmDeleteCurrency") || "Delete this currency?", confirmLabel: t("delete"), cancelLabel: t("cancel") }))) return;
     setError("");
     try {
       await deleteCurrency(currency._id);

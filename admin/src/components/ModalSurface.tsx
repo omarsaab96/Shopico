@@ -11,9 +11,17 @@ export function ModalContent({ children }: { children: ReactNode }) {
       const bounds = inner.getBoundingClientRect();
       if (!bounds.width && !bounds.height) return;
       const style = getComputedStyle(surface);
-      const gutter = surface.offsetWidth - surface.clientWidth;
+      const borderWidth = parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+      const borderHeight = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+      const maxHeight = Math.min(parseFloat(style.maxHeight) || Infinity, window.innerHeight - 32);
+      const naturalHeight = Math.ceil(bounds.height + borderHeight);
+      // A scrollbar from an earlier size/animation must not leave a permanent blank strip.
+      const scrollbarWidth = naturalHeight > maxHeight
+        ? Math.max(0, surface.offsetWidth - surface.clientWidth - borderWidth)
+        : 0;
+      const gutter = borderWidth + scrollbarWidth;
       surface.style.width = `${Math.min(Math.ceil(bounds.width + gutter), window.innerWidth - 32)}px`;
-      surface.style.height = `${Math.min(Math.ceil(bounds.height + parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth)), window.innerHeight - 32)}px`;
+      surface.style.height = `${Math.min(naturalHeight, maxHeight)}px`;
     };
     measure();
     const observer = new ResizeObserver(measure);

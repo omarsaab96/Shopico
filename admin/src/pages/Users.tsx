@@ -377,7 +377,7 @@ const UsersPage = () => {
 
   const removeUser = async () => {
     if (!selected || !canManageUserAbout) return;
-    const ok = (await confirmAction({ title: t("delete"), message: t("confirmDeleteUser") ?? "Delete this user?", confirmLabel: t("delete"), cancelLabel: t("cancel") }));
+    const ok = (await confirmAction({ danger: true, title: t("delete"), message: t("confirmDeleteUser") ?? "Delete this user?", confirmLabel: t("delete"), cancelLabel: t("cancel") }));
     if (!ok) return;
     setDeleteSaving(true);
     try {
