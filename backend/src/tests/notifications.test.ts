@@ -54,13 +54,19 @@ beforeEach(async () => {
   ]);
 });
 
-test("new orders persist an atomic outbox, hide internal data, and deliver only to eligible recipients", async () => {
+test("new orders notify staff but create no customer inbox entry or push", async () => {
+  await NotificationDevice.create([
+    { user: customer._id, token: "ExpoPushToken[customer-device]" },
+    { user: staff._id, token: "ExpoPushToken[staff-device]" },
+  ]);
   const item = await order();
   expect((item.toJSON() as any).notificationOutbox).toBeUndefined();
   expect((item.toObject() as any).notificationOutbox).toBeUndefined();
   expect((await Order.findById(item._id).lean() as any).notificationOutbox[0].type).toBe("ORDER_CREATED");
   await drainNotificationOutboxes();
-  expect(await Notification.countDocuments({ user: customer._id })).toBe(1);
+  expect(await Notification.countDocuments({ user: customer._id })).toBe(0);
+  expect(await NotificationPush.countDocuments({ user: customer._id })).toBe(0);
+  expect(await NotificationPush.countDocuments({ user: staff._id })).toBe(1);
   expect(await Notification.countDocuments({ user: staff._id })).toBe(1);
   expect(await Notification.countDocuments({ user: outsider._id })).toBe(0);
   expect((await Order.findById(item._id).lean() as any).notificationOutbox).toHaveLength(0);
@@ -70,19 +76,30 @@ test("replaying an event is idempotent, and same-status saves do not send alerts
   const item = await order();
   const event = (item as any).notificationOutbox[0];
   await dispatchEvent(event); await dispatchEvent(event); await drainNotificationOutboxes();
-  expect(await Notification.countDocuments()).toBe(2);
+  expect(await Notification.countDocuments()).toBe(1);
   item.notes = "Internal note"; await item.save(); await drainNotificationOutboxes();
-  expect(await Notification.countDocuments()).toBe(2);
+  expect(await Notification.countDocuments()).toBe(1);
   item.status = "PROCESSING"; await item.save(); await drainNotificationOutboxes();
   expect(await Notification.countDocuments({ type: "ORDER_STATUS" })).toBe(2);
 });
 
 test("assignment, reassignment, removal and payment notify the appropriate accounts", async () => {
+  const replacement = await User.create({ name: "Replacement driver", email: "replacement@test.com", role: "driver", branchIds: [branch] });
+  await NotificationDevice.create([
+    { user: customer._id, token: "ExpoPushToken[customer-device]" },
+    { user: driver._id, token: "ExpoPushToken[driver-device]" },
+  ]);
   const item = await order(); await drainNotificationOutboxes();
   item.driverId = driver._id; await item.save(); await drainNotificationOutboxes();
   expect(await Notification.countDocuments({ user: driver._id, type: "DRIVER_ASSIGNED" })).toBe(1);
-  item.driverId = undefined; await item.save(); await drainNotificationOutboxes();
+  item.driverId = replacement._id; await item.save(); await drainNotificationOutboxes();
   expect(await Notification.countDocuments({ user: driver._id, type: "DRIVER_ASSIGNED" })).toBe(2);
+  expect(await Notification.countDocuments({ user: replacement._id, type: "DRIVER_ASSIGNED" })).toBe(1);
+  item.driverId = undefined; await item.save(); await drainNotificationOutboxes();
+  expect(await Notification.countDocuments({ user: replacement._id, type: "DRIVER_ASSIGNED" })).toBe(2);
+  expect(await Notification.countDocuments({ user: customer._id, type: "DRIVER_ASSIGNED" })).toBe(0);
+  expect(await NotificationPush.countDocuments({ user: customer._id })).toBe(0);
+  expect(await NotificationPush.countDocuments({ user: driver._id })).toBe(2);
   item.paymentStatus = "CONFIRMED"; await item.save(); await drainNotificationOutboxes();
   expect(await Notification.countDocuments({ user: customer._id, type: "PAYMENT_CONFIRMED" })).toBe(1);
 });
@@ -170,7 +187,9 @@ test("disabling promotional pushes keeps the announcement in the inbox", async (
 });
 
 test("API protects inbox ownership, staff permissions, preferences and device ownership", async () => {
-  await order(); await drainNotificationOutboxes();
+  const item = await order();
+  await updateOrderStatus(String(item._id), "PROCESSING", undefined, String(branch));
+  await drainNotificationOutboxes();
   const otherItem = await Notification.findOne({ user: staff._id }).orFail();
   expect((await request(customer, `/${otherItem._id}/read`, { method: "PUT" })).status).toBe(404);
   const own = await (await request(customer)).json() as any;
@@ -191,7 +210,7 @@ test("API protects inbox ownership, staff permissions, preferences and device ow
 });
 
 test("push delivery stores receipts, removes invalid devices and respects opt-out", async () => {
-  await NotificationDevice.create({ user: customer._id, token: "ExpoPushToken[test-device]", language: "ar" });
+  await NotificationDevice.create({ user: staff._id, token: "ExpoPushToken[test-device]", language: "ar" });
   await order(); await drainNotificationOutboxes();
   const send = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ data: [{ status: "ok", id: "receipt-1" }] }), { status: 200 }));
   await deliverNotificationPushes();
@@ -203,14 +222,14 @@ test("push delivery stores receipts, removes invalid devices and respects opt-ou
   await deliverNotificationPushes();
   expect(await NotificationDevice.countDocuments()).toBe(0);
   expect((await NotificationPush.findById(job._id).orFail()).status).toBe("FAILED");
-  await NotificationDevice.create({ user: customer._id, token: "ExpoPushToken[second-device]" });
-  await NotificationPreferences.create({ user: customer._id, pushEnabled: false });
+  await NotificationDevice.create({ user: staff._id, token: "ExpoPushToken[second-device]" });
+  await NotificationPreferences.create({ user: staff._id, pushEnabled: false });
   await order(); await drainNotificationOutboxes();
   expect(await NotificationPush.countDocuments()).toBe(1);
 });
 
 test("temporary push failures persist retry work instead of losing notifications", async () => {
-  await NotificationDevice.create({ user: customer._id, token: "ExpoPushToken[test-device]" });
+  await NotificationDevice.create({ user: staff._id, token: "ExpoPushToken[test-device]" });
   await order(); await drainNotificationOutboxes();
   vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
   await deliverNotificationPushes();
