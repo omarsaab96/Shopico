@@ -7,6 +7,11 @@ type Lang = "en" | "ar";
 const I18N_STORAGE_KEY = "app-language";
 
 const baseStrings = {
+  passwordSetupCode: "Setup code or link",
+  passwordSetupHint: "This account was created by the store. Paste the password setup code or link provided by the store.",
+  passwordSetupTokenRequired: "Enter the password setup code or link provided by the store.",
+  passwordSetupTokenInvalid: "This setup code is invalid or expired. Contact the store for a new setup link.",
+  passwordSetupEmailMismatch: "This setup link is for a different email. Use the email on your invitation.",
   driverOrderCancelled: "This order has been cancelled.",
   driverOrderUnassigned: "This order is no longer assigned to you.",
   driverTrackingPermission: "The order is now shipping. Allow location access to enable tracking.",
@@ -246,6 +251,11 @@ const baseStrings = {
 };
 
 const arStrings: Record<string, string> = {
+  passwordSetupCode: "رمز أو رابط الإعداد",
+  passwordSetupHint: "أنشأ المتجر هذا الحساب. ألصق رمز أو رابط إعداد كلمة المرور المقدم من المتجر.",
+  passwordSetupTokenRequired: "أدخل رمز أو رابط الإعداد المقدم من المتجر.",
+  passwordSetupTokenInvalid: "رمز الإعداد غير صالح أو منتهي الصلاحية. تواصل مع المتجر لرابط جديد.",
+  passwordSetupEmailMismatch: "هذا الرابط لبريد إلكتروني مختلف. استخدم بريد الدعوة.",
   driverTrackingForeground: "أبقِ تطبيق شوبيكو مفتوحاً لمشاركة موقع التوصيل. يتوقف التتبع عند مغادرة التطبيق أو قفل الهاتف.",
   driverOrderCancelled: "تم إلغاء هذا الطلب.",
   driverOrderUnassigned: "هذا الطلب لم يعد مسنداً إليك.",

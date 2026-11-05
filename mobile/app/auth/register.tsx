@@ -1,4 +1,4 @@
-import { Link, useRouter } from "expo-router";
+import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { useMemo, useState, useRef, useCallback } from "react";
 import { TextInput, View, Image, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../../components/Button";
@@ -13,11 +13,12 @@ import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, Bottom
 import Feather from "@expo/vector-icons/Feather";
 
 export default function Register() {
+  const params = useLocalSearchParams<{ email?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { setUserProfile, logout } = useAuth();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(params.email || "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);

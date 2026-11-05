@@ -280,7 +280,10 @@ const UsersPage = () => {
         branchIds: createDraft.branchIds.length ? createDraft.branchIds : undefined,
       });
       if (created.setupToken) {
-        const url = new URL("/login", window.location.origin);
+        const opensInApp = created.role === "driver" || created.role === "customer";
+        const url = opensInApp
+          ? new URL("shopico://auth/login")
+          : new URL("/login", window.location.origin);
         url.searchParams.set("email", created.email);
         url.searchParams.set("setupToken", created.setupToken);
         setCreatedSetupLink(url.toString());

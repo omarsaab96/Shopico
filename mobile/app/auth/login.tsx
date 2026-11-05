@@ -1,5 +1,5 @@
-import { Link, useRouter } from "expo-router";
-import { useMemo, useState, useRef, useCallback } from "react";
+import { Link, useRouter, useLocalSearchParams } from "expo-router";
+import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { TextInput, View, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from "react-native";
 import Text from "../../components/Text";
 import { useAuth } from "../../lib/auth";
@@ -7,6 +7,7 @@ import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import api from "../../lib/api";
+import { parsePasswordSetup } from "../../lib/passwordSetup";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
@@ -15,8 +16,10 @@ export default function Login() {
   const { login, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ email?: string; setupToken?: string }>();
+  const [setupCode, setSetupCode] = useState(params.setupToken || "");
   const [loggingIn, setLoggingIn] = useState(false);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(params.email || "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -29,12 +32,19 @@ export default function Login() {
   const normalizeEmail = (value: string) => value.trim().toLowerCase();
   const sheetRef = useRef<BottomSheetModal>(null);
 
+  useEffect(() => {
+    if (params.email) setEmail(params.email);
+    if (params.setupToken) setSetupCode(params.setupToken);
+    if (params.email && params.setupToken) setStep("setPassword");
+  }, [params.email, params.setupToken]);
+
   const languages = [
     { code: "en", label: "English" },
     { code: "ar", label: "العربية" },
   ] as const;
 
   const checkEmail = async () => {
+    if (loggingIn) return;
     const normalizedEmail = normalizeEmail(email);
     if (!normalizedEmail) {
       setError(t("invalidForm"));
@@ -47,10 +57,10 @@ export default function Login() {
     setLoggingIn(true);
     setError("");
     try {
-      const res = await api.post("/auth/password-status", { email: normalizedEmail });
+      const res = await api.post("/auth/password-status", { email: normalizedEmail, setupToken: parsePasswordSetup(setupCode).setupToken || undefined });
       const { exists, hasPassword } = res.data.data || {};
       if (!exists) {
-        setError(t("accountNotFound") ?? "Account not found");
+        router.push({ pathname: "/auth/register", params: { email: normalizedEmail } });
         return;
       }
       setStep(hasPassword ? "password" : "setPassword");
@@ -93,8 +103,22 @@ export default function Login() {
   };
 
   const setInitialPassword = async () => {
+    if (loggingIn) return;
+    const { setupToken, email: invitationEmail } = parsePasswordSetup(setupCode);
+    if (setupToken.length < 16) {
+      setError(t("passwordSetupTokenRequired"));
+      return;
+    }
+    if (invitationEmail && normalizeEmail(invitationEmail) !== normalizeEmail(email)) {
+      setError(t("passwordSetupEmailMismatch"));
+      return;
+    }
     if (!password.trim() || !confirmPassword.trim()) {
       setError(t("invalidForm"));
+      return;
+    }
+    if (password.length < 6) {
+      setError(t("passwordTooShort"));
       return;
     }
     if (password !== confirmPassword) {
@@ -105,15 +129,15 @@ export default function Login() {
     setError("");
     try {
       const normalizedEmail = normalizeEmail(email);
-      await api.post("/auth/set-password", { email: normalizedEmail, password });
+      await api.post("/auth/set-password", { email: normalizedEmail, setupToken, password });
       await login(normalizedEmail, password);
       router.replace("/(tabs)/store");
     } catch (err: any) {
-      console.error(err);
       if (!err?.response) {
         setError(t("networkError") ?? "Unable to reach the server");
       } else {
-        setError(t("invalidForm"));
+        const message = err.response?.data?.message;
+        setError(message === "Invalid or expired setup token" ? t("passwordSetupTokenInvalid") : message || t("invalidForm"));
       }
     } finally {
       setLoggingIn(false);
@@ -212,7 +236,19 @@ export default function Login() {
                 )}
 
                 {step === "setPassword" && (
-                  <View style={{ position: "relative" }}>
+                  <View style={{ gap: 10 }}>
+                    <Text style={{ color: palette.muted }}>{t("passwordSetupHint")}</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={setupCode}
+                      onChangeText={setSetupCode}
+                      placeholder={t("passwordSetupCode")}
+                      accessibilityLabel={t("passwordSetupCode")}
+                      placeholderTextColor={palette.muted}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      secureTextEntry
+                    />
                     <TextInput
                       style={styles.input}
                       value={confirmPassword}
@@ -236,7 +272,7 @@ export default function Login() {
 
             <View style={{ gap: 10 }}>
               {step === "email" && (
-                <TouchableOpacity style={styles.cta} onPress={checkEmail}>
+                <TouchableOpacity style={styles.cta} disabled={loggingIn} onPress={checkEmail}>
                   <Text style={styles.ctaText}>
                     {loggingIn ? t("loggingIn") : (t("continue") ?? "Continue")}
                   </Text>
@@ -253,7 +289,7 @@ export default function Login() {
               )}
 
               {step === "setPassword" && (
-                <TouchableOpacity style={styles.cta} onPress={setInitialPassword}>
+                <TouchableOpacity style={styles.cta} disabled={loggingIn} onPress={setInitialPassword}>
                   <Text style={styles.ctaText}>
                     {loggingIn ? t("loggingIn") : (t("setPassword") ?? "Set password")}
                   </Text>
