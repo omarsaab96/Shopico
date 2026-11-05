@@ -10,6 +10,7 @@ import { sendSuccess } from "../utils/response";
 import { createUserSchema, updateUserBranchesSchema, updateUserPermissionsSchema, updateUserSchema } from "../validators/userValidators";
 import { AuditLog } from "../models/AuditLog";
 import { UserRole } from "../types";
+import { refreshMembershipFromWallet } from "../utils/membership";
 import { ensureWalletBalances } from "../services/walletService";
 
 const PERMISSION_CONTROLLED_USER_ROLES: UserRole[] = ["manager", "staff", "driver", "customer"];
@@ -71,6 +72,7 @@ export const getUserDetails = catchAsync(async (req, res) => {
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
   let wallet = await Wallet.findOne({ user: user._id }).populate("balances.currency");
   if (wallet) wallet = await ensureWalletBalances(wallet, req.branchId).then((w) => w.populate("balances.currency"));
+  await refreshMembershipFromWallet(user, wallet, req.branchId);
   const walletTx = await WalletTransaction.find({ user: user._id }).sort({ createdAt: -1 }).limit(20).populate("currency");
   const pointTx = await PointsTransaction.find({ user: user._id }).sort({ createdAt: -1 }).limit(20);
   const userId = user._id;

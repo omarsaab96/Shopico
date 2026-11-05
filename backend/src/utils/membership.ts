@@ -78,6 +78,21 @@ export const updateMembershipOnBalanceChange = async (user: IUser, walletBalance
   await user.save();
 };
 
+// Refresh stored membership using the branch's primary wallet currency and its thresholds.
+export const refreshMembershipFromWallet = async (
+  user: IUser,
+  wallet: { balance: number; balances?: { currency: unknown; amount: number }[] } | null,
+  branchId: string
+) => {
+  const primary = await Currency.findOne({ branchId, isPrimary: true });
+  const currencyId = primary?._id.toString();
+  const balances = wallet?.balances || [];
+  const balance = currencyId && balances.length
+    ? Number(balances.find(entry => getCurrencyId(entry.currency) === currencyId)?.amount ?? 0)
+    : Number(wallet?.balance ?? 0);
+  await updateMembershipOnBalanceChange(user, balance, branchId, currencyId);
+};
+
 export const recalculateMembershipsForThresholdChange = async (branchId: string) => {
   const settings = await Settings.findOne({ branchId });
   const primary = await Currency.findOne({ branchId, isPrimary: true });

@@ -7,7 +7,7 @@ import { sendEmailVerificationOtp } from "../services/emailService";
 import { sendSuccess } from "../utils/response";
 import { AuthRequest } from "../types/auth";
 import { Wallet } from "../models/Wallet";
-import { updateMembershipOnBalanceChange } from "../utils/membership";
+import { refreshMembershipFromWallet } from "../utils/membership";
 import { User } from "../models/User";
 import { AuditLog } from "../models/AuditLog";
 import bcrypt from "bcryptjs";
@@ -74,10 +74,9 @@ export const refresh = catchAsync(async (req: AuthRequest, res) => {
 export const me = catchAsync(async (req: AuthRequest, res) => {
   try {
     const wallet = await Wallet.findOne({ user: req.user!._id });
-    const balance = wallet?.balance ?? 0;
     const branchIds = (req.user as any)?.branchIds || [];
     const branchId = branchIds.length ? branchIds[0].toString() : undefined;
-    await updateMembershipOnBalanceChange(req.user!, balance, branchId);
+    if (branchId) await refreshMembershipFromWallet(req.user!, wallet, branchId);
   } catch (e) {
     // best-effort; we still return the user even if this fails
   }
