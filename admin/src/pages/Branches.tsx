@@ -1,5 +1,5 @@
 import ModalSurface from "../components/ModalSurface";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
 import type { Branch } from "../types/api";
@@ -228,6 +228,7 @@ const BranchLocationPicker = ({
 };
 
 const BranchesPage = () => {
+  const editorFormId = useId();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [draft, setDraft] = useState<Partial<Branch>>({ isActive: true, deliveryRadiusKm: 5 });
@@ -496,7 +497,7 @@ const BranchesPage = () => {
                 {t("close")}
               </button>
             </div>
-            <form className="form" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
+            <form id={editorFormId} className="form" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <label style={{ flex: 1 }}>
                   {t("name")}
@@ -557,7 +558,7 @@ const BranchesPage = () => {
                   {t("cancel")}
                 </button>
                 {canManage && (
-                  <button className="primary" type="submit" disabled={saving}>
+                  <button className="primary" type="submit" form={editorFormId} disabled={saving}>
                     {t(saving ? "saving" : "save")}
                   </button>
                 )}

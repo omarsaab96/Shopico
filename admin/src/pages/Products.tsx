@@ -1,5 +1,5 @@
 import ModalSurface from "../components/ModalSurface";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { DragEvent, FormEvent } from "react";
 import Card from "../components/Card";
 import ImageEditorModal from "../components/ImageEditorModal";
@@ -33,6 +33,7 @@ const formatCurrencyAmount = (amount: number, currency: Currency, lang: "en" | "
 };
 
 const ProductsPage = () => {
+  const priceFormId = useId();
   const [unpublishing, setUnpublishing] = useState(false);
   const unpublishPending = useRef(false);
   const [unpublishResult, setUnpublishResult] = useState<number | null>(null);
@@ -1639,7 +1640,7 @@ const ProductsPage = () => {
                   {t("close")}
                 </button>
               </div>
-              <form className="form" onSubmit={submitPriceUpdate}>
+              <form id={priceFormId} className="form" onSubmit={submitPriceUpdate}>
                 <label>
                   {t("changeType") || "Change type"}
                   <div className="flex-col">
@@ -1692,7 +1693,7 @@ const ProductsPage = () => {
                 <button className="ghost-btn" type="button" onClick={closePriceModal} disabled={priceSaving}>
                   {t("cancel")}
                 </button>
-                <button className="primary" type="submit" disabled={priceSaving}>
+                <button className="primary" type="submit" form={priceFormId} disabled={priceSaving}>
                   {priceSaving ? (t("saving") || "Saving...") : t("apply")}
                 </button>
               </div>
@@ -1808,15 +1809,15 @@ const ProductsPage = () => {
                   {t("close")}
                 </button>
               </div>
-              <div className="form">
+              <div className="form" style={{ minWidth: '30vw', display: 'flex', flexDirection: 'column' }}>
                 <div className="muted">{t("importProductsHint")}</div>
                 <div className="import-upload">
                   {importFile ? (
                     <div className="import-file-card">
                       <div className="import-file-details">
                         <div>
-                          <div className="import-file-name">{importFile.name}</div>
-                          <div className="import-file-size">{formatFileSize(importFile.size)}</div>
+                          <div className="import-file-name">{importFile.name || "FileName"}</div>
+                          <div className="import-file-size">{formatFileSize(importFile.size) || "0.00"}</div>
                         </div>
                         <div className="import-file-actions">
                           {importPreviewLoading ? (
@@ -1825,19 +1826,20 @@ const ProductsPage = () => {
                                 <div className="import-progress" style={{ marginBottom: 5 }}>
                                   <div className="import-progress-bar" style={{ width: `${importPreviewProgress}%` }} />
                                 </div>
-
-                                <div className="import-file-size" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                  <img src="loading.gif" className="noFilter" width="15" />
-                                  {importPreviewStage === "processing"
-                                    ? t("loadingPreview")
-                                    : `${t("upload") || "Uploading"}...`}
-                                </div>
-
-                                {importPreviewTotal > 0 && (
-                                  <div className="muted import-progress-meta">
-                                    {formatFileSize(importPreviewLoaded)} / {formatFileSize(importPreviewTotal)}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div className="import-file-size" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <img src="loading.gif" className="noFilter" width="15" />
+                                    {importPreviewStage === "processing"
+                                      ? t("loadingPreview")
+                                      : `${t("upload") || "Uploading"}...`}
                                   </div>
-                                )}
+
+                                  {importPreviewTotal > 0 && (
+                                    <div className="muted import-progress-meta">
+                                      {formatFileSize(importPreviewLoaded)} / {formatFileSize(importPreviewTotal)}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                               <button
                                 className="ghost-btn"
@@ -1939,14 +1941,14 @@ const ProductsPage = () => {
                         </label>
                       </div>
                     </div>
-                    <table className="table" style={{ marginTop: 10 }}>
+                    <table className="table" style={{ marginTop: 10, minWidth: '60vw' }}>
                       <thead>
                         <tr>
-                          <th></th>
-                          <th>{t("name")}</th>
-                          <th>{t("price")}</th>
-                          <th>{t("availability")}</th>
-                          <th>{t("change")}</th>
+                          <th style={{ width: '50px' }}></th>
+                          <th style={{ width: '40%' }}>{t("name")}</th>
+                          <th style={{ width: '10%' }}>{t("price")}</th>
+                          <th style={{ width: '20%' }}>{t("availability")}</th>
+                          <th style={{ width: 'calc(30% - 50px)' }}>{t("change")}</th>
                         </tr>
                       </thead>
                       <tbody>

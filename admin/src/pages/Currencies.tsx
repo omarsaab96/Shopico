@@ -1,6 +1,6 @@
 import { confirmAction } from "../utils/confirmation";
 import ModalSurface from "../components/ModalSurface";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
 import type { Currency } from "../types/api";
@@ -39,6 +39,7 @@ const getCurrencySymbol = (currency: Currency, lang: "en" | "ar", t: (key: strin
 };
 
 const CurrenciesPage = () => {
+  const editorFormId = useId();
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [draft, setDraft] = useState<Partial<Currency>>(emptyDraft);
@@ -297,11 +298,14 @@ const CurrenciesPage = () => {
                 {t("close")}
               </button>
             </div>
-            <form className="form" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submitNew}>
+            <form id={editorFormId} className="form" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submitNew}>
               <label>
                 {t("symbolEn") || "English symbol"}
                 <input
                   autoFocus
+                  required
+                  maxLength={12}
+                  pattern={".*\\S.*"}
                   value={modalDraft.symbol?.en || ""}
                   onChange={(e) => setModalDraft({ ...modalDraft, symbol: { ...modalDraft.symbol, en: e.target.value } })}
                 />
@@ -309,6 +313,7 @@ const CurrenciesPage = () => {
               <label>
                 {t("symbolAr") || "Arabic symbol"}
                 <input
+                  maxLength={12}
                   value={modalDraft.symbol?.ar || ""}
                   onChange={(e) => setModalDraft({ ...modalDraft, symbol: { en: modalDraft.symbol?.en || "", ar: e.target.value } })}
                 />
@@ -317,7 +322,8 @@ const CurrenciesPage = () => {
                 {t("exchangeRate") || "Exchange rate"}
                 <input
                   type="number"
-                  min="0"
+                  required
+                  min="0.0001"
                   step="0.0001"
                   value={modalDraft.exchangeRate ?? ""}
                   onChange={(e) => setModalDraft({ ...modalDraft, exchangeRate: Number(e.target.value) })}
@@ -350,7 +356,7 @@ const CurrenciesPage = () => {
               <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving}>
                 {t("cancel")}
               </button>
-              <button className="primary" type="submit" disabled={saving}>
+                <button className="primary" type="submit" form={editorFormId} disabled={saving}>
                 {saving ? (t("saving") || "Saving...") : t("save")}
               </button>
             </div>

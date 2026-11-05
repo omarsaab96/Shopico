@@ -74,6 +74,7 @@ export async function refundOrderItem(orderId: string, branchId: string, actorId
       cancelledOrder: result.cancelOrder,
     });
     try {
+      order.$locals.notifyStaff = false;
       await order.save();
       break;
     } catch (error: any) {

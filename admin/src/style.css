@@ -1937,7 +1937,7 @@ nav::-webkit-scrollbar {
 }
 
 .import-progress-meta {
-  margin-top: 6px;
+  /* margin-top: 6px; */
   font-size: 12px;
   direction: ltr !important;
 }
@@ -2143,17 +2143,18 @@ nav::-webkit-scrollbar {
   left: 0;
   width: 18px;
   height: 18px;
-  border: 1px solid black;
-  border-radius: 20px;
-  background-image: url(/check.png);
+  border: 1px solid var(--gray-500);
+  border-radius: 6px;
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 13px;
-  transition: all 0.3s ease-in-out;
+  background-size: 12px;
+  transition: all 0.2s ease-in-out;
 }
 
 .radioOption input:checked~label::before {
   background-color: var(--text-primary);
+  background-image: url(/check.png);
+  border: 1px solid var(--text-primary);
 }
 
 .react-datepicker {
@@ -3516,7 +3517,7 @@ dialog[open]::backdrop {
 }
 
 .modal.import-modal {
-  --modal-max-width: 980px;
+  --modal-max-width: 1200px;
   width: fit-content;
 }
 

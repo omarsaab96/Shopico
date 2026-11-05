@@ -584,6 +584,8 @@ export const updateOrderStatus = async (
   order.status = status;
   if (paymentStatus) order.paymentStatus = paymentStatus;
   order.statusHistory.push({ status, at: new Date() });
+  // Driver updates alert the dashboard; staff edits only alert customers/drivers.
+  order.$locals.notifyStaff = Boolean(expectedDriverId);
   await order.save();
   await syncDriverStatus(order.driverId);
   if (previousDriverId && String(previousDriverId) !== String(order.driverId)) await syncDriverStatus(previousDriverId);
@@ -611,6 +613,7 @@ export const assignDriverToOrder = async (orderId: string, driverId: string, bra
 
   order.driverId = driver._id;
   order.driverLocation = null;
+  order.$locals.notifyStaff = false;
   await order.save();
   await syncDriverStatus(driver._id);
   if (previousDriverId && previousDriverId.toString() !== driver._id.toString()) {
@@ -628,6 +631,7 @@ export const updateOrderDetails = async (
   if (branchId) filter.branchId = branchId;
   const order = await Order.findOne(filter);
   if (!order) throw { status: 404, message: "Order not found" };
+  order.$locals.notifyStaff = false;
 
   if (payload.notes !== undefined) {
     order.notes = payload.notes.trim() || undefined;

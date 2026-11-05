@@ -16,11 +16,15 @@ export function notificationOutbox(schema: Schema<any>, kind: string) {
     const after = snapshot(this);
     const events = sourceEvents(kind, before, after, this.isNew);
     for (const event of events) {
+      if (kind === "order" && this.$locals.notifyStaff === false) event.notifyStaff = false;
       // Mongoose persists these pushes in the same atomic source-document save.
       this.notificationOutbox.push({ ...event, key: new Types.ObjectId().toString(), at: new Date() });
     }
   });
-  schema.post("save", function(doc: any) { doc.$locals.notificationBefore = snapshot(doc); });
+  schema.post("save", function(doc: any) {
+    doc.$locals.notificationBefore = snapshot(doc);
+    delete doc.$locals.notifyStaff;
+  });
 }
 
 function snapshot(doc: any) {

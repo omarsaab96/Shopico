@@ -1,5 +1,5 @@
 import ModalSurface from "../components/ModalSurface";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
 import ImageEditorModal from "../components/ImageEditorModal";
@@ -14,6 +14,7 @@ import { confirmDelete } from "../utils/confirm";
 const uploadUrl = import.meta.env.VITE_IMAGEKIT_UPLOAD_URL;
 
 const CategoriesPage = () => {
+  const editorFormId = useId();
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterHasImage, setFilterHasImage] = useState<"" | HasImageFilter>("");
@@ -294,7 +295,7 @@ const CategoriesPage = () => {
                 {t("close")}
               </button>
             </div>
-            <form className="form productRow" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
+            <form id={editorFormId} className="form productRow" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
               <label>
                 {t("name")}
                 <input value={modalDraft.name || ""} onChange={(e) => setModalDraft({ ...modalDraft, name: e.target.value })} required />
@@ -353,7 +354,7 @@ const CategoriesPage = () => {
                 {t("cancel")}
               </button>
               {canManage && (
-                <button className="primary" type="submit" disabled={saving || modalUploading}>
+                  <button className="primary" type="submit" form={editorFormId} disabled={saving || modalUploading}>
                   {t(saving ? "saving" : "save")}
                 </button>
               )}

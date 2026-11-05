@@ -16,7 +16,7 @@ import { dispatchEvent } from "../notifications/service";
 import { sourceEvents } from "../notifications/outbox";
 import { RewardToken } from "../models/RewardToken";
 import { Settings } from "../models/Settings";
-import { updateOrderStatus, updateOrderStatusAsDriver, updateOrderDetails } from "../services/orderService";
+import { assignDriverToOrder, updateOrderStatus, updateOrderStatusAsDriver, updateOrderDetails } from "../services/orderService";
 import { signAccessToken } from "../services/tokenService";
 
 let mongo: MongoMemoryServer;
@@ -87,6 +87,32 @@ test("assignment, reassignment, removal and payment notify the appropriate accou
   expect(await Notification.countDocuments({ user: customer._id, type: "PAYMENT_CONFIRMED" })).toBe(1);
 });
 
+test("staff order edits keep customer and driver alerts without creating dashboard notifications or pushes", async () => {
+  const item = await order();
+  await drainNotificationOutboxes();
+  await NotificationDevice.create({ user: staff._id, token: "ExpoPushToken[staff-device]" });
+  await updateOrderStatus(String(item._id), "PROCESSING", "CONFIRMED", String(branch));
+  const pending = await Order.findById(item._id).lean();
+  expect((pending as any).notificationOutbox.map((event: any) => event.notifyStaff)).toEqual([false, false]);
+  await drainNotificationOutboxes();
+  await assignDriverToOrder(String(item._id), String(driver._id), String(branch));
+  await drainNotificationOutboxes();
+  await updateOrderDetails(String(item._id), { driverId: null }, String(branch));
+  await drainNotificationOutboxes();
+  await updateOrderDetails(String(item._id), { driverId: String(driver._id) }, String(branch));
+  await drainNotificationOutboxes();
+  expect(await Notification.countDocuments({ user: staff._id })).toBe(1); // Original new order only.
+  expect(await NotificationPush.countDocuments({ user: staff._id })).toBe(0);
+  expect(await Notification.countDocuments({ user: customer._id, type: "ORDER_STATUS" })).toBe(1);
+  expect(await Notification.countDocuments({ user: customer._id, type: "PAYMENT_CONFIRMED" })).toBe(1);
+  expect(await Notification.countDocuments({ user: driver._id, type: "DRIVER_ASSIGNED" })).toBe(3);
+
+  await updateOrderStatusAsDriver(String(item._id), driver._id, "SHIPPING");
+  await drainNotificationOutboxes();
+  expect(await Notification.countDocuments({ user: staff._id, type: "ORDER_STATUS" })).toBe(1);
+  expect(await NotificationPush.countDocuments({ user: staff._id })).toBe(1);
+});
+
 test("top-up approval waits for completed credit; wallet credit and user changes create alerts", async () => {
   const topup = await TopUpRequest.create({ user: customer._id, branchId: branch, amount: 10, currency: new Types.ObjectId(), method: "CASH_STORE" });
   await drainNotificationOutboxes();
@@ -128,6 +154,7 @@ test("refund alerts wait for settlement and replay exactly once; old refunds are
   await Order.updateOne({ _id: item._id }, { $set: { "refunds.0.settlementStatus": "COMPLETED" } });
   await drainNotificationOutboxes(); await drainNotificationOutboxes();
   expect(await Notification.countDocuments({ user: customer._id, type: "REFUND_COMPLETED" })).toBe(1);
+  expect(await Notification.countDocuments({ user: staff._id, type: "REFUND_COMPLETED" })).toBe(0);
   await Order.updateOne({ _id: item._id }, { $push: { refunds: { requestId: "old-refund", itemIndex: 0, quantity: 1, amount: 1, walletAmount: 0, disposition: "TOTAL_REDUCTION", settlementStatus: "COMPLETED", actor: staff._id, at: new Date(0) } } });
   await drainNotificationOutboxes();
   expect(await Notification.countDocuments({ user: customer._id, type: "REFUND_COMPLETED" })).toBe(1);

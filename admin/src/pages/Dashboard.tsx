@@ -265,7 +265,7 @@ const DashboardPage = () => {
               ) : loadingOrders ? (
                 <div className="skeleton-block" />
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={122}>
                   <AreaChart data={chartData} margin={chartMargin}>
                     <defs>
                       <linearGradient id="dashboardRevenueFill" x1="0" y1="0" x2="0" y2="1">
@@ -327,7 +327,7 @@ const DashboardPage = () => {
               ) : loadingOrders ? (
                 <div className="skeleton-block" />
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={122}>
                   <BarChart data={chartData} margin={chartMargin} barCategoryGap="28%">
                     <CartesianGrid stroke="var(--gray-300)" strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={10} reversed={dir === "rtl"} />

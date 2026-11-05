@@ -1,5 +1,5 @@
 import ModalSurface from "../components/ModalSurface";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { FormEvent } from "react";
 import Card from "../components/Card";
 import ImageEditorModal from "../components/ImageEditorModal";
@@ -44,6 +44,7 @@ const toDate = (value?: Date | string) => {
 };
 
 const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
+  const editorFormId = useId();
   const fetchItems = banners ? fetchBanners : fetchAnnouncements;
   const saveItem = banners ? saveBanner : saveAnnouncement;
   const deleteItem = banners ? deleteBanner : deleteAnnouncement;
@@ -425,7 +426,7 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                 {t("close")}
               </button>
             </div>
-            <form className="form productRow" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
+            <form id={editorFormId} className="form productRow" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
               <label>
                 {t("title") || "Title"}
                 <input autoFocus value={modalDraft.title || ""} onChange={(e) => setModalDraft({ ...modalDraft, title: e.target.value })} />
@@ -532,7 +533,7 @@ const AnnouncementsPage = ({ banners = false }: { banners?: boolean }) => {
                   {t("cancel")}
                 </button>
                 {canManage && (
-                  <button className="primary" type="submit" disabled={saving || modalUploading}>
+                  <button className="primary" type="submit" form={editorFormId} disabled={saving || modalUploading}>
                     {t(saving ? "saving" : "save")}
                   </button>
                 )}

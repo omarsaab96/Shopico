@@ -32,7 +32,7 @@ export async function drainNotificationOutboxes() {
     for (const refund of order.refunds as any[]) {
       if (refund.settlementStatus !== "COMPLETED" || refund.notificationSent || refund.at < activatedAt) continue;
       const currency = refund.currency ? await Currency.findById(refund.currency).lean() : null;
-      await dispatchEvent({ key: `refund:${order._id}:${refund.requestId}`, type: "REFUND_COMPLETED", id: String(order._id), user: String(order.user), branchId: String(order.branchId), driverId: order.driverId ? String(order.driverId) : undefined, amount: refund.disposition === "WALLET" ? refund.walletAmount : refund.amount, wallet: refund.disposition === "WALLET", currencyLabel: (currency?.symbol as any)?.en || "" });
+      await dispatchEvent({ key: `refund:${order._id}:${refund.requestId}`, type: "REFUND_COMPLETED", notifyStaff: false, id: String(order._id), user: String(order.user), branchId: String(order.branchId), driverId: order.driverId ? String(order.driverId) : undefined, amount: refund.disposition === "WALLET" ? refund.walletAmount : refund.amount, wallet: refund.disposition === "WALLET", currencyLabel: (currency?.symbol as any)?.en || "" });
       await Order.updateOne({ _id: order._id, "refunds.requestId": refund.requestId }, { $set: { "refunds.$.notificationSent": true } });
     }
   }

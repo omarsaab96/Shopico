@@ -75,6 +75,7 @@ export async function dispatchEvent(event: any) {
   }
   const recipients = await User.find({ _id: { $in: [...ids] } });
   for (const user of recipients) {
+    if (event.notifyStaff === false && staffRoles.includes(user.role)) continue;
     const recipientBody = event.type === "DRIVER_ASSIGNED" && user.role === "driver"
       ? { en: String(user._id) === event.driverId ? `Order #${short} is assigned to you.` : `Order #${short} is no longer assigned to you.`, ar: String(user._id) === event.driverId ? `تم تكليفك بالطلب #${short}.` : `لم تعد مكلّفاً بالطلب #${short}.` } : body;
     const recipientData = user.role === "driver" && data.orderId ? {
@@ -85,7 +86,7 @@ export async function dispatchEvent(event: any) {
   }
   const permission = event.type.startsWith("ORDER") || ["DRIVER_ASSIGNED", "PAYMENT_CONFIRMED", "REFUND_COMPLETED"].includes(event.type)
     ? "orders:view" : event.type.startsWith("TOPUP") ? "wallet:topups:view" : undefined;
-  if (permission && event.branchId) {
+  if (permission && event.branchId && event.notifyStaff !== false) {
     const staff = User.find({ role: { $in: staffRoles }, branchIds: event.branchId, permissions: permission }).cursor();
     for await (const user of staff) if (!ids.has(String(user._id))) await deliver(event, user, title, body, data, permission);
   }

@@ -1,5 +1,5 @@
 import ModalSurface from "../components/ModalSurface";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { FormEvent } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -50,6 +50,7 @@ const toggleUser = (list: string[] = [], id: string) => {
 };
 
 const CouponsPage = () => {
+  const editorFormId = useId();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -734,7 +735,7 @@ const CouponsPage = () => {
                 {t("close")}
               </button>
             </div>
-            <form className="form productRow" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
+            <form id={editorFormId} className="form productRow" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
               <label>
                 {t("code") || "Code"}
                 <input autoFocus value={modalDraft.code || ""} onChange={(e) => setModalDraft({ ...modalDraft, code: e.target.value })} required />
@@ -950,7 +951,7 @@ const CouponsPage = () => {
                   {t("cancel")}
                 </button>
                 {canManage && (
-                  <button className="primary" type="submit" disabled={saving}>
+                  <button className="primary" type="submit" form={editorFormId} disabled={saving}>
                     {t(saving ? "saving" : "save")}
                   </button>
                 )}
