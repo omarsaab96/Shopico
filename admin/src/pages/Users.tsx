@@ -21,6 +21,8 @@ interface UserDetails {
 const USER_ABOUT_VIEW_PERMISSIONS = ["users:about:view"] as const;
 const USER_BRANCHES_VIEW_PERMISSIONS = ["users:branches:view"] as const;
 const USER_PERMISSIONS_VIEW_PERMISSIONS = ["users:permissions:view"] as const;
+const PUBLIC_ADMIN_URL = import.meta.env.VITE_PUBLIC_ADMIN_URL || "https://admin.shopico-sy.com";
+
 const ROLE_ORDER: ApiUser["role"][] = ["customer", "staff", "manager", "driver", "admin"];
 const PERMISSION_CONTROLLED_ROLE_ORDER: ApiUser["role"][] = ["customer", "staff", "manager", "driver"];
 const CREATE_ROLE_ORDER: ApiUser["role"][] = ["customer", "staff", "manager", "driver"];
@@ -282,8 +284,8 @@ const UsersPage = () => {
       if (created.setupToken) {
         const opensInApp = created.role === "driver" || created.role === "customer";
         const url = opensInApp
-          ? new URL("shopico://auth/login")
-          : new URL("/login", window.location.origin);
+          ? new URL("/app-setup.html", PUBLIC_ADMIN_URL)
+          : new URL("/login", PUBLIC_ADMIN_URL);
         url.searchParams.set("email", created.email);
         url.searchParams.set("setupToken", created.setupToken);
         setCreatedSetupLink(url.toString());

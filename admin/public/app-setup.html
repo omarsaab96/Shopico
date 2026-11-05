@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Set up your Shopico account</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #fff6ee; color: #182135; font: 16px/1.6 system-ui, sans-serif; }
+    main { width: 100%; max-width: 440px; background: white; border: 1px solid #f2e4d8; border-radius: 24px; padding: 32px; box-shadow: 0 16px 48px #3420160a; }
+    .brand { color: #e66a16; font-size: 28px; font-weight: 800; }
+    h1 { font-size: 26px; line-height: 1.3; margin: 20px 0 12px; }
+    p { color: #5b6473; }
+    #account { overflow-wrap: anywhere; color: #182135; font-weight: 600; }
+    .button { display: block; width: 100%; border: 0; border-radius: 12px; padding: 14px 18px; text-align: center; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
+    #open-app { background: #f47b20; color: #fff; margin: 24px 0 12px; }
+    #copy-code { background: #f4f5f7; color: #182135; }
+    .hint { font-size: 14px; }
+    #status { font-size: 14px; margin-bottom: 0; }
+    [hidden] { display: none !important; }
+    a:focus-visible, button:focus-visible { outline: 3px solid #182135; outline-offset: 4px; }
+  </style>
+  <script src="/app-setup.js" defer></script>
+</head>
+<body>
+  <main>
+    <div class="brand">Shopico</div>
+    <h1 id="title">Set up your account</h1>
+    <p id="intro">Open the Shopico app to choose your password.</p>
+    <p id="account" dir="ltr"></p>
+    <div id="actions" hidden>
+      <a id="open-app" class="button">Open Shopico</a>
+      <button id="copy-code" class="button" type="button">Copy setup code</button>
+      <p id="help" class="hint">If the app does not open, install or update Shopico, then tap Open Shopico again. You can also copy the setup code and paste it into the app after entering your email.</p>
+    </div>
+    <p id="status" role="status" aria-live="polite"></p>
+    <noscript>Enable JavaScript to open your Shopico invitation.</noscript>
+  </main>
+</body>
+</html>
