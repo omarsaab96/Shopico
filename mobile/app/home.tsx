@@ -1,3 +1,4 @@
+import { outstandingDriverCash, type CashCurrency } from "../lib/driverCash";
 import { useNotifications } from "../lib/notifications";
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -19,6 +20,8 @@ import {
   useWindowDimensions,
   Linking,
   Alert,
+  AppState,
+  DeviceEventEmitter,
 } from "react-native";
 import {
   BottomSheetBackdrop,
@@ -79,6 +82,8 @@ type DriverDashboardOrder = {
   _id: string;
   status: string;
   paymentMethod?: string;
+  paymentStatus?: string;
+  currency?: CashCurrency | string | null;
   total?: number;
 };
 
@@ -134,6 +139,7 @@ export default function Home() {
   const [promoViewportWidth, setPromoViewportWidth] = useState(0);
   const [driverOrders, setDriverOrders] = useState<DriverDashboardOrder[]>([]);
   const [driverDashboardLoading, setDriverDashboardLoading] = useState(false);
+  const [driverCashError, setDriverCashError] = useState(false);
 
   const membershipLoadingRef = useRef(false);
   const addressLoadingRef = useRef(false);
@@ -542,12 +548,21 @@ export default function Home() {
     try {
       const res = await api.get("/orders/driver");
       setDriverOrders(res.data.data || []);
+      setDriverCashError(false);
     } catch {
-      setDriverOrders([]);
+      setDriverCashError(true);
     } finally {
       setDriverDashboardLoading(false);
     }
   }, [isDriver]);
+
+  useEffect(() => {
+    if (!isDriver) return;
+    const notifications = DeviceEventEmitter.addListener("shopico:notification", () => { void loadDriverDashboard(); });
+    const foreground = AppState.addEventListener("change", state => { if (state === "active") void loadDriverDashboard(); });
+    const timer = setInterval(() => { if (AppState.currentState === "active") void loadDriverDashboard(); }, 30000);
+    return () => { notifications.remove(); foreground.remove(); clearInterval(timer); };
+  }, [isDriver, loadDriverDashboard]);
 
   const lastCategoriesBranchRef = useRef<string | null>(null);
   useEffect(() => {
@@ -712,9 +727,7 @@ export default function Home() {
   const driverDashboard = useMemo(() => {
     const deliveredOrders = driverOrders.filter((order) => order.status === "DELIVERED");
     const pendingOrders = driverOrders.filter((order) => ["PENDING", "PROCESSING", "SHIPPING"].includes(order.status));
-    const cashCollected = deliveredOrders
-      .filter((order) => order.paymentMethod === "CASH_ON_DELIVERY")
-      .reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const cashCollected = outstandingDriverCash(driverOrders, primaryCurrency);
 
     return {
       deliveredCount: deliveredOrders.length,
@@ -723,7 +736,7 @@ export default function Home() {
       ratingAverage: Number(profile?.ratingAverage ?? user?.ratingAverage ?? 0),
       ratingCount: Number(profile?.ratingCount ?? user?.ratingCount ?? 0),
     };
-  }, [driverOrders, profile, user]);
+  }, [driverOrders, profile, user, primaryCurrency]);
 
   const skeletonProducts = useMemo<SkeletonProduct[]>(
     () => Array.from({ length: 6 }, (_, i) => ({ _id: `skeleton-${i}`, __skeleton: true })),
@@ -1160,7 +1173,7 @@ export default function Home() {
         {
           // borderWidth: 1,
           opacity: scrollY.interpolate({ inputRange: [0, 70, 120], outputRange: [1, 0.35, 0], extrapolate: "clamp" }),
-          height: scrollY.interpolate({ inputRange: [0, 150], outputRange: [50, 0], extrapolate: "clamp" }),
+          height: scrollY.interpolate({ inputRange: [0, 150], outputRange: [100, 0], extrapolate: "clamp" }),
           // marginBottom: scrollY.interpolate({ inputRange: [0, 1], outputRange: [0, 16] }),
           transform: [
             {
@@ -1170,7 +1183,7 @@ export default function Home() {
         },
       ]}
     >
-      {/* {renderTopBar()} */}
+      {renderTopBar()}
       {/* {renderWalletCard()} */}
       <View style={styles.greetingWrap}>
         <View style={styles.greetingCol}>
@@ -1239,7 +1252,7 @@ export default function Home() {
         </View>
         <Text style={[styles.driverStatLabel, { color: tone }]}>{label}</Text>
       </View>
-      <Text style={styles.driverStatValue} numberOfLines={1} adjustsFontSizeToFit>
+      <Text style={styles.driverStatValue} numberOfLines={value.split("\n").length} adjustsFontSizeToFit>
         {value}
       </Text>
       {sublabel ? <Text style={styles.driverStatSub}>{sublabel}</Text> : null}
@@ -1291,10 +1304,11 @@ export default function Home() {
           // driverDashboard.ratingCount > 0 ? ` ${t("ratings") ?? "ratings"}` : t("noRatingsYet") ?? "No ratings yet"
         )}
         {renderDriverStatCard(
-          t("cashCollected") ?? "Cash collected",
-          formatMoney(driverDashboard.cashCollected),
+          t("cashHeld"),
+          driverCashError ? "?" : driverDashboard.cashCollected.length ? driverDashboard.cashCollected.map(entry => `${entry.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${entry.currency ? (isRTL ? entry.currency.symbol.ar || entry.currency.symbol.en : entry.currency.symbol.en) : ""}`).join("\n") : formatMoney(0),
           "dollar-sign",
-          palette.accent
+          palette.accent,
+          driverCashError ? t("cashRefreshError") : undefined
         )}
       </View>
     </ScrollView>

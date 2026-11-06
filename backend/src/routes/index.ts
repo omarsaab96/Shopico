@@ -1,3 +1,4 @@
+import cashSettlementRoutes from "./cashSettlement.routes";
 import notificationRoutes from "./notification.routes";
 import { Router } from "express";
 import authRoutes from "./auth.routes";
@@ -29,6 +30,7 @@ router.use("/categories", categoryRoutes);
 router.use("/products", productRoutes);
 router.use("/cart", cartRoutes);
 router.use("/orders", orderRoutes);
+router.use("/cash-settlements", cashSettlementRoutes);
 router.use("/wallet", walletRoutes);
 router.use("/points", pointsRoutes);
 router.use("/settings", settingsRoutes);

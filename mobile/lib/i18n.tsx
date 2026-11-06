@@ -7,6 +7,8 @@ type Lang = "en" | "ar";
 const I18N_STORAGE_KEY = "app-language";
 
 const baseStrings = {
+  cashHeld: "Cash owed to store",
+  cashRefreshError: "Could not refresh cash balance. Please retry.",
   passwordSetupCode: "Setup code or link",
   passwordSetupHint: "This account was created by the store. Paste the password setup code or link provided by the store.",
   passwordSetupTokenRequired: "Enter the password setup code or link provided by the store.",
@@ -251,6 +253,8 @@ const baseStrings = {
 };
 
 const arStrings: Record<string, string> = {
+  cashHeld: "النقد المستحق للمتجر",
+  cashRefreshError: "تعذر تحديث الرصيد النقدي. حاول مجدداً.",
   passwordSetupCode: "رمز أو رابط الإعداد",
   passwordSetupHint: "أنشأ المتجر هذا الحساب. ألصق رمز أو رابط إعداد كلمة المرور المقدم من المتجر.",
   passwordSetupTokenRequired: "أدخل رمز أو رابط الإعداد المقدم من المتجر.",

@@ -1,3 +1,4 @@
+import { isDriverAssignmentLocked } from "../utils/orderDriver";
 import { confirmAction } from "../utils/confirmation";
 import ModalSurface from "../components/ModalSurface";
 import OrderItems from "../components/OrderItems";
@@ -251,7 +252,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
   };
 
   const saveDriver = async (nextDriverId: string) => {
-    if (!order || !canUpdateOrders) return;
+    if (!order || !canUpdateOrders || isDriverAssignmentLocked(order)) return;
     setDriverSaving(true);
     setDetailsError("");
     setDetailsSuccess("");
@@ -432,7 +433,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
             <div className="detailsRow">
               <div className="detailsLabel">{t("driver")}</div>
               <div className="detailsValue">
-                {canUpdateOrders ? (
+                {canUpdateOrders && !isDriverAssignmentLocked(order) ? (
                   <button
                     className="link-btn onHoverEdit"
                     type="button"
@@ -560,7 +561,8 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
             <ModalSurface className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div className="modal-title">
-                  {t("titles.userDetail")} <span className="muted" style={{ fontWeight: "normal", fontSize: "12px" }}>{selectedUser.user._id}</span>
+                  {t("titles.userDetail")}
+                  {/* <span className="muted" style={{ fontWeight: "normal", fontSize: "12px" }}>{selectedUser.user._id}</span> */}
                 </div>
                 <button className="ghost-btn" type="button" onClick={closeUserDetails}>
                   {t("close")}
@@ -570,6 +572,14 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
               <div className="user-details-tab-panel">
                 {canViewUserAbout && (
                   <div className="detailsTable">
+                    <div className="detailsRow">
+                      <div className="detailsLabel">{t("id")}</div>
+                      <div className="detailsValue">
+                        <span className="muted">
+                          {selectedUser.user._id}
+                        </span>
+                      </div>
+                    </div>
                     <div className="detailsRow">
                       <div className="detailsLabel">{t("name")}</div>
                       <div className="detailsValue">{selectedUser.user.name || "-"}</div>

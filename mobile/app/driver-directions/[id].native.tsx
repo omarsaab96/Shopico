@@ -102,15 +102,15 @@ export default function DriverDirections() {
       setOrder(res.data.data);
       if (res.data.data.status === "CANCELLED") {
         setAccessMessage(t("driverOrderCancelled"));
-        await stopDriverTracking(id).catch(() => {});
+        await stopDriverTracking(id).catch(() => { });
       } else {
         setAccessMessage("");
-        if (res.data.data.status === "DELIVERED") await stopDriverTracking(id).catch(() => {});
+        if (res.data.data.status === "DELIVERED") await stopDriverTracking(id).catch(() => { });
       }
     } catch (error: any) {
       if ([403, 404].includes(error.response?.status)) {
         setOrder(null); setAccessMessage(t("driverOrderUnassigned"));
-        await stopDriverTracking(id).catch(() => {});
+        await stopDriverTracking(id).catch(() => { });
       }
     }
   }, [id, t]);
@@ -336,18 +336,22 @@ export default function DriverDirections() {
         ) : null}
       </MapView>
 
-      <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, isRTL && styles.backBtnRtl]}>
+      <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn]}>
         <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} color={palette.text} />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => fitRoute()} style={[styles.recenterBtn, isRTL && styles.recenterBtnRtl]}>
+      <TouchableOpacity onPress={() => fitRoute()} style={[styles.recenterBtn]}>
         <Feather name="crosshair" size={20} color={palette.text} />
       </TouchableOpacity>
 
       <View style={styles.panel}>
-        {Platform.OS === "android" && <Text style={{ color: palette.muted }}>{t("driverTrackingForeground")}</Text>}
+        {Platform.OS === "android" &&
+          <Text style={{ textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr', color: palette.muted }}>
+            {t("driverTrackingForeground")}
+          </Text>
+        }
         <View style={styles.panelHeader}>
-          <View style={{ }}>
+          <View style={{}}>
             {/* <Text style={styles.title}>{t("directions") ?? "Directions"}</Text> */}
             <Text style={styles.title}>#{String(id || "").slice(-6)}</Text>
           </View>
@@ -421,7 +425,8 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
     backBtn: {
       position: "absolute",
       top: insets.top + 10,
-      left: 16,
+      left: isRTL ? undefined : 16,
+      right: isRTL ? 16 : undefined,
       width: 42,
       height: 42,
       borderRadius: 14,
@@ -438,7 +443,8 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
     recenterBtn: {
       position: "absolute",
       top: insets.top + 62,
-      left: 16,
+      left: isRTL ? undefined : 16,
+      right: isRTL ? 16 : undefined,
       width: 42,
       height: 42,
       borderRadius: 14,
@@ -479,43 +485,50 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       borderColor: palette.border,
       padding: 10,
       gap: 10,
+      // Keep row geometry independent of the device's persisted RTL setting.
+      // Rows below mirror explicitly when the in-app language changes.
+      direction: "ltr",
     },
     panelHeader: {
-      flexDirection: "row",
+      flexDirection: isRTL ? "row-reverse" : "row",
       alignItems: "center",
-      justifyContent:'space-between',
+      justifyContent: 'space-between',
       gap: 10,
     },
     title: {
       color: palette.text,
       fontSize: 20,
       fontWeight: "900",
-      textAlign: "left",
-      lineHeight:24
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
+      lineHeight: 24
     },
     subtitle: {
       color: palette.muted,
       fontWeight: "800",
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
     },
     label: {
       color: palette.muted,
       fontSize: 11,
       fontWeight: "900",
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
       textTransform: "uppercase",
     },
     address: {
       color: palette.text,
       fontWeight: "700",
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
     },
     routeRow: {
       gap: 5,
     },
     routeMetric: {
       gap: 10,
-      flexDirection: "row",
+      flexDirection: isRTL ? "row-reverse" : "row",
       justifyContent: "space-between",
       alignItems: "center",
     },
@@ -523,7 +536,8 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       color: palette.muted,
       fontSize: 12,
       fontWeight: "500",
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
       textTransform: "uppercase",
     },
     metricValue: {
@@ -531,21 +545,24 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       fontSize: 12,
       fontWeight: "700",
       flex: 1,
-      textAlign: 'right'
+      textAlign: isRTL ? "left" : "right",
+      writingDirection: isRTL ? "rtl" : "ltr",
     },
     error: {
       color: "#ef4444",
       fontWeight: "700",
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
     },
     hint: {
       color: palette.muted,
       fontSize: 12,
       fontWeight: "700",
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
+      writingDirection: isRTL ? "rtl" : "ltr",
     },
     actionRow: {
-      flexDirection: "row",
+      flexDirection: isRTL ? "row-reverse" : "row",
       gap: 10,
     },
     secondaryBtn: {

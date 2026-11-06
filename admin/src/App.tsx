@@ -6,6 +6,7 @@ import { useI18n } from "./context/I18nContext";
 import RequirePermission from "./components/RequirePermission";
 import RequireBranch from "./components/RequireBranch";
 
+const CashSettlementsPage = lazy(() => import("./pages/CashSettlements"));
 const LoginPage = lazy(() => import("./pages/Login"));
 const DashboardPage = lazy(() => import("./pages/Dashboard"));
 const ProductsPage = lazy(() => import("./pages/Products"));
@@ -118,6 +119,7 @@ const App = () => {
                 </RequirePermission>
               }
             />
+            <Route path="cash-settlements" element={<RequirePermission anyOf={["cash-settlements:view"]}><BranchScoped><CashSettlementsPage /></BranchScoped></RequirePermission>} />
             <Route
               path="wallet"
               element={

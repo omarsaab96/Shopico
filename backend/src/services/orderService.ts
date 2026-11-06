@@ -547,6 +547,16 @@ export const estimateOrderDelivery = async (
   return { distanceKm, deliveryFee };
 };
 
+const assertDriverCanChange = (
+  order: { status: string; statusHistory?: { status: string }[]; driverId?: unknown },
+  nextDriverId: string | null | undefined
+) => {
+  const delivered = order.status === "DELIVERED" || order.statusHistory?.some(entry => entry.status === "DELIVERED");
+  if (delivered && String(order.driverId || "") !== String(nextDriverId || "")) {
+    throw { status: 400, message: "The driver cannot be changed after an order has been delivered" };
+  }
+};
+
 export const updateOrderStatus = async (
   orderId: string,
   status: OrderStatus,
@@ -565,6 +575,16 @@ export const updateOrderStatus = async (
     if (order.status === "DELIVERED" && status !== "DELIVERED") throw { status: 400, message: "This order is already completed" };
     if (status === "DELIVERED" && !["SHIPPING", "DELIVERED"].includes(order.status)) throw { status: 400, message: "Start delivery before completing this order" };
     if (!["SHIPPING", "DELIVERED"].includes(status)) throw { status: 400, message: "Invalid driver status" };
+  }
+  if (driverId !== undefined) assertDriverCanChange(order, driverId);
+  if (order.cashSettlement && paymentStatus && paymentStatus !== "CONFIRMED") {
+    throw { status: 400, message: "A settled cash payment cannot be reopened" };
+  }
+  if (order.paymentMethod === "CASH_ON_DELIVERY" && order.driverId && paymentStatus === "CONFIRMED" && order.paymentStatus !== "CONFIRMED") {
+    throw { status: 400, message: "Receive the driver's cash through Cash settlements to confirm this payment" };
+  }
+  if (order.paymentMethod === "CASH_ON_DELIVERY" && order.driverId && order.status === "DELIVERED" && status !== "DELIVERED") {
+    throw { status: 400, message: "A delivered cash order must keep its delivery status for settlement" };
   }
   assertOrderCanRemainActive(order, status);
   const previousDriverId = order.driverId;
@@ -606,6 +626,7 @@ export const assignDriverToOrder = async (orderId: string, driverId: string, bra
   if (branchId) filter.branchId = branchId;
   const order = await Order.findOne(filter);
   if (!order) throw { status: 404, message: "Order not found" };
+  assertDriverCanChange(order, driverId);
   const previousDriverId = order.driverId;
 
   const driver = await User.findOne({ _id: driverId, role: "driver", branchIds: order.branchId });
@@ -631,6 +652,7 @@ export const updateOrderDetails = async (
   if (branchId) filter.branchId = branchId;
   const order = await Order.findOne(filter);
   if (!order) throw { status: 404, message: "Order not found" };
+  if (payload.driverId !== undefined) assertDriverCanChange(order, payload.driverId);
   order.$locals.notifyStaff = false;
 
   if (payload.notes !== undefined) {

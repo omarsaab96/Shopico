@@ -7,6 +7,8 @@ export const PERMISSIONS = [
   "categories:manage",
   "orders:view",
   "orders:update",
+  "cash-settlements:view",
+  "cash-settlements:manage",
   "users:about:view",
   "users:about:manage",
   "users:ledger:view",

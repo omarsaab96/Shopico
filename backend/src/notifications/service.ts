@@ -65,7 +65,7 @@ export async function dispatchEvent(event: any) {
   const ids = new Set<string>();
   // Checkout confirms placement; driver assignment changes are internal operations.
   if (event.user && !["ORDER_CREATED", "DRIVER_ASSIGNED"].includes(event.type)) ids.add(String(event.user));
-  if (event.type.startsWith("ORDER") || event.type === "DRIVER_ASSIGNED" || event.type === "REFUND_COMPLETED") {
+  if (event.type.startsWith("ORDER") || event.type === "DRIVER_ASSIGNED" || event.type === "REFUND_COMPLETED" || event.type === "PAYMENT_CONFIRMED") {
     if (event.driverId) ids.add(String(event.driverId));
     if (event.previousDriverId) ids.add(String(event.previousDriverId));
   }

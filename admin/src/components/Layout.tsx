@@ -11,6 +11,7 @@ const navItems = [
   { to: "/", key: "dashboard", label: "Dashboard", permissions: ["dashboard:view"] },
   { to: "/products", key: "products", label: "Products", permissions: ["products:view"] },
   { to: "/categories", key: "categories", label: "Categories", permissions: ["categories:view"] },
+  { to: "/cash-settlements", key: "cashSettlements", label: "Cash settlements", permissions: ["cash-settlements:view"] },
   { to: "/orders", key: "orders", label: "Orders", permissions: ["orders:view"] },
   {
     to: "/users",

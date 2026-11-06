@@ -24,6 +24,8 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { key: "orders:view", labelKey: "perm.orders.view" },
       { key: "orders:update", labelKey: "perm.orders.update" },
+      { key: "cash-settlements:view", labelKey: "perm.cashSettlements.view" },
+      { key: "cash-settlements:manage", labelKey: "perm.cashSettlements.manage" },
       { key: "wallet:topups:view", labelKey: "perm.wallet.topups.view" },
       { key: "wallet:topups:create", labelKey: "perm.wallet.topups.create" },
       { key: "wallet:manage", labelKey: "perm.wallet.manage" },

@@ -38,6 +38,16 @@ export interface IOrderDriverLocation {
   updatedAt: Date;
 }
 
+export interface ICashSettlement {
+  requestId: string;
+  driver: Types.ObjectId | string;
+  actor: Types.ObjectId | string;
+  amount: number;
+  currency: Types.ObjectId | string;
+  at: Date;
+  note?: string;
+}
+
 export interface IOrder extends Document {
   user: Types.ObjectId | string;
   items: IOrderItem[];
@@ -53,6 +63,7 @@ export interface IOrder extends Document {
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: "PENDING" | "CONFIRMED";
+  cashSettlement?: ICashSettlement | null;
   address: string;
   driverRating?: number | null;
   driverRatedAt?: Date | null;
@@ -132,6 +143,15 @@ const OrderSchema = new Schema<IOrder>(
     status: { type: String, enum: ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"], default: "PENDING" },
     paymentMethod: { type: String, required: true },
     paymentStatus: { type: String, enum: ["PENDING", "CONFIRMED"], default: "PENDING" },
+    cashSettlement: { type: new Schema<ICashSettlement>({
+      requestId: { type: String, required: true },
+      driver: { type: Schema.Types.ObjectId, ref: "User", required: true },
+      actor: { type: Schema.Types.ObjectId, ref: "User", required: true },
+      amount: { type: Number, required: true, min: 0 },
+      currency: { type: Schema.Types.ObjectId, ref: "Currency", required: true },
+      at: { type: Date, required: true },
+      note: { type: String },
+    }, { _id: false }), default: null },
     address: { type: String, required: true },
     driverRating: { type: Number, default: null, min: 1, max: 5 },
     driverRatedAt: { type: Date, default: null },
@@ -153,6 +173,8 @@ const OrderSchema = new Schema<IOrder>(
 );
 
 OrderSchema.index({ "refunds.settlementStatus": 1 });
+OrderSchema.index({ branchId: 1, paymentMethod: 1, status: 1, paymentStatus: 1, driverId: 1 });
+OrderSchema.index({ branchId: 1, "cashSettlement.at": -1 });
 
 notificationOutbox(OrderSchema, "order");
 

@@ -1,3 +1,4 @@
+import { isDriverAssignmentLocked } from "../utils/orderDriver";
 import { confirmAction } from "../utils/confirmation";
 import ModalSurface from "../components/ModalSurface";
 import { useEffect, useRef, useState } from "react";
@@ -219,7 +220,7 @@ const OrdersPage = () => {
   }, [selectedBranchId, searchTerm, statusFilter, paymentFilter, currencyFilter, fromDate, toDate, loading]);
 
   useEffect(() => {
-    const refresh = () => { if (!mutatingRef.current) void load(true).catch(() => {}); };
+    const refresh = () => { if (!mutatingRef.current) void load(true).catch(() => { }); };
     window.addEventListener("shopico:notification", refresh);
     return () => window.removeEventListener("shopico:notification", refresh);
   }, [selectedBranchId, searchTerm, statusFilter, paymentFilter, currencyFilter, fromDate, toDate]);
@@ -267,6 +268,7 @@ const OrdersPage = () => {
   };
 
   const saveDriverAssignment = async (order: Order, driverId: string) => {
+    if (isDriverAssignmentLocked(order)) return;
     setAssigning((prev) => ({ ...prev, [order._id]: true }));
     mutatingRef.current = true;
     try {
@@ -337,12 +339,12 @@ const OrdersPage = () => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 5 }}>
         <div className="muted" style={{ pointerEvents: 'none' }}>
-          {t("payment")} {order.paymentStatus.charAt(0)}{order.paymentStatus.substring(1,order.paymentStatus.length).toLowerCase()}
+          {t("payment")} {order.paymentStatus.charAt(0)}{order.paymentStatus.substring(1, order.paymentStatus.length).toLowerCase()}
         </div>
         <div style={{ pointerEvents: 'none', display: 'flex', gap: 5 }}>
           <span className="muted">{order.paymentMethod}</span>
           {/* <StatusPill value={order.paymentStatus} /> */}
-          
+
         </div>
       </div>
 
@@ -610,7 +612,7 @@ const OrdersPage = () => {
                   </td>
                   <td>{formatOrderMoney(order.total, order.currency)}</td>
                   <td>
-                    {editingId === order._id && editDraft ? (
+                    {editingId === order._id && editDraft && !isDriverAssignmentLocked(order) ? (
                       drivers.length === 0 ? (
                         <span className="muted">-</span>
                       ) : (
@@ -673,7 +675,8 @@ const OrdersPage = () => {
           <ModalSurface className="modal user-details-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">
-                {t("titles.userDetail")} <span className="muted" style={{ fontWeight: "normal", fontSize: "12px" }}>{selectedUser.user._id}</span>
+                {t("titles.userDetail")}
+                {/* <span className="muted" style={{ fontWeight: "normal", fontSize: "12px" }}>{selectedUser.user._id}</span> */}
               </div>
               <button className="ghost-btn" type="button" onClick={closeUserDetails}>
                 {t("close")}
@@ -683,6 +686,14 @@ const OrdersPage = () => {
             <div className="user-details-tab-panel">
               {canViewUserAbout && (
                 <div className="detailsTable">
+                  <div className="detailsRow">
+                    <div className="detailsLabel">{t("id")}</div>
+                    <div className="detailsValue">
+                      <span className="muted">
+                        {selectedUser.user._id}
+                      </span>
+                    </div>
+                  </div>
                   <div className="detailsRow">
                     <div className="detailsLabel">{t("name")}</div>
                     <div className="detailsValue">{selectedUser.user.name || "—"}</div>
