@@ -77,6 +77,8 @@ export async function dispatchEvent(event: any) {
   const recipients = await User.find({ _id: { $in: [...ids] } });
   for (const user of recipients) {
     if (event.notifyStaff === false && staffRoles.includes(user.role)) continue;
+    // Routine delivery progress is useful to customers, but redundant for drivers.
+    if (user.role === "driver" && event.type === "ORDER_STATUS" && ["SHIPPING", "DELIVERED"].includes(event.status)) continue;
     const recipientBody = event.type === "DRIVER_ASSIGNED" && user.role === "driver"
       ? { en: String(user._id) === event.driverId ? `Order #${short} is assigned to you.` : `Order #${short} is no longer assigned to you.`, ar: String(user._id) === event.driverId ? `تم تكليفك بالطلب #${short}.` : `لم تعد مكلّفاً بالطلب #${short}.` } : body;
     const recipientData = user.role === "driver" && data.orderId ? {

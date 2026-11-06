@@ -1,5 +1,5 @@
 import { unregisterPush } from "./push";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import api, { clearTokens, storeTokens, renewMobileSession, SessionChangedError, beginSessionLogout } from "./api";
 import { AppState, DeviceEventEmitter } from "react-native";
 import { useRouter } from "expo-router";
@@ -23,14 +23,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const authEpoch = useRef(0);
   const currentUser = useRef(user); currentUser.current = user;
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     const epoch = authEpoch.current;
     const res = await api.get("/auth/me");
     if (epoch !== authEpoch.current) throw new Error("Session changed");
     const profile = res.data.data.user;
     setUser(profile);
     return profile;
-  };
+  }, []);
 
   useEffect(() => {
     let running = false, active = true;

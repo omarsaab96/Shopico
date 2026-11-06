@@ -83,6 +83,32 @@ test("replaying an event is idempotent, and same-status saves do not send alerts
   expect(await Notification.countDocuments({ type: "ORDER_STATUS" })).toBe(2);
 });
 
+test.each(["SHIPPING", "DELIVERED"])("%s alerts customers and staff without creating a driver inbox entry or push", async status => {
+  await NotificationDevice.create([
+    { user: customer._id, token: "ExpoPushToken[customer-device]" },
+    { user: driver._id, token: "ExpoPushToken[driver-device]" },
+    { user: staff._id, token: "ExpoPushToken[staff-device]" },
+  ]);
+  const event = { key: String(new Types.ObjectId()), id: String(new Types.ObjectId()), type: "ORDER_STATUS", status,
+    user: String(customer._id), driverId: String(driver._id), branchId: String(branch) };
+  await dispatchEvent(event);
+  await dispatchEvent(event);
+  expect(await Notification.countDocuments({ user: driver._id })).toBe(0);
+  expect(await NotificationPush.countDocuments({ user: driver._id })).toBe(0);
+  expect(await Notification.countDocuments({ user: customer._id })).toBe(1);
+  expect(await NotificationPush.countDocuments({ user: customer._id })).toBe(1);
+  expect(await Notification.countDocuments({ user: staff._id })).toBe(1);
+  expect(await NotificationPush.countDocuments({ user: staff._id })).toBe(1);
+});
+
+test.each(["ORDER_STATUS", "DRIVER_ASSIGNED", "PAYMENT_CONFIRMED"])("drivers still receive actionable %s alerts", async type => {
+  await NotificationDevice.create({ user: driver._id, token: "ExpoPushToken[driver-device]" });
+  await dispatchEvent({ key: String(new Types.ObjectId()), id: String(new Types.ObjectId()), type, status: "CANCELLED",
+    user: String(customer._id), driverId: String(driver._id), branchId: String(branch) });
+  expect(await Notification.countDocuments({ user: driver._id, type })).toBe(1);
+  expect(await NotificationPush.countDocuments({ user: driver._id })).toBe(1);
+});
+
 test("assignment, reassignment, removal and payment notify the appropriate accounts", async () => {
   const replacement = await User.create({ name: "Replacement driver", email: "replacement@test.com", role: "driver", branchIds: [branch] });
   await NotificationDevice.create([

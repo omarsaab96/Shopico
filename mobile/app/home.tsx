@@ -786,13 +786,13 @@ export default function Home() {
               right: -6,
               backgroundColor: "#dc2626",
               borderRadius: 10,
-              paddingHorizontal:3,
-              paddingVertical:1,
+              paddingHorizontal: 3,
+              paddingVertical: 1,
               alignItems: "center",
               justifyContent: "center",
               flexDirection: "row",
             }]}>
-              <Text weight="bold" style={{ color: "#fff", fontSize: 10,lineHeight: 12, flexShrink: 1 }}>
+              <Text weight="bold" style={{ color: "#fff", fontSize: 10, lineHeight: 12, flexShrink: 1 }}>
                 {unreadCount > 99 ? "99+" : unreadCount}
               </Text>
             </View>
@@ -1250,7 +1250,7 @@ export default function Home() {
         <View style={[styles.driverStatIcon, { backgroundColor: `${tone}1A` }]}>
           <Feather name={icon} size={20} color={tone} />
         </View>
-        <Text style={[styles.driverStatLabel, { color: tone }]}>{label}</Text>
+        <Text style={[styles.driverStatLabel, { color: tone, flex: 1, paddingRight: isRTL ? 0 : 20, paddingLeft: isRTL ? 20 : 0 }]}>{label}</Text>
       </View>
       <Text style={styles.driverStatValue} numberOfLines={value.split("\n").length} adjustsFontSizeToFit>
         {value}
@@ -1297,8 +1297,8 @@ export default function Home() {
           "#2563eb"
         )}
         {renderDriverStatCard(
-          `${t("driverRating") ?? "Rating"} (${driverDashboard.ratingCount})`,
-          driverDashboard.ratingCount > 0 ? driverDashboard.ratingAverage.toFixed(1) : "-",
+          `${t("driverRating") ?? "Rating"}`,
+          driverDashboard.ratingCount > 0 ? driverDashboard.ratingAverage.toFixed(1) + ` (${driverDashboard.ratingCount})` : "-",
           "star",
           "#f59e0b",
           // driverDashboard.ratingCount > 0 ? ` ${t("ratings") ?? "ratings"}` : t("noRatingsYet") ?? "No ratings yet"
@@ -1359,7 +1359,7 @@ export default function Home() {
                           setShowAnnouncements(false);
                           router.push(announcement.link as `/products/${string}` | `/categories/${string}`);
                         } else if (announcement.link && /^https?:\/\//i.test(announcement.link)) {
-                          void Linking.openURL(announcement.link).catch(() => {});
+                          void Linking.openURL(announcement.link).catch(() => { });
                         }
                       }}
                     >

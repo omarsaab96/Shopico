@@ -22,7 +22,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 export default function Profile() {
   const router = useRouter();
   const deleteSheetRef = useRef<BottomSheetModal>(null);
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { palette, isDark } = useTheme();
   const { t, isRTL, lang, setLang } = useI18n();
   const insets = useSafeAreaInsets();
@@ -48,38 +48,32 @@ export default function Profile() {
   const renderBackdrop = useMemo(() => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
 
   useEffect(() => {
-    let mounted = true;
-    if (!user) {
-      setPointsData(undefined);
-      setSettings(undefined);
-      return;
-    }
-    Promise.allSettled([api.get("/points"), api.get("/settings")]).then(([pointsRes, settingsRes]) => {
-      if (!mounted) return;
-      if (pointsRes.status === "fulfilled") setPointsData(pointsRes.value.data.data);
-      if (settingsRes.status === "fulfilled") setSettings(settingsRes.value.data.data);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setWallet(undefined);
-      return;
-    }
-    refreshCurrencies();
-    api
-      .get("/wallet")
-      .then((res) => setWallet(res.data.data.wallet || res.data.data))
-      .catch(() => setWallet(undefined));
-  }, [refreshCurrencies, user]);
+    setPointsData(undefined);
+    setSettings(undefined);
+    setWallet(undefined);
+  }, [user?._id]);
 
   useFocusEffect(
     useCallback(() => {
-      if (user) refreshCurrencies();
-    }, [refreshCurrencies, user])
+      let active = true;
+      if (!user?._id) {
+        setPointsData(undefined);
+        setSettings(undefined);
+        setWallet(undefined);
+        return;
+      }
+      // Refresh on every visit, including returning from wallet or edit profile.
+      // Keep displayed values until fresh data arrives; ignore results after leaving.
+      void Promise.allSettled([
+        refreshUser(), refreshCurrencies(), api.get("/points"), api.get("/settings"), api.get("/wallet"),
+      ]).then(([, , pointsRes, settingsRes, walletRes]) => {
+        if (!active) return;
+        if (pointsRes.status === "fulfilled") setPointsData(pointsRes.value.data.data);
+        if (settingsRes.status === "fulfilled") setSettings(settingsRes.value.data.data);
+        if (walletRes.status === "fulfilled") setWallet(walletRes.value.data.data.wallet || walletRes.value.data.data);
+      });
+      return () => { active = false; };
+    }, [user?._id, refreshUser, refreshCurrencies])
   );
 
   const points = pointsData?.points ?? user?.points ?? 0;
