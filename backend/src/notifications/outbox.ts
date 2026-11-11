@@ -32,6 +32,7 @@ function snapshot(doc: any) {
     id: String(doc._id), user: doc.user ? String(doc.user._id || doc.user) : String(doc._id),
     branchId: doc.branchId ? String(doc.branchId._id || doc.branchId) : undefined,
     branchIds: (doc.branchIds || []).map(String), role: doc.role,
+    cancellationUntil: doc.cancellationUntil,
     status: doc.status, paymentStatus: doc.paymentStatus,
     driverId: doc.driverId ? String(doc.driverId._id || doc.driverId) : undefined,
     points: doc.points, membershipLevel: doc.membershipLevel,
@@ -44,7 +45,7 @@ export function sourceEvents(kind: string, before: any, after: any, isNew: boole
   const events: any[] = [];
   const add = (type: string, extra = {}) => events.push({ ...after, type, ...extra });
   if (kind === "order") {
-    if (isNew) { add("ORDER_CREATED"); if (after.paymentStatus === "CONFIRMED") add("PAYMENT_CONFIRMED"); }
+    if (isNew) { add("ORDER_CREATED", after.cancellationUntil ? { notBefore: after.cancellationUntil } : {}); if (after.paymentStatus === "CONFIRMED") add("PAYMENT_CONFIRMED", after.cancellationUntil ? { notifyStaff: false } : {}); }
     else {
       if (before.status !== after.status) add("ORDER_STATUS");
       if (before.driverId !== after.driverId) add("DRIVER_ASSIGNED", { previousDriverId: before.driverId });

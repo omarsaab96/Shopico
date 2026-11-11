@@ -1,3 +1,5 @@
+import { ProductUnit, assertProductQuantity, roundAmount } from "../utils/productUnits";
+import { CANCELLATION_WINDOW_MS, staffOrderFilter, assertStaffOrderAvailable } from "../utils/orderCancellation";
 import { assertOrderCanRemainActive } from "../utils/orderRefund";
 import { Types } from "mongoose";
 import { Cart } from "../models/Cart";
@@ -22,6 +24,7 @@ import { Address } from "../models/Address";
 import { Currency } from "../models/Currency";
 
 interface CheckoutItemInput {
+  unit?: ProductUnit;
   productId: string;
   variantId?: string;
   quantity: number;
@@ -77,7 +80,7 @@ export const getAllOrders = async (opts?: {
   const filter: Record<string, unknown> = {};
   if (opts?.branchId) filter.branchId = opts.branchId;
   const currencyFilter = await getOrderCurrencyFilter(opts?.currencyId, opts?.branchId);
-  if ((currencyFilter as any).$or) filter.$and = [currencyFilter];
+  filter.$and = [staffOrderFilter(), ...((currencyFilter as any).$or ? [currencyFilter] : [])];
   if (opts?.status) filter.status = opts.status;
   if (opts?.paymentStatus) filter.paymentStatus = opts.paymentStatus;
   if (opts?.from || opts?.to) {
@@ -144,6 +147,7 @@ export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId
     .populate("items.product")
     .populate("addressRef");
   if (!order) return null;
+  if (!userId) assertStaffOrderAvailable(order);
   const orderUserId =
     typeof order.user === "string"
       ? order.user
@@ -192,8 +196,9 @@ const buildOrderItems = async (itemsInput?: CheckoutItemInput[], userId?: Types.
       const variant = findProductVariant(product, item.variantId);
       if (item.variantId && !variant) throw { status: 404, message: "Product variant not found" };
       if (!isVariantAvailable(product, variant)) throw { status: 404, message: "Product not found" };
+      assertProductQuantity(item.quantity, product.unit, item.unit);
       const price = getEffectiveVariantPrice(product, variant);
-      return { product: product._id, variantId: variant?._id, variantAttributes: getVariantAttributes(variant), quantity: item.quantity, price };
+      return { unit: product.unit || "piece", unitLabel: product.unitLabel, product: product._id, variantId: variant?._id, variantAttributes: getVariantAttributes(variant), quantity: item.quantity, price };
     });
   }
   if (!userId) throw { status: 400, message: "No items provided" };
@@ -213,8 +218,9 @@ const buildOrderItems = async (itemsInput?: CheckoutItemInput[], userId?: Types.
   return filtered.map((item) => {
     const product = productMap.get(item.product.toString())!;
     const variant = findProductVariant(product, item.variantId?.toString());
+    assertProductQuantity(item.quantity, product.unit, item.unit);
     const price = getEffectiveVariantPrice(product, variant);
-    return { product: product._id, variantId: variant?._id, variantAttributes: getVariantAttributes(variant), quantity: item.quantity, price };
+    return { unit: product.unit || "piece", unitLabel: product.unitLabel, product: product._id, variantId: variant?._id, variantAttributes: getVariantAttributes(variant), quantity: item.quantity, price };
   });
 };
 
@@ -267,6 +273,7 @@ const handleWalletDebit = async (userId: Types.ObjectId, branchId: string, amoun
   });
   const user = await User.findById(userId);
   if (user) await updateMembershipOnBalanceChange(user, nextBalance, branchId, debitCurrencyId);
+  return { amount: debitAmount, currency: currency._id, primaryCurrency: primary._id };
 };
 
 const tryConsumeRewardToken = async (userId: Types.ObjectId, rewardValue: number, apply: boolean) => {
@@ -329,7 +336,7 @@ const applyCoupon = async (
     const eligibleIds = new Set(coupon.assignedProducts.map((id) => id.toString()));
     eligibleSubtotal = items.reduce((sum, item) => {
       if (!eligibleIds.has(item.product.toString())) return sum;
-      return sum + item.price * item.quantity;
+      return roundAmount(sum + roundAmount(item.price * item.quantity));
     }, 0);
     if (eligibleSubtotal <= 0) {
       throw { status: 400, message: "Coupon not applicable to these items" };
@@ -377,7 +384,7 @@ const applyCoupons = async (
         freeDeliveryApplied = true;
       }
     }
-    discountTotal += discount;
+    discountTotal = roundAmount(discountTotal + discount);
     coupons.push(result.coupon);
   }
   return { coupons, discount: discountTotal, deliveryDiscount: freeDeliveryApplied ? deliveryFee : 0 };
@@ -439,7 +446,7 @@ export const createOrder = async (
   const settings = await getSettingsSnapshot(branchId);
   const branch = await Branch.findById(branchId).select("lat lng");
   if (!branch) throw { status: 404, message: "Branch not found" };
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = roundAmount(items.reduce((sum, item) => sum + roundAmount(item.price * item.quantity), 0));
   const distanceKm = await getRouteDistanceKm(
     { lat: branch.lat, lng: branch.lng },
     { lat, lng }
@@ -463,11 +470,12 @@ export const createOrder = async (
   if (!orderCurrency) throw { status: 404, message: "Currency not found" };
   const couponResult = await applyCoupons(userId, branchId, subtotal, deliveryFee, items, normalizedCodes, orderCurrency._id.toString());
   const rewardResult = await tryConsumeRewardToken(userId, settings.rewardValue, payload.useReward ?? false);
-  const discount = rewardResult.discount + couponResult.discount;
-  const total = Math.max(0, subtotal + deliveryFee - discount);
+  const discount = roundAmount(rewardResult.discount + couponResult.discount);
+  const total = roundAmount(Math.max(0, subtotal + deliveryFee - discount));
 
+  let walletDebit: { amount: number; currency: Types.ObjectId; primaryCurrency: Types.ObjectId } | undefined;
   if (payload.paymentMethod === "WALLET") {
-    await handleWalletDebit(userId, branchId, total, "ORDER", orderCurrency._id.toString());
+    walletDebit = await handleWalletDebit(userId, branchId, total, "ORDER", orderCurrency._id.toString());
   }
 
   const order = await Order.create({
@@ -475,6 +483,10 @@ export const createOrder = async (
     branchId,
     currency: orderCurrency._id,
     currencyExchangeRate: orderCurrency.isPrimary ? 1 : Number(orderCurrency.exchangeRate || 1),
+    cancellationUntil: new Date(Date.now() + CANCELLATION_WINDOW_MS),
+    walletDebitAmount: walletDebit?.amount,
+    walletDebitCurrency: walletDebit?.currency,
+    walletPrimaryCurrency: walletDebit?.primaryCurrency,
     deliveryDiscount: couponResult.deliveryDiscount,
     items,
     status: "PENDING",
@@ -569,6 +581,7 @@ export const updateOrderStatus = async (
   if (branchId) filter.branchId = branchId;
   const order = await Order.findOne(filter);
   if (!order) throw { status: 404, message: "Order not found" };
+  assertStaffOrderAvailable(order);
   if (expectedDriverId) {
     if (String(order.driverId || "") !== expectedDriverId) throw { status: 403, message: "This order is no longer assigned to you" };
     if (order.status === "CANCELLED") throw { status: 400, message: "This order has been cancelled" };
@@ -626,6 +639,7 @@ export const assignDriverToOrder = async (orderId: string, driverId: string, bra
   if (branchId) filter.branchId = branchId;
   const order = await Order.findOne(filter);
   if (!order) throw { status: 404, message: "Order not found" };
+  assertStaffOrderAvailable(order);
   assertDriverCanChange(order, driverId);
   const previousDriverId = order.driverId;
 
@@ -652,6 +666,7 @@ export const updateOrderDetails = async (
   if (branchId) filter.branchId = branchId;
   const order = await Order.findOne(filter);
   if (!order) throw { status: 404, message: "Order not found" };
+  assertStaffOrderAvailable(order);
   if (payload.driverId !== undefined) assertDriverCanChange(order, payload.driverId);
   order.$locals.notifyStaff = false;
 
@@ -698,6 +713,7 @@ export const updateOrderDriverLocation = async (
 ) => {
   const order = await Order.findById(orderId);
   if (!order) throw { status: 404, message: "Order not found" };
+  assertStaffOrderAvailable(order);
 
   if (!allowOverride) {
     if (!order.driverId) throw { status: 403, message: "Driver not assigned" };
@@ -735,6 +751,7 @@ export const getOrdersForDriver = async (driverId: Types.ObjectId) => {
 export const updateOrderStatusAsDriver = async (orderId: string, userId: Types.ObjectId, status: OrderStatus) => {
   const order = await Order.findById(orderId);
   if (!order) throw { status: 404, message: "Order not found" };
+  assertStaffOrderAvailable(order);
   if (!order.driverId) throw { status: 403, message: "Driver not assigned" };
   if (order.driverId.toString() !== userId.toString()) throw { status: 403, message: "Forbidden" };
 
@@ -754,6 +771,7 @@ export const rateDriverForOrder = async (
 
   const order = await Order.findOne(filter);
   if (!order) throw { status: 404, message: "Order not found" };
+  assertStaffOrderAvailable(order);
   if (order.user.toString() !== userId.toString()) throw { status: 403, message: "Forbidden" };
   if (order.status !== "DELIVERED") throw { status: 400, message: "Only delivered orders can be rated" };
   if (!order.driverId) throw { status: 400, message: "No driver assigned to this order" };

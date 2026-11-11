@@ -152,6 +152,11 @@ export const previewProductsImport = async (
       barcode: string;
       name: string;
       price: number | null;
+      unit?: "piece" | "g" | "ml";
+      unitLabel?: string;
+      sourceUnit?: string;
+      previousUnit?: "piece" | "g" | "ml";
+      previousUnitLabel?: string;
       hasStock: boolean;
       action: string;
       reason?: string;

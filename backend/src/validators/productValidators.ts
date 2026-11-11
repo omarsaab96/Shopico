@@ -19,6 +19,8 @@ const productVariantSchema = z.object({
 });
 
 export const productSchema = z.object({
+  unit: z.enum(["piece", "g", "ml"]).optional(),
+  unitLabel: z.string().trim().max(40).optional(),
   name: z.string().min(1),
   description: z.string().optional(),
   barcode: z.string().min(1).optional(),

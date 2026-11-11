@@ -47,7 +47,7 @@ export async function settleOrderRefund(orderId: string, branchId: string, reque
     if (!primaryId) throw new Error("Primary refund currency is missing");
     const receipt = await creditOnce(order.user, key, currencyId, primaryId, refund.walletAmount);
     await WalletTransaction.updateOne({ _id: recordId("ledger", key) }, { $setOnInsert: {
-      user: order.user, amount: receipt.amount, currency: refund.currency, type: "CREDIT", source: "ORDER_ITEM_REFUND",
+      user: order.user, amount: receipt.amount, currency: refund.currency, type: "CREDIT", source: refund.kind === "CUSTOMER_CANCELLATION" ? "ORDER_CANCELLATION" : "ORDER_ITEM_REFUND",
       reference: orderId, balanceAfter: receipt.balanceAfter,
       metadata: { requestId, itemIndex: refund.itemIndex, quantity: refund.quantity, actorId: refund.actor, branchId },
     } }, { upsert: true });
@@ -62,7 +62,7 @@ export async function settleOrderRefund(orderId: string, branchId: string, reque
     await User.updateOne({ _id: order.driverId, role: "driver" }, { $set: { driverStatus: active ? "BUSY" : "AVAILABLE" } });
   }
   await AuditLog.updateOne({ _id: recordId("audit", key) }, { $setOnInsert: {
-    user: refund.actor, type: "orders", action: "ORDER_ITEM_REFUND", result: "SUCCESS",
+    user: refund.actor, type: "orders", action: refund.kind === "CUSTOMER_CANCELLATION" ? "ORDER_CANCELLED_BY_CUSTOMER" : "ORDER_ITEM_REFUND", result: "SUCCESS",
     metadata: { orderId, branchId, requestId, itemIndex: refund.itemIndex, quantity: refund.quantity, amount: refund.amount, walletAmount: refund.walletAmount, creditWallet: refund.disposition === "WALLET", cancelledOrder: refund.cancelledOrder === true },
   } }, { upsert: true });
   await Order.updateOne({ _id: orderId, refunds: { $elemMatch: { requestId, settlementStatus: "PENDING" } } }, {

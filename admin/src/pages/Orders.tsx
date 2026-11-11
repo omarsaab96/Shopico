@@ -118,7 +118,7 @@ const OrdersPage = () => {
     if (!resolved) return `${value.toLocaleString()} ${t("syp").toUpperCase()}`;
     const rate = Number(resolved.exchangeRate || 1);
     const converted = resolved.isPrimary ? value : value / (rate > 0 ? rate : 1);
-    return `${converted.toLocaleString(undefined, { maximumFractionDigits: resolved.isPrimary ? 0 : 2 })} ${getCurrencySymbol(resolved)}`;
+    return `${converted.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${getCurrencySymbol(resolved)}`;
   };
 
   const getDriverIdValue = (driverId?: ApiUser | string | null) =>

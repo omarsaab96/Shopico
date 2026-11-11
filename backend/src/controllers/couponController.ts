@@ -1,3 +1,4 @@
+import { ProductUnit, assertProductQuantity, roundAmount } from "../utils/productUnits";
 import { Types } from "mongoose";
 import { Coupon } from "../models/Coupon";
 import { CouponRedemption } from "../models/CouponRedemption";
@@ -35,13 +36,14 @@ type ProductMeta = { price: number; name?: string | null };
 
 const getItemKey = (item: { productId: string; variantId?: string }) => `${item.productId}:${item.variantId || ""}`;
 
-const getProductMetaMap = async (items: { productId: string; variantId?: string; quantity: number }[]) => {
+const getProductMetaMap = async (items: { productId: string; variantId?: string; unit?: ProductUnit; quantity: number }[]) => {
   const ids = items.map((i) => i.productId);
   const products = await Product.find({ _id: { $in: ids } });
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
   return new Map(items.flatMap((item) => {
     const product = productMap.get(item.productId);
     if (!product) return [];
+    assertProductQuantity(item.quantity, product.unit, item.unit);
     const variant = findProductVariant(product, item.variantId);
     return [[
       getItemKey(item),
@@ -55,7 +57,7 @@ const getProductMetaMap = async (items: { productId: string; variantId?: string;
 
 const getEligibleSubtotal = (
   coupon: { assignedProducts?: Array<Types.ObjectId | string> },
-  items: { productId: string; variantId?: string; quantity: number }[],
+  items: { productId: string; variantId?: string; unit?: ProductUnit; quantity: number }[],
   priceMap: Map<string, ProductMeta>,
   fallbackSubtotal: number
 ) => {
@@ -65,7 +67,7 @@ const getEligibleSubtotal = (
     if (!eligibleIds.has(item.productId)) return sum;
     const meta = priceMap.get(getItemKey(item));
     if (!meta) return sum;
-    return sum + meta.price * item.quantity;
+    return roundAmount(sum + roundAmount(meta.price * item.quantity));
   }, 0);
 };
 
@@ -84,7 +86,7 @@ const computeCouponDiscount = (
     coupon.discountType === "PERCENT"
       ? (eligibleSubtotal * coupon.discountValue) / 100
       : coupon.discountValue * (couponCurrency?.isPrimary ? 1 : Number(couponCurrency?.exchangeRate || 1));
-  const discount = Math.max(0, Math.min(eligibleSubtotal, rawDiscount));
+  const discount = roundAmount(Math.max(0, Math.min(eligibleSubtotal, rawDiscount)));
   return { discount, freeDelivery: false };
 };
 
@@ -305,7 +307,7 @@ export const deleteCoupon = catchAsync(async (req, res) => {
 
 export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => {
   const { items = [], subtotal = 0, deliveryFee = 0, currencyId } = req.body as {
-    items?: { productId: string; variantId?: string; quantity: number }[];
+    items?: { productId: string; variantId?: string; unit?: ProductUnit; quantity: number }[];
     subtotal?: number;
     deliveryFee?: number;
     currencyId?: string;

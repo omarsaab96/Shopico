@@ -224,7 +224,7 @@ export default function Profile() {
                           <Entypo name="wallet" size={22} color={palette.text} />
                           <View style={styles.walletValueTextRow}>
                             <Text style={styles.walletValueText}>
-                              {balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}
+                              {balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                             </Text>
                             <Text style={{ fontWeight: "400", fontSize: 12 }}>
                               {getCurrencySymbol(selectedCurrency)}
@@ -311,7 +311,7 @@ export default function Profile() {
                       <View style={styles.walletValue}>
                         <Entypo name="wallet" size={22} color={palette.text} />
                         <View style={styles.walletValueTextRow}>
-                          <Text style={styles.walletValueText}>{balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}</Text>
+                          <Text style={styles.walletValueText}>{balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
                           <Text style={{ fontWeight: "400", fontSize: 12 }}>{getCurrencySymbol(selectedCurrency)}</Text>
                         </View>
                       </View>
@@ -438,7 +438,7 @@ export default function Profile() {
                         {/* <Entypo name="info-with-circle" size={16} color={palette.muted} /> */}
                       </Text>
                       <Text style={styles.pointsValue}>
-                        {balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}
+                        {balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                       </Text>
                       {/* {earnRateCopy && <Text style={styles.muted}>{earnRateCopy}</Text>} */}
                       <TouchableOpacity style={styles.pointsLink} onPress={() => { router.push("/wallet") }}>

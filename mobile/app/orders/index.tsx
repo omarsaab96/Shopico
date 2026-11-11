@@ -1,3 +1,4 @@
+import { formatQuantity } from "../../lib/productUnits";
 import { DeviceEventEmitter } from "react-native";
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -247,7 +248,7 @@ export default function Orders() {
                         key={orderItem._id ?? `${orderItem.product?.name}-${index}`}
                         style={styles.itemLine}
                       >
-                        <Text style={styles.itemQty}>{Math.max(0, orderItem.quantity - (orderItem.refundedQuantity || 0))}</Text>
+                        <Text style={styles.itemQty}>{formatQuantity(Math.max(0, orderItem.quantity - (orderItem.refundedQuantity || 0)), orderItem, isRTL)}</Text>
                         <Text style={styles.itemName}>{orderItem.product?.name}</Text>
                       </View>
                     ))}

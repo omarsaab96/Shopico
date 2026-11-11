@@ -1,3 +1,5 @@
+import { formatQuantity } from "../../lib/productUnits";
+import OrderCancellation from "../../components/OrderCancellation";
 import { DeviceEventEmitter } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -69,6 +71,7 @@ export default function OrderDetailWeb() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <OrderCancellation order={order} onUpdate={setOrder} />
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("status") ?? "Status"}</Text>
           <Text style={styles.sectionValue}>{orderStatus ? t(orderStatus) : "-"}</Text>
@@ -83,10 +86,10 @@ export default function OrderDetailWeb() {
           {orderItems.map((item: any, index: number) => (
             <View key={getOrderItemKey(item, index)} style={styles.itemRow}>
               <Text style={styles.itemName}>
-                {Math.max(0, (item?.quantity || 0) - (item?.refundedQuantity || 0))} x {item?.product?.name || item?.product || t("product") || "Product"}
-                {!!item?.refundedQuantity && ` (${t("refundedQuantity")}: ${item.refundedQuantity})`}
+                {formatQuantity(Math.max(0, (item?.quantity || 0) - (item?.refundedQuantity || 0)), item, isRTL)} x {item?.product?.name || item?.product || t("product") || "Product"}
+                {!!item?.refundedQuantity && ` (${t("refundedQuantity")}: ${formatQuantity(item.refundedQuantity, item, isRTL)})`}
               </Text>
-              <Text style={styles.itemPrice}>{formatMoney(item?.price || 0, orderCurrency)}</Text>
+              <Text style={styles.itemPrice}>{formatMoney((item?.price || 0) * Math.max(0, (item?.quantity || 0) - (item?.refundedQuantity || 0)), orderCurrency)}</Text>
             </View>
           ))}
         </View>

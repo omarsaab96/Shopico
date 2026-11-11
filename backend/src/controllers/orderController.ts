@@ -1,3 +1,4 @@
+import { cancelCustomerOrder } from "../services/orderCancellationService";
 import { previewOrderItemRefund, refundOrderItem } from "../services/orderRefundService";
 import { refundItemPreviewSchema, refundItemSchema } from "../validators/orderValidators";
 import { catchAsync } from "../utils/catchAsync";
@@ -66,7 +67,7 @@ export const getOrder = catchAsync(async (req: AuthRequest, res) => {
   }
   const order = await getOrderById(req.params.id, isCustomer ? req.user!._id : undefined, branchId, isDriver ? req.user!._id : undefined);
   if (!order) return res.status(404).json({ success: false, code: isDriver ? "ORDER_NOT_ASSIGNED" : "ORDER_NOT_FOUND", message: isDriver ? "This order is no longer assigned to you" : "Order not found" });
-  sendSuccess(res, order);
+  sendSuccess(res, { ...order.toObject(), serverTime: new Date() });
 });
 
 export const createOrderHandler = catchAsync(async (req: AuthRequest, res) => {
@@ -135,4 +136,10 @@ export const adminRefundItem = catchAsync(async (req, res) => {
   const payload = refundItemSchema.parse(req.body);
   await refundOrderItem(req.params.id, req.branchId, req.user!._id, payload);
   sendSuccess(res, await getOrderById(req.params.id, undefined, req.branchId), "Item refunded");
+});
+
+export const cancelOrder = catchAsync(async (req: AuthRequest, res) => {
+  await cancelCustomerOrder(req.params.id, req.user!._id);
+  const order = await getOrderById(req.params.id, req.user!._id);
+  sendSuccess(res, order ? { ...order.toObject(), serverTime: new Date() } : order, "Order cancelled");
 });

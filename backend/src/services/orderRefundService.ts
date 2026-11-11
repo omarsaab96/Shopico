@@ -1,3 +1,4 @@
+import { assertStaffOrderAvailable } from "../utils/orderCancellation";
 import { Types } from "mongoose";
 import { settleOrderRefund } from "./refundSettlementService";
 import { Order, IOrder } from "../models/Order";
@@ -26,6 +27,7 @@ async function refundContext(order: IOrder, itemIndex: number, quantity: number)
 export async function previewOrderItemRefund(orderId: string, branchId: string, itemIndex: number, quantity: number) {
   const order = await Order.findOne({ _id: orderId, branchId });
   if (!order) throw { status: 404, message: "Order not found" };
+  assertStaffOrderAvailable(order);
   const result = await refundContext(order, itemIndex, quantity);
   return {
     amount: result.amount, newTotal: result.total, walletAmount: result.walletAmount,
@@ -43,6 +45,7 @@ export async function refundOrderItem(orderId: string, branchId: string, actorId
   for (let attempt = 0; attempt < 5; attempt++) {
     const order = await Order.findOne({ _id: orderId, branchId });
     if (!order) throw { status: 404, message: "Order not found" };
+    assertStaffOrderAvailable(order);
     const previous = order.refunds.find(refund => refund.requestId === payload.requestId);
     if (previous) {
       if (previous.itemIndex !== payload.itemIndex || previous.quantity !== payload.quantity) throw { status: 409, message: "Refund request already used" };

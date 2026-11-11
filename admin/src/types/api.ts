@@ -1,3 +1,4 @@
+export type ProductUnit = "piece" | "g" | "ml";
 export type UserRole = "customer" | "admin" | "manager" | "staff" | "driver";
 export type DriverStatus = "AVAILABLE" | "BUSY";
 
@@ -41,6 +42,8 @@ export interface ProductVariant {
 }
 
 export interface Product {
+  unit?: ProductUnit;
+  unitLabel?: string;
   _id: string;
   name: string;
   description?: string;
@@ -56,6 +59,8 @@ export interface Product {
 }
 
 export interface OrderItem {
+  unit?: ProductUnit;
+  unitLabel?: string;
   refundedQuantity?: number;
   product: Product | string;
   quantity: number;

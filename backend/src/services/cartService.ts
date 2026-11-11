@@ -1,9 +1,11 @@
+import { ProductUnit, assertProductQuantity, roundAmount } from "../utils/productUnits";
 import { Types } from "mongoose";
 import { Cart } from "../models/Cart";
 import { findProductVariant, getEffectiveVariantPrice, getVariantAttributes, isVariantAvailable, Product } from "../models/Product";
 
 interface UpdateCartItem {
   productId: string;
+  unit?: ProductUnit;
   variantId?: string;
   quantity: number;
 }
@@ -21,7 +23,7 @@ export const getUserCart = async (userId: Types.ObjectId, branchId?: string) => 
     const productMap = new Map(await Product.find({ _id: { $in: productIds }, branchId }).then((products) => products.map((product) => [product._id.toString(), product])));
     const visibleItems = cart.items.filter((item) => {
       const product = productMap.get(item.product.toString());
-      if (!product || product.isPublic === false) return false;
+      if (!product || product.isPublic === false || (item.unit || "piece") !== (product.unit || "piece")) return false;
       const variant = findProductVariant(product, item.variantId?.toString());
       if (item.variantId && !variant) return false;
       return isVariantAvailable(product, variant);
@@ -48,8 +50,11 @@ export const updateCart = async (userId: Types.ObjectId, branchId: string, items
     const variant = findProductVariant(product, item.variantId);
     if (item.variantId && !variant) throw { status: 404, message: "Product variant not found" };
     if (!isVariantAvailable(product, variant)) throw { status: 404, message: "Product not found" };
+    assertProductQuantity(item.quantity, product.unit, item.unit);
     const price = getEffectiveVariantPrice(product, variant);
     return {
+      unit: product.unit || "piece",
+      unitLabel: product.unitLabel,
       product: product._id,
       variantId: variant?._id,
       variantAttributes: getVariantAttributes(variant),
@@ -71,11 +76,14 @@ export const syncCart = async (userId: Types.ObjectId, branchId: string, items: 
   const cartItems = items.flatMap((item) => {
     const product = productMap.get(item.productId);
     const variant = product ? findProductVariant(product, item.variantId) : undefined;
-    if (!product || product.isPublic === false || (item.variantId && !variant) || !isVariantAvailable(product, variant)) {
+    if (!product || product.isPublic === false || (item.unit || "piece") !== (product.unit || "piece") || (item.variantId && !variant) || !isVariantAvailable(product, variant)) {
       removedItems.push({ ...item, name: product?.name });
       return [];
     }
+    assertProductQuantity(item.quantity, product.unit, item.unit);
     return [{
+      unit: product.unit || "piece",
+      unitLabel: product.unitLabel,
       product: product._id,
       quantity: item.quantity,
       variantId: variant?._id,
@@ -92,6 +100,8 @@ export const syncCart = async (userId: Types.ObjectId, branchId: string, items: 
     const effectivePrice = item.priceSnapshot;
     const image = product.images?.[0]?.url;
     return {
+      unit: item.unit,
+      unitLabel: item.unitLabel,
       productId: product._id.toString(),
       variantId: item.variantId?.toString(),
       variantAttributes: item.variantAttributes,
@@ -108,6 +118,6 @@ export const syncCart = async (userId: Types.ObjectId, branchId: string, items: 
     cart,
     items: syncedItems,
     removedItems,
-    subtotal: syncedItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    subtotal: roundAmount(syncedItems.reduce((sum, item) => sum + roundAmount(item.price * item.quantity), 0)),
   };
 };

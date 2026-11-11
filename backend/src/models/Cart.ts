@@ -1,9 +1,12 @@
+import { ProductUnit } from "../utils/productUnits";
 import mongoose, { Document, Schema } from "mongoose";
 
 export interface ICartItem {
   product: mongoose.Types.ObjectId;
   variantId?: mongoose.Types.ObjectId;
   variantAttributes?: Record<string, string>;
+  unit?: ProductUnit;
+  unitLabel?: string;
   quantity: number;
   priceSnapshot: number;
 }
@@ -19,6 +22,8 @@ const CartItemSchema = new Schema<ICartItem>(
     product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
     variantId: { type: Schema.Types.ObjectId },
     variantAttributes: { type: Schema.Types.Mixed },
+    unit: { type: String, enum: ["piece", "g", "ml"], default: "piece" },
+    unitLabel: { type: String },
     quantity: { type: Number, required: true, min: 1 },
     priceSnapshot: { type: Number, required: true },
   },

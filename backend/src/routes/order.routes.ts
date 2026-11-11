@@ -1,3 +1,4 @@
+import { cancelOrder } from "../controllers/orderController";
 import { previewItemRefund, adminRefundItem } from "../controllers/orderController";
 import { Router } from "express";
 import {
@@ -39,6 +40,7 @@ router.get(
 router.get("/:id", authenticate, attachBranchContext, getOrder);
 router.post("/delivery-estimate", authenticate, requireBranchContext, estimateDelivery);
 router.post("/", authenticate, requireBranchContext, createOrderHandler);
+router.post("/:id/cancel", authenticate, authorize("customer"), cancelOrder);
 router.post("/:id/refund-item/preview", authenticate, authorize("admin", "manager", "staff"), requirePermissions("orders:view", "orders:update"), requireBranchContext, previewItemRefund);
 router.post("/:id/refund-item", authenticate, authorize("admin", "manager", "staff"), requirePermissions("orders:view", "orders:update"), requireBranchContext, adminRefundItem);
 router.put("/:id", authenticate, authorize("admin", "manager", "staff"), requirePermissions("orders:view", "orders:update"), requireBranchContext, adminUpdateOrderDetails);

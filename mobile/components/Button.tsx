@@ -7,10 +7,12 @@ const Button = ({
   title,
   onPress,
   secondary,
+  disabled,
 }: {
   title: string;
   onPress: () => void;
   secondary?: boolean;
+  disabled?: boolean;
 }) => {
   const { palette, isDark } = useTheme();
   const styles = useMemo(
@@ -42,7 +44,7 @@ const Button = ({
   );
 
   return (
-    <Pressable style={secondary ? styles.secondary : styles.primary} onPress={onPress}>
+    <Pressable disabled={disabled} accessibilityState={{ disabled: Boolean(disabled) }} style={[secondary ? styles.secondary : styles.primary, disabled && { opacity: 0.5 }]} onPress={onPress}>
       <Text weight="bold" style={secondary ? styles.secondaryText : styles.primaryText}>
         {title}
       </Text>

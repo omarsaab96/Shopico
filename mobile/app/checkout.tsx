@@ -1,3 +1,4 @@
+import { roundAmount } from "../lib/productUnits";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from "react-native";
@@ -92,7 +93,7 @@ export default function Checkout() {
     }
   }, [user, router]);
 
-  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const subtotal = roundAmount(items.reduce((sum, i) => sum + roundAmount(i.price * i.quantity), 0));
   useEffect(() => {
     if (!user || !selected || !selectedBranch) {
       setDeliveryEstimate(null);
@@ -114,11 +115,12 @@ export default function Checkout() {
   const distanceKm = deliveryEstimate?.distanceKm ?? 0;
   const deliveryFee = deliveryEstimate?.deliveryFee ?? 0;
   const effectiveDeliveryFee = couponFreeDelivery ? 0 : deliveryFee;
-  const total = Math.max(0, subtotal + effectiveDeliveryFee - couponDiscount);
+  const total = roundAmount(Math.max(0, subtotal + effectiveDeliveryFee - couponDiscount));
   const toOld = (value: number) => value * 100;
   const toCheckoutItem = (item: typeof items[number]) => ({
     productId: item.productId,
     variantId: item.variantId,
+    unit: item.unit || "piece",
     quantity: item.quantity,
   });
 

@@ -1,3 +1,4 @@
+import { ProductUnit } from "../utils/productUnits";
 import { notificationOutbox } from "../notifications/outbox";
 import mongoose, { Document, Schema, Types } from "mongoose";
 import { OrderStatus, PaymentMethod } from "../types";
@@ -6,12 +7,15 @@ export interface IOrderItem {
   product: Types.ObjectId | string;
   variantId?: Types.ObjectId | string;
   variantAttributes?: Record<string, string>;
+  unit?: ProductUnit;
+  unitLabel?: string;
   quantity: number;
   price: number;
   refundedQuantity?: number;
 }
 
 export interface IOrderRefund {
+  kind?: "CUSTOMER_CANCELLATION";
   requestId: string;
   itemIndex: number;
   quantity: number;
@@ -80,6 +84,11 @@ export interface IOrder extends Document {
   total: number;
   rewardApplied: boolean;
   statusHistory: IOrderStatusEntry[];
+  cancellationUntil?: Date;
+  cancelledByCustomer?: boolean;
+  walletDebitAmount?: number;
+  walletDebitCurrency?: Types.ObjectId;
+  walletPrimaryCurrency?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -89,6 +98,8 @@ const OrderItemSchema = new Schema<IOrderItem>(
     product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
     variantId: { type: Schema.Types.ObjectId },
     variantAttributes: { type: Schema.Types.Mixed },
+    unit: { type: String, enum: ["piece", "g", "ml"], default: "piece" },
+    unitLabel: { type: String },
     quantity: { type: Number, required: true },
     price: { type: Number, required: true },
     refundedQuantity: { type: Number, default: 0, min: 0 },
@@ -121,8 +132,14 @@ const OrderSchema = new Schema<IOrder>(
     currency: { type: Schema.Types.ObjectId, ref: "Currency" },
     currencyExchangeRate: { type: Number },
     deliveryDiscount: { type: Number },
+    cancellationUntil: { type: Date },
+    cancelledByCustomer: { type: Boolean, default: false },
+    walletDebitAmount: { type: Number },
+    walletDebitCurrency: { type: Schema.Types.ObjectId, ref: "Currency" },
+    walletPrimaryCurrency: { type: Schema.Types.ObjectId, ref: "Currency" },
     refundTotal: { type: Number, default: 0 },
     refunds: { type: [new Schema<IOrderRefund>({
+      kind: { type: String, enum: ["CUSTOMER_CANCELLATION"] },
       requestId: { type: String, required: true },
       itemIndex: { type: Number, required: true },
       quantity: { type: Number, required: true },

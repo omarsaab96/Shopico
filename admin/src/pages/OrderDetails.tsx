@@ -107,7 +107,7 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
     if (!resolved) return `${amount.toLocaleString()} ${t("syp").toUpperCase()}`;
     const rate = Number(resolved.exchangeRate || 1);
     const converted = resolved.isPrimary ? amount : amount / (rate > 0 ? rate : 1);
-    return `${converted.toLocaleString(undefined, { maximumFractionDigits: resolved.isPrimary ? 0 : 2 })} ${getCurrencySymbol(resolved)}`;
+    return `${converted.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${getCurrencySymbol(resolved)}`;
   };
 
   useEffect(() => {

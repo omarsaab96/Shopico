@@ -45,6 +45,14 @@ npm run seed
 - Screens: Dashboard, Products (ImageKit upload + CRUD), Categories, Orders (status/payment confirmation), Users detail with wallet/points history, Wallet top-up approvals, Settings editor (delivery rules, thresholds, grace days), Audit log viewer
 - Auth tokens stored locally (httpOnly cookies also supported by backend)
 
+## Product selling units
+
+- Products use `piece`, `g`, or `ml`. Prices, promotional prices and variant prices are per **one** selling unit. Quantities are positive whole pieces, grams or millilitres. For example, 250 g at 0.6 per gram costs 150.
+- Excel import reads `واحدة القياس` (also `وحدة القياس`). A source price is per the unit in that row: kilogram and litre prices are divided by 1,000 when stored as g/ml. Countable packaging such as `علبة`, `كيس`, and `زوج` retains its label and package price. Units are never inferred from product names.
+- Unsupported units are skipped with an import-preview reason. Changing the unit of a product with promotional or variant price overrides requires reviewing those prices first; import skips those changes.
+- Existing products default to pieces. Re-import the unit-bearing Excel file or edit the product to populate its unit. Files without the column retain existing units. Carts with an outdated unit must select a quantity again.
+- Order items retain their original unit, package label and rate for history and refunds. The app displays measured product rates per 100 g/ml and allows quantities to be typed in product details and the cart.
+
 ## Mobile app (Expo)
 
 For Android publishing, follow [the release and policy checks](mobile/ANDROID_RELEASE.md). Native permission changes require a new app bundle; EAS Update alone does not apply them.

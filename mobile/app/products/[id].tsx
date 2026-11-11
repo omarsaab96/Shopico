@@ -1,3 +1,5 @@
+import QuantityControl from "../../components/QuantityControl";
+import { quantityStep, formatQuantity, priceBasis } from "../../lib/productUnits";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Image, View, StyleSheet, TouchableOpacity } from "react-native";
@@ -13,6 +15,8 @@ import { useCurrency } from "../../lib/currency";
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [product, setProduct] = useState<any>();
+  const [selectedQuantity, setSelectedQuantity] = useState(100);
+  const [quantityValid, setQuantityValid] = useState(true);
   const [selectedVariantId, setSelectedVariantId] = useState<string>("");
   const { addItem, items, setQuantity } = useCart();
   const { palette, isDark } = useTheme();
@@ -60,11 +64,11 @@ export default function ProductDetail() {
       <Text style={styles.name}>{product.name}</Text>
       <View style={styles.priceRow}>
         {displayPrice !== originalPrice ? (
-          <Text style={styles.oldPrice}>{formatMoney(originalPrice || 0, selectedCurrency)}</Text>
+          <Text style={styles.oldPrice}>{formatMoney((originalPrice || 0) * quantityStep(product), selectedCurrency)}</Text>
         ) : null}
         <View style={{ flexDirection: 'row', justifyContent:'flex-start', alignItems: 'center', gap: 5, flex:1 }}>
           <Text style={[styles.price]}>
-            {formatMoney(displayPrice || 0, selectedCurrency)}
+            {formatMoney((displayPrice || 0) * quantityStep(product), selectedCurrency)} / {priceBasis(product, isRTL)}
           </Text>
         </View>
         {displayPrice !== originalPrice && originalPrice > 0 ? (
@@ -74,6 +78,9 @@ export default function ProductDetail() {
         ) : null}
       </View>
       <Text style={styles.desc}>{product.description}</Text>
+      {product.unit && product.unit !== "piece" && <Text style={styles.desc}>
+        {formatQuantity(existing?.quantity || selectedQuantity, product, isRTL)}: {formatMoney((displayPrice || 0) * (existing?.quantity || selectedQuantity), selectedCurrency)}
+      </Text>}
       {variants.length > 0 && (
         <View style={styles.variantSection}>
           <Text style={styles.variantTitle}>{t("variants") ?? "Variants"}</Text>
@@ -99,15 +106,17 @@ export default function ProductDetail() {
       )}
       {variants.length > 0 && !selectedVariant ? (
         <Text style={styles.desc}>{t("unavailable") ?? "Unavailable"}</Text>
+      ) : existing && product.unit && product.unit !== "piece" ? (
+        <QuantityControl quantity={existing.quantity} product={product} onChange={quantity => setQuantity(existing.productId, quantity, existing.variantId)} />
       ) : existing ? (
         <View style={styles.qtyRow}>
           <TouchableOpacity
             style={styles.qtyButton}
-            onPress={() => setQuantity(existing.productId, existing.quantity - 1, existing.variantId)}
+            onPress={() => setQuantity(existing.productId, existing.quantity - quantityStep(product), existing.variantId)}
           >
             <Text style={styles.qtySymbol}>-</Text>
           </TouchableOpacity>
-          <Text style={styles.qtyValue}>{existing.quantity}</Text>
+          <Text style={styles.qtyValue}>{formatQuantity(existing.quantity, product, isRTL)}</Text>
           <TouchableOpacity
             style={styles.qtyButton}
             onPress={() => {
@@ -120,7 +129,9 @@ export default function ProductDetail() {
                 originalPrice: originalPrice && originalPrice > displayPrice ? originalPrice : undefined,
                 isPromoted: Boolean(originalPrice && originalPrice > displayPrice),
                 image: displayImages?.[0]?.url,
-                quantity: 1,
+                unit: product.unit || "piece",
+                unitLabel: product.unitLabel,
+                quantity: quantityStep(product),
               });
             }}
           >
@@ -128,8 +139,11 @@ export default function ProductDetail() {
           </TouchableOpacity>
         </View>
       ) : (
+        <View style={{ gap: 10 }}>
+        {product.unit && product.unit !== "piece" && <QuantityControl quantity={selectedQuantity} product={product} onChange={setSelectedQuantity} onValidationChange={setQuantityValid} allowRemove={false} />}
         <Button
           title={t("addToCart")}
+          disabled={product.unit !== "piece" && Boolean(product.unit) && !quantityValid}
           onPress={() => {
             addItem({
               productId: product._id,
@@ -140,10 +154,13 @@ export default function ProductDetail() {
               originalPrice: originalPrice && originalPrice > displayPrice ? originalPrice : undefined,
               isPromoted: Boolean(originalPrice && originalPrice > displayPrice),
               image: displayImages?.[0]?.url,
-              quantity: 1,
+              unit: product.unit || "piece",
+              unitLabel: product.unitLabel,
+              quantity: product.unit && product.unit !== "piece" ? selectedQuantity : 1,
             });
           }}
         />
+        </View>
       )}
     </Screen>
   );

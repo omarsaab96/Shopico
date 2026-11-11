@@ -1,3 +1,4 @@
+import { quantityStep, formatQuantity, priceBasis, ProductUnit } from "../../lib/productUnits";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -34,6 +35,8 @@ type Category = {
 };
 
 type Product = {
+  unit?: ProductUnit;
+  unitLabel?: string;
   _id: string;
   name: string;
   description?: string;
@@ -221,7 +224,9 @@ export default function CategoryDetail() {
         originalPrice: item.isPromoted && item.promoPrice !== undefined ? item.price : undefined,
         isPromoted: item.isPromoted && item.promoPrice !== undefined,
         image: item.images?.[0]?.url,
-        quantity: 1,
+        unit: item.unit || "piece",
+        unitLabel: item.unitLabel,
+        quantity: quantityStep(item),
       });
     };
 
@@ -251,7 +256,7 @@ export default function CategoryDetail() {
                 <View style={styles.qtyRow}>
                   <TouchableOpacity
                     style={styles.qtyBtn}
-                    onPress={() => setQuantity(existing.productId, existing.quantity - 1, existing.variantId)}
+                    onPress={() => setQuantity(existing.productId, existing.quantity - quantityStep(item), existing.variantId)}
                   >
                     {existing.quantity > 1 ? (
                       <AntDesign name="minus" size={20} color={palette.text} />
@@ -260,7 +265,7 @@ export default function CategoryDetail() {
                     )}
                   </TouchableOpacity>
 
-                  <Text style={styles.qtyVal}>{existing.quantity}</Text>
+                  <Text style={styles.qtyVal}>{formatQuantity(existing.quantity, item, isRTL)}</Text>
 
                   <TouchableOpacity style={styles.qtyBtn} onPress={addProduct}>
                     <AntDesign name="plus" size={20} color={palette.text} />
@@ -275,11 +280,11 @@ export default function CategoryDetail() {
 
             <View style={styles.priceRow}>
               <Text style={[styles.productPrice, item.isPromoted && { color: palette.accent }]}>
-                {formatMoney(effectivePrice, selectedCurrency)}
+                {formatMoney(effectivePrice * quantityStep(item), selectedCurrency)} / {priceBasis(item, isRTL)}
               </Text>
               <Text style={styles.productOldPrice} numberOfLines={1}>
                 {item.isPromoted && item.promoPrice !== undefined
-                  ? formatMoney(item.price, selectedCurrency)
+                  ? formatMoney(item.price * quantityStep(item), selectedCurrency)
                   : ""}
               </Text>
             </View>

@@ -164,7 +164,7 @@ export default function WalletScreen() {
               </View>
             </View>
             <Text style={styles.walletValue}>
-              {balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}{" "}
+              {balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}{" "}
               <Text style={{ fontWeight: "400", fontSize: 18 }}>{getCurrencySymbol(selectedCurrency)}</Text>
             </Text>
           </View>

@@ -19,6 +19,13 @@ export async function drainNotificationOutboxes() {
     const sources = Model.find({ "notificationOutbox.0": { $exists: true } }).select("notificationOutbox").lean().cursor();
     for await (const source of sources) {
       for (const event of source.notificationOutbox || []) {
+        if (event.notBefore) {
+          if (new Date(event.notBefore).getTime() > Date.now()) continue;
+          if (await Order.exists({ _id: source._id, cancelledByCustomer: true })) {
+            await Model.updateOne({ _id: source._id }, { $pull: { notificationOutbox: { key: event.key } } });
+            continue;
+          }
+        }
         // Approval is announced only after the wallet credit has actually completed.
         if (event.type === "TOPUP_STATUS" && event.status === "APPROVED" && !await WalletTransaction.exists({ source: "TOPUP", reference: event.id, type: "CREDIT" })) continue;
         await dispatchEvent(event);

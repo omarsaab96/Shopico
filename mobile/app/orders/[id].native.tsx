@@ -1,3 +1,5 @@
+import { formatQuantity } from "../../lib/productUnits";
+import OrderCancellation from "../../components/OrderCancellation";
 import { DeviceEventEmitter } from "react-native";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
@@ -433,6 +435,7 @@ export default function OrderDetail() {
               { useNativeDriver: false }
             )}
           >
+            <OrderCancellation order={order} onUpdate={setOrder} />
             {routeErrorMessage ? (
               <View style={styles.routeWarning}>
                 <Text style={styles.routeWarningText}>
@@ -611,11 +614,11 @@ export default function OrderDetail() {
                         <Text style={styles.itemName}>
                           {item?.product?.name || item?.product || t("product") || "Product"}
                         </Text>
-                        <Text style={styles.itemQty}>{Math.max(0, (item?.quantity || 0) - (item?.refundedQuantity || 0))}</Text>
-                        {!!item?.refundedQuantity && <Text style={styles.itemQty}>{t("refundedQuantity")}: {item.refundedQuantity}</Text>}
+                        <Text style={styles.itemQty}>{formatQuantity(Math.max(0, (item?.quantity || 0) - (item?.refundedQuantity || 0)), item, isRTL)}</Text>
+                        {!!item?.refundedQuantity && <Text style={styles.itemQty}>{t("refundedQuantity")}: {formatQuantity(item.refundedQuantity, item, isRTL)}</Text>}
                       </View>
                     </View>
-                    <Text style={styles.itemPrice}>{formatMoney(item?.price || 0, orderCurrency)}</Text>
+                    <Text style={styles.itemPrice}>{formatMoney((item?.price || 0) * Math.max(0, (item?.quantity || 0) - (item?.refundedQuantity || 0)), orderCurrency)}</Text>
                   </View>
                 );
               })}

@@ -1,3 +1,4 @@
+import { unitLabel } from "../utils/productUnits";
 import { useEffect, useState } from "react";
 import Card from "./Card";
 import type { Currency, Order, Product } from "../types/api";
@@ -13,7 +14,7 @@ type Props = {
 };
 
 export default function OrderItems({ order, canRefund, onChange, formatMoney, currencySymbol }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [editor, setEditor] = useState<{ itemIndex: number; quantity: number; requestId: string } | null>(null);
   const [preview, setPreview] = useState<ItemRefundPreview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -71,8 +72,8 @@ export default function OrderItems({ order, canRefund, onChange, formatMoney, cu
         <tbody>{order.items.map((item, index) => {
           const remaining = item.quantity - (item.refundedQuantity || 0);
           return <tr key={index}>
-            <td>{name(item.product)}</td><td>{formatMoney(item.price)}</td><td>{remaining} / {item.quantity}</td>
-            <td>{item.refundedQuantity || 0}</td><td>{formatMoney(item.price * remaining)}</td>
+            <td>{name(item.product)}</td><td>{formatMoney(item.price)} / 1 {unitLabel(item, lang === "ar")}</td><td>{remaining} / {item.quantity} {unitLabel(item, lang === "ar")}</td>
+            <td>{item.refundedQuantity || 0} {unitLabel(item, lang === "ar")}</td><td>{formatMoney(item.price * remaining)}</td>
             {eligible && <td><button type="button" className="ghost-btn" disabled={busy || remaining <= 0} onClick={() => { setEditor({ itemIndex: index, quantity: 1, requestId: crypto.randomUUID() }); setPreview(null); setError(""); setSuccess(false); }}>{t("orders.refundItem")}</button></td>}
           </tr>;
         })}</tbody>
@@ -82,7 +83,7 @@ export default function OrderItems({ order, canRefund, onChange, formatMoney, cu
       {editor && selectedItem && <div className="order-refund-editor">
         <h4>{t("orders.refundItem")}: {name(selectedItem.product)}</h4>
         <p className="muted">{t("orders.refundExplanation")}</p>
-        <label>{t("orders.refundQuantity")}<input type="number" min={1} max={selectedItem.quantity - (selectedItem.refundedQuantity || 0)} step={1} value={editor.quantity} disabled={busy} onChange={event => { setEditor({ ...editor, quantity: Number(event.target.value), requestId: crypto.randomUUID() }); setPreview(null); }} /></label>
+        <label>{t("orders.refundQuantity")} ({unitLabel(selectedItem, lang === "ar")})<input type="number" min={1} max={selectedItem.quantity - (selectedItem.refundedQuantity || 0)} step={1} value={editor.quantity} disabled={busy} onChange={event => { setEditor({ ...editor, quantity: Number(event.target.value), requestId: crypto.randomUUID() }); setPreview(null); }} /></label>
         {preview && <div className="order-refund-preview">
           <div>{t("orders.refundAmount")}: <strong>{formatMoney(preview.amount)}</strong></div>
           {preview.cancelOrder ? <div role="status"><strong>{t("orders.refundCancelsOrder")}</strong></div> : <div>{t("orders.newTotal")}: <strong>{formatMoney(preview.newTotal)}</strong></div>}
@@ -97,7 +98,7 @@ export default function OrderItems({ order, canRefund, onChange, formatMoney, cu
       {!!order.refunds?.length && <div className="order-refund-history">
         <h4>{t("orders.refundHistory")}</h4>
         {order.refunds.map(refund => <div className="order-refund-history-row" key={refund.requestId}>
-          <span>{name(order.items[refund.itemIndex]?.product)} × {refund.quantity}</span>
+          <span>{name(order.items[refund.itemIndex]?.product)} × {refund.quantity} {unitLabel(order.items[refund.itemIndex] || {}, lang === "ar")}</span>
           <span>{formatMoney(refund.amount)}</span>
           <span>{refund.disposition === "WALLET" ? `${t("orders.walletCredit")}: ${rawMoney(refund.walletAmount, refund.currency)}` : t("orders.unpaidReduction")}</span>
           <time dateTime={refund.at}>{new Date(refund.at).toLocaleString()}</time>

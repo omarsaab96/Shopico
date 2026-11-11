@@ -4,6 +4,18 @@ type Language = "en" | "ar";
 
 const translations: Record<Language, Record<string, string>> = {
   en: {
+    "unit": "Selling unit",
+    "unit.piece": "Piece / package",
+    "unit.g": "Gram (g)",
+    "unit.ml": "Millilitre (ml)",
+    "unitLabel": "Package label (optional)",
+    "unit.priceHint": "Prices and variant prices are per 1 selling unit. Quantities are whole pieces, grams or millilitres.",
+    "unit.bulkPriceHint": "A fixed price change applies to each selling unit: one piece, one gram or one millilitre. Percentage changes apply equally to all units.",
+    "import.field.unit": "Selling unit",
+    "import.reason.invalid_unit": "Unsupported or missing unit; review the Excel row",
+    "import.reason.invalid_price": "Invalid price",
+    "import.reason.unit_change_with_prices": "Unit change needs review: update promotional and variant prices first",
+
     "nav.cashSettlements": "Cash settlements",
     "perm.cashSettlements.view": "View driver cash balances and settlements",
     "perm.cashSettlements.manage": "Receive and settle driver cash",
@@ -409,6 +421,18 @@ const translations: Record<Language, Record<string, string>> = {
   },
 
   ar: {
+    "unit": "وحدة البيع",
+    "unit.piece": "قطعة / عبوة",
+    "unit.g": "غرام (غ)",
+    "unit.ml": "ميليلتر (مل)",
+    "unitLabel": "اسم العبوة (اختياري)",
+    "unit.priceHint": "السعر وأسعار الأنواع لكل وحدة بيع واحدة. الكميات أعداد صحيحة من القطع أو الغرامات أو الميليلترات.",
+    "unit.bulkPriceHint": "التغيير بمبلغ ثابت يطبق لكل قطعة أو غرام أو ميليلتر. التغيير بالنسبة المئوية يطبق على جميع الوحدات بالتساوي.",
+    "import.field.unit": "وحدة البيع",
+    "import.reason.invalid_unit": "وحدة غير مدعومة أو مفقودة؛ راجع صف الإكسل",
+    "import.reason.invalid_price": "سعر غير صالح",
+    "import.reason.unit_change_with_prices": "تغيير الوحدة يحتاج مراجعة أسعار العروض والأنواع أولاً",
+
     "nav.cashSettlements": "تسويات النقد",
     "perm.cashSettlements.view": "عرض أرصدة السائقين والتسويات النقدية",
     "perm.cashSettlements.manage": "استلام وتسوية نقد السائقين",

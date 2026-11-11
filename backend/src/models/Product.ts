@@ -1,3 +1,4 @@
+import { ProductUnit } from "../utils/productUnits";
 import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface IProductImage {
@@ -19,6 +20,8 @@ export interface IProductVariant {
 }
 
 export interface IProduct extends Document {
+  unit: ProductUnit;
+  unitLabel?: string;
   name: string;
   description?: string;
   barcode?: string;
@@ -61,6 +64,8 @@ const ProductVariantSchema = new Schema<IProductVariant>(
 
 const ProductSchema = new Schema<IProduct>(
   {
+    unit: { type: String, enum: ["piece", "g", "ml"], default: "piece" },
+    unitLabel: { type: String },
     name: { type: String, required: true },
     description: { type: String },
     barcode: { type: String, sparse: true },

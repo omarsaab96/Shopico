@@ -1,3 +1,5 @@
+import QuantityControl from "../components/QuantityControl";
+import { roundAmount, formatQuantity } from "../lib/productUnits";
 import { Link } from "expo-router";
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -70,11 +72,11 @@ export default function CartScreen() {
   const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
   const unavailableItems = items.filter((item) => item.unavailable);
   const hasUnavailableItems = unavailableItems.length > 0;
-  const subtotal = items.reduce((sum, i) => (i.unavailable ? sum : sum + i.price * i.quantity), 0);
+  const subtotal = roundAmount(items.reduce((sum, i) => (i.unavailable ? sum : sum + roundAmount(i.price * i.quantity)), 0));
   const originalSubtotal = items.reduce((sum, i) => {
     if (i.unavailable) return sum;
     const originalPrice = i.originalPrice && i.originalPrice > i.price ? i.originalPrice : i.price;
-    return sum + originalPrice * i.quantity;
+    return roundAmount(sum + roundAmount(originalPrice * i.quantity));
   }, 0);
   const hasPromotionalSubtotal = originalSubtotal > subtotal;
   const { palette, isDark } = useTheme();
@@ -111,13 +113,14 @@ export default function CartScreen() {
   const toCheckoutItem = (item: CartItem) => ({
     productId: item.productId,
     variantId: item.variantId,
+    unit: item.unit || "piece",
     quantity: item.quantity,
   });
 
   const syncCartWithServer = useCallback(async () => {
     if (!user || !items.length) return { ok: true, changed: false };
     const before = items
-      .map((item) => `${item.productId}:${item.variantId || ""}:${item.quantity}:${item.price}:${item.unavailable ? "off" : "on"}`)
+      .map((item) => `${item.productId}:${item.variantId || ""}:${item.quantity}:${item.unit || "piece"}:${item.unitLabel || ""}:${item.price}:${item.unavailable ? "off" : "on"}`)
       .sort()
       .join("|");
     setCartSyncLoading(true);
@@ -139,7 +142,7 @@ export default function CartScreen() {
         .map((item) => ({ ...item, unavailable: true }));
       const nextItems = [...syncedItems, ...unavailableLocalItems];
       const after = nextItems
-        .map((item) => `${item.productId}:${item.variantId || ""}:${item.quantity}:${item.price}:${item.unavailable ? "off" : "on"}`)
+        .map((item) => `${item.productId}:${item.variantId || ""}:${item.quantity}:${item.unit || "piece"}:${item.unitLabel || ""}:${item.price}:${item.unavailable ? "off" : "on"}`)
         .sort()
         .join("|");
       const changed = before !== after;
@@ -496,11 +499,11 @@ export default function CartScreen() {
   const hasFreeDeliveryCoupon = selectedCoupons.some((c) => c.freeDelivery);
   const couponDiscountTotal = selectedCoupons.reduce((sum, c) => sum + (c.freeDelivery ? 0 : c.discount || 0), 0);
   const effectiveDeliveryFee = hasFreeDeliveryCoupon ? 0 : deliveryFee;
-  const orderTotal = Math.max(0, subtotal + effectiveDeliveryFee - couponDiscountTotal);
+  const orderTotal = roundAmount(Math.max(0, subtotal + effectiveDeliveryFee - couponDiscountTotal));
   const selectedCurrencyTotal = convertFromPrimary(orderTotal, selectedCurrency);
   const walletInsufficient = paymentMethod === "WALLET" && walletBalance < selectedCurrencyTotal;
   const formatSelectedWalletBalance = (amount: number) =>
-    `${Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })} ${getCurrencySymbol(selectedCurrency)}`;
+    `${Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${getCurrencySymbol(selectedCurrency)}`;
   const checkoutLoading = cartSyncLoading || addressesLoading || walletLoading || settingsLoading || branchLoading || deliveryEstimateLoading;
   const allowMultipleCoupons = settings?.allowMultipleCoupons ?? false;
 
@@ -929,13 +932,15 @@ export default function CartScreen() {
                         <FontAwesome name="trash-o" size={22} color={palette.text} />
                       </TouchableOpacity>}
 
-                      {!item.unavailable ? (
+                      {!item.unavailable && item.unit && item.unit !== "piece" ? (
+                        <QuantityControl compact quantity={item.quantity} product={item} onChange={quantity => setQuantity(item.productId, quantity, item.variantId)} />
+                      ) : !item.unavailable ? (
                         <View style={styles.qtyRow}>
                           {item.quantity > 1 && <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity - 1, item.variantId)}>
                             {/* <Text weight="bold" style={styles.qtySymbol}>-</Text> */}
                             <AntDesign name="minus" size={18} color={palette.text} />
                           </TouchableOpacity>}
-                          <Text weight="bold" style={styles.qtyValue}>{item.quantity}</Text>
+                          <Text weight="bold" style={styles.qtyValue}>{formatQuantity(item.quantity, item, isRTL)}</Text>
                           <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity + 1, item.variantId)}>
                             {/* <Text weight="bold" style={styles.qtySymbol}>+</Text> */}
                             <AntDesign name="plus" size={20} color={palette.text} />
@@ -951,10 +956,10 @@ export default function CartScreen() {
                     {!item.unavailable && (
                       <View style={styles.priceRow}>
                         {item.originalPrice && item.originalPrice > item.price ? (
-                          <Text style={styles.oldItemPrice}>{formatMoney(item.originalPrice, selectedCurrency)}</Text>
+                          <Text style={styles.oldItemPrice}>{formatMoney(item.originalPrice * item.quantity, selectedCurrency)}</Text>
                         ) : null}
                         <Text weight="bold" style={styles.newItemPrice}>
-                          {formatMoney(item.price, selectedCurrency)}
+                          {formatMoney(roundAmount(item.price * item.quantity), selectedCurrency)}
                         </Text>
                       </View>
                     )}

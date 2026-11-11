@@ -120,7 +120,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     (amount: number, currency = selectedCurrency) => {
       const resolved = resolveCurrency(currency);
       const value = convertFromPrimary(amount, resolved);
-      const decimals = resolved?.isPrimary ? 0 : 2;
+      const decimals = 2;
       return `${value.toLocaleString(undefined, { maximumFractionDigits: decimals })} ${getCurrencySymbol(resolved)}`;
     },
     [convertFromPrimary, getCurrencySymbol, resolveCurrency, selectedCurrency]

@@ -1,3 +1,4 @@
+import { unitLabel } from "../utils/productUnits";
 import ItemPicker from "../components/ItemPicker";
 import ModalSurface from "../components/ModalSurface";
 import { useEffect, useId, useRef, useState } from "react";
@@ -30,7 +31,7 @@ const getCurrencySymbol = (currency: Currency, lang: "en" | "ar", t: (key: strin
 };
 
 const formatCurrencyAmount = (amount: number, currency: Currency, lang: "en" | "ar", t: (key: string) => string) => {
-  return `${amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${getCurrencySymbol(currency, lang, t)}`;
+  return `${amount.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${getCurrencySymbol(currency, lang, t)}`;
 };
 
 const ProductsPage = () => {
@@ -100,6 +101,11 @@ const ProductsPage = () => {
       barcode: string;
       name: string;
       price: number | null;
+      unit?: "piece" | "g" | "ml";
+      unitLabel?: string;
+      sourceUnit?: string;
+      previousUnit?: "piece" | "g" | "ml";
+      previousUnitLabel?: string;
       hasStock: boolean;
       action: string;
       reason?: string;
@@ -493,7 +499,7 @@ const ProductsPage = () => {
 
   const formatPriceValue = (value: number | null | undefined) => {
     if (value === null || value === undefined || Number.isNaN(value)) return "-";
-    return Number(value).toLocaleString();
+    return Number(value).toLocaleString(undefined, { maximumFractionDigits: 8 });
   };
 
   const renderDiff = (current: string, previous?: string) => {
@@ -593,8 +599,8 @@ const ProductsPage = () => {
       <label>{t("attributes")}<input value={variantAttributeInputValue(variant)} placeholder={lang === "ar" ? "الحجم: كبير، اللون: أحمر" : "Size: Large, Color: Red"} onChange={(e) => onChange({ ...variant, attributeText: e.target.value, attributes: parseVariantAttributes(e.target.value) })} /></label>
       <label>{t("sku")}<input value={variant.sku || ""} onChange={(e) => onChange({ ...variant, sku: e.target.value })} /></label>
       <label>{t("barcode")}<input value={variant.barcode || ""} onChange={(e) => onChange({ ...variant, barcode: e.target.value })} /></label>
-      <label>{t("price")} (SYP)<input type="number" value={variant.price ?? ""} placeholder={`${t("inherit")} (${productDraft.price ?? 0})`} onChange={(e) => onChange({ ...variant, price: e.target.value === "" ? undefined : Number(e.target.value) })} /></label>
-      <label>{t("newPrice")} (SYP)<input type="number" value={variant.promoPrice ?? ""} placeholder={t("inherit")} onChange={(e) => onChange({ ...variant, promoPrice: e.target.value === "" ? undefined : Number(e.target.value) })} /></label>
+      <label>{t("price")} (SYP / 1 {unitLabel(productDraft, lang === "ar")})<input type="number" min="0" step="any" value={variant.price ?? ""} placeholder={`${t("inherit")} (${productDraft.price ?? 0})`} onChange={(e) => onChange({ ...variant, price: e.target.value === "" ? undefined : Number(e.target.value) })} /></label>
+      <label>{t("newPrice")} (SYP / 1 {unitLabel(productDraft, lang === "ar")})<input type="number" min="0" step="any" value={variant.promoPrice ?? ""} placeholder={t("inherit")} onChange={(e) => onChange({ ...variant, promoPrice: e.target.value === "" ? undefined : Number(e.target.value) })} /></label>
       <div className="variant-flags">
         {([["isAvailable", "available"], ["isPublic", "isPublic"], ["isPromoted", "promoStatus"]] as const).map(([field, label]) => (
           <div className="checkboxContainer" key={field}>
@@ -787,6 +793,8 @@ const ProductsPage = () => {
       name: p.name,
       description: p.description,
       barcode: p.barcode,
+      unit: p.unit || "piece",
+      unitLabel: p.unitLabel,
       price: p.price,
       isAvailable: p.isAvailable,
       isPublic: p.isPublic !== false,
@@ -1179,6 +1187,7 @@ const ProductsPage = () => {
               <th>{t("description")}</th>
               <th>{t("barcode") || "Barcode"}</th>
               <th>{t("category")}</th>
+              <th>{t("unit")}</th>
               <th>{t("price")}</th>
               <th>{t("promoStatus") || "Promo"}</th>
               <th>{t("available") || "Available"}</th>
@@ -1208,7 +1217,7 @@ const ProductsPage = () => {
               ))
             ) : products.length == 0 ? (
               <tr>
-                <td colSpan={canManage ? 11 : 10} className="muted">No products</td>
+                <td colSpan={canManage ? 13 : 12} className="muted">No products</td>
               </tr>
             ) : (
               products.map((product) => (
@@ -1238,7 +1247,8 @@ const ProductsPage = () => {
                   <td>{product.description || "-"}</td>
                   <td>{product.barcode || "-"}</td>
                   <td>{getCategoryLabels(product.categories)}</td>
-                  <td>{renderCurrencyAmounts(product.price)}</td>
+                  <td>{unitLabel(product, lang === "ar")}</td>
+                  <td>{renderCurrencyAmounts(product.price)} / 1 {unitLabel(product, lang === "ar")}</td>
                   <td>
                     {product.isPromoted ? t("yes") : t("no")}
                     {product.isPromoted && product.promoPrice !== undefined && (
@@ -1356,14 +1366,25 @@ const ProductsPage = () => {
                     </div>
 
                     <div style={{ display: "flex", gap: 10 }}>
+                      <label style={{ flex: 1 }}>{t("unit")}
+                        <select value={productDraft.unit || "piece"} onChange={e => setProductDraft({ ...productDraft, unit: e.target.value as "piece" | "g" | "ml", unitLabel: "" })}>
+                          <option value="piece">{t("unit.piece")}</option>
+                          <option value="g">{t("unit.g")}</option>
+                          <option value="ml">{t("unit.ml")}</option>
+                        </select>
+                      </label>
+                      <label style={{ flex: 1 }}>{t("unitLabel")}<input value={productDraft.unitLabel || ""} disabled={productDraft.unit === "g" || productDraft.unit === "ml"} onChange={e => setProductDraft({ ...productDraft, unitLabel: e.target.value })} /></label>
+                    </div>
+                    <div className="muted">{t("unit.priceHint")}</div>
+                    <div style={{ display: "flex", gap: 10 }}>
                       <label style={{ flex: 1 }}>
                         {t("description")}
                         <input value={productDraft.description || ""} onChange={(e) => setProductDraft({ ...productDraft, description: e.target.value })} />
                       </label>
 
                       <label style={{ flex: 1 }}>
-                        {t("price")} (SYP)
-                        <input type="number" value={productDraft.price ?? ""} onChange={(e) => setProductDraft({ ...productDraft, price: Number(e.target.value) })} />
+                        {t("price")} (SYP / 1 {unitLabel(productDraft, lang === "ar")})
+                        <input type="number" min="0" step="any" value={productDraft.price ?? ""} onChange={(e) => setProductDraft({ ...productDraft, price: Number(e.target.value) })} />
                       </label>
                     </div>
                   </div>
@@ -1532,7 +1553,7 @@ const ProductsPage = () => {
                     value={promotePrice}
                     onChange={(e) => setPromotePrice(e.target.value)}
                     min="0"
-                    step="0.01"
+                    step="any"
                     disabled={!promoteActive}
                   />
                 </label>
@@ -1572,6 +1593,7 @@ const ProductsPage = () => {
                 </button>
               </div>
               <form id={priceFormId} className="form" onSubmit={submitPriceUpdate}>
+                <p className="muted">{t("unit.bulkPriceHint")}</p>
                 <label>
                   {t("changeType") || "Change type"}
                   <div className="flex-col">
@@ -1614,7 +1636,7 @@ const ProductsPage = () => {
                     value={priceAmount}
                     onChange={(e) => setPriceAmount(e.target.value)}
                     min="0"
-                    step="0.01"
+                    step="any"
                   />
                 </label>
                 {priceError && <div className="error">{priceError}</div>}
@@ -1877,6 +1899,7 @@ const ProductsPage = () => {
                         <tr>
                           <th style={{ width: '50px' }}></th>
                           <th style={{ width: '40%' }}>{t("name")}</th>
+                          <th>{t("unit")}</th>
                           <th style={{ width: '10%' }}>{t("price")}</th>
                           <th style={{ width: '20%' }}>{t("availability")}</th>
                           <th style={{ width: 'calc(30% - 50px)' }}>{t("change")}</th>
@@ -1893,6 +1916,7 @@ const ProductsPage = () => {
                                 </span>
                               </td>
                               <td>{renderDiff(row.name, row.previousName)}</td>
+                              <td>{row.reason === "invalid_unit" ? row.sourceUnit || "-" : renderDiff(unitLabel(row, lang === "ar"), row.previousUnit ? unitLabel({ unit: row.previousUnit, unitLabel: row.previousUnitLabel }, lang === "ar") : undefined)}</td>
                               <td>{renderPriceDiff(row.price, row.previousPrice)}</td>
                               <td>{renderAvailabilityDiff(row.hasStock, row.previousHasStock)}</td>
                               <td>{getImportReasonLabel(row.reason, row.reasonDetail)}</td>

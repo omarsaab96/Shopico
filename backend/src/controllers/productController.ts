@@ -1,3 +1,4 @@
+import { parseProductUnit, ProductUnit, roundAmount } from "../utils/productUnits";
 import { catchAsync } from "../utils/catchAsync";
 import { Product } from "../models/Product";
 import { Category } from "../models/Category";
@@ -130,6 +131,8 @@ export const createProduct = catchAsync(async (req, res) => {
   const payload = productSchema.parse(req.body);
   if (!req.branchId) return res.status(400).json({ success: false, message: "Branch access required" });
   const product = await Product.create({
+    unit: payload.unit ?? "piece",
+    unitLabel: payload.unitLabel,
     name: payload.name,
     description: payload.description,
     barcode: payload.barcode,
@@ -264,22 +267,32 @@ type ImportEntry = {
   barcode: string;
   name: string;
   price: number | null;
+  unit?: ProductUnit;
+  unitLabel?: string;
+  invalidUnit?: boolean;
+  sourceUnit?: string;
   hasStock: boolean;
 };
 type ImportDecision = {
   barcode: string;
   name: string;
   price: number | null;
+  unit?: ProductUnit;
+  unitLabel?: string;
+  invalidUnit?: boolean;
+  sourceUnit?: string;
   hasStock: boolean;
   action: ImportAction;
   reason?: string;
   reasonDetail?: string;
+  previousUnit?: ProductUnit;
+  previousUnitLabel?: string;
   previousName?: string;
   previousPrice?: number;
   previousHasStock?: boolean;
 };
 
-const readImportEntries = (buffer: Buffer) => {
+export const readImportEntries = (buffer: Buffer) => {
   const workbook = xlsx.read(buffer, { type: "buffer" });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) return [] as ImportEntry[];
@@ -297,6 +310,7 @@ const readImportEntries = (buffer: Buffer) => {
     barcode: ["الرمز"],
     name: ["الاسم"],
     price: ["المستهلك"],
+    unit: ["واحدة القياس", "وحدة القياس", "unit"],
     stock: ["الرصيد الحالي"],
   };
 
@@ -326,6 +340,7 @@ const readImportEntries = (buffer: Buffer) => {
   const nameIndex = getIndex(headerLabels.name);
   const priceIndex = getIndex(headerLabels.price);
   const stockIndex = getIndex(headerLabels.stock);
+  const unitIndex = getIndex(headerLabels.unit);
 
   const entries: ImportEntry[] = [];
   for (let i = headerRowIndex + 1; i < rows.length; i += 1) {
@@ -338,30 +353,39 @@ const readImportEntries = (buffer: Buffer) => {
 
     const barcode = normalizeBarcode(rawBarcode);
     const name = typeof rawName === "string" ? rawName.trim() : String(rawName || "").trim();
-    const price = parseNumber(rawPrice);
+    const sourceUnit = unitIndex >= 0 ? String(row[unitIndex] ?? "").trim() : undefined;
+    const measurement = sourceUnit !== undefined ? parseProductUnit(sourceUnit) : undefined;
+    const rawParsedPrice = parseNumber(rawPrice);
+    const price = rawParsedPrice === null ? null : roundAmount(rawParsedPrice / (measurement?.divisor || 1));
     const stockQty = parseNumber(rawStock);
     const hasStock = Boolean(stockQty && stockQty > 0);
 
     if (!barcode && !name && price === null && stockQty === null) {
       continue;
     }
-    entries.push({ barcode, name, price, hasStock });
+    entries.push({ barcode, name, price, hasStock, sourceUnit, unit: measurement?.unit, unitLabel: measurement?.unitLabel, invalidUnit: sourceUnit !== undefined && !measurement });
   }
 
   return entries;
 };
 
 
-const decideImportActions = (
+export const decideImportActions = (
   entries: ImportEntry[],
-  existingMap: Map<string, { name?: string; price?: number; isAvailable?: boolean }>
+  existingMap: Map<string, { name?: string; price?: number; isAvailable?: boolean; unit?: ProductUnit; unitLabel?: string; isPromoted?: boolean; variants?: { price?: number; promoPrice?: number }[] }>
 ) => {
   const decisions: ImportDecision[] = [];
   let created = 0;
   let updated = 0;
   let skipped = 0;
 
-  for (const entry of entries) {
+  for (const sourceEntry of entries) {
+    const entry = { ...sourceEntry };
+    if (entry.invalidUnit || (entry.price !== null && entry.price < 0)) {
+      decisions.push({ ...entry, action: "skip", reason: entry.invalidUnit ? "invalid_unit" : "invalid_price" });
+      skipped += 1;
+      continue;
+    }
     if (!entry.barcode || entry.price === null) {
       decisions.push({ ...entry, action: "skip", reason: "missing_barcode_or_price" });
       skipped += 1;
@@ -374,6 +398,13 @@ const decideImportActions = (
     }
     const existing = existingMap.get(entry.barcode);
     const exists = Boolean(existing);
+    entry.unit = entry.unit ?? existing?.unit ?? "piece";
+    if (entry.sourceUnit === undefined) entry.unitLabel = existing?.unitLabel;
+    if (existing && entry.unit !== (existing.unit || "piece") && (existing.isPromoted || existing.variants?.some(v => v.price !== undefined || v.promoPrice !== undefined))) {
+      decisions.push({ ...entry, action: "skip", reason: "unit_change_with_prices" });
+      skipped += 1;
+      continue;
+    }
     if (!exists && !entry.hasStock) {
       decisions.push({ ...entry, action: "skip", reason: "no_stock_new" });
       skipped += 1;
@@ -386,11 +417,15 @@ const decideImportActions = (
     }
 
     const desired = {
+      unit: entry.unit,
+      unitLabel: entry.unitLabel || "",
       name: entry.name,
       price: entry.price ?? undefined,
       isAvailable: entry.hasStock,
     };
     const hasChange =
+      desired.unit !== (existing?.unit || "piece") ||
+      desired.unitLabel !== (existing?.unitLabel || "") ||
       desired.name !== existing?.name ||
       desired.price !== existing?.price ||
       desired.isAvailable !== existing?.isAvailable;
@@ -400,6 +435,8 @@ const decideImportActions = (
         ...entry,
         action: "skip",
         reason: "no_change",
+        previousUnit: existing?.unit || "piece",
+        previousUnitLabel: existing?.unitLabel,
         previousName: existing?.name,
         previousPrice: existing?.price,
         previousHasStock: existing?.isAvailable,
@@ -409,6 +446,7 @@ const decideImportActions = (
     }
 
     const changedFields: string[] = [];
+    if (desired.unit !== (existing?.unit || "piece") || desired.unitLabel !== (existing?.unitLabel || "")) changedFields.push("unit");
     if (desired.name !== existing?.name) changedFields.push("name");
     if (desired.price !== existing?.price) changedFields.push("price");
     if (desired.isAvailable !== existing?.isAvailable) changedFields.push("availability");
@@ -418,6 +456,8 @@ const decideImportActions = (
       action: "update",
       reason: "updated_fields",
       reasonDetail: changedFields.join(","),
+      previousUnit: existing?.unit || "piece",
+      previousUnitLabel: existing?.unitLabel,
       previousName: existing?.name,
       previousPrice: existing?.price,
       previousHasStock: existing?.isAvailable,
@@ -440,12 +480,12 @@ export const previewProductsImport = catchAsync(async (req: AuthRequest, res) =>
 
   const barcodes = entries.map((entry) => entry.barcode).filter(Boolean);
   const existing = await Product.find({ barcode: { $in: barcodes }, branchId: req.branchId })
-    .select("barcode name price isAvailable")
+    .select("barcode name price isAvailable unit unitLabel isPromoted variants")
     .lean();
   const existingMap = new Map(
     existing
       .filter((p) => p.barcode)
-      .map((p) => [p.barcode as string, { name: p.name, price: p.price, isAvailable: p.isAvailable }])
+      .map((p) => [p.barcode as string, { name: p.name, price: p.price, isAvailable: p.isAvailable, unit: p.unit, unitLabel: p.unitLabel, isPromoted: p.isPromoted, variants: p.variants }])
   );
 
   const { decisions, created, updated, skipped } = decideImportActions(entries, existingMap);
@@ -465,12 +505,12 @@ export const importProductsFromExcel = catchAsync(async (req: AuthRequest, res) 
 
   const barcodes = entries.map((entry) => entry.barcode).filter(Boolean);
   const existing = await Product.find({ barcode: { $in: barcodes }, branchId: req.branchId })
-    .select("barcode name price isAvailable")
+    .select("barcode name price isAvailable unit unitLabel isPromoted variants")
     .lean();
   const existingMap = new Map(
     existing
       .filter((p) => p.barcode)
-      .map((p) => [p.barcode as string, { name: p.name, price: p.price, isAvailable: p.isAvailable }])
+      .map((p) => [p.barcode as string, { name: p.name, price: p.price, isAvailable: p.isAvailable, unit: p.unit, unitLabel: p.unitLabel, isPromoted: p.isPromoted, variants: p.variants }])
   );
 
   const { decisions, created, updated, skipped } = decideImportActions(entries, existingMap);
@@ -480,6 +520,8 @@ export const importProductsFromExcel = catchAsync(async (req: AuthRequest, res) 
     if (decision.action === "skip") continue;
 
     const update: Record<string, unknown> = {
+      unit: decision.unit,
+      unitLabel: decision.unitLabel || "",
       name: decision.name,
       price: decision.price,
       isAvailable: decision.hasStock,

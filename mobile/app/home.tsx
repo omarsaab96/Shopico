@@ -1,3 +1,4 @@
+import { quantityStep, formatQuantity, priceBasis, ProductUnit } from "../lib/productUnits";
 import { outstandingDriverCash, type CashCurrency } from "../lib/driverCash";
 import { useNotifications } from "../lib/notifications";
 import { Link, useFocusEffect, useRouter } from "expo-router";
@@ -54,6 +55,8 @@ import { useCurrency } from "../lib/currency";
 
 type Category = { _id: string; name: string; imageUrl?: string };
 type Product = {
+  unit?: ProductUnit;
+  unitLabel?: string;
   _id: string;
   name: string;
   description: string;
@@ -873,7 +876,7 @@ export default function Home() {
               </View>
             </View>
             <Text style={styles.walletValue}>
-              {balance.toLocaleString(undefined, { maximumFractionDigits: selectedCurrency?.isPrimary ? 0 : 2 })}
+              {balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               <Text style={{ fontWeight: 400, fontSize: 14 }}> {getCurrencySymbol(selectedCurrency)}</Text>
             </Text>
           </View>
@@ -1494,7 +1497,7 @@ export default function Home() {
                                         <TouchableOpacity
                                           style={styles.qtyBtn}
                                           onPress={() =>
-                                            setQuantity(existing.productId, existing.quantity - 1, existing.variantId)
+                                            setQuantity(existing.productId, existing.quantity - quantityStep(item), existing.variantId)
                                           }
                                         >
                                           {existing.quantity > 1 ?
@@ -1504,7 +1507,7 @@ export default function Home() {
                                           }
                                         </TouchableOpacity>
 
-                                        <Text style={styles.qtyVal}>{existing.quantity}</Text>
+                                        <Text style={styles.qtyVal}>{formatQuantity(existing.quantity, item, isRTL)}</Text>
 
                                         <TouchableOpacity
                                           style={styles.qtyBtn}
@@ -1516,7 +1519,9 @@ export default function Home() {
                                               originalPrice: item.isPromoted && item.promoPrice !== undefined ? item.price : undefined,
                                               isPromoted: item.isPromoted && item.promoPrice !== undefined,
                                               image: item.images?.[0]?.url,
-                                              quantity: 1,
+                                              unit: item.unit || "piece",
+                                              unitLabel: item.unitLabel,
+                                              quantity: quantityStep(item),
                                             })
                                           }
                                         >
@@ -1537,7 +1542,9 @@ export default function Home() {
                                           originalPrice: item.isPromoted && item.promoPrice !== undefined ? item.price : undefined,
                                           isPromoted: item.isPromoted && item.promoPrice !== undefined,
                                           image: item.images?.[0]?.url,
-                                          quantity: 1,
+                                          unit: item.unit || "piece",
+                                          unitLabel: item.unitLabel,
+                                          quantity: quantityStep(item),
                                         })
                                       }
                                     >
@@ -1549,11 +1556,11 @@ export default function Home() {
 
                               <View style={styles.priceRow}>
                                 <Text style={[styles.productPrice, item.isPromoted && { color: palette.accent }]}>
-                                  {formatMoney(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price, selectedCurrency)}
+                                  {formatMoney((item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price) * quantityStep(item), selectedCurrency)} / {priceBasis(item, isRTL)}
                                 </Text>
                                 <Text style={[styles.productOldPrice]} numberOfLines={1}>
                                   {item.isPromoted && item.promoPrice !== undefined
-                                    && formatMoney(item.price, selectedCurrency)
+                                    && formatMoney(item.price * quantityStep(item), selectedCurrency)
                                   }
                                 </Text>
                               </View>

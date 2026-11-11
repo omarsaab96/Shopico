@@ -1,9 +1,12 @@
+import { ProductUnit } from "./productUnits";
 import { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "./api";
 import { useAuth } from "./auth";
 
 export interface CartItem {
+  unit?: ProductUnit;
+  unitLabel?: string;
   productId: string;
   variantId?: string;
   variantAttributes?: Record<string, string>;
@@ -47,6 +50,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     const promoPrice = variant?.promoPrice ?? product.promoPrice;
     const effectivePrice = Number(item.price ?? item.priceSnapshot ?? (promoted && promoPrice !== undefined ? promoPrice : basePrice) ?? 0);
     return {
+      unit: item.unit || product.unit || "piece",
+      unitLabel: item.unitLabel || product.unitLabel,
       productId: productId.toString(),
       variantId: item.variantId?.toString(),
       variantAttributes: item.variantAttributes,
@@ -108,17 +113,18 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         .put("/cart", {
           items: next
             .filter((item) => !item.unavailable)
-            .map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })),
+            .map((item) => ({ productId: item.productId, variantId: item.variantId, unit: item.unit || "piece", quantity: item.quantity })),
         })
         .catch(() => { });
     }
   };
 
   const addItem = (item: CartItem) => {
+    if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) return;
     const itemKey = getCartKey(item);
     const existing = items.find((i) => getCartKey(i) === itemKey);
     if (existing) {
-      const next = items.map((i) => (getCartKey(i) === itemKey ? { ...item, quantity: i.unavailable ? item.quantity : i.quantity + item.quantity } : i));
+      const next = items.map((i) => (getCartKey(i) === itemKey ? { ...item, quantity: i.unavailable || (i.unit || "piece") !== (item.unit || "piece") ? item.quantity : i.quantity + item.quantity } : i));
       return persist(next);
     }
     persist([...items, item]);
@@ -126,6 +132,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setQuantity = (productId: string, quantity: number, variantId?: string) => {
     if (quantity <= 0) return removeItem(productId, variantId);
+    if (!Number.isSafeInteger(quantity)) return;
     const key = `${productId}:${variantId || ""}`;
     const exists = items.some((i) => getCartKey(i) === key);
     if (!exists) return;
