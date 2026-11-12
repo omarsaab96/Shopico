@@ -268,7 +268,7 @@ export default function Orders() {
                 </Text>
               </TouchableOpacity>
             </Link>
-            <OrderCancellation order={item} onUpdate={updated => setOrders(current => current.map(order =>
+            <OrderCancellation ordersPage order={item} onUpdate={updated => setOrders(current => current.map(order =>
               order._id === updated._id ? { ...order, status: updated.status, cancelledByCustomer: updated.cancelledByCustomer,
                 refunds: updated.refunds, cancellationUntil: updated.cancellationUntil, serverTime: updated.serverTime } : order
             ))} />

@@ -120,6 +120,8 @@ export default function Home() {
   const [addressesReady, setAddressesReady] = useState(false);
   const [branchLoading, setBranchLoading] = useState(false);
   const [savedBranchReady, setSavedBranchReady] = useState(false);
+  const [branchRestoreError, setBranchRestoreError] = useState(false);
+  const [addressesError, setAddressesError] = useState(false);
   const [locationFallback, setLocationFallback] = useState(false);
   const [branchLocked, setBranchLocked] = useState(false);
   const [branchLockReady, setBranchLockReady] = useState(false);
@@ -175,6 +177,8 @@ export default function Home() {
   const customerNeedsSetup = Boolean(
     user &&
     !isDriver &&
+    !branchRestoreError &&
+    !addressesError &&
     branchLockReady &&
     savedBranchReady &&
     addressesReady &&
@@ -280,45 +284,37 @@ export default function Home() {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (!user) return;
-    setSavedBranchReady(false);
-    getBranchLock()
-      .then((locked) => {
-        setBranchLocked(locked);
-        setBranchLockReady(true);
-      })
-      .catch(() => {
-        setBranchLocked(false);
-        setBranchLockReady(true);
-      });
-  }, [user]);
-
-  useEffect(() => {
-    if (selectedBranch) {
-      setSavedBranchReady(true);
-      return;
-    }
-    (async () => {
-      const currentId = await getBranchId();
+  const loadSavedBranch = useCallback(async (signal?: AbortSignal) => {
+    setBranchLoading(true);
+    setBranchRestoreError(false);
+    try {
+      const [locked, currentId] = await Promise.all([getBranchLock(), getBranchId()]);
+      if (signal?.aborted) return;
+      setBranchLocked(locked);
       if (!currentId) {
-        setSavedBranchReady(true);
+        updateSelectedBranch(null);
         return;
       }
-      setBranchLoading(true);
-      const res = await api.get("/branches/public");
+      const res = await api.get("/branches/public", { timeout: 15000, signal });
       const list: Branch[] = res.data.data || [];
-      const match = list.find((b) => b._id === currentId);
-      if (match) {
-        updateSelectedBranch(match);
-      }
-    })()
-      .catch(() => { })
-      .finally(() => {
+      updateSelectedBranch(list.find(branch => branch._id === currentId) || null);
+    } catch {
+      if (!signal?.aborted) setBranchRestoreError(true);
+    } finally {
+      if (!signal?.aborted) {
         setBranchLoading(false);
+        setBranchLockReady(true);
         setSavedBranchReady(true);
-      });
-  }, [selectedBranch]);
+      }
+    }
+  }, [updateSelectedBranch]);
+
+  // Read persisted setup again when returning from setup or address management.
+  useFocusEffect(useCallback(() => {
+    const controller = new AbortController();
+    void loadSavedBranch(controller.signal);
+    return () => controller.abort();
+  }, [loadSavedBranch]));
 
   const thresholds = getMembershipThresholds(settings, selectedCurrency);
   const balance = getWalletBalance(wallet, selectedCurrency);
@@ -436,10 +432,10 @@ export default function Home() {
     }
     if (addressLoadingRef.current) return;
     addressLoadingRef.current = true;
-    setAddressesReady(false);
     setAddressLoading(true);
+    setAddressesError(false);
     api
-      .get("/addresses")
+      .get("/addresses", { timeout: 15000 })
       .then((res) => {
         const list: SavedAddress[] = res.data.data || [];
         const sorted = [...list].sort(
@@ -454,9 +450,7 @@ export default function Home() {
         });
       })
       .catch(() => {
-        setLatestAddress(null);
-        setAddresses([]);
-        setSelectedAddress(null);
+        setAddressesError(true);
       })
       .finally(() => {
         addressLoadingRef.current = false;
@@ -1384,7 +1378,18 @@ export default function Home() {
 
       <View style={[styles.safe]} >
         {!isDriver ? (
-          customerNeedsSetup || customerSetupChecking ? null : (
+          branchRestoreError || addressesError ? (
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 16 }}>
+              <Text style={{ color: palette.text, textAlign: "center" }}>{isRTL ? "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0635\u0641\u062d\u0629" : "Could not load the home page"}</Text>
+              <TouchableOpacity accessibilityRole="button" onPress={() => { void loadSavedBranch(); loadLatestAddress(); }} style={{ padding: 12 }}>
+                <Text style={{ color: palette.accent }}>{(isRTL ? "\u062d\u0627\u0648\u0644 \u0645\u062c\u062f\u062f\u0627\u064b" : "Try again")}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : customerNeedsSetup || (customerSetupChecking && (!selectedBranch || addresses.length === 0)) ? (
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+              <ActivityIndicator size="large" color={palette.accent} />
+            </View>
+          ) : (
             <View style={styles.container}>
 
               <View style={styles.stickyHeroWrap}>
