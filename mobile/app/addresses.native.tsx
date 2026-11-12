@@ -1,9 +1,10 @@
+import { BottomSheetModal } from "../components/BottomSheetModal";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Keyboard } from "react-native";
 import MapView, { Marker, MapPressEvent } from "react-native-maps";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
+import { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import Screen from "../components/Screen";
 import Text from "../components/Text";
 import api from "../lib/api";
@@ -245,7 +246,7 @@ export default function AddressesScreen() {
   };
 
   return (
-    <BottomSheetModalProvider>
+    <>
       <Screen>
         <View style={{ justifyContent: 'space-between', flex: 1, paddingBottom: insets.bottom + 10 }}>
           <View>
@@ -424,7 +425,7 @@ export default function AddressesScreen() {
           </View>
         </BottomSheetView>
       </BottomSheetModal>
-    </BottomSheetModalProvider>
+    </>
   );
 }
 

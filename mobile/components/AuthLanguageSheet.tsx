@@ -1,6 +1,7 @@
+import { BottomSheetModal } from "./BottomSheetModal";
 import { useMemo, useRef } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
+import { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
 import Text from "./Text";
 import { useI18n } from "../lib/i18n";
@@ -27,7 +28,7 @@ export default function AuthLanguageSheet() {
   };
 
   return (
-    <BottomSheetModalProvider>
+    <>
       <View style={styles.wrap}>
         <TouchableOpacity
           style={styles.iconButton}
@@ -66,7 +67,7 @@ export default function AuthLanguageSheet() {
           })}
         </BottomSheetView>
       </BottomSheetModal>
-    </BottomSheetModalProvider>
+    </>
   );
 }
 

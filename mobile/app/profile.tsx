@@ -1,7 +1,8 @@
+import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, View, StyleSheet, TouchableOpacity, Alert } from "react-native";
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
+import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
 import Text from "../components/Text";
@@ -182,7 +183,7 @@ export default function Profile() {
   }, [membershipLevel, isDark, palette]);
 
   return (
-    <BottomSheetModalProvider>
+    <>
       <Screen>
         <View style={{ flex: 1, justifyContent: 'space-between' }}>
           <View>
@@ -660,7 +661,7 @@ export default function Profile() {
           </View>
         </BottomSheetScrollView>
       </BottomSheetModal>
-    </BottomSheetModalProvider >
+    </>
   );
 }
 

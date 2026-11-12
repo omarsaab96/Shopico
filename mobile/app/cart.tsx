@@ -1,11 +1,13 @@
+import OrderCancellation from "../components/OrderCancellation";
+import { BottomSheetModal } from "../components/BottomSheetModal";
 import QuantityControl from "../components/QuantityControl";
-import { roundAmount, formatQuantity } from "../lib/productUnits";
+import { roundAmount } from "../lib/productUnits";
 import { Link } from "expo-router";
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, Pressable, TouchableOpacity, Image, FlatList, RefreshControl, ActivityIndicator, Animated, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { ScrollView as GestureScrollView } from "react-native-gesture-handler";
-import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetFooter, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
+import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetFooter, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Button from "../components/Button";
@@ -23,7 +25,6 @@ import LottieView from "lottie-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Entypo from '@expo/vector-icons/Entypo';
 import { useCurrency } from "../lib/currency";
-import AntDesign from '@expo/vector-icons/AntDesign';
 
 const COUPON_CARD_GAP = 15;
 const COUPON_CARD_MAX_WIDTH = 200;
@@ -69,6 +70,7 @@ export default function CartScreen() {
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [showSuccessContent, setShowSuccessContent] = useState(false);
   const [hideFooter, setHideFooter] = useState(false);
+  const [successOrder, setSuccessOrder] = useState<any>(null);
   const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
   const unavailableItems = items.filter((item) => item.unavailable);
   const hasUnavailableItems = unavailableItems.length > 0;
@@ -438,6 +440,7 @@ export default function CartScreen() {
     setShowSuccessContent(false);
     setHideFooter(false);
     setSuccessOrderId(null);
+    setSuccessOrder(null);
     setCheckoutError(null);
     setShowAddresses(false);
     setShowPaymentOptions(false);
@@ -743,6 +746,7 @@ export default function CartScreen() {
         items: items.filter((i) => !i.unavailable).map(toCheckoutItem),
       });
       const created = res?.data?.data;
+      setSuccessOrder(created);
       setSuccessOrderId(created?._id || created?.id || null);
       setCheckoutSuccess(true);
       clear();
@@ -791,6 +795,7 @@ export default function CartScreen() {
               <Text style={[styles.sheetText, { fontWeight: '700', }]}>
                 {t("subtotal")}
               </Text>
+
               <View style={[styles.subtotalPriceStack, { flexDirection: 'row', gap: 5, alignItems: 'baseline' }]}>
                 {hasPromotionalSubtotal ? (
                   <Text style={[styles.sheetOldPrice, { marginBottom: 0 }]}>
@@ -820,6 +825,7 @@ export default function CartScreen() {
                   {t("balance")}: {formatSelectedWalletBalance(walletBalance)}
                 </Text>
               )} */}
+
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={[styles.sheetText, { fontWeight: '700' }]}>
                 {t("deliveryFee")}
@@ -838,7 +844,7 @@ export default function CartScreen() {
             onPress={placeOrder}
             disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading}
           >
-            <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: '100%', flexDirection: isRTL?'row-reverse':'row', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
                 {submitting ? t("placingOrder") : t("placeOrder")}
               </Text>
@@ -862,7 +868,7 @@ export default function CartScreen() {
   };
 
   return (
-    <BottomSheetModalProvider>
+    <>
       <Screen>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <Text weight="bold" style={styles.title}>{t("cart")}</Text>
@@ -926,26 +932,17 @@ export default function CartScreen() {
                   </View>
 
                   <View style={styles.itemRow}>
-                    <View style={styles.itemActions}>
-                      {((!item.unavailable && item.quantity <= 1) || item.unavailable) && <TouchableOpacity onPress={() => confirmRemove(item.productId, item.variantId)} style={styles.removeFromCartBtn}>
+                    <View style={item.unavailable ? styles.itemActions : undefined}>
+                      {item.unavailable && <TouchableOpacity onPress={() => confirmRemove(item.productId, item.variantId)} style={styles.removeFromCartBtn}>
                         {/* <MaterialIcons name="delete" size={20} color="#000" /> */}
                         <FontAwesome name="trash-o" size={22} color={palette.text} />
                       </TouchableOpacity>}
 
-                      {!item.unavailable && item.unit && item.unit !== "piece" ? (
-                        <QuantityControl compact quantity={item.quantity} product={item} onChange={quantity => setQuantity(item.productId, quantity, item.variantId)} />
-                      ) : !item.unavailable ? (
-                        <View style={styles.qtyRow}>
-                          {item.quantity > 1 && <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity - 1, item.variantId)}>
-                            {/* <Text weight="bold" style={styles.qtySymbol}>-</Text> */}
-                            <AntDesign name="minus" size={18} color={palette.text} />
-                          </TouchableOpacity>}
-                          <Text weight="bold" style={styles.qtyValue}>{formatQuantity(item.quantity, item, isRTL)}</Text>
-                          <TouchableOpacity style={styles.qtyButton} onPress={() => setQuantity(item.productId, item.quantity + 1, item.variantId)}>
-                            {/* <Text weight="bold" style={styles.qtySymbol}>+</Text> */}
-                            <AntDesign name="plus" size={20} color={palette.text} />
-                          </TouchableOpacity>
-                        </View>
+                      {!item.unavailable ? (
+                        <QuantityControl pill incart quantity={item.quantity} product={item}
+                          onChange={quantity => quantity === 0
+                            ? confirmRemove(item.productId, item.variantId)
+                            : setQuantity(item.productId, quantity, item.variantId)} />
                       ) : (
                         <TouchableOpacity style={styles.replaceBtn} onPress={() => router.replace("/(tabs)/store")}>
                           <Text weight="bold" style={styles.replaceBtnText}>{t("replace") ?? "Replace"}</Text>
@@ -1093,6 +1090,7 @@ export default function CartScreen() {
           setShowSuccessContent(false);
           setHideFooter(false);
           setSuccessOrderId(null);
+          setSuccessOrder(null);
           setCheckoutOpen(false);
           setShowCouponOptions(false);
           setInputCouponCode("");
@@ -1145,8 +1143,11 @@ export default function CartScreen() {
                       }}
                     />
                   </Animated.View>
-                  <Text weight="bold" style={styles.successTitle}>{t("orderPlaced") ?? "Order placed!"}</Text>
-                  <Text style={styles.successText}>{t("orderPlacedCopy") ?? "Your order is confirmed and on its way."}</Text>
+                  <Text weight="bold" style={styles.successTitle}>{successOrder?.cancelledByCustomer ? (isRTL ? "\u062a\u0645 \u0625\u0644\u063a\u0627\u0621 \u0627\u0644\u0637\u0644\u0628" : "Order cancelled") : (t("orderPlaced") ?? "Order placed!")}</Text>
+                  {!successOrder?.cancelledByCustomer && <Text style={styles.successText}>{t("orderPlacedCopy") ?? "Your order is confirmed and on its way."}</Text>}
+                  {successOrder && <View style={{ width: "100%" }}>
+                    <OrderCancellation order={successOrder} onUpdate={setSuccessOrder} />
+                  </View>}
 
                   <TouchableOpacity style={[styles.primaryBtn, { width: '100%' }]} onPress={() => {
                     checkoutSheetRef.current?.dismiss();
@@ -1560,7 +1561,7 @@ export default function CartScreen() {
           </BottomSheetScrollView>
         </KeyboardAvoidingView>
       </BottomSheetModal>
-    </BottomSheetModalProvider>
+    </>
   );
 }
 
@@ -1697,7 +1698,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     sheetSubtotalValue: {
       color: palette.text,
     },
-    qtyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
     itemActions: {
       alignItems: "center",
       gap: 10,
@@ -1708,18 +1708,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       paddingVertical: 4,
       paddingHorizontal: 10,
     },
-    qtyButton: {
-      // width: 36,
-      // height: 36,
-      // borderRadius: 10,
-      // backgroundColor: palette.surface,
-      // alignItems: "center",
-      // justifyContent: "center",
-      // borderWidth: 1,
-      // borderColor: palette.border,
-    },
-    qtySymbol: { color: palette.text, fontSize: 24 },
-    qtyValue: { color: palette.text, fontSize: 16, minWidth: 30, textAlign: "center" },
     removeFromCartBtn: {
       // width: 36,
       // height: 36,
@@ -1765,7 +1753,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     },
     browseBtnText: { color: "#fff" },
     sheetContainer: { padding: 16 },
-    sheetTitle: { color: palette.text, fontSize: 18, marginBottom: 20, textAlign: 'left' },
+    sheetTitle: { color: palette.text, fontSize: 18, marginBottom: 20, },
     section: {
       fontSize: 14,
       color: palette.text
@@ -1781,7 +1769,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       shadowOffset: { width: 0, height: 4 },
     },
     buttonCtaText: { color: "#fff", fontSize: 16, fontWeight: "900" },
-    sheetText: { color: palette.text, textAlign: 'left', fontWeight: "700" },
+    sheetText: { color: palette.text, fontWeight: "700" },
     sheetActions: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
     sheetButton: {
       flex: 1, paddingBottom: 12,

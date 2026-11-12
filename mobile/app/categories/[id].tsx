@@ -1,3 +1,4 @@
+import FloatingCartBanner from "../../components/FloatingCartBanner";
 import { quantityStep, formatQuantity, priceBasis, ProductUnit } from "../../lib/productUnits";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -68,8 +69,9 @@ export default function CategoryDetail() {
   const categoryScrollRef = useRef<ScrollView>(null);
   const categoryPillLayouts = useRef<Record<string, { x: number; width: number }>>({});
   const [categoryBandWidth, setCategoryBandWidth] = useState(0);
-  const cartItemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const cartItemCount = items.length;
   const cartSubtotal = items.reduce((sum, item) => (item.unavailable ? sum : sum + item.price * item.quantity), 0);
+  const tr = (en: string, ar: string) => isRTL ? ar : en;
 
   const scrollCategoryPillIntoView = useCallback((categoryId: string, animated = true) => {
     const frame = requestAnimationFrame(() => {
@@ -137,29 +139,39 @@ export default function CategoryDetail() {
 
     return (
       <View style={{}}>
-        <View style={styles.searchWrap}>
-          <Feather name="search" size={18} color={palette.muted} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={t("searchProducts")}
-            placeholderTextColor={palette.muted}
-            value={search}
-            onChangeText={setSearch}
-          />
+        <View style={{flexDirection:'row',gap:10,alignItems:'center',marginBottom:12}}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={tr("Back", "رجوع")}
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/home")}
+            style={styles.iconButton}>
+            <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
+          </TouchableOpacity>
 
-          {searching ? (
-            <ActivityIndicator size="small" color={palette.accent} style={styles.searchRight} />
-          ) : search.trim() ? (
-            <TouchableOpacity
-              style={styles.searchRight}
-              onPress={() => {
-                setSearch("");
-                Keyboard.dismiss();
-              }}
-            >
-              <AntDesign name="close" size={18} color={palette.text} />
-            </TouchableOpacity>
-          ) : null}
+          <View style={styles.searchWrap}>
+            <Feather name="search" size={18} color={palette.muted} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t("searchProductsInCategory")}
+              placeholderTextColor={palette.muted}
+              value={search}
+              onChangeText={setSearch}
+            />
+
+            {searching ? (
+              <ActivityIndicator size="small" color={palette.accent} style={styles.searchRight} />
+            ) : search.trim() ? (
+              <TouchableOpacity
+                style={styles.searchRight}
+                onPress={() => {
+                  setSearch("");
+                  Keyboard.dismiss();
+                }}
+              >
+                <AntDesign name="close" size={18} color={palette.text} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
 
         <View style={styles.categoryBand}>
@@ -278,15 +290,23 @@ export default function CategoryDetail() {
               )}
             </View>
 
-            <View style={styles.priceRow}>
-              <Text style={[styles.productPrice, item.isPromoted && { color: palette.accent }]}>
-                {formatMoney(effectivePrice * quantityStep(item), selectedCurrency)} / {priceBasis(item, isRTL)}
-              </Text>
-              <Text style={styles.productOldPrice} numberOfLines={1}>
-                {item.isPromoted && item.promoPrice !== undefined
-                  ? formatMoney(item.price * quantityStep(item), selectedCurrency)
-                  : ""}
-              </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={[styles.priceRow]}>
+                <Text style={[styles.productPrice, item.isPromoted && { color: palette.accent }]}>
+                  {formatMoney(effectivePrice * quantityStep(item), selectedCurrency)}
+                </Text>
+
+                {item.isPromoted && item.promoPrice !== undefined &&
+                  <Text style={styles.productOldPrice} numberOfLines={1}>
+                    {formatMoney(item.price * quantityStep(item), selectedCurrency)}
+                  </Text>}
+              </View>
+
+              {priceBasis(item, isRTL) &&
+                <Text style={{ borderWidth: 1, borderColor: isDark ? palette.border : "rgba(15, 23, 42, 0.08)", paddingHorizontal: 4, borderRadius: 5, fontSize: 10 }}>
+                  {priceBasis(item, isRTL)}
+                </Text>
+              }
             </View>
 
             {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
@@ -307,7 +327,7 @@ export default function CategoryDetail() {
   };
 
   return (
-    <Screen showBack backLabel={t("allCategories") ?? "All categories"}>
+    <Screen>
       {/* <Text weight="black" style={styles.title}>{categoryName || t("products")}</Text> */}
 
       {renderCategoryBand()}
@@ -337,27 +357,7 @@ export default function CategoryDetail() {
           }
         />
 
-        {cartItemCount > 0 ? (
-          <TouchableOpacity
-            style={styles.cartCta}
-            activeOpacity={0.9}
-            onPress={() => router.push("/(tabs)/cart")}
-          >
-            <View style={{ width: 80 }}>
-              <View style={styles.cartCtaCount}>
-                <Text weight="black" style={styles.cartCtaCountText}>{cartItemCount}</Text>
-              </View>
-            </View>
-
-            <Text weight="black" style={styles.cartCtaTitle} numberOfLines={1}>
-              {t("viewYourCart") ?? "View your cart"}
-            </Text>
-
-            <Text weight="black" style={styles.cartCtaSubtotal} numberOfLines={1}>
-              {formatMoney(cartSubtotal, selectedCurrency)}
-            </Text>
-          </TouchableOpacity>
-        ) : null}
+        <FloatingCartBanner count={cartItemCount} subtotal={formatMoney(cartSubtotal, selectedCurrency)} onPress={() => router.push("/(tabs)/cart")} bottom={insets.bottom + 10} />
       </View>
     </Screen>
   );
@@ -384,8 +384,19 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       marginBottom: 12,
       textAlign: align,
     },
+    iconButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      backgroundColor: palette.card,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: palette.border
+    },
 
     searchWrap: {
+      flex:1,
       position: "relative",
       height: 48,
       borderRadius: 999,
@@ -393,7 +404,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       borderWidth: 1,
       borderColor: palette.border,
       justifyContent: "center",
-      marginBottom: 12,
       ...cardShadow,
     },
     searchIcon: {
@@ -445,7 +455,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       textAlign: "center",
     },
     categoryPillTextActive: {
-      color: isDark ? palette.text: "#fff",
+      color: isDark ? palette.text : "#fff",
     },
 
     productListContent: {
@@ -479,6 +489,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       borderColor: hairline,
       marginBottom: 10,
       position: "relative",
+      backgroundColor: '#fff'
     },
     productImg: {
       height: 150,
@@ -487,7 +498,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     priceRow: {
       flexDirection: "row",
-      alignItems: "baseline",
+      alignItems: "center",
       gap: 5,
     },
     productPrice: {
@@ -575,55 +586,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       alignItems: "center",
       justifyContent: "center",
     },
-    cartCta: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      bottom: insets.bottom + 10,
-      flexDirection: 'row',
-      justifyContent: "space-between",
-      gap: 12,
-      paddingHorizontal: 10,
-      // paddingVertical: isRTL? 0 : 8,
-      paddingTop: isRTL ? 8 : 8,
-      paddingBottom: isRTL ? 6 : 8,
-      ...cardShadow,
-      paddingVertical: 14,
-      borderRadius: 14,
-      alignItems: "center",
-      backgroundColor: palette.accent,
-    },
-    cartCtaCount: {
-      width: 28,
-      height: 28,
-      borderRadius: 999,
-      // backgroundColor: "rgba(255,255,255,0.18)",
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: '#fff',
-      opacity: 0.8
-    },
-    cartCtaCountText: {
-      color: "#fff",
-      fontSize: 14,
-      lineHeight: 18,
-      transform: [{ translateY: isRTL ? 2 : 0 }]
-    },
-    cartCtaTitle: {
-      flex: 1,
-      color: "#fff",
-      fontSize: 14,
-      textAlign: "center",
-      lineHeight: 18
-    },
-    cartCtaSubtotal: {
-      color: "#fff",
-      fontSize: 14,
-      textAlign: "right",
-      width: 80,
-      opacity: 0.8,
-      lineHeight: 18
-    },
+
   });
 };

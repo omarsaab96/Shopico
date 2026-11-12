@@ -1,3 +1,4 @@
+import { BottomSheetModal } from "../../components/BottomSheetModal";
 import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { useMemo, useState, useRef, useCallback } from "react";
 import { TextInput, View, Image, StyleSheet, TouchableOpacity } from "react-native";
@@ -9,7 +10,7 @@ import { useI18n } from "../../lib/i18n";
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth";
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
+import { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
 
 export default function Register() {
@@ -70,7 +71,7 @@ export default function Register() {
   };
 
   return (
-    <BottomSheetModalProvider>
+    <>
       <View style={[styles.safe]} >
         <View style={styles.container}>
           <View style={{ flex: 1, justifyContent: 'space-between', position: 'relative' }}>
@@ -196,7 +197,7 @@ export default function Register() {
       </View>
 
 
-    </BottomSheetModalProvider>
+    </>
   );
 }
 

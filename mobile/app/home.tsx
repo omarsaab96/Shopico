@@ -1,3 +1,4 @@
+import { BottomSheetModal } from "../components/BottomSheetModal";
 import { quantityStep, formatQuantity, priceBasis, ProductUnit } from "../lib/productUnits";
 import { outstandingDriverCash, type CashCurrency } from "../lib/driverCash";
 import { useNotifications } from "../lib/notifications";
@@ -27,8 +28,6 @@ import {
 import {
   BottomSheetBackdrop,
   BottomSheetFooter,
-  BottomSheetModal,
-  BottomSheetModalProvider,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -1318,7 +1317,7 @@ export default function Home() {
   );
 
   return (
-    <BottomSheetModalProvider>
+    <>
       <Modal visible={showAnnouncements && hasAnnouncements} transparent animationType="fade">
         <View style={styles.promoBackdrop}>
           <View style={[styles.promoSheet, { width: promoWidth }]}>
@@ -1470,7 +1469,7 @@ export default function Home() {
                               <View style={[
                                 styles.prodImgBox,
                                 !item.images?.[0]?.url && {
-                                  backgroundColor: isDark ? '#333' : '#f0f0f0'
+                                  backgroundColor: isDark ? '#333' : '#f0f0f0',
                                 }
                               ]}>
                                 <Image
@@ -1556,12 +1555,17 @@ export default function Home() {
 
                               <View style={styles.priceRow}>
                                 <Text style={[styles.productPrice, item.isPromoted && { color: palette.accent }]}>
-                                  {formatMoney((item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price) * quantityStep(item), selectedCurrency)} / {priceBasis(item, isRTL)}
+                                  {formatMoney((item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price) * quantityStep(item), selectedCurrency)}
                                 </Text>
+
                                 <Text style={[styles.productOldPrice]} numberOfLines={1}>
                                   {item.isPromoted && item.promoPrice !== undefined
                                     && formatMoney(item.price * quantityStep(item), selectedCurrency)
                                   }
+                                </Text>
+
+                                <Text>
+                                  {priceBasis(item, isRTL)}
                                 </Text>
                               </View>
 
@@ -1932,7 +1936,7 @@ export default function Home() {
           </View>
         )}
       </View>
-    </BottomSheetModalProvider >
+    </>
   );
 }
 
@@ -2458,7 +2462,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       alignItems: "center",
       justifyContent: "center",
       marginBottom: 10,
-      position: 'relative'
+      position: 'relative',
+      backgroundColor:'#fff'
     },
     productImg: {
       height: 150,

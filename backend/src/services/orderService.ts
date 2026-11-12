@@ -1,3 +1,4 @@
+import { calculateDeliveryFee } from "../utils/deliveryFee";
 import { ProductUnit, assertProductQuantity, roundAmount } from "../utils/productUnits";
 import { CANCELLATION_WINDOW_MS, staffOrderFilter, assertStaffOrderAvailable } from "../utils/orderCancellation";
 import { assertOrderCanRemainActive } from "../utils/orderRefund";
@@ -451,10 +452,7 @@ export const createOrder = async (
     { lat: branch.lat, lng: branch.lng },
     { lat, lng }
   );
-  const deliveryFee =
-    distanceKm <= settings.deliveryFreeKm
-      ? 0
-      : Math.ceil(distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm;
+  const deliveryFee = calculateDeliveryFee(distanceKm, settings.deliveryFreeKm, settings.deliveryRatePerKm);
 
   const requestedCodes = (payload.couponCodes && payload.couponCodes.length)
     ? payload.couponCodes
@@ -551,10 +549,7 @@ export const estimateOrderDelivery = async (
     { lat: branch.lat, lng: branch.lng },
     { lat, lng }
   );
-  const deliveryFee =
-    distanceKm <= settings.deliveryFreeKm
-      ? 0
-      : Math.ceil((distanceKm - settings.deliveryFreeKm) * settings.deliveryRatePerKm);
+  const deliveryFee = calculateDeliveryFee(distanceKm, settings.deliveryFreeKm, settings.deliveryRatePerKm);
 
   return { distanceKm, deliveryFee };
 };

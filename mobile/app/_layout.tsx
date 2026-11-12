@@ -1,3 +1,4 @@
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { NotificationProvider } from "../lib/notifications";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -126,14 +127,16 @@ const I18nInner = () => {
           <NotificationProvider>
             <CurrencyProvider>
               <CartProvider>
-                <Stack
-                  key={lang}
-                  initialRouteName="(tabs)"
-                  screenOptions={{
-                    headerShown: false,
-                    gestureEnabled: true,
-                  }}
-                />
+                <BottomSheetModalProvider key={lang}>
+                  <Stack
+                    key={lang}
+                    initialRouteName="(tabs)"
+                    screenOptions={{
+                      headerShown: false,
+                      gestureEnabled: true,
+                    }}
+                  />
+                </BottomSheetModalProvider>
               </CartProvider>
             </CurrencyProvider>
           </NotificationProvider>
@@ -147,7 +150,9 @@ const I18nInner = () => {
         <NotificationProvider>
           <CurrencyProvider>
             <CartProvider>
-              <ThemedStack lang={lang} />
+              <BottomSheetModalProvider key={lang}>
+                <ThemedStack lang={lang} />
+              </BottomSheetModalProvider>
             </CartProvider>
           </CurrencyProvider>
         </NotificationProvider>

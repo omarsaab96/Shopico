@@ -1,8 +1,9 @@
+import { BottomSheetModal } from "../components/BottomSheetModal";
 import Feather from "@expo/vector-icons/Feather";
 import { useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
+import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import Screen from "../components/Screen";
 import Text from "../components/Text";
 import api from "../lib/api";
@@ -150,7 +151,7 @@ export default function EditProfile() {
   }
 
   return (
-    <BottomSheetModalProvider>
+    <>
       <Screen>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -365,7 +366,7 @@ export default function EditProfile() {
           </View>
         </BottomSheetScrollView>
       </BottomSheetModal>
-    </BottomSheetModalProvider>
+    </>
   );
 }
 

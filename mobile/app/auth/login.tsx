@@ -1,3 +1,4 @@
+import { BottomSheetModal } from "../../components/BottomSheetModal";
 import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { TextInput, View, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from "react-native";
@@ -10,7 +11,7 @@ import api from "../../lib/api";
 import { parsePasswordSetup } from "../../lib/passwordSetup";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
+import { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 
 export default function Login() {
   const { login, logout } = useAuth();
@@ -159,7 +160,7 @@ export default function Login() {
   };
 
   return (
-    <BottomSheetModalProvider>
+    <>
       <View style={[styles.safe]} >
         <View style={styles.container}>
           <View style={{ flex: 1, justifyContent: 'space-between', position: 'relative' }}>
@@ -349,7 +350,7 @@ export default function Login() {
           </View>
         </View>
       </View>
-    </BottomSheetModalProvider>
+    </>
   );
 }
 

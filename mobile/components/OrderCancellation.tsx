@@ -5,7 +5,9 @@ import api from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { useTheme } from "../lib/theme";
 
-export default function OrderCancellation({ order, onUpdate }: { order: any; onUpdate: (order: any) => void }) {
+type Props = { order: any; onUpdate: (order: any) => void };
+
+export default function OrderCancellation({ order, onUpdate }: Props) {
   const { isRTL } = useI18n();
   const { palette } = useTheme();
   const [remaining, setRemaining] = useState(0);
@@ -25,7 +27,7 @@ export default function OrderCancellation({ order, onUpdate }: { order: any; onU
   useEffect(() => {
     if (!pending) return;
     const timer = setInterval(() => {
-      void api.get(`/orders/${order._id}`).then(res => onUpdate(res.data.data)).catch(() => {});
+      void api.get(`/orders/${order._id}`).then(res => onUpdate(res.data.data)).catch(() => { });
     }, 5000);
     return () => clearInterval(timer);
   }, [pending, order?._id, onUpdate]);
@@ -44,8 +46,8 @@ export default function OrderCancellation({ order, onUpdate }: { order: any; onU
 
   if (order?.cancelledByCustomer) return (
     <View style={{ padding: 16, gap: 8 }}>
-      <Text style={{ color: palette.text }}>{isRTL ? "تم إلغاء الطلب" : "Order cancelled"}</Text>
-      {refund?.disposition === "WALLET" && <Text style={{ color: palette.text }}>{pending
+      <Text style={{ color: palette.text,textAlign:'center' }}>{isRTL ? "تم إلغاء الطلب" : "Order cancelled"}</Text>
+      {refund?.disposition === "WALLET" && <Text style={{ color: palette.text,textAlign:'center' }}>{pending
         ? (isRTL ? "استرداد المبلغ إلى المحفظة قيد التنفيذ" : "Wallet refund pending")
         : (isRTL ? "تمت إعادة المبلغ إلى محفظتك" : "Payment returned to your wallet")}</Text>}
     </View>
@@ -53,15 +55,33 @@ export default function OrderCancellation({ order, onUpdate }: { order: any; onU
   if (order?.status !== "PENDING" || !remaining) return null;
   return (
     <View style={{ padding: 16, gap: 10, backgroundColor: palette.card, borderRadius: 12 }}>
-      <Text style={{ color: palette.text }}>{isRTL ? "يمكنك إلغاء الطلب خلال" : "You can cancel for"} {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</Text>
-      <Text style={{ color: palette.muted }}>{isRTL ? "سيُرسل الطلب إلى المتجر بعد انتهاء المهلة." : "Your order will be sent to the store when this window ends."}</Text>
-      {confirming && <Text style={{ color: palette.text }}>{order.paymentMethod === "WALLET"
+      {/* <Text style={{ color: palette.text }}></Text> */}
+      {/* <Text style={{ color: palette.muted }}>{isRTL ? "سيُرسل الطلب إلى المتجر بعد انتهاء المهلة." : "Your order will be sent to the store when this window ends."}</Text> */}
+      {/* {confirming && <Text style={{ color: palette.text }}>{order.paymentMethod === "WALLET"
         ? (isRTL ? "إلغاء الطلب وإعادة المبلغ إلى المحفظة؟" : "Cancel this order and return the payment to your wallet?")
-        : (isRTL ? "هل تريد إلغاء الطلب؟" : "Cancel this order?")}</Text>}
-      <TouchableOpacity disabled={busy} onPress={() => confirming ? void cancel() : setConfirming(true)} accessibilityRole="button" style={{ padding: 12, borderRadius: 10, borderWidth: 1, borderColor: palette.border, opacity: busy ? 0.5 : 1 }}>
-        <Text style={{ color: palette.text, textAlign: "center", fontWeight: "700" }}>{busy ? (isRTL ? "جارٍ الإلغاء…" : "Cancelling…") : confirming ? (isRTL ? "تأكيد الإلغاء" : "Confirm cancellation") : (isRTL ? "إلغاء الطلب" : "Cancel order")}</Text>
+        : (isRTL ? "هل تريد إلغاء الطلب؟" : "Cancel this order?")}</Text>} */}
+      <View style={{ flexDirection: "row", alignItems: "stretch", gap: 10 }}>
+      <TouchableOpacity disabled={busy} onPress={() => confirming ? void cancel() : setConfirming(true)} accessibilityRole="button"
+      style={{ flexDirection:'row',gap:4,flex: 1,alignItems:'baseline', justifyContent: "center", padding: 6, borderRadius: 10, borderWidth: 1, borderColor: palette.border, opacity: busy ? 0.5 : 1 }}>
+        <Text style={{ color: palette.text, textAlign: "center", fontWeight: "700" }}>
+          {busy ?
+            (isRTL ? "جارٍ الإلغاء…" : "Cancelling…")
+            : confirming ?
+              (isRTL ? "تأكيد الإلغاء" : "Confirm cancellation")
+              : (isRTL ? "إلغاء الطلب" : "Cancel order")}
+        </Text>
+        <Text style={{ color: palette.text, textAlign: "center"}}>
+          • 
+        </Text>
+        <Text style={{ color: palette.text, textAlign: "center",  fontWeight: "700" }}>
+          {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
+        </Text>
       </TouchableOpacity>
-      {confirming && !busy && <TouchableOpacity onPress={() => setConfirming(false)}><Text style={{ color: palette.text, textAlign: "center" }}>{isRTL ? "الاحتفاظ بالطلب" : "Keep order"}</Text></TouchableOpacity>}
+
+      {confirming && !busy && <TouchableOpacity accessibilityRole="button" style={{ justifyContent: "center", padding: 6, borderRadius: 10, borderWidth: 1, borderColor: palette.border, maxWidth: "40%" }} onPress={() => setConfirming(false)}><Text style={{ color: palette.text, textAlign: "center" }}>
+        {isRTL ? "الاحتفاظ بالطلب" : "Keep order"}</Text></TouchableOpacity>
+        }
+      </View>
       {!!error && <Text style={{ color: palette.text }}>{error}</Text>}
     </View>
   );

@@ -7,7 +7,7 @@ import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import { useNotifications } from "../lib/notifications";
 import { useAuth } from "../lib/auth";
-import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import Feather from "@expo/vector-icons/Feather";
 
 export default function NotificationsScreen() {
   const { items, unreadCount, loading, error, refresh, loadMore, hasMore, open, readAll } = useNotifications();
@@ -23,12 +23,15 @@ export default function NotificationsScreen() {
   return <Screen>
     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
 
-      <View style={{}}>
+      <View style={{ flexDirection:  "row", alignItems: "center", gap: 10 }}>
         <TouchableOpacity
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
-          onPress={() => router.back()}
+          style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border }}
+          accessibilityRole="button"
+          accessibilityLabel={ar ? "????" : "Back"}
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/home")}
           activeOpacity={0.85}>
-          <FontAwesome6 name={isRTL ? "chevron-right" : "chevron-left"} size={18} color="black" style={{}} />
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
+        </TouchableOpacity>
 
           <Text weight="bold" style={{
             color: palette.text,
@@ -38,17 +41,16 @@ export default function NotificationsScreen() {
           }}>
             {ar ? "الإشعارات" : "Notifications"}
           </Text>
-        </TouchableOpacity>
       </View>
 
       {/* <TouchableOpacity onPress={() => router.push("/settings")} accessibilityLabel={ar ? "إعدادات الإشعارات" : "Notification settings"}>
         <Text style={{ color: palette.accent }}>{ar ? "الإعدادات" : "Settings"}</Text>
       </TouchableOpacity> */}
-      <TouchableOpacity disabled={!unreadCount} onPress={() => void readAll().catch(failed)} style={{ paddingVertical: 12 }}>
-        <Text style={{ color: unreadCount ? palette.accent : palette.muted }}>
+      {unreadCount > 0 && <TouchableOpacity accessibilityRole="button" onPress={() => void readAll().catch(failed)} activeOpacity={0.85} style={{ alignSelf: "center", paddingHorizontal: 18, paddingVertical: 8 }}>
+        <Text style={{ color: palette.accent, fontWeight: "900", textAlign: "left" }}>
           {ar ? "قراءة الكل" : "Mark all as read"} ({unreadCount})
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity>}
     </View>
 
     {!user ? <TouchableOpacity onPress={() => router.push("/auth/login")}><Text>{ar ? "سجّل الدخول لعرض الإشعارات" : "Sign in to view notifications"}</Text></TouchableOpacity> : <>

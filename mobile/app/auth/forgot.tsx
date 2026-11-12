@@ -1,3 +1,4 @@
+import { BottomSheetModal } from "../../components/BottomSheetModal";
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState, useRef, useCallback } from "react";
 import { TextInput, TouchableOpacity, Image, View, StyleSheet } from "react-native";
@@ -8,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { goBack } from "expo-router/build/global-state/routing";
 import AuthLanguageSheet from "../../components/AuthLanguageSheet";
 import Feather from "@expo/vector-icons/Feather";
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetModalProvider, BottomSheetView } from "@gorhom/bottom-sheet";
+import { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 
 export default function Forgot() {
   const insets = useSafeAreaInsets();
@@ -44,7 +45,7 @@ export default function Forgot() {
   };
 
   return (
-    <BottomSheetModalProvider>
+    <>
       <View style={[styles.safe]} >
         <View style={styles.container}>
 
@@ -135,7 +136,7 @@ export default function Forgot() {
           </View>
         </View>
       </View>
-    </BottomSheetModalProvider>
+    </>
   );
 }
 

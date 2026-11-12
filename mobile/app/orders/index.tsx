@@ -1,3 +1,4 @@
+import OrderCancellation from "../../components/OrderCancellation";
 import { formatQuantity } from "../../lib/productUnits";
 import { DeviceEventEmitter } from "react-native";
 import { Link, useFocusEffect, useRouter } from "expo-router";
@@ -186,8 +187,9 @@ export default function Orders() {
             />
           }
           renderItem={({ item }) => (
+            <View style={styles.row}>
             <Link href={`/orders/${item._id}`} asChild>
-              <TouchableOpacity style={styles.row}>
+              <TouchableOpacity>
                 <View style={{ flexDirection: 'row', gap: 15, marginBottom: 10, alignItems: 'center' }}>
                   <View style={[{
                     borderWidth: 2,
@@ -266,6 +268,11 @@ export default function Orders() {
                 </Text>
               </TouchableOpacity>
             </Link>
+            <OrderCancellation order={item} onUpdate={updated => setOrders(current => current.map(order =>
+              order._id === updated._id ? { ...order, status: updated.status, cancelledByCustomer: updated.cancelledByCustomer,
+                refunds: updated.refunds, cancellationUntil: updated.cancellationUntil, serverTime: updated.serverTime } : order
+            ))} />
+            </View>
           )}
         />
       )}

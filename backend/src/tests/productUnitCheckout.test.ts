@@ -10,12 +10,14 @@ import { Branch } from "../models/Branch";
 import { Currency } from "../models/Currency";
 import { Coupon } from "../models/Coupon";
 import { updateCart, syncCart } from "../services/cartService";
-import { createOrder } from "../services/orderService";
+import { createOrder, estimateOrderDelivery } from "../services/orderService";
 import { cancelCustomerOrder } from "../services/orderCancellationService";
 import { previewOrderItemRefund, refundOrderItem } from "../services/orderRefundService";
+import { Settings } from "../models/Settings";
+import { getRouteDistanceKm } from "../utils/routeDistance";
 import { randomUUID } from "crypto";
 
-vi.mock("../utils/routeDistance", () => ({ getRouteDistanceKm: async () => 0 }));
+vi.mock("../utils/routeDistance", () => ({ getRouteDistanceKm: vi.fn(async () => 0) }));
 let mongo: MongoMemoryServer;
 let branchId: string, userId: Types.ObjectId, currencyId: Types.ObjectId;
 let piece: any, grams: any, liquid: any;
@@ -28,6 +30,7 @@ beforeAll(async () => {
 }, 120000);
 afterAll(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 beforeEach(async () => {
+  vi.mocked(getRouteDistanceKm).mockResolvedValue(0);
   await Promise.all(Object.values(mongoose.models).map(Model => Model.deleteMany({})));
   const branch = await Branch.create({ name: "Test", address: "Test", lat: 0, lng: 0 });
   branchId = String(branch._id);
@@ -109,4 +112,16 @@ test("refunds retain the order's gram unit and rate after the product changes", 
   expect(updated.items[0]).toMatchObject({ unit: "g", quantity: 250, refundedQuantity: 50, price: 0.6 });
   expect(updated.total).toBe(120);
   expect((await Wallet.findOne({ user: userId }).orFail()).balance).toBe(880);
+});
+
+test("fractional delivery distance has identical estimated and charged fees", async () => {
+  vi.mocked(getRouteDistanceKm).mockResolvedValue(93.69);
+  await Settings.create({ branchId, deliveryFreeKm: 1, deliveryRatePerKm: 5 });
+  const estimate = await estimateOrderDelivery(userId, branchId, { lat: 0, lng: 0 });
+  await submit(inputs(), "WALLET");
+  const order = await Order.findOne({ user: userId }).orFail();
+  expect(estimate.deliveryFee).toBe(465);
+  expect(order.deliveryFee).toBe(estimate.deliveryFee);
+  expect(order.total).toBe(205 + estimate.deliveryFee);
+  expect((await Wallet.findOne({ user: userId }).orFail()).balance).toBe(1000 - order.total);
 });
