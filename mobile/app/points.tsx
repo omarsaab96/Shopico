@@ -1,3 +1,4 @@
+import Feather from "@expo/vector-icons/Feather";
 import { DeviceEventEmitter } from "react-native";
 import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
@@ -68,8 +69,15 @@ export default function PointsScreen() {
   }, [progress]);
 
   return (
-    <Screen showBack backLabel={t("back") ?? "Back"}>
-      <Text weight="bold" style={styles.title}>{t("pointsBalance") ?? "Points balance"}</Text>
+    <Screen>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} accessibilityRole="button"
+          accessibilityLabel={isRTL ? "\u0631\u062c\u0648\u0639" : "Back"}
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/profile")} activeOpacity={0.85}>
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
+        </TouchableOpacity>
+        <Text weight="bold" style={styles.title}>{t("pointsBalance") ?? "Points balance"}</Text>
+      </View>
 
       <View style={styles.card}>
         {/* RING */}
@@ -130,11 +138,13 @@ export default function PointsScreen() {
 
 const createStyles = (palette: any, isRTL: boolean, insets: any) =>
   StyleSheet.create({
+    header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
+    backButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border },
     title: {
+      flex: 1,
       fontSize: 22,
       color: palette.text,
-      marginBottom: 12,
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
     },
 
     card: {

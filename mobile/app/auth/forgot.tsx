@@ -1,7 +1,8 @@
+import { TextInput } from "../../components/TextInput";
 import { BottomSheetModal } from "../../components/BottomSheetModal";
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState, useRef, useCallback } from "react";
-import { TextInput, TouchableOpacity, Image, View, StyleSheet } from "react-native";
+import { TouchableOpacity, Image, View, StyleSheet } from "react-native";
 import Text from "../../components/Text";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";

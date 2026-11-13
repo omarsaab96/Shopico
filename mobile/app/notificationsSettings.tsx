@@ -6,7 +6,7 @@ import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import Text from "../components/Text";
 import { useRouter } from "expo-router";
-import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import Feather from "@expo/vector-icons/Feather";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -24,13 +24,16 @@ export default function SettingsScreen() {
 
   return (
     <Screen>
-      <View style={{}}>
-        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }} onPress={() => router.back()} activeOpacity={0.85}>
-          {/* <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} color={palette.text} /> */}
-          <FontAwesome6 name={isRTL ? "chevron-right" : "chevron-left"} size={18} color="black" style={{}} />
-
-          <Text weight="bold" style={styles.title}>{t("notificationSettings") ?? "Notifications settings"}</Text>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? "\u0631\u062c\u0648\u0639" : "Back"}
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/home")}
+          activeOpacity={0.85}>
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
         </TouchableOpacity>
+        <Text weight="bold" style={styles.title}>{t("notificationSettings") ?? "Notifications settings"}</Text>
       </View>
 
       <View style={styles.card}>
@@ -100,7 +103,9 @@ export default function SettingsScreen() {
 
 const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
-    title: { color: palette.text, fontSize: 22, fontWeight: "800", marginBottom: 12, textAlign: isRTL ? "right" : "left" },
+    header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
+    backButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border },
+    title: { flex: 1, color: palette.text, fontSize: 22, fontWeight: "800", textAlign: isRTL ? "right" : "left" },
     card: { backgroundColor: palette.card, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: palette.border, gap: 8, marginBottom: 12 },
     muted: { color: palette.muted, textAlign: isRTL ? "right" : "left" },
     value: { color: palette.text, fontWeight: "700", textAlign: isRTL ? "right" : "left" },

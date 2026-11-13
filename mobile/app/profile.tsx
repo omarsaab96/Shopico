@@ -216,7 +216,7 @@ export default function Profile() {
                           }>
                             <Feather name="award" size={14} color={membershipTone.badgeText} />
                             <Text style={[styles.levelPillText, { color: membershipTone.badgeText }]}>
-                              {membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}
+                              {membershipLevel === "None" ? (t("standard") ?? "Standard") : t(membershipLevel)}
                             </Text>
                           </View>
                         </View>
@@ -235,14 +235,14 @@ export default function Profile() {
                       </View>
                     </View>
 
-                    <View style={{ marginTop: 10 }}>
+                    {user.role !== "driver" && <View style={{ marginTop: 10 }}>
                       {hasThresholds ? (
                         <>
                           <ProgressBar progress={progress} />
                           <View style={styles.walletFooterRow}>
                             {remaining > 0 &&
                               <Text style={styles.walletMiniLabel}>
-                                {t("remainingToNext") ?? "Remaining to"}{nextLabel}
+                                {t("remainingToNext") ?? "Remaining to"}{t(nextLabel)}
                               </Text>
                             }
                             <Text style={styles.walletMiniValue}>
@@ -265,10 +265,10 @@ export default function Profile() {
                           </Text>
                         </View>
                       )}
-                    </View>
+                    </View>}
                   </View>
 
-                  <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg, padding: 0 }]}>
+                  {user.role !== "driver" && <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg, padding: 0 }]}>
                     <TouchableOpacity onPress={() => { router.push("/points") }} style={[styles.pointsBoxFull, {
                       flexDirection: 'column', padding: 10, justifyContent: 'center', alignItems: 'center'
                     }]}>
@@ -286,7 +286,7 @@ export default function Profile() {
                         {/* <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.muted} /> */}
                       </View>
                     </TouchableOpacity>
-                  </View>
+                  </View>}
                 </View>
 
                 {false && <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg, marginBottom: 20 }]}>
@@ -305,7 +305,7 @@ export default function Profile() {
                         <View style={[styles.levelPill, { backgroundColor: membershipTone.badgeBg, borderColor: membershipTone.ring }]}>
                           <Feather name="award" size={14} color={membershipTone.badgeText} />
                           <Text style={[styles.levelPillText, { color: membershipTone.badgeText }]}>
-                            {membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}
+                            {membershipLevel === "None" ? (t("standard") ?? "Standard") : t(membershipLevel)}
                           </Text>
                         </View>
                       </View>
@@ -324,7 +324,7 @@ export default function Profile() {
                       <>
                         <ProgressBar progress={progress} />
                         <View style={styles.walletFooterRow}>
-                          {remaining > 0 && <Text style={styles.walletMiniLabel}>{t("remainingToNext") ?? "Remaining to"}{nextLabel}</Text>}
+                          {remaining > 0 && <Text style={styles.walletMiniLabel}>{t("remainingToNext") ?? "Remaining to"}{t(nextLabel)}</Text>}
                           <Text style={styles.walletMiniValue}>
                             {remaining > 0 ? `${remaining.toLocaleString()} ${getCurrencySymbol(selectedCurrency)}` : t("congrats") ?? "Top level"}
                           </Text>
@@ -387,7 +387,7 @@ export default function Profile() {
                           <View style={[styles.levelPill, { backgroundColor: membershipTone.badgeBg, borderColor: membershipTone.ring }]}>
                             <Feather name="award" size={14} color={membershipTone.badgeText} />
                             <Text style={[styles.levelPillText, { color: membershipTone.badgeText }]}>
-                              {membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}
+                              {membershipLevel === "None" ? (t("standard") ?? "Standard") : t(membershipLevel)}
                             </Text>
                           </View>
                         </View> */}
@@ -465,10 +465,12 @@ export default function Profile() {
             <View style={{ marginBottom: 30 }}>
               <Text style={styles.sectionTitle}>{t("settings")}</Text>
               <View style={styles.profileLinks}>
+                {user && (
                 <TouchableOpacity style={styles.profileLink} onPress={() => router.push("/notificationsSettings")}>
                   <Text style={styles.profileLinkText}>{lang === "ar" ? "الإشعارات" : "Notifications"}</Text>
                   <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
                 </TouchableOpacity>
+                )}
 
                 {user && currencies.length > 1 && (
                   <View style={[styles.profileLink, styles.isLast]}>
@@ -526,8 +528,8 @@ export default function Profile() {
               </View>
             </View>
 
-            <View>
-              <Text style={styles.sectionTitle}>{t("Account")}</Text>
+            {user && <View>
+              <Text style={styles.sectionTitle}>{t("account")}</Text>
               <View style={styles.profileLinks}>
                 {user && (
                   <>
@@ -536,10 +538,12 @@ export default function Profile() {
                       <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
                     </TouchableOpacity>
 
+                    {user.role !== "driver" && (
                     <TouchableOpacity style={[styles.profileLink]} onPress={() => { router.push("/addresses") }} >
                       <Text style={styles.profileLinkText}>{t("savedAddresses") ?? "Addresses"}</Text>
                       <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
                     </TouchableOpacity>
+                    )}
 
                     <TouchableOpacity style={[styles.profileLink]}
                       onPress={
@@ -582,7 +586,7 @@ export default function Profile() {
                   </>
                 )}
               </View>
-            </View>
+            </View>}
 
             {/* {user && (
               <TouchableOpacity style={styles.deleteAccountBox} onPress={confirmDelete} disabled={deleting} activeOpacity={0.9}>
@@ -682,7 +686,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     sectionTitle: {
       marginBottom: 0,
       fontWeight: '900',
-      color: palette.text, textAlign: 'left',
+      color: palette.text, textAlign: align,
       fontSize: 18
     },
     profileLinks: {
@@ -779,7 +783,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontSize: 24,
       fontWeight: "900",
       marginBottom: 12,
-      textAlign: 'left'
+      textAlign: align
     },
 
     username: {
@@ -922,8 +926,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       borderRadius: 999,
       opacity: isDark ? 0.08 : 0.14,
       top: -55,
-      left: isRTL ? undefined : -55,
-      right: isRTL ? -55 : undefined,
+      start: -55,
     },
     walletGlowB: {
       position: "absolute",
@@ -932,8 +935,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       borderRadius: 999,
       opacity: isDark ? 0.06 : 0.12,
       bottom: -80,
-      left: isRTL ? -70 : undefined,
-      right: isRTL ? undefined : -70,
+      end: -70,
     },
     walletRow: { flexDirection: 'row', gap: 10, alignItems: "flex-start" },
     walletTextCol: { flex: 1, gap: 8 },
@@ -943,7 +945,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     walletValueTextRow: { flexDirection: 'row', gap: 5, alignItems: 'baseline' },
     walletValueText: { color: palette.text, fontSize: 28, lineHeight: 34, fontWeight: "900", textAlign: align },
 
-    walletBadgeRow: { flexDirection: 'row', justifyContent: isRTL ? "flex-end" : "flex-start" },
+    walletBadgeRow: { flexDirection: 'row', justifyContent: "flex-start" },
     levelPill: {
       flexDirection: 'row',
       alignItems: "center",
@@ -1005,8 +1007,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       position: "absolute",
       top: 0,
       bottom: 0,
-      right: isRTL ? undefined : 12,
-      left: isRTL ? 12 : undefined,
+      end: 12,
       width: 28,
       alignItems: "center",
       justifyContent: "center",

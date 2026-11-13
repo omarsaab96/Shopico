@@ -396,7 +396,7 @@ export default function OrderDetail() {
               style={{ width: 120, height: 120 }}
               source={require("../../assets/orderCancelled.json")}
             />
-            <Text>Your order is cancelled...</Text>
+            <Text>{isRTL ? "\u062a\u0645 \u0625\u0644\u063a\u0627\u0621 \u0637\u0644\u0628\u0643" : "Your order is cancelled..."}</Text>
           </View>}
 
           {orderStatus == 'DELIVERED' && <View style={[styles.mapFull, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -406,14 +406,16 @@ export default function OrderDetail() {
               style={{ width: 120, height: 120 }}
               source={require("../../assets/orderDelivered.json")}
             />
-            <Text>Your order has been delivered...</Text>
+            <Text>{isRTL ? "\u062a\u0645 \u062a\u0648\u0635\u064a\u0644 \u0637\u0644\u0628\u0643" : "Your order has been delivered..."}</Text>
           </View>}
 
           <TouchableOpacity
-            onPress={() => router.back()}
-            style={[styles.backBtn, isRTL && styles.backBtnRtl]}
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/orders")}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? "\u0631\u062c\u0648\u0639" : "Back"}
+            style={styles.backBtn}
           >
-            <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} />
+            <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
           </TouchableOpacity>
         </View>
 
@@ -464,7 +466,7 @@ export default function OrderDetail() {
 
             <View style={styles.sheetHeader}>
               <View>
-                <Text style={styles.title}>{t("order")} #{orderNumber}</Text>
+                <Text style={styles.title}>{t("order")} {"\u2066"}#{orderNumber}{"\u2069"}</Text>
                 <Text style={styles.subtle}>{formatOrderDate(order.createdAt)}</Text>
               </View>
 
@@ -706,7 +708,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
     backBtn: {
       position: "absolute",
       top: insets.top + 10,
-      left: 16,
+      start: 16,
       alignItems: "center",
       justifyContent: "center",
       width: 42,
@@ -715,10 +717,6 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       backgroundColor: palette.card,
       borderWidth: 1,
       borderColor: palette.border,
-    },
-    backBtnRtl: {
-      left: null,
-      right: 16,
     },
     sheetScroll: {
       paddingHorizontal: 10,

@@ -2,11 +2,10 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { NotificationProvider } from "../lib/notifications";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect } from "react";
+import React from "react";
 import { Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { Text, TextInput } from "react-native";
 import { useFonts } from "expo-font";
 import {
   Manrope_200ExtraLight,
@@ -41,7 +40,6 @@ import { CurrencyProvider } from "../lib/currency";
 import "../lib/driverTracking";
 
 const FontGate = ({ children }: { children: React.ReactNode }) => {
-  const { isRTL } = useI18n();
   const [fontsLoaded] = useFonts({
     Manrope_200ExtraLight,
     Manrope_300Light,
@@ -63,21 +61,6 @@ const FontGate = ({ children }: { children: React.ReactNode }) => {
     Tajawal_800ExtraBold,
     Tajawal_900Black,
   });
-
-  useEffect(() => {
-    if (!fontsLoaded) return;
-    const baseStyle = {
-      fontFamily: isRTL ? "Tajawal_400Regular" : "Manrope_400Regular",
-      writingDirection: isRTL ? "rtl" : "ltr",
-      textAlign: isRTL ? "right" : "left",
-    };
-    const nativeText = Text as typeof Text & { defaultProps?: { style?: unknown } };
-    const nativeInput = TextInput as typeof TextInput & { defaultProps?: { style?: unknown } };
-    nativeText.defaultProps = nativeText.defaultProps || {};
-    nativeText.defaultProps.style = [nativeText.defaultProps.style, baseStyle].filter(Boolean);
-    nativeInput.defaultProps = nativeInput.defaultProps || {};
-    nativeInput.defaultProps.style = [nativeInput.defaultProps.style, baseStyle].filter(Boolean);
-  }, [fontsLoaded, isRTL]);
 
   if (!fontsLoaded) return null;
   return <>{children}</>;

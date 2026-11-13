@@ -336,11 +336,14 @@ export default function DriverDirections() {
         ) : null}
       </MapView>
 
-      <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn]}>
-        <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} color={palette.text} />
+      <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/driver")}
+        style={styles.backBtn} accessibilityRole="button"
+        accessibilityLabel={isRTL ? "\u0631\u062c\u0648\u0639" : "Back"}>
+        <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => fitRoute()} style={[styles.recenterBtn]}>
+      <TouchableOpacity onPress={() => fitRoute()} style={styles.recenterBtn} accessibilityRole="button"
+        accessibilityLabel={isRTL ? "\u062a\u0648\u0633\u064a\u0637 \u0627\u0644\u062e\u0631\u064a\u0637\u0629" : "Recenter map"}>
         <Feather name="crosshair" size={20} color={palette.text} />
       </TouchableOpacity>
 
@@ -425,8 +428,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
     backBtn: {
       position: "absolute",
       top: insets.top + 10,
-      left: isRTL ? undefined : 16,
-      right: isRTL ? 16 : undefined,
+      start: 16,
       width: 42,
       height: 42,
       borderRadius: 14,
@@ -435,16 +437,11 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       borderColor: palette.border,
       alignItems: "center",
       justifyContent: "center",
-    },
-    backBtnRtl: {
-      left: undefined,
-      right: 16,
     },
     recenterBtn: {
       position: "absolute",
       top: insets.top + 62,
-      left: isRTL ? undefined : 16,
-      right: isRTL ? 16 : undefined,
+      start: 16,
       width: 42,
       height: 42,
       borderRadius: 14,
@@ -453,10 +450,6 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       borderColor: palette.border,
       alignItems: "center",
       justifyContent: "center",
-    },
-    recenterBtnRtl: {
-      left: undefined,
-      right: 16,
     },
     pin: {
       width: 34,

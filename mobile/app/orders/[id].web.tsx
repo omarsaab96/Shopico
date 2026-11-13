@@ -58,10 +58,11 @@ export default function OrderDetailWeb() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} />
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/orders")} style={styles.backBtn}
+          accessibilityRole="button" accessibilityLabel={isRTL ? "\u0631\u062c\u0648\u0639" : "Back"}>
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>{t("order")} #{orderNumber}</Text>
+        <Text style={styles.title}>{t("order")} {"\u2066"}#{orderNumber}{"\u2069"}</Text>
       </View>
 
       <View style={styles.notice}>
@@ -71,7 +72,7 @@ export default function OrderDetailWeb() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <OrderCancellation order={order} onUpdate={setOrder} />
+        <OrderCancellation cartpage={false} ordersPage order={order} onUpdate={setOrder} />
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("status") ?? "Status"}</Text>
           <Text style={styles.sectionValue}>{orderStatus ? t(orderStatus) : "-"}</Text>
@@ -113,9 +114,9 @@ const createStyles = (palette: any, isRTL: boolean) =>
       paddingTop: 10,
     },
     backBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 42,
+      height: 42,
+      borderRadius: 14,
       backgroundColor: palette.card,
       alignItems: "center",
       justifyContent: "center",

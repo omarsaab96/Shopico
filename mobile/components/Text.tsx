@@ -28,9 +28,10 @@ const Text = forwardRef<RNText, TextProps>(({ style, weight, ...rest }, ref) => 
   const { isRTL } = useI18n();
   const flattened = StyleSheet.flatten(style) as TextStyle | undefined;
   const effectiveWeight = weight ?? normalizeWeight(flattened?.fontWeight);
-  const baseStyle: TextStyle = { fontFamily: resolveFont(isRTL, effectiveWeight) };
+  // Keep physical text alignment stable while writingDirection handles Arabic glyphs.
+  const baseStyle: TextStyle = { direction: "ltr", writingDirection: isRTL ? "rtl" : "ltr", textAlign: isRTL ? "right" : "left", fontFamily: resolveFont(isRTL, effectiveWeight) };
   const cleanedStyle = flattened ? { ...flattened, fontWeight: undefined } : undefined;
-  const resolvedStyle = StyleSheet.flatten([cleanedStyle, baseStyle]);
+  const resolvedStyle = StyleSheet.flatten([baseStyle, cleanedStyle, { fontFamily: baseStyle.fontFamily }]);
 
   return <RNText ref={ref} {...rest} style={resolvedStyle} />;
 });

@@ -1,7 +1,8 @@
+import { TextInput } from "../../components/TextInput";
 import { BottomSheetModal } from "../../components/BottomSheetModal";
 import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { useMemo, useState, useRef, useCallback, useEffect } from "react";
-import { TextInput, View, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from "react-native";
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from "react-native";
 import Text from "../../components/Text";
 import { useAuth } from "../../lib/auth";
 import { useTheme } from "../../lib/theme";

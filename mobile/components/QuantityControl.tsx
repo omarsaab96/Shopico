@@ -1,8 +1,9 @@
+import { TextInput } from "./TextInput";
 import { resolveFont } from "../lib/typography";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useEffect, useRef, useState } from "react";
-import { TextInput, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import Text from "./Text";
 import { quantityStep, quantityDisplayScale, formatQuantity, unitLabel, UnitProduct } from "../lib/productUnits";
 import { useTheme } from "../lib/theme";

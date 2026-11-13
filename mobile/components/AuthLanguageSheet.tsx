@@ -106,7 +106,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       backgroundColor: palette.surface,
       paddingVertical: 14,
       paddingHorizontal: 14,
-      flexDirection: isRTL ? "row-reverse" : "row",
+      flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
     },

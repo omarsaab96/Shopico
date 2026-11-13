@@ -1,6 +1,7 @@
+import { TextInput } from "../components/TextInput";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Keyboard } from "react-native";
+import { View, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Keyboard } from "react-native";
 import MapView, { Marker, MapPressEvent } from "react-native-maps";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
@@ -16,7 +17,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LottieView from "lottie-react-native";
 import { goBack } from "expo-router/build/global-state/routing";
-import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useRouter } from "expo-router";
 
 type Address = { _id: string; label: string; address: string; lat: number; lng: number; phone?: string };
@@ -252,17 +252,23 @@ export default function AddressesScreen() {
           <View>
 
 
-            {!(editing || adding) && <Text weight="bold" style={styles.title}>
-              {t("savedAddresses") ?? "Saved addresses"}
-            </Text>}
+            {!(editing || adding) && <View style={styles.header}>
+              <TouchableOpacity style={styles.backButton} accessibilityRole="button"
+                accessibilityLabel={isRTL ? "\u0631\u062c\u0648\u0639" : "Back"}
+                onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/profile")} activeOpacity={0.85}>
+                <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
+              </TouchableOpacity>
+              <Text weight="bold" style={styles.title}>{t("savedAddresses") ?? "Saved addresses"}</Text>
+            </View>}
 
             {(editing || adding) && <View style={styles.card}>
-              <TouchableOpacity onPress={resetForm} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <FontAwesome6 name={isRTL ? "chevron-right" : "chevron-left"} size={18} color="black" style={{}} />
-                <Text weight="bold" style={[styles.title, { marginBottom: 0, lineHeight: 28 }]}>
-                  {editing ? t("editAddress") : t("addAddress")}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.header}>
+                <TouchableOpacity onPress={resetForm} style={styles.backButton} accessibilityRole="button"
+                  accessibilityLabel={isRTL ? "\u0631\u062c\u0648\u0639" : "Back"} activeOpacity={0.85}>
+                  <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
+                </TouchableOpacity>
+                <Text weight="bold" style={styles.title}>{editing ? t("editAddress") : t("addAddress")}</Text>
+              </View>
               <TextInput
                 style={styles.input}
                 value={label}
@@ -431,7 +437,9 @@ export default function AddressesScreen() {
 
 const createStyles = (palette: any, insets: any, isRTL: boolean) =>
   StyleSheet.create({
-    title: { color: palette.text, fontSize: 22, marginBottom: 12, textAlign: "left" },
+    header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
+    backButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border },
+    title: { flex: 1, color: palette.text, fontSize: 22, textAlign: isRTL ? "right" : "left" },
     card: {
       // backgroundColor: palette.card,
       // borderRadius: 12,
@@ -450,7 +458,7 @@ const createStyles = (palette: any, insets: any, isRTL: boolean) =>
       gap: 8,
       marginBottom: 12,
     },
-    section: { color: palette.text, textAlign: 'left' },
+    section: { color: palette.text, textAlign: isRTL ? "right" : "left" },
     input: {
       backgroundColor: palette.surface,
       color: palette.text,

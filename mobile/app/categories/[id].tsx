@@ -1,3 +1,4 @@
+import { TextInput } from "../../components/TextInput";
 import FloatingCartBanner from "../../components/FloatingCartBanner";
 import { quantityStep, formatQuantity, priceBasis, ProductUnit } from "../../lib/productUnits";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -10,7 +11,6 @@ import {
   LayoutChangeEvent,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -364,7 +364,7 @@ export default function CategoryDetail() {
 }
 
 const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any) => {
-  const row = isRTL ? ("row-reverse" as const) : ("row" as const);
+  const row = "row" as const;
   const align = isRTL ? ("right" as const) : ("left" as const);
 
   const cardShadow = {

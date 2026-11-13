@@ -1,12 +1,16 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { I18nManager } from "react-native";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, I18nManager, Platform, Text, TouchableOpacity, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type Lang = "en" | "ar";
-
-const I18N_STORAGE_KEY = "app-language";
+import { reloadAppAsync } from "expo";
+import { Lang, LANGUAGE_STORAGE_KEY, prepareLanguageDirection, restoreLanguage } from "./languageRuntime";
 
 const baseStrings = {
+  Silver: "Silver",
+  Gold: "Gold",
+  Platinum: "Platinum",
+  Diamond: "Diamond",
+  Max: "Maximum level",
   cashHeld: "Cash owed to store",
   cashRefreshError: "Could not refresh cash balance. Please retry.",
   passwordSetupCode: "Setup code or link",
@@ -34,6 +38,7 @@ const baseStrings = {
   membership: "Membership",
   wallet: "Wallet",
   cashOnDelivery: "Cash on delivery",
+  account: "Account",
   settings: "Settings",
   notificationSettings: "Notifications settings",
   announcements: "Announcements",
@@ -254,6 +259,11 @@ const baseStrings = {
 };
 
 const arStrings: Record<string, string> = {
+  Silver: "\u0641\u0636\u064a",
+  Gold: "\u0630\u0647\u0628\u064a",
+  Platinum: "\u0628\u0644\u0627\u062a\u064a\u0646\u064a",
+  Diamond: "\u0645\u0627\u0633\u064a",
+  Max: "\u0623\u0639\u0644\u0649 \u0645\u0633\u062a\u0648\u0649",
   cashHeld: "النقد المستحق للمتجر",
   cashRefreshError: "تعذر تحديث الرصيد النقدي. حاول مجدداً.",
   passwordSetupCode: "رمز أو رابط الإعداد",
@@ -281,6 +291,7 @@ const arStrings: Record<string, string> = {
   wallet: "المحفظة",
   cashOnDelivery: "عند الاستلام",
   notificationSettings: "إعدادات الإشعارات",
+  account: "\u0627\u0644\u062d\u0633\u0627\u0628",
   settings: "الإعدادات",
   addToCart: "أضف إلى السلة",
   placeOrder: "تأكيد الطلب",
@@ -660,27 +671,49 @@ const detectDeviceLang = (): Lang => {
 };
 
 export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
-  const [lang, setLangState] = useState<Lang>(detectDeviceLang());
+  const [lang, setLangState] = useState<Lang>("en");
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState(false);
+  const changing = useRef(false);
+  const initializing = useRef(false);
 
-  useEffect(() => {
-    AsyncStorage.getItem(I18N_STORAGE_KEY).then((stored) => {
-      if (stored === "en" || stored === "ar") setLangState(stored);
-    });
-  }, []);
-
-  useEffect(() => {
-    const shouldRTL = lang === "ar";
-    if (I18nManager.isRTL !== shouldRTL) {
-      I18nManager.allowRTL(true);
-      I18nManager.forceRTL(shouldRTL);
-      I18nManager.swapLeftAndRightInRTL(true);
-      // Note: Expo/React Native may require an app reload for full mirroring; components use isRTL for live layout.
+  const initialize = async () => {
+    if (initializing.current) return;
+    initializing.current = true;
+    setError(false);
+    try {
+      // Read the saved choice before touching persisted native direction flags.
+      const restored = await restoreLanguage(AsyncStorage, detectDeviceLang);
+      setLangState(restored);
+      await prepareLanguageDirection(restored, Platform.OS, AsyncStorage, I18nManager, reloadAppAsync);
+      setReady(true);
+    } catch {
+      setError(true);
+    } finally {
+      initializing.current = false;
     }
-  }, [lang]);
+  };
+
+  useEffect(() => { void initialize(); }, []);
 
   const setLang = (next: Lang) => {
-    setLangState(next);
-    AsyncStorage.setItem(I18N_STORAGE_KEY, next).catch(() => { });
+    if (next === lang || changing.current) return;
+    changing.current = true;
+    setReady(false);
+    setError(false);
+    void (async () => {
+      try {
+        // Persist first: the restarted app must read the new language.
+        await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+        setLangState(next);
+        await prepareLanguageDirection(next, Platform.OS, AsyncStorage, I18nManager, reloadAppAsync);
+        setReady(true);
+      } catch {
+        setError(true);
+      } finally {
+        changing.current = false;
+      }
+    })();
   };
 
   const value = useMemo<I18nContextValue>(() => {
@@ -689,7 +722,19 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
     return { lang, t, setLang, isRTL: lang === "ar" };
   }, [lang]);
 
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  if (!ready) return <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 16, backgroundColor: "#f7f9fc" }}>
+    {error ? <>
+      <Text style={{ color: "#0f172a", textAlign: "center" }}>{lang === "ar"
+        ? "\u0623\u063a\u0644\u0642 \u0627\u0644\u062a\u0637\u0628\u064a\u0642 \u0648\u0627\u0641\u062a\u062d\u0647 \u0645\u062c\u062f\u062f\u0627\u064b \u0644\u062a\u0637\u0628\u064a\u0642 \u0627\u0644\u0644\u063a\u0629"
+        : "Close and reopen the app to finish applying the language."}</Text>
+      <TouchableOpacity accessibilityRole="button" onPress={() => void initialize()} style={{ padding: 12 }}>
+        <Text style={{ color: "#ff7a1f" }}>{lang === "ar" ? "\u062d\u0627\u0648\u0644 \u0645\u062c\u062f\u062f\u0627\u064b" : "Try again"}</Text>
+      </TouchableOpacity>
+    </> : <ActivityIndicator size="large" color="#ff7a1f" />}
+  </View>;
+  return <I18nContext.Provider value={value}>
+    <View style={{ flex: 1, direction: lang === "ar" ? "rtl" : "ltr" }}>{children}</View>
+  </I18nContext.Provider>;
 };
 
 export const useI18n = () => {

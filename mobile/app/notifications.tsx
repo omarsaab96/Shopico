@@ -46,7 +46,7 @@ export default function NotificationsScreen() {
       {/* <TouchableOpacity onPress={() => router.push("/settings")} accessibilityLabel={ar ? "إعدادات الإشعارات" : "Notification settings"}>
         <Text style={{ color: palette.accent }}>{ar ? "الإعدادات" : "Settings"}</Text>
       </TouchableOpacity> */}
-      {unreadCount > 0 && <TouchableOpacity accessibilityRole="button" onPress={() => void readAll().catch(failed)} activeOpacity={0.85} style={{ alignSelf: "center", paddingHorizontal: 18, paddingVertical: 8 }}>
+      {unreadCount > 0 && <TouchableOpacity accessibilityRole="button" onPress={() => void readAll().catch(failed)} activeOpacity={0.85} style={{  }}>
         <Text style={{ color: palette.accent, fontWeight: "900", textAlign: "left" }}>
           {ar ? "قراءة الكل" : "Mark all as read"} ({unreadCount})
         </Text>

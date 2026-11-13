@@ -108,7 +108,7 @@ export default function CategoriesScreen() {
 }
 
 const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => {
-  const row = isRTL ? "row-reverse" : "row";
+  const row = "row";
   const align = isRTL ? "right" : "left";
 
   const shadow = {

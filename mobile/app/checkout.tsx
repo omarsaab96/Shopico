@@ -1,7 +1,8 @@
+import { TextInput } from "../components/TextInput";
 import { roundAmount } from "../lib/productUnits";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from "react-native";
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
 import Text from "../components/Text";

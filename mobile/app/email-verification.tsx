@@ -1,6 +1,7 @@
+import { TextInput } from "../components/TextInput";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
@@ -95,7 +96,14 @@ export default function EmailVerification() {
   };
 
   return (
-    <Screen showBack backLabel={t("back") ?? "Back"}>
+    <Screen>
+      <TouchableOpacity accessibilityRole="button"
+        accessibilityLabel={isRTL ? "\u0631\u062c\u0648\u0639" : "Back"}
+        onPress={() => router.canGoBack() ? router.back() : router.replace(returnTo as any)}
+        activeOpacity={0.85}
+        style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border, alignSelf: "flex-start", marginBottom: 10 }}>
+        <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
+      </TouchableOpacity>
       <View style={styles.wrap}>
         <Text weight="bold" style={styles.title}>
           {t("verifyEmail") ?? "Verify email"}

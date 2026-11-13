@@ -1,3 +1,4 @@
+import { TextInput } from "../components/TextInput";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { quantityStep, formatQuantity, priceBasis, ProductUnit } from "../lib/productUnits";
 import { outstandingDriverCash, type CashCurrency } from "../lib/driverCash";
@@ -7,7 +8,6 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   FlatList,
-  TextInput,
   View,
   StyleSheet,
   Animated,
@@ -863,7 +863,7 @@ export default function Home() {
                 <View style={[styles.levelPill, { backgroundColor: membershipTone.badgeBg, borderColor: membershipTone.ring }]}>
                   <Feather name="award" size={14} color={membershipTone.badgeText} />
                   <Text style={[styles.levelPillText, { color: membershipTone.badgeText }]}>
-                    {membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}
+                    {membershipLevel === "None" ? (t("standard") ?? "Standard") : t(membershipLevel)}
                   </Text>
                 </View>
               </View>
@@ -881,7 +881,7 @@ export default function Home() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             {remaining > 0 && <Text style={styles.walletMini}>
               <Text style={styles.walletMiniLabel}>{t("remainingToNext") ?? "Remaining"}</Text>
-              <Text style={styles.walletMiniHint}>{nextLabel}</Text>
+              <Text style={styles.walletMiniHint}>{t(nextLabel)}</Text>
             </Text>}
             <Text style={styles.walletMiniValue}>
               {remaining > 0 ? `${remaining.toLocaleString()} ${getCurrencySymbol(selectedCurrency)}` : (t("congrats") ?? "Top level")}
@@ -1740,7 +1740,7 @@ export default function Home() {
                           }}
                           activeOpacity={0.9}
                         >
-                          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                             <Text style={styles.addressTitle}>{addr.label || (t("address") ?? "Address")}</Text>
                             {selectedAddress?._id === addr._id ? <Feather name="check" size={18} color={palette.accent} /> : null}
                           </View>
@@ -1850,7 +1850,7 @@ export default function Home() {
                           }}
                           activeOpacity={0.9}
                         >
-                          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center" }}>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                             <Text style={styles.addressTitle}>{branch.name}</Text>
                             {active ? <Feather name="check" size={18} color={palette.accent} /> : null}
                           </View>
@@ -1888,7 +1888,7 @@ export default function Home() {
                 <View style={{ gap: 12 }}>
                   <View style={styles.kvRow}>
                     <Text style={styles.kvLabel}>{t("level") ?? "Level"}</Text>
-                    <Text style={styles.kvValue}>{membershipLevel === "None" ? (t("standard") ?? "Standard") : membershipLevel}</Text>
+                    <Text style={styles.kvValue}>{membershipLevel === "None" ? (t("standard") ?? "Standard") : t(membershipLevel)}</Text>
                   </View>
 
                   <View style={styles.kvRow}>
@@ -1899,7 +1899,7 @@ export default function Home() {
                   {remaining > 0 && <View style={styles.kvRow}>
                     <View style={[styles.kvRow, { justifyContent: 'flex-start', gap: 0 }]}>
                       <Text style={styles.kvLabel}>{t("remainingToNext") ?? "Remaining"}</Text>
-                      <Text style={styles.kvValue}>{nextLabel}</Text>
+                      <Text style={styles.kvValue}>{t(nextLabel)}</Text>
                     </View>
                     <Text style={styles.kvValue}>
                       {remaining > 0 ? `${remaining.toLocaleString()} SYP` : (t("congrats") ?? "At top level")}
@@ -1946,7 +1946,7 @@ export default function Home() {
 }
 
 const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any) => {
-  const row = isRTL ? ("row-reverse" as const) : ("row" as const);
+  const row = "row" as const;
   const align = isRTL ? ("right" as const) : ("left" as const);
 
   // “soft card” shadows (keeps iOS + Android reasonable)
@@ -2156,18 +2156,18 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       color: palette.text,
       fontSize: 24,
       fontWeight: "900",
-      textAlign: 'left',
+      textAlign: align,
       textTransform: 'capitalize'
     },
     addressRow: {
-      flexDirection: 'row',
+      flexDirection: row,
       alignItems: "center",
       gap: 10,
       flex: 1,
       minWidth: 0,
     },
     branchRow: {
-      flexDirection: "row",
+      flexDirection: row,
       alignItems: "center",
       gap: 10,
       flex: 1,
@@ -2186,8 +2186,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       width: 1,
       backgroundColor: 'white',
       top: 5,
-      right: isRTL ? 'auto' : -11,
-      left: isRTL ? -11 : 'auto',
+      end: -11,
       opacity: 0.5
     },
     branchSeperator: {
@@ -2228,8 +2227,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     branchOptionTitle: { fontSize: 14, fontWeight: "700", color: palette.text },
     branchOptionSub: { fontSize: 12, color: palette.muted, marginTop: 2 },
-    addressLabel: { color: 'white', fontSize: 13, lineHeight: 16, fontWeight: "700" },
-    addressValue: { color: 'white', fontSize: 13, lineHeight: 16 },
+    addressLabel: { color: 'white', fontSize: 13, lineHeight: 16, fontWeight: "700", textAlign: align },
+    addressValue: { color: 'white', fontSize: 13, lineHeight: 16, textAlign: align },
 
     walletCard: {
       borderRadius: 20,
@@ -2246,8 +2245,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       borderRadius: 999,
       opacity: isDark ? 0.08 : 0.14,
       top: -120,
-      left: isRTL ? undefined : -110,
-      right: isRTL ? -110 : undefined,
+      start: -110,
     },
     walletGlowB: {
       position: "absolute",
@@ -2256,16 +2254,15 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       borderRadius: 999,
       opacity: isDark ? 0.06 : 0.12,
       bottom: -160,
-      left: isRTL ? -140 : undefined,
-      right: isRTL ? undefined : -140,
+      end: -140,
     },
     walletRow: { flexDirection: 'row', gap: 12, alignItems: "flex-start" },
     walletTextCol: { flex: 1, gap: 8 },
 
-    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", textAlign: 'left' },
-    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign: 'left' },
+    walletLabel: { color: palette.text, fontSize: 20, fontWeight: "700", textAlign: align },
+    walletValue: { color: palette.text, fontSize: 28, fontWeight: "900", textAlign: align },
 
-    walletBadgeRow: { flexDirection: row, justifyContent: isRTL ? "flex-end" : "flex-start" },
+    walletBadgeRow: { flexDirection: row, justifyContent: "flex-start" },
     levelPill: {
       flexDirection: row,
       alignItems: "center",
@@ -2362,8 +2359,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       alignItems: "center",
       justifyContent: "space-between",
     },
-    sectionTitle: { color: palette.text, fontSize: 16, textAlign: 'left' },
-    sectionAction: { color: palette.accent, fontWeight: "900", textAlign: 'left' },
+    sectionTitle: { color: palette.text, fontSize: 16, textAlign: align },
+    sectionAction: { color: palette.accent, fontWeight: "900", textAlign: align },
 
     catGridClip: {
       overflow: "hidden",
@@ -2477,8 +2474,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       resizeMode: "contain",
       // borderWidth:1
     },
-    productName: { color: palette.text, fontWeight: isRTL ? "500" : "900", marginBottom: isRTL ? 0 : 4, textAlign: 'left' },
-    productDesc: { color: palette.muted, fontSize: 12, marginBottom: isRTL ? 0 : 10, textAlign: 'left' },
+    productName: { color: palette.text, fontWeight: isRTL ? "500" : "900", marginBottom: isRTL ? 0 : 4, textAlign: align },
+    productDesc: { color: palette.muted, fontSize: 12, marginBottom: isRTL ? 0 : 10, textAlign: align },
 
     priceRow: {
       flexDirection: "row",
@@ -2613,7 +2610,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
 
     // Sheets
     sheetContainer: { paddingHorizontal: 16, paddingBottom: 100, flex: 1 },
-    sheetContent: { flex: 1, gap: 6, alignItems: isRTL ? "flex-end" : "flex-start" },
+    sheetContent: { flex: 1, gap: 6, alignItems: "flex-start" },
     sheetTitle: { paddingTop: 10, color: palette.text, fontSize: 18, fontWeight: "900", marginBottom: 10, textAlign: isRTL ? "right" : "left", alignSelf: "stretch" },
     sheetLabel: { color: palette.muted, fontWeight: "900", marginTop: 8, marginBottom: 6, textAlign: isRTL ? "right" : "left", alignSelf: "stretch" },
     sheetPills: { flexDirection: row, flexWrap: "wrap", gap: 10, alignSelf: "stretch", justifyContent: "flex-start" },

@@ -1,8 +1,9 @@
+import { TextInput } from "../components/TextInput";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import Feather from "@expo/vector-icons/Feather";
 import { useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import Screen from "../components/Screen";
 import Text from "../components/Text";
@@ -11,7 +12,6 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { useTheme } from "../lib/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
 export default function EditProfile() {
   const router = useRouter();
@@ -156,12 +156,15 @@ export default function EditProfile() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
-              <TouchableOpacity style={{flexDirection:'row',alignItems:'center',gap:10}} onPress={() => router.back()} activeOpacity={0.85}>
-                {/* <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={22} color={palette.text} /> */}
-                <FontAwesome6 name={isRTL? "chevron-right":"chevron-left"} size={18} color="black" style={{}} />
-
-                <Text weight="bold" style={styles.title}>{t("editProfile") ?? "Edit profile"}</Text>
+              <TouchableOpacity
+                style={styles.backButton}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? "\u0631\u062c\u0648\u0639" : "Back"}
+                onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/profile")}
+                activeOpacity={0.85}>
+                <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
               </TouchableOpacity>
+              <Text weight="bold" style={styles.title}>{t("editProfile") ?? "Edit profile"}</Text>
             </View>
 
             <View style={styles.form}>
@@ -377,12 +380,8 @@ const createStyles = (palette: any, insets: any, isRTL: boolean, isDark: boolean
       gap: 20,
       paddingBottom: insets.bottom + 10,
     },
-    header: {
-      // flexDirection: "row",
-      // alignItems: "center",
-      // gap: 5
-      // justifyContent: "space-between",
-    },
+    header: { flexDirection: "row", alignItems: "center", gap: 10 },
+    backButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border },
     iconBtn: {
       width: 40,
       height: 40,

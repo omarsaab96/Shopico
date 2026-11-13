@@ -1,7 +1,8 @@
+import { TextInput } from "../../components/TextInput";
 import { BottomSheetModal } from "../../components/BottomSheetModal";
 import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { useMemo, useState, useRef, useCallback } from "react";
-import { TextInput, View, Image, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Image, StyleSheet, TouchableOpacity } from "react-native";
 import Button from "../../components/Button";
 import Text from "../../components/Text";
 import api, { storeTokens } from "../../lib/api";

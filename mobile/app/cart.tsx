@@ -1,3 +1,4 @@
+import { TextInput } from "../components/TextInput";
 import OrderCancellation from "../components/OrderCancellation";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import QuantityControl from "../components/QuantityControl";
@@ -5,7 +6,7 @@ import { roundAmount } from "../lib/productUnits";
 import { Link } from "expo-router";
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, Pressable, TouchableOpacity, Image, FlatList, RefreshControl, ActivityIndicator, Animated, useWindowDimensions, TextInput, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import { View, StyleSheet, Pressable, TouchableOpacity, Image, FlatList, RefreshControl, ActivityIndicator, Animated, useWindowDimensions, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { ScrollView as GestureScrollView } from "react-native-gesture-handler";
 import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetFooter, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useFocusEffect } from "@react-navigation/native";
@@ -844,7 +845,7 @@ export default function CartScreen() {
             onPress={placeOrder}
             disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading}
           >
-            <View style={{ width: '100%', flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: '100%', flexDirection: "row", alignItems: 'center', justifyContent: 'center' }}>
               <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
                 {submitting ? t("placingOrder") : t("placeOrder")}
               </Text>
@@ -1284,10 +1285,10 @@ export default function CartScreen() {
                           {addresses.map((addr) => (
                             <TouchableOpacity
                               key={addr._id}
-                              style={[styles.pillRow, selectedAddress?._id === addr._id && styles.pillRowActive]}
+                              style={[styles.pillRow, selectedAddress?._id === addr._id && [styles.pillRowActive, { paddingEnd: 30 }]]}
                               onPress={() => { setSelectedAddress(addr); setShowAddresses(false) }}
                             >
-                              {selectedAddress?._id === addr._id && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, { right: 5 }]} />}
+                              {selectedAddress?._id === addr._id && <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, { end: 5 }]} />}
                               <Text weight="bold" style={styles.addressLabel}>{addr.label}</Text>
                               <Text style={styles.addressText}>{addr.address}</Text>
                             </TouchableOpacity>
@@ -1577,7 +1578,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     title: {
       color: palette.text,
       fontSize: 22,
-      textAlign: 'left',
+      textAlign: isRTL ? "right" : "left",
       fontWeight: "900",
     },
     row: {
@@ -1631,8 +1632,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     cartItemBody: {
       // borderWidth: 1,
     },
-    name: { color: palette.text, textAlign: 'left' },
-    muted: { color: palette.muted, textAlign: 'left' },
+    name: { color: palette.text, textAlign: isRTL ? "right" : "left" },
+    muted: { color: palette.muted, textAlign: isRTL ? "right" : "left" },
     priceRow: {
       // flexDirection: "row",
       // alignItems: "baseline",
@@ -1669,7 +1670,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       color: isDark ? "#fecaca" : "#991b1b",
       fontSize: 12,
       marginTop: 4,
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
     },
     cartWarning: {
       color: isDark ? "#fecaca" : "#991b1b",
@@ -1679,7 +1680,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       borderRadius: 10,
       padding: 10,
       marginBottom: 12,
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
     },
     link: { color: palette.accent },
     totalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: 'center', marginVertical: 12 },
@@ -1808,7 +1809,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       borderColor: palette.surface,
       backgroundColor: palette.surface,
     },
-    addressLabel: { color: palette.text, textAlign: 'left' },
+    addressLabel: { color: palette.text, textAlign: isRTL ? "right" : "left" },
     distance: {
       fontSize: 14,
       color: palette.text
@@ -1818,7 +1819,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       color: palette.text,
       textDecorationLine: "line-through",
     },
-    addressText: { color: palette.text, textAlign: 'left' },
+    addressText: { color: palette.text, textAlign: isRTL ? "right" : "left" },
     addressBtn: {
       paddingVertical: 5,
       paddingHorizontal: 10,
@@ -1872,7 +1873,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     },
     pillRowActive: { borderColor: palette.accent, position: 'relative', backgroundColor: isDark ? palette.surface : "rgba(249,115,22,0.10)", },
     selectedTick: { position: 'absolute', top: 5 },
-    pillText: { color: palette.text, textAlign: 'left' },
+    pillText: { color: palette.text, textAlign: isRTL ? "right" : "left" },
     pillTextActive: { color: palette.text },
     primaryBtn: {
       paddingVertical: 14,

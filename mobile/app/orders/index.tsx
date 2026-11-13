@@ -138,6 +138,12 @@ export default function Orders() {
 
       {!user ? (
         <View style={styles.emptyBox}>
+          <LottieView
+            autoPlay
+            loop
+            style={{ width: 120, height: 120 }}
+            source={require("../../assets/noorders.json")}
+          />
           <Text style={styles.emptyTitle}>
             {t("noOrders") ?? "No orders yet"}
           </Text>
@@ -294,7 +300,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       fontSize: 22,
       fontWeight: "900",
       marginBottom: 12,
-      textAlign: "left",
+      textAlign: isRTL ? "right" : "left",
     },
 
     row: {
