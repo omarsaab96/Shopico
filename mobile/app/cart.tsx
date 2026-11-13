@@ -844,7 +844,7 @@ export default function CartScreen() {
             onPress={placeOrder}
             disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading}
           >
-            <View style={{ width: '100%', flexDirection: isRTL?'row-reverse':'row', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: '100%', flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
                 {submitting ? t("placingOrder") : t("placeOrder")}
               </Text>
@@ -1133,7 +1133,7 @@ export default function CartScreen() {
                       opacity: successAnim,
                     },
                   ]}>
-                    <LottieView
+                    {!successOrder?.cancelledByCustomer ? (<LottieView
                       ref={successLottieRef}
                       loop={false}
                       style={{ width: 200, height: 200 }}
@@ -1142,11 +1142,18 @@ export default function CartScreen() {
                         successLottieRef.current?.play(145, 145);
                       }}
                     />
+                    ) : (
+                      <LottieView
+                        autoPlay
+                        loop
+                        style={{ width: 120, height: 120 }}
+                        source={require("../assets/orderCancelled.json")}
+                      />)}
                   </Animated.View>
                   <Text weight="bold" style={styles.successTitle}>{successOrder?.cancelledByCustomer ? (isRTL ? "\u062a\u0645 \u0625\u0644\u063a\u0627\u0621 \u0627\u0644\u0637\u0644\u0628" : "Order cancelled") : (t("orderPlaced") ?? "Order placed!")}</Text>
                   {!successOrder?.cancelledByCustomer && <Text style={styles.successText}>{t("orderPlacedCopy") ?? "Your order is confirmed and on its way."}</Text>}
                   {successOrder && <View style={{ width: "100%" }}>
-                    <OrderCancellation order={successOrder} onUpdate={setSuccessOrder} />
+                    <OrderCancellation cartpage ordersPage={false} order={successOrder} onUpdate={setSuccessOrder} />
                   </View>}
 
                   <TouchableOpacity style={[styles.primaryBtn, { width: '100%' }]} onPress={() => {
@@ -1332,7 +1339,7 @@ export default function CartScreen() {
                         ]}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                             {paymentMethod === 'WALLET' ?
-                              <Entypo name="wallet" size={20} color={palette.text} />
+                              <Entypo name="wallet" size={20} color={palette.accentSoft} />
                               :
                               // <FontAwesome6 name="money-bill" size={20} color={palette.text} />
                               <Image source={require("../assets/bill.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
@@ -1375,7 +1382,7 @@ export default function CartScreen() {
                                 <FontAwesome name="check" size={20} color={palette.accent} style={[styles.selectedTick, { top: 10 }, { right: 5 }]} />
                               }
                               {method === 'WALLET' ?
-                                <Entypo name="wallet" size={20} color={palette.text} />
+                                <Entypo name="wallet" size={24} color={palette.accentSoft} />
                                 :
                                 // <FontAwesome6 name="money-bill" size={20} color={palette.text} />
                                 <Image source={require("../assets/bill.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />

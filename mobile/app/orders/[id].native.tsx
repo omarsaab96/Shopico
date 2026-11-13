@@ -435,7 +435,7 @@ export default function OrderDetail() {
               { useNativeDriver: false }
             )}
           >
-            <OrderCancellation order={order} onUpdate={setOrder} />
+            <OrderCancellation cartpage={false} ordersPage order={order} onUpdate={setOrder} />
             {routeErrorMessage ? (
               <View style={styles.routeWarning}>
                 <Text style={styles.routeWarningText}>
@@ -642,6 +642,11 @@ export default function OrderDetail() {
                 {order.paymentMethod == 'CASH_ON_DELIVERY' && <View style={styles.valueWithIcon}>
                   <Text style={styles.value}>{t('cash')}</Text>
                   <Image source={require('../../assets/bill.png')} style={styles.methodIcon} />
+                </View>}
+                {order.paymentMethod == 'WALLET' && <View style={styles.valueWithIcon}>
+                  <Text style={styles.value}>{t('wallet')}</Text>
+                  <Entypo name="wallet" size={22} color={palette.accentSoft} />
+                  {/* <Image source={require('../../assets/bill.png')} style={styles.methodIcon} /> */}
                 </View>}
               </View>
             </View>

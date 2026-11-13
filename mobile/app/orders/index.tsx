@@ -188,90 +188,97 @@ export default function Orders() {
           }
           renderItem={({ item }) => (
             <View style={styles.row}>
-            <Link href={`/orders/${item._id}`} asChild>
-              <TouchableOpacity>
-                <View style={{ flexDirection: 'row', gap: 15, marginBottom: 10, alignItems: 'center' }}>
-                  <View style={[{
-                    borderWidth: 2,
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderColor: palette.border
-                  },
-                  item.status && item.status === "PENDING" && { borderColor: '#ff7a1f', backgroundColor: 'rgba(255, 122, 31, 0.1)' },
-                  item.status && item.status === "PROCESSING" && { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
-                  item.status && item.status === "SHIPPING" && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' },
-                  item.status && item.status === "DELIVERED" && { borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' },
-                  item.status && item.status === "CANCELLED" && { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
-                  ]}>
-                    {item.status && item.status === "PENDING" && <Entypo name="dots-three-horizontal" size={16} color="#ff7a1f" />}
-                    {item.status && item.status === "PROCESSING" && <Feather name="loader" size={20} color="#2563eb" />}
-                    {item.status && item.status === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
-                    {item.status && item.status === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
-                    {item.status && item.status === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
-                  </View>
-
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
-                      <Text style={styles.name}>#{item._id.slice(-6)}</Text>
-                      <View style={styles.textSeperator}></View>
-                      <Text style={[
-                        styles.status,
-                        // item.status && item.status === "PENDING" && { color: '#ff7a1f' },
-                        // item.status && item.status === "PROCESSING" && { color: '#2563eb' },
-                        // item.status && item.status === "SHIPPING" && { color: '#4f46e5' },
-                        // item.status && item.status === "DELIVERED" && { color: '#16a34a' },
-                        // item.status && item.status === "CANCELLED" && { color: '#ef4444' },
-                      ]}>
-                        {t(item.status) ?? item.status}
-                      </Text>
+              <Link href={`/orders/${item._id}`} asChild>
+                <TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 15, marginBottom: 10, alignItems: 'center' }}>
+                    <View style={[{
+                      borderWidth: 2,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderColor: palette.border
+                    },
+                    item.status && item.status === "PENDING" && { borderColor: '#ff7a1f', backgroundColor: 'rgba(255, 122, 31, 0.1)' },
+                    item.status && item.status === "PROCESSING" && { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
+                    item.status && item.status === "SHIPPING" && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' },
+                    item.status && item.status === "DELIVERED" && { borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' },
+                    item.status && item.status === "CANCELLED" && { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+                    ]}>
+                      {item.status && item.status === "PENDING" && <Entypo name="dots-three-horizontal" size={16} color="#ff7a1f" />}
+                      {item.status && item.status === "PROCESSING" && <Feather name="loader" size={20} color="#2563eb" />}
+                      {item.status && item.status === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
+                      {item.status && item.status === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
+                      {item.status && item.status === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
                     </View>
-                    <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
-                      <Text style={styles.meta}>{formatOrderDate(item.createdAt)}</Text>
 
-                    </View>
-                  </View>
-
-                  <View style={styles.arrow}>
-                    <Entypo
-                      name={isRTL ? "chevron-left" : "chevron-right"}
-                      size={24}
-                      color={palette.accent}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.itemsList}>
-                  <View>
-                    {item.items?.slice(0, 2).map((orderItem: any, index: number) => (
-                      <View
-                        key={orderItem._id ?? `${orderItem.product?.name}-${index}`}
-                        style={styles.itemLine}
-                      >
-                        <Text style={styles.itemQty}>{formatQuantity(Math.max(0, orderItem.quantity - (orderItem.refundedQuantity || 0)), orderItem, isRTL)}</Text>
-                        <Text style={styles.itemName}>{orderItem.product?.name}</Text>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
+                        <Text style={styles.name}>#{item._id.slice(-6)}</Text>
+                        <View style={styles.textSeperator}></View>
+                        <Text style={[
+                          styles.status,
+                          // item.status && item.status === "PENDING" && { color: '#ff7a1f' },
+                          // item.status && item.status === "PROCESSING" && { color: '#2563eb' },
+                          // item.status && item.status === "SHIPPING" && { color: '#4f46e5' },
+                          // item.status && item.status === "DELIVERED" && { color: '#16a34a' },
+                          // item.status && item.status === "CANCELLED" && { color: '#ef4444' },
+                        ]}>
+                          {t(item.status) ?? item.status}
+                        </Text>
                       </View>
-                    ))}
+                      <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
+                        <Text style={styles.meta}>{formatOrderDate(item.createdAt)}</Text>
+
+                      </View>
+                    </View>
+
+                    <View style={styles.arrow}>
+                      <Entypo
+                        name={isRTL ? "chevron-left" : "chevron-right"}
+                        size={24}
+                        color={palette.accent}
+                      />
+                    </View>
                   </View>
 
-                  {(item.items?.length ?? 0) > 2 ? (
-                    <Text style={styles.moreItemsText}>
-                      {item.items.length - 2} {item.items.length - 2 == 1 ? t("otherItem") : t("otherItems")}
-                    </Text>
-                  ) : null}
-                </View>
+                  <View style={styles.itemsList}>
+                    <View>
+                      {item.items?.slice(0, 2).map((orderItem: any, index: number) => (
+                        <View
+                          key={orderItem._id ?? `${orderItem.product?.name}-${index}`}
+                          style={styles.itemLine}
+                        >
+                          <Text style={styles.itemQty}>{formatQuantity(Math.max(0, orderItem.quantity - (orderItem.refundedQuantity || 0)), orderItem, isRTL)}</Text>
+                          <Text style={styles.itemName}>{orderItem.product?.name}</Text>
+                        </View>
+                      ))}
+                    </View>
 
-                <Text style={styles.value}>
-                  {t("total")}: {formatMoney(item.total || 0, typeof item.currency === "object" ? item.currency : undefined)}
-                </Text>
-              </TouchableOpacity>
-            </Link>
-            <OrderCancellation ordersPage order={item} onUpdate={updated => setOrders(current => current.map(order =>
-              order._id === updated._id ? { ...order, status: updated.status, cancelledByCustomer: updated.cancelledByCustomer,
-                refunds: updated.refunds, cancellationUntil: updated.cancellationUntil, serverTime: updated.serverTime } : order
-            ))} />
+                    {(item.items?.length ?? 0) > 2 ? (
+                      <Text style={styles.moreItemsText}>
+                        {item.items.length - 2} {item.items.length - 2 == 1 ? t("otherItem") : t("otherItems")}
+                      </Text>
+                    ) : null}
+                  </View>
+
+                  <Text style={[styles.value, {}]}>
+                    {t("total")}: {formatMoney(item.total || 0, typeof item.currency === "object" ? item.currency : undefined)}
+                  </Text>
+                  
+                  {item.status && item.status !== "CANCELLED" && <View style={{marginTop:10}}>
+                    <OrderCancellation cartpage={false} ordersPage order={item} onUpdate={updated => setOrders(current => current.map(order =>
+                      order._id === updated._id ? {
+                        ...order, status: updated.status, cancelledByCustomer: updated.cancelledByCustomer,
+                        refunds: updated.refunds, cancellationUntil: updated.cancellationUntil, serverTime: updated.serverTime
+                      } : order
+                    ))} />
+                  </View>}
+                </TouchableOpacity>
+              </Link>
+
+
             </View>
           )}
         />
