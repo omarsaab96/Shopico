@@ -27,7 +27,6 @@ import { Ionicons } from "@expo/vector-icons";
 import Entypo from '@expo/vector-icons/Entypo';
 import { useCurrency } from "../lib/currency";
 import Money from "../components/Money";
-import UserCouponsDrawer from "../components/UserCouponsDrawer";
 
 const COUPON_CARD_GAP = 15;
 const COUPON_CARD_MAX_WIDTH = 200;
@@ -43,7 +42,6 @@ export default function CartScreen() {
   const sheetRef = useRef<BottomSheetModal>(null);
   const clearSheetRef = useRef<BottomSheetModal>(null);
   const checkoutSheetRef = useRef<BottomSheetModal>(null);
-  const [couponsDrawerOpen, setCouponsDrawerOpen] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<{ productId: string; variantId?: string } | null>(null);
   const [skipConfirm, setSkipConfirm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -91,7 +89,7 @@ export default function CartScreen() {
   const hasPromotionalSubtotal = originalSubtotal > subtotal;
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
-  const { selectedCurrency, setSelectedCurrencyId, getWalletBalance, getCurrencySymbol, convertFromPrimary, formatMoney } = useCurrency();
+  const { selectedCurrency, getWalletBalance, getCurrencySymbol, convertFromPrimary, formatMoney } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
   const renderBackdrop = useMemo(() => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
   const addressRefreshOnVisit = useRef(false);
@@ -542,7 +540,8 @@ export default function CartScreen() {
   const distanceKm = deliveryEstimate?.distanceKm ?? 0;
   const deliveryFee = deliveryEstimate?.deliveryFee ?? 0;
   const hasFreeDeliveryCoupon = selectedCoupons.some((c) => c.freeDelivery);
-  const couponDiscountTotal = selectedCoupons.reduce((sum, c) => sum + (c.freeDelivery ? 0 : c.discount || 0), 0);
+  const couponDiscountTotal = selectedCoupons.reduce((sum, coupon) =>
+    roundAmount(sum + couponProductDiscount(coupon, Math.max(0, subtotal - sum))), 0);
   const effectiveDeliveryFee = hasFreeDeliveryCoupon ? 0 : deliveryFee;
   const orderTotal = roundAmount(Math.max(0, subtotal + effectiveDeliveryFee - couponDiscountTotal));
   const selectedCurrencyTotal = convertFromPrimary(orderTotal, selectedCurrency);
@@ -551,6 +550,40 @@ export default function CartScreen() {
     `${Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${getCurrencySymbol(selectedCurrency)}`;
   const checkoutLoading = applyingCoupon || cartSyncLoading || addressesLoading || walletLoading || settingsLoading || branchLoading || deliveryEstimateLoading;
   const allowMultipleCoupons = settings?.allowMultipleCoupons ?? false;
+  function couponProductDiscount(coupon: { freeDelivery?: boolean; discountType?: string; discountValue?: number; discount?: number }, remaining = subtotal) {
+    if (coupon.freeDelivery) return 0;
+    if (coupon.discountType === "FIXED" && coupon.discountValue !== undefined) {
+      const rate = Number(selectedCurrency?.exchangeRate || 1);
+      return roundAmount(coupon.discountValue * (rate > 0 ? rate : 1));
+    }
+    const discount = coupon.discount || 0;
+    return coupon.discountType === "PERCENT" && subtotal > 0
+      ? roundAmount(discount * remaining / subtotal)
+      : roundAmount(discount);
+  }
+  const couponExceedsSubtotal = (coupon: any) => {
+    if (coupon.freeDelivery) return false;
+    const others = allowMultipleCoupons ? selectedCoupons
+      .filter(item => item.code.toUpperCase() !== String(coupon.code).toUpperCase()) : [];
+    const total = [...others, coupon].reduce((sum, item) =>
+      roundAmount(sum + couponProductDiscount(item, Math.max(0, subtotal - sum))), 0);
+    return Boolean(coupon.disabled) || total > roundAmount(subtotal);
+  };
+
+  useEffect(() => {
+    setSelectedCoupons(previous => {
+      let total = 0;
+      return previous.flatMap(coupon => {
+        const fresh = availableCoupons.find(item => item.code.toUpperCase() === coupon.code.toUpperCase());
+        const next = fresh ? { ...coupon, ...fresh } : coupon;
+        const amount = couponProductDiscount(next, Math.max(0, subtotal - total));
+        if (fresh?.disabled || roundAmount(total + amount) > roundAmount(subtotal)) return [];
+        total = roundAmount(total + amount);
+        return [next];
+      });
+    });
+  }, [subtotal, availableCoupons, selectedCurrency?.exchangeRate]);
+
 
   const fetchAvailableCoupons = useCallback(() => {
     const availableCartItems = items.filter((item) => !item.unavailable);
@@ -583,7 +616,7 @@ export default function CartScreen() {
   useEffect(() => {
     if (autoApplyDisabledRef.current || autoApplyDisabled || inputCouponCode.trim() || selectedCoupons.length > 0) return;
     if (!availableCoupons.length) return;
-    const sorted = [...availableCoupons].sort((a, b) => (b.discount || 0) - (a.discount || 0));
+    const sorted = availableCoupons.filter(coupon => !couponExceedsSubtotal(coupon)).sort((a, b) => (b.discount || 0) - (a.discount || 0));
     const best = sorted[0];
     if (!best) return;
     setSelectedCoupons([{
@@ -655,6 +688,10 @@ export default function CartScreen() {
     return selectedCoupons.some((c) => c.code.toUpperCase() === normalized);
   }, [selectedCoupons]);
 
+  const orderedAvailableCoupons = [...availableCoupons].sort((a, b) =>
+    Number(!isCouponSelected(a.code) && couponExceedsSubtotal(a)) -
+    Number(!isCouponSelected(b.code) && couponExceedsSubtotal(b)));
+
   const applyCoupon = async () => {
     if (!inputCouponCode.trim()) {
       setCouponError("");
@@ -685,6 +722,10 @@ export default function CartScreen() {
         discountType: res.data.data?.discountType,
         discountValue: res.data.data?.discountValue,
       };
+      if (couponExceedsSubtotal(next)) {
+        setCouponError(t("couponExceedsSubtotal"));
+        return;
+      }
       setAvailableCoupons((prev) => {
         const exists = prev.some((c) => String(c.code || "").toUpperCase() === normalized);
         if (exists) return prev;
@@ -726,6 +767,10 @@ export default function CartScreen() {
     const nextCode = String(coupon.code || "").trim();
     if (!nextCode) return;
     const normalized = nextCode.toUpperCase();
+    if (!isCouponSelected(nextCode) && couponExceedsSubtotal(coupon)) {
+      setCouponError(t("couponExceedsSubtotal"));
+      return;
+    }
     setSelectedCoupons((prev) => {
       const exists = prev.some((c) => c.code.toUpperCase() === normalized);
       const filtered = prev.filter((c) => c.code.toUpperCase() !== normalized);
@@ -918,23 +963,13 @@ export default function CartScreen() {
 
   return (
     <>
-      <UserCouponsDrawer visible={couponsDrawerOpen} onClose={() => setCouponsDrawerOpen(false)}
-        onSelect={coupon => {
-          setCouponsDrawerOpen(false);
-          if (!items.some(item => !item.unavailable)) {
-            Alert.alert(t("myCoupons"), t("addItemsToUseReward"));
-            return;
-          }
-          if (coupon.currency?._id) setSelectedCurrencyId(coupon.currency._id);
-          router.setParams({ checkout: "coupon", couponCode: coupon.code });
-        }} />
       <Screen>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <Text weight="bold" style={styles.title}>{t("cart")}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-          {user && <TouchableOpacity onPress={() => setCouponsDrawerOpen(true)} accessibilityRole="button" accessibilityLabel={t("myCoupons")}>
+          {/* {user && <TouchableOpacity onPress={() => router.push("/points")} accessibilityRole="button" accessibilityLabel={t("myCoupons")}>
             <Ionicons name="ticket-outline" size={24} color={palette.accent} />
-          </TouchableOpacity>}
+          </TouchableOpacity>} */}
           {items.length > 0 &&
             <TouchableOpacity onPress={confirmClear}>
               <Text style={{ color: palette.accent, fontWeight: 'bold' }}>{t("clearCart")}</Text>
@@ -1576,9 +1611,14 @@ export default function CartScreen() {
                                   <Text style={styles.sheetText}>{t("loading") ?? "Loading"}...</Text>
                                 </View>
                               )}
-                              {availableCoupons.map((c) => (
+                              {orderedAvailableCoupons.map((c) => (
                                 // {isCouponSelected(c.code) &&}
-                                <Pressable key={c._id || c.code} style={styles.wrapper} onPress={() => applyAvailableCoupon(c)}>
+                                <Pressable key={c._id || c.code}
+                                  style={[styles.wrapper, !isCouponSelected(c.code) && couponExceedsSubtotal(c) && { opacity: 0.4 }]}
+                                  disabled={!isCouponSelected(c.code) && couponExceedsSubtotal(c)}
+                                  accessibilityRole="button"
+                                  accessibilityState={{ disabled: !isCouponSelected(c.code) && couponExceedsSubtotal(c), selected: isCouponSelected(c.code) }}
+                                  onPress={() => applyAvailableCoupon(c)}>
                                   <View style={styles.coupon}>
                                     <View style={{ flexDirection: 'row', alignItems: c.discountType === "FIXED" ? 'baseline' : 'center' }}>
                                       <Text style={styles.percent}>
@@ -1586,7 +1626,8 @@ export default function CartScreen() {
                                           ? renderCouponUsesLeft(c)
                                           : c.discountType === "FIXED"
                                             ? (() => {
-                                              const parts = formatFixedParts(convertFromPrimary(c.discount ?? 0, selectedCurrency));
+                                              // Fixed coupon values are already denominated in the selected currency.
+                                              const parts = formatFixedParts(Number(c.discountValue ?? convertFromPrimary(c.discount ?? 0, selectedCurrency)));
                                               return (
                                                 <>
                                                   {parts.main}
@@ -1622,7 +1663,7 @@ export default function CartScreen() {
 
                                   <View style={styles.couponBottom}>
                                     <Text style={styles.buttonText}>
-                                      {isCouponSelected(c.code) ? (t("used") ?? "Used") : (t("use") ?? "Use")}
+                                      {isCouponSelected(c.code) ? (t("used") ?? "Used") : couponExceedsSubtotal(c) ? t("couponUnavailable") : (t("use") ?? "Use")}
                                     </Text>
                                   </View>
                                 </Pressable>

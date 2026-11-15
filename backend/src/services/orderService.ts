@@ -360,6 +360,9 @@ const applyCoupon = async (
   const rawDiscount = coupon.discountType === "PERCENT"
     ? (eligibleSubtotal * coupon.discountValue) / 100
     : coupon.discountValue * (fixedCouponCurrency?.isPrimary ? 1 : Number(fixedCouponCurrency?.exchangeRate || 1));
+  if (!coupon.freeDelivery && coupon.discountType === "FIXED" && roundAmount(rawDiscount) > roundAmount(eligibleSubtotal)) {
+    throw { status: 400, message: "Coupon value exceeds the cart subtotal" };
+  }
   const maxTotal = eligibleSubtotal;
   const discount = coupon.freeDelivery ? deliveryFee : Math.max(0, Math.min(maxTotal, rawDiscount));
   return { coupon, discount, freeDelivery: coupon.freeDelivery };
@@ -377,16 +380,28 @@ const applyCoupons = async (
   if (!codes.length) return { coupons: [], discount: 0, deliveryDiscount: 0 };
   let freeDeliveryApplied = false;
   let discountTotal = 0;
+  let productDiscountTotal = 0;
   const coupons = [];
   for (const code of codes) {
     const result = await applyCoupon(userId, branchId, subtotal, deliveryFee, items, orderCurrencyId, code);
     if (!result.coupon) continue;
     let discount = result.discount;
+    if (!result.freeDelivery && result.coupon.discountType === "PERCENT") {
+      // Apply the coupon's eligible share to the remaining merchandise value.
+      const remaining = Math.max(0, subtotal - productDiscountTotal);
+      discount = subtotal > 0 ? roundAmount(discount * remaining / subtotal) : 0;
+    }
     if (result.freeDelivery) {
       if (freeDeliveryApplied) {
         discount = 0;
       } else {
         freeDeliveryApplied = true;
+      }
+    }
+    if (!result.freeDelivery) {
+      productDiscountTotal = roundAmount(productDiscountTotal + discount);
+      if (productDiscountTotal > roundAmount(subtotal)) {
+        throw { status: 400, message: "Combined coupon discounts exceed the cart subtotal" };
       }
     }
     discountTotal = roundAmount(discountTotal + discount);

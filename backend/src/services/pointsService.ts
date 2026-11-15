@@ -68,7 +68,7 @@ export const getPersonalCoupons = async (userId: Types.ObjectId, branchId: strin
   const coupons = await Coupon.find({
     branchId, assignedUsers: userId, isActive: true,
     $or: [{ expiresAt: null }, { expiresAt: { $gte: new Date() } }],
-  }).populate("currency").sort({ createdAt: -1 });
+  }).populate("currency").populate("assignedProducts", "name").sort({ createdAt: -1 });
   const uses = await CouponRedemption.aggregate<{ _id: Types.ObjectId; count: number }>([
     { $match: { user: userId, coupon: { $in: coupons.map(coupon => coupon._id) } } },
     { $group: { _id: "$coupon", count: { $sum: 1 } } },
@@ -81,5 +81,10 @@ export const getPersonalCoupons = async (userId: Types.ObjectId, branchId: strin
     const perUser = coupon.maxUsesPerUser ?? (coupon.maxUsesScope !== "GLOBAL" ? coupon.maxUses : undefined);
     const global = coupon.maxUsesGlobal ?? (coupon.maxUsesScope === "GLOBAL" ? coupon.maxUses : undefined);
     return (!perUser || count < perUser) && (!global || coupon.usedCount < global);
-  });
+  }).map(coupon => ({
+    ...coupon.toObject(),
+    userUsedCount: used.get(String(coupon._id)) || 0,
+    assignedProductName: (coupon.assignedProducts as unknown as { name?: string }[] | undefined)
+      ?.map(product => product.name).filter(Boolean).join(", ") || undefined,
+  }));
 };

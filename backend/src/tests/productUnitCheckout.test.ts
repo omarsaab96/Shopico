@@ -18,6 +18,8 @@ import { previewOrderItemRefund, refundOrderItem } from "../services/orderRefund
 import { Settings } from "../models/Settings";
 import { getRouteDistanceKm } from "../utils/routeDistance";
 import { randomUUID } from "crypto";
+import type { Request, Response } from "express";
+import { listAvailableCoupons, validateCoupon } from "../controllers/couponController";
 
 vi.mock("../utils/routeDistance", () => ({ getRouteDistanceKm: vi.fn(async () => 0) }));
 let mongo: MongoMemoryServer;
@@ -283,4 +285,94 @@ test("no available reward creates no personal coupon", async () => {
   await Settings.create({ branchId, rewardValue: 50 });
   await expect(redeemPointsCoupon(userId, branchId, "no-reward-coupon-request")).rejects.toMatchObject({ status: 409 });
   expect(await Coupon.countDocuments()).toBe(0);
+});
+
+
+test("fixed coupons larger than the subtotal are rejected without spending them", async () => {
+  await Settings.create({ branchId, rewardValue: 800 });
+  await RewardToken.create({ user: userId });
+  const coupon = await redeemPointsCoupon(userId, branchId, "oversize-coupon-request");
+  await expect(submit(inputs(), "WALLET", [coupon.code])).rejects.toMatchObject({ status: 400, message: "Coupon value exceeds the cart subtotal" });
+  expect(await Order.countDocuments()).toBe(0);
+  expect((await Coupon.findById(coupon._id).orFail()).usedCount).toBe(0);
+  expect(await getPersonalCoupons(userId, branchId)).toHaveLength(1);
+});
+
+test("a fixed coupon equal to the subtotal is allowed", async () => {
+  await Coupon.create({ branchId, code: "EXACT205", discountType: "FIXED", discountValue: 205, currency: currencyId });
+  expect(await submit(inputs(), "CASH_ON_DELIVERY", ["EXACT205"])).toMatchObject({ subtotal: 205, total: 0, couponDiscount: 205 });
+});
+
+test("combined fixed coupons cannot exceed the merchandise subtotal", async () => {
+  await Settings.create({ branchId, allowMultipleCoupons: true });
+  await Coupon.create([
+    { branchId, code: "FIX150", discountType: "FIXED", discountValue: 150, currency: currencyId },
+    { branchId, code: "FIX100", discountType: "FIXED", discountValue: 100, currency: currencyId },
+    { branchId, code: "PERCENT60A", discountType: "PERCENT", discountValue: 60 },
+    { branchId, code: "PERCENT60B", discountType: "PERCENT", discountValue: 60 },
+  ]);
+  for (const codes of [["FIX150", "FIX100"], ["PERCENT60A", "FIX150"]]) {
+    await expect(submit(inputs(), "CASH_ON_DELIVERY", codes)).rejects.toMatchObject({ status: 400, message: "Combined coupon discounts exceed the cart subtotal" });
+  }
+  expect(await Order.countDocuments()).toBe(0);
+});
+
+test("free delivery is separate from the merchandise discount limit", async () => {
+  vi.mocked(getRouteDistanceKm).mockResolvedValue(2);
+  await Settings.create({ branchId, allowMultipleCoupons: true, deliveryFreeKm: 0, deliveryRatePerKm: 500 });
+  await Coupon.create([
+    { branchId, code: "FULL205", discountType: "FIXED", discountValue: 205, currency: currencyId },
+    { branchId, code: "FREEDELIVERY", discountType: "FIXED", discountValue: 800, freeDelivery: true },
+  ]);
+  const order = await submit(inputs(), "CASH_ON_DELIVERY", ["FULL205", "FREEDELIVERY"]);
+  expect(order).toMatchObject({ subtotal: 205, deliveryFee: 1000, total: 0, discount: 1205, deliveryDiscount: 1000 });
+});
+
+test("fixed coupon eligibility uses converted primary currency values", async () => {
+  const foreign = await Currency.create({ branchId, symbol: { en: "USD" }, exchangeRate: 10, isActive: true });
+  await Coupon.create({ branchId, code: "FOREIGN21", discountType: "FIXED", discountValue: 21, currency: foreign._id });
+  await expect(createOrder(userId, branchId, { address: "Test", lat: 0, lng: 0, paymentMethod: "CASH_ON_DELIVERY", currencyId: String(foreign._id), items: inputs(), couponCodes: ["FOREIGN21"] })).rejects.toMatchObject({ status: 400 });
+});
+
+
+test("coupon previews mark oversize fixed values disabled and reject applying their codes", async () => {
+  await Coupon.create({ branchId, code: "PREVIEW800", discountType: "FIXED", discountValue: 800, currency: currencyId });
+  const req = { branchId, user: { _id: userId, membershipLevel: "None" }, body: { code: "PREVIEW800", items: inputs(), subtotal: 205, deliveryFee: 0, currencyId: String(currencyId) } } as unknown as Request;
+  const res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() };
+  const next = vi.fn();
+  await listAvailableCoupons(req, res as unknown as Response, next);
+  expect(next).not.toHaveBeenCalled();
+  expect(res.json.mock.calls[0][0].data).toEqual(expect.arrayContaining([expect.objectContaining({ code: "PREVIEW800", discountValue: 800, discount: 800, disabled: true })]));
+  await validateCoupon(req, res as unknown as Response, next);
+  expect(res.status).toHaveBeenCalledWith(400);
+});
+
+
+test("two ten-percent coupons compound: 1000 becomes 810", async () => {
+  await Settings.create({ branchId, allowMultipleCoupons: true });
+  await Product.updateOne({ _id: piece._id }, { price: 500 });
+  await Coupon.create([
+    { branchId, code: "TENFIRST", discountType: "PERCENT", discountValue: 10 },
+    { branchId, code: "TENSECOND", discountType: "PERCENT", discountValue: 10 },
+  ]);
+  const order = await submit([{ productId: String(piece._id), unit: "piece", quantity: 2 }], "CASH_ON_DELIVERY", ["TENFIRST", "TENSECOND"]);
+  expect(order).toMatchObject({ subtotal: 1000, couponDiscount: 190, total: 810 });
+});
+
+test("large percentages compound instead of exceeding the subtotal", async () => {
+  await Settings.create({ branchId, allowMultipleCoupons: true });
+  await Coupon.create([
+    { branchId, code: "SIXTYFIRST", discountType: "PERCENT", discountValue: 60 },
+    { branchId, code: "SIXTYSECOND", discountType: "PERCENT", discountValue: 60 },
+  ]);
+  expect(await submit(inputs(), "CASH_ON_DELIVERY", ["SIXTYFIRST", "SIXTYSECOND"])).toMatchObject({ subtotal: 205, couponDiscount: 172.2, total: 32.8 });
+});
+
+test("percentage after a fixed coupon applies to the remaining subtotal", async () => {
+  await Settings.create({ branchId, allowMultipleCoupons: true });
+  await Coupon.create([
+    { branchId, code: "FIXED150", discountType: "FIXED", discountValue: 150, currency: currencyId },
+    { branchId, code: "LAST60", discountType: "PERCENT", discountValue: 60 },
+  ]);
+  expect(await submit(inputs(), "CASH_ON_DELIVERY", ["FIXED150", "LAST60"])).toMatchObject({ subtotal: 205, couponDiscount: 183, total: 22 });
 });

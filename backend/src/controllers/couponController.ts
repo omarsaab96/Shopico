@@ -81,13 +81,14 @@ const computeCouponDiscount = (
   deliveryFee: number,
   couponCurrency?: { exchangeRate?: number; isPrimary?: boolean } | null
 ) => {
-  if (coupon.freeDelivery) return { discount: 0, freeDelivery: true };
+  if (coupon.freeDelivery) return { discount: 0, freeDelivery: true, exceedsSubtotal: false };
   const rawDiscount =
     coupon.discountType === "PERCENT"
       ? (eligibleSubtotal * coupon.discountValue) / 100
       : coupon.discountValue * (couponCurrency?.isPrimary ? 1 : Number(couponCurrency?.exchangeRate || 1));
-  const discount = roundAmount(Math.max(0, Math.min(eligibleSubtotal, rawDiscount)));
-  return { discount, freeDelivery: false };
+  const exceedsSubtotal = coupon.discountType === "FIXED" && roundAmount(rawDiscount) > roundAmount(eligibleSubtotal);
+  const discount = roundAmount(Math.max(0, coupon.discountType === "FIXED" ? rawDiscount : Math.min(eligibleSubtotal, rawDiscount)));
+  return { discount, freeDelivery: false, exceedsSubtotal };
 };
 
 const getCurrencyId = (currency?: any) => {
@@ -349,7 +350,7 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
 
     const currencyCheck = await validateCouponCurrency(req.branchId, coupon, currencyId);
     if (!currencyCheck.ok) continue;
-    const { discount, freeDelivery } = computeCouponDiscount(coupon, eligibleSubtotal, deliveryFee, currencyCheck.currency);
+    const { discount, freeDelivery, exceedsSubtotal } = computeCouponDiscount(coupon, eligibleSubtotal, deliveryFee, currencyCheck.currency);
     let assignedProductName: string | undefined;
     if (coupon.assignedProducts && coupon.assignedProducts.length > 0) {
       if (coupon.assignedProducts.length === 1) {
@@ -371,6 +372,8 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
       code: coupon.code,
       title: coupon.title,
       description: coupon.description,
+      disabled: exceedsSubtotal,
+      disabledReason: exceedsSubtotal ? "Coupon value exceeds the cart subtotal" : undefined,
       freeDelivery,
       discount,
       discountType: coupon.discountType,
@@ -450,6 +453,9 @@ export const validateCoupon = catchAsync(async (req: AuthRequest, res) => {
     return res.status(400).json({ success: false, message: currencyCheck.message });
   }
   const result = computeCouponDiscount(coupon, eligibleSubtotal, payload.deliveryFee || 0, currencyCheck.currency);
+  if (result.exceedsSubtotal) {
+    return res.status(400).json({ success: false, message: "Coupon value exceeds the cart subtotal" });
+  }
   sendSuccess(res, {
     code: coupon.code,
     discount: result.discount,

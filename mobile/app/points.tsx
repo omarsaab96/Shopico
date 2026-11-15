@@ -1,332 +1,226 @@
 import Feather from "@expo/vector-icons/Feather";
-import { DeviceEventEmitter } from "react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, TouchableOpacity, Alert, Animated, Easing, AccessibilityInfo } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, DeviceEventEmitter, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import Animated, { Keyframe, LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useFocusEffect, useRouter } from "expo-router";
+import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import Screen from "../components/Screen";
 import Text from "../components/Text";
+import PersonalCouponCard, { type PersonalCoupon } from "../components/PersonalCouponCard";
 import api from "../lib/api";
-import UserCouponsDrawer, { couponValue, type PersonalCoupon } from "../components/UserCouponsDrawer";
 import { useCurrency } from "../lib/currency";
 import { useCart } from "../lib/cart";
+import { roundAmount } from "../lib/productUnits";
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
-import AntDesign from "@expo/vector-icons/AntDesign";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
-import {
-  Canvas,
-  Path,
-  Skia,
-  SweepGradient,
-  vec,
-} from "@shopify/react-native-skia";
-
-const SIZE = 200;
-const STROKE = 16;
+const SIZE = 112;
+const STROKE = 8;
 const RADIUS = (SIZE - STROKE) / 2;
 const CENTER = SIZE / 2;
+const couponJump = new Keyframe({
+  0: { opacity: 0, transform: [{ translateY: -110 }, { scale: 0.7 }] },
+  55: { opacity: 1, transform: [{ translateY: 9 }, { scale: 1.03 }] },
+  80: { opacity: 1, transform: [{ translateY: -4 }, { scale: 0.99 }] },
+  100: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }] },
+}).duration(650).reduceMotion(ReduceMotion.System);
 
 export default function PointsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { palette } = useTheme();
+  const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
-
   const { selectedCurrency, setSelectedCurrencyId } = useCurrency();
   const { items } = useCart();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [addedCoupon, setAddedCoupon] = useState<PersonalCoupon | null>(null);
-  const [couponCount, setCouponCount] = useState(0);
-  const [flight, setFlight] = useState<{ x: number; y: number; targetX: number; targetY: number } | null>(null);
-  const root = useRef<View>(null);
-  const couponTarget = useRef<View>(null);
-  const couponSource = useRef<View>(null);
-  const flightProgress = useRef(new Animated.Value(0)).current;
+  const scroll = useRef<ScrollView>(null);
   const redeemRequestId = useRef<string | null>(null);
+  const [coupons, setCoupons] = useState<PersonalCoupon[]>([]);
+  const [addedCouponId, setAddedCouponId] = useState<string | null>(null);
   const [rewardAvailable, setRewardAvailable] = useState(false);
   const [applyingReward, setApplyingReward] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [points, setPoints] = useState(0);
   const [threshold, setThreshold] = useState(100);
 
-  useFocusEffect(useCallback(() => {
-    let cancelled = false;
-    api.get("/points").then((res) => {
-      if (cancelled) return;
-      setRewardAvailable(Boolean(res.data.data.rewardAvailable));
-      setPoints(res.data.data.points || 0);
-      setThreshold(res.data.data.rewardThreshold || 100);
-    }).catch(() => { if (!cancelled) setRewardAvailable(false); });
-    api.get("/points/coupons").then(res => {
-      if (!cancelled) setCouponCount((res.data.data || []).length);
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, []));
-
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener("shopico:notification", () => {
-      void api.get("/points").then(res => { setRewardAvailable(Boolean(res.data.data.rewardAvailable)); setPoints(res.data.data.points || 0); setThreshold(res.data.data.rewardThreshold || 100); }).catch(() => {});
-    });
-    return () => sub.remove();
+  const load = useCallback(async (active: () => boolean = () => true) => {
+    try {
+      const [summary, saved] = await Promise.all([api.get("/points"), api.get("/points/coupons")]);
+      if (!active()) return;
+      setPoints(summary.data.data.points || 0);
+      setThreshold(Math.max(1, Number(summary.data.data.rewardThreshold) || 100));
+      setRewardAvailable(Boolean(summary.data.data.rewardAvailable));
+      setCoupons(saved.data.data || []);
+      setLoadFailed(false);
+    } catch {
+      if (active()) setLoadFailed(true);
+    } finally {
+      if (active()) setLoading(false);
+    }
   }, []);
 
-  const animateCoupon = async (coupon: PersonalCoupon) => {
-    const measure = (view: View | null) => new Promise<{ x: number; y: number; width: number; height: number }>(resolve => {
-      if (!view) return resolve({ x: 0, y: 0, width: 0, height: 0 });
-      view.measureInWindow((x, y, width, height) => resolve({ x, y, width, height }));
-    });
-    const [container, source, target] = await Promise.all([measure(root.current), measure(couponSource.current), measure(couponTarget.current)]);
-    flightProgress.setValue(0);
-    setAddedCoupon(coupon);
-    setFlight({ x: source.x - container.x + source.width / 2 - 100, y: source.y - container.y,
-      targetX: target.x - container.x + target.width / 2 - 100, targetY: target.y - container.y + target.height / 2 - 44 });
-    const reducedMotion = await AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
-    await new Promise<void>(resolve => Animated.timing(flightProgress, {
-      toValue: 1, duration: reducedMotion ? 0 : 850, easing: Easing.inOut(Easing.cubic), useNativeDriver: true,
-    }).start(() => resolve()));
-    setFlight(null);
-    setCouponCount(count => count + 1);
-    AccessibilityInfo.announceForAccessibility(t("couponAdded"));
-    setDrawerOpen(true);
-  };
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    void load(() => active);
+    return () => { active = false; };
+  }, [load]));
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("shopico:notification", () => { void load(); });
+    return () => sub.remove();
+  }, [load]);
 
-  const applyReward = async () => {
-    if (applyingReward) return;
+  const redeem = async () => {
+    if (applyingReward || !rewardAvailable) return;
     setApplyingReward(true);
     redeemRequestId.current ||= `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
     try {
       const res = await api.post("/points/redeem", { requestId: redeemRequestId.current, currencyId: selectedCurrency?._id });
+      const coupon: PersonalCoupon = res.data.data;
       redeemRequestId.current = null;
-      await animateCoupon(res.data.data);
-      void api.get("/points").then(response => setRewardAvailable(Boolean(response.data.data.rewardAvailable))).catch(() => {});
+      const reducedMotion = await AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
+      scroll.current?.scrollTo({ y: 0, animated: !reducedMotion });
+      setAddedCouponId(coupon._id);
+      setCoupons(current => [coupon, ...current.filter(item => item._id !== coupon._id)]);
+      AccessibilityInfo.announceForAccessibility(t("couponAdded"));
+      // Keep the receipt visible even if the subsequent balance refresh fails.
+      try {
+        const summary = await api.get("/points");
+        setPoints(summary.data.data.points || 0);
+        setThreshold(Math.max(1, Number(summary.data.data.rewardThreshold) || 100));
+        setRewardAvailable(Boolean(summary.data.data.rewardAvailable));
+      } catch { setRewardAvailable(false); }
     } catch (error: any) {
-      Alert.alert(t("usePoints"), error?.response?.data?.message || t("rewardApplyFailed"));
+      Alert.alert(t("redeemPoints"), error?.response?.data?.message || t("rewardApplyFailed"));
     } finally {
       setApplyingReward(false);
     }
   };
 
-
-  const progress = Math.min(1, points / threshold);
-  const remaining = Math.max(0, threshold - points);
-
-  const styles = useMemo(() => createStyles(palette, isRTL, insets), [palette, isRTL]);
-
-  // Arc path (starts from TOP)
-  const arcPath = useMemo(() => {
+  const progress = rewardAvailable ? 1 : (points % threshold) / threshold;
+  const remaining = rewardAvailable ? 0 : threshold - (points % threshold);
+  const arc = useMemo(() => {
     const path = Skia.Path.Make();
-    path.addArc(
-      {
-        x: STROKE / 2,
-        y: STROKE / 2,
-        width: SIZE - STROKE,
-        height: SIZE - STROKE,
-      },
-      -90, // start at top
-      progress * 360
-    );
+    path.addArc({ x: STROKE / 2, y: STROKE / 2, width: SIZE - STROKE, height: SIZE - STROKE }, -90, progress * 360);
     return path;
   }, [progress]);
+  const cardBg = isDark ? palette.card : "#fff7ed";
+  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
+
+  const cartSubtotal = roundAmount(items.reduce((sum, item) => item.unavailable ? sum : sum + item.price * item.quantity, 0));
+  const couponTooLarge = (coupon: PersonalCoupon) => {
+    if (coupon.freeDelivery || coupon.discountType !== "FIXED") return false;
+    const rate = Number(coupon.currency?.exchangeRate || 1);
+    return roundAmount(coupon.discountValue * (rate > 0 ? rate : 1)) > cartSubtotal;
+  };
+  const orderedCoupons = [...coupons].sort((a, b) => Number(couponTooLarge(a)) - Number(couponTooLarge(b)));
+  const useCoupon = (coupon: PersonalCoupon) => {
+    if (couponTooLarge(coupon)) return;
+    if (coupon.currency?._id) setSelectedCurrencyId(coupon.currency._id);
+    if (items.some(item => !item.unavailable)) {
+      router.push({ pathname: "/(tabs)/cart", params: { checkout: "coupon", couponCode: coupon.code } });
+    } else router.push("/(tabs)/cart");
+  };
 
   return (
     <Screen>
-      <View ref={root} style={{ flex: 1 }} collapsable={false}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} accessibilityRole="button"
-          accessibilityLabel={isRTL ? "\u0631\u062c\u0648\u0639" : "Back"}
-          onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/profile")} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.backButton} accessibilityRole="button" accessibilityLabel={isRTL ? "رجوع" : "Back"}
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/profile")}>
           <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
         </TouchableOpacity>
-        <Text weight="bold" style={styles.title}>{t("pointsBalance") ?? "Points balance"}</Text>
-        <View ref={couponTarget} collapsable={false}>
-          <TouchableOpacity onPress={() => setDrawerOpen(true)} style={styles.backButton} accessibilityRole="button" accessibilityLabel={`${t("myCoupons")} (${couponCount})`}>
-            <Feather name="archive" size={21} color={palette.text} />
-            {couponCount > 0 && <View style={styles.couponBadge}><Text style={{ color: "#fff", fontSize: 10 }}>{couponCount}</Text></View>}
+        <Text weight="black" style={styles.title}>{t("pointsBalance")}</Text>
+      </View>
+
+      <ScrollView ref={scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} tintColor={palette.accent} onRefresh={async () => {
+          setRefreshing(true); await load(); setRefreshing(false);
+        }} />}>
+
+        <View style={[styles.card, { backgroundColor: cardBg }]}>
+          <View pointerEvents="none" style={[styles.glowA, { backgroundColor: palette.accent }]} />
+          <View pointerEvents="none" style={[styles.glowB, { backgroundColor: palette.accent }]} />
+          <View style={styles.balanceRow}>
+            <View style={{ flex: 1, gap: 6 }}>
+              <View style={styles.labelRow}>
+                {/* <Feather name="award" size={17} color={palette.accent} />
+                <Text weight="bold" style={styles.label}>{t("pointsEarned")}</Text> */}
+                <MaterialCommunityIcons name="star-four-points-circle" size={26} color={palette.accentSoft} />
+                <Text weight="black" style={styles.balance} numberOfLines={1} adjustsFontSizeToFit>{points.toLocaleString()}</Text>
+              </View>
+              <Text style={styles.remaining}>
+                <Text weight="black" style={{ color: palette.accent }}>{remaining.toLocaleString()} </Text>
+                {t("pointsLeft")}
+              </Text>
+            </View>
+            <View style={styles.ring} accessibilityRole="progressbar" accessibilityLabel={t("pointsBalance")}
+              accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}>
+              <Canvas style={{ width: SIZE, height: SIZE }}>
+                <Path path={Skia.Path.Make().addCircle(CENTER, CENTER, RADIUS)} color={isDark ? palette.surface : "#ffdfc3"} style="stroke" strokeWidth={STROKE} />
+                <Path path={arc} color={palette.accent} style="stroke" strokeWidth={STROKE} strokeCap="round" />
+              </Canvas>
+              <View pointerEvents="none" style={styles.ringCenter}>
+                <Feather name={rewardAvailable ? "gift" : "award"} size={22} color={palette.accent} />
+                <Text weight="black" style={{ color: palette.text, fontSize: 18 }}>{Math.round(progress * 100)}%</Text>
+              </View>
+            </View>
+          </View>
+          {/* {rewardAvailable && <Text weight="bold" style={styles.ready}>{t("redeemAvailable")}</Text>} */}
+          <TouchableOpacity onPress={redeem} disabled={loading || applyingReward || !rewardAvailable}
+            style={[styles.redeem, (loading || applyingReward || !rewardAvailable) && { opacity: 0.5 }]} accessibilityRole="button">
+            {applyingReward ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="gift" size={18} color="#fff" />}
+            <Text weight="bold" style={{ color: "#fff", fontSize: 15 }}>{t("redeemPoints")}</Text>
           </TouchableOpacity>
         </View>
-      </View>
 
-      <View style={styles.card}>
-        {/* RING */}
-        <View style={styles.ringWrap}>
-          <Canvas style={{ width: SIZE, height: SIZE }}>
-            {/* Track */}
-            <Path
-              path={Skia.Path.Make().addCircle(CENTER, CENTER, RADIUS)}
-              color="#ffe7d2"
-              style="stroke"
-              strokeWidth={STROKE}
-            />
-
-            {/* Progress */}
-            <Path
-              path={arcPath}
-              style="stroke"
-              strokeWidth={STROKE}
-              strokeCap="round"
-            >
-              <SweepGradient
-                c={vec(CENTER, CENTER)}
-                colors={["#f97316", "#fb923c"]}
-              />
-            </Path>
-          </Canvas>
-
-          {/* Center */}
-          <View style={styles.center}>
-            <Text weight="black" style={styles.points}>{points}</Text>
-            <Text weight="bold" style={styles.pointsLabel}>{t("rewards") ?? "Points"}</Text>
-          </View>
+        <View style={styles.sectionHeader}>
+          <Text weight="black" style={styles.sectionTitle}>{t("myCoupons")}</Text>
+          <View style={styles.count}><Text weight="bold" style={{ color: palette.accent, fontSize: 12 }}>{coupons.length}</Text></View>
         </View>
-
-        {/* Gift */}
-        <View ref={couponSource} collapsable={false} style={styles.giftWrap}>
-          <View style={styles.giftIcon}>
-            <AntDesign name="gift" size={36} color="#f97316" />
+        {loading ? <ActivityIndicator color={palette.accent} /> : loadFailed ? (
+          <TouchableOpacity onPress={() => void load()} style={styles.empty} accessibilityRole="button">
+            <Text style={styles.emptyText}>{t("couponsRefreshFailed")}</Text>
+          </TouchableOpacity>
+        ) : coupons.length === 0 ? (
+          <View style={styles.empty}>
+            <Feather name="gift" size={28} color={palette.accent} />
+            <Text style={styles.emptyText}>{t("noSavedCoupons")}</Text>
           </View>
-          <Text weight="bold" style={styles.remaining}>
-            {remaining.toLocaleString()}{" "}
-            {t("pointsLeft") ?? "points left to unlock a reward"}
-          </Text>
-        </View>
-
-        {/* CTA */}
-        <TouchableOpacity
-          style={[styles.cta, (!rewardAvailable || applyingReward) && { opacity: 0.5 }]}
-          onPress={applyReward}
-          disabled={!rewardAvailable || applyingReward}
-          accessibilityRole="button"
-        >
-          <Text weight="bold" style={styles.ctaText}>
-            {t("usePoints") ?? "Use points reward"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      {flight && addedCoupon && (
-        <Animated.View pointerEvents="none" style={[styles.flyingCoupon, {
-          backgroundColor: palette.card, borderColor: palette.accent,
-          opacity: flightProgress.interpolate({ inputRange: [0, 0.12, 0.85, 1], outputRange: [0, 1, 1, 0] }),
-          transform: [
-            { translateX: flightProgress.interpolate({ inputRange: [0, 1], outputRange: [flight.x, flight.targetX] }) },
-            { translateY: flightProgress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [flight.y, flight.y - 45, flight.targetY] }) },
-            { scale: flightProgress.interpolate({ inputRange: [0, 0.25, 1], outputRange: [0.85, 1.05, 0.22] }) },
-          ],
-        }]}>
-          <Feather name="gift" size={22} color={palette.accent} />
-          <Text weight="black" style={{ color: palette.text, fontSize: 20 }}>{couponValue(addedCoupon, isRTL)}</Text>
-          <Text style={{ color: palette.muted, fontSize: 12 }}>{t("pointsRewardDiscount")}</Text>
-        </Animated.View>
-      )}
-      <UserCouponsDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} addedCoupon={addedCoupon}
-        onSelect={coupon => {
-          if (coupon.currency?._id) setSelectedCurrencyId(coupon.currency._id);
-          setDrawerOpen(false);
-          if (items.some(item => !item.unavailable)) {
-            router.push({ pathname: "/(tabs)/cart", params: { checkout: "coupon", couponCode: coupon.code } });
-          } else {
-            router.push("/(tabs)/cart");
-          }
-        }} />
-      </View>
+        ) : null}
+        {orderedCoupons.map(coupon => (
+          <Animated.View key={coupon._id} entering={coupon._id === addedCouponId ? couponJump : undefined}
+            layout={LinearTransition.duration(280).reduceMotion(ReduceMotion.System)}>
+            <PersonalCouponCard coupon={coupon} disabled={couponTooLarge(coupon)} isNew={coupon._id === addedCouponId} onUse={() => useCoupon(coupon)} />
+          </Animated.View>
+        ))}
+      </ScrollView>
     </Screen>
   );
 }
 
-/* ================= STYLES ================= */
-
-const createStyles = (palette: any, isRTL: boolean, insets: any) =>
-  StyleSheet.create({
-    flyingCoupon: { position: "absolute", left: 0, top: 0, width: 200, height: 88, borderRadius: 16, borderWidth: 1,
-      borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 3, zIndex: 20, elevation: 10 },
-    couponBadge: { position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9,
-      backgroundColor: palette.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-    header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
-    backButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border },
-    title: {
-      flex: 1,
-      fontSize: 22,
-      color: palette.text,
-      textAlign: isRTL ? "right" : "left",
-    },
-
-    card: {
-      borderRadius: 26,
-      padding: 20,
-      alignItems: "center",
-      flex: 1,
-      marginBottom: insets.bottom,
-      justifyContent:'space-between'
-    },
-
-    ringWrap: {
-      width: SIZE,
-      height: SIZE,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    center: {
-      position: "absolute",
-      width: SIZE - STROKE * 2,
-      height: SIZE - STROKE * 2,
-      borderRadius: (SIZE - STROKE * 2) / 2,
-      backgroundColor: palette.card,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    points: {
-      fontSize: 36,
-      color: palette.text,
-    },
-
-    pointsLabel: {
-      fontSize: 14,
-      color: palette.muted,
-    },
-
-    giftWrap: {
-      alignItems: "center",
-      gap: 10,
-      marginTop: 14,
-    },
-
-    giftIcon: {
-      width: 80,
-      height: 80,
-      borderRadius: 20,
-      backgroundColor: "#fff3e8",
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: "#000",
-      shadowOpacity: 0.06,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: 2,
-    },
-
-    remaining: {
-      fontSize: 14,
-      textAlign: "center",
-      color: palette.text,
-    },
-
-    cta: {
-      marginTop: 16,
-      width: "100%",
-      paddingVertical: 14,
-      borderRadius: 18,
-      backgroundColor: "#f97316",
-      alignItems: "center",
-      shadowColor: "#f97316",
-      shadowOpacity: 0.3,
-      shadowRadius: 20,
-      shadowOffset: { width: 0, height: 10 },
-      elevation: 3,
-    },
-
-    ctaText: {
-      color: "#fff",
-      fontSize: 15,
-    },
-  });
+const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => StyleSheet.create({
+  header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
+  backButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border },
+  title: { flex: 1, fontSize: 22, color: palette.text, textAlign: isRTL ? "right" : "left" },
+  content: { paddingBottom: 32, gap: 14 },
+  card: {
+    borderRadius: 20, padding: 20, borderWidth: 1, borderColor: isDark ? palette.border : "rgba(15,23,42,0.08)", overflow: "hidden",
+    shadowColor: "#000", shadowOpacity: isDark ? 0.18 : 0.06, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 2
+  },
+  glowA: { position: "absolute", width: 140, height: 110, borderRadius: 999, opacity: isDark ? 0.08 : 0.14, top: -55, start: -55 },
+  glowB: { position: "absolute", width: 140, height: 140, borderRadius: 999, opacity: isDark ? 0.06 : 0.12, bottom: -80, end: -70 },
+  balanceRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  labelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  label: { color: palette.text, fontSize: 14 },
+  balance: { color: palette.text, fontSize: 38, lineHeight: 50 },
+  remaining: { color: palette.muted, fontSize: 12, lineHeight: 20 },
+  ring: { width: SIZE, height: SIZE, alignItems: "center", justifyContent: "center" },
+  ringCenter: { position: "absolute", alignItems: "center", justifyContent: "center", gap: 4 },
+  ready: { color: palette.accent, fontSize: 12, marginTop: 12 },
+  redeem: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, backgroundColor: palette.accent, paddingVertical: 13, borderRadius: 13, marginTop: 18 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 2 },
+  sectionTitle: { color: palette.text, fontSize: 20 },
+  count: { backgroundColor: isDark ? palette.surface : "#fff0e3", borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4 },
+  empty: { padding: 24, borderWidth: 1, borderStyle: "dashed", borderColor: palette.border, borderRadius: 18, gap: 12, alignItems: "center" },
+  emptyText: { color: palette.muted, textAlign: "center", fontSize: 13 },
+});

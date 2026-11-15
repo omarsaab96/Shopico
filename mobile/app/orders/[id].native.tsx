@@ -287,6 +287,9 @@ export default function OrderDetail() {
   if (!order) return null;
   const orderCurrency = typeof order.currency === "object" ? order.currency : undefined;
   const orderItems = Array.isArray(order.items) ? order.items : [];
+  const totalDiscount = Math.max(0, Number(order.discount || 0));
+  const deliveryDiscount = Math.min(totalDiscount, Math.max(0, Number(order.deliveryDiscount || 0)));
+  const productDiscount = Math.max(0, totalDiscount - deliveryDiscount);
   const orderNumber = String(order._id || orderId || "").slice(-6);
   const orderStatus = String(order.status || "");
   const orderAddress = order.address || "-";
@@ -637,6 +640,18 @@ export default function OrderDetail() {
                 <Text style={styles.label}>{t('deliveryFee')}</Text>
                 <Money style={styles.value} amount={order.deliveryFee || 0} currency={orderCurrency} />
               </View>
+              {productDiscount > 0 && (
+                <View style={styles.row}>
+                  <Text style={styles.label}>{t("discount")}</Text>
+                  <Money style={[styles.value, { color: palette.accent }]} amount={productDiscount} currency={orderCurrency} negative />
+                </View>
+              )}
+              {deliveryDiscount > 0 && (
+                <View style={styles.row}>
+                  <Text style={styles.label}>{t("deliveryFeeDiscount")}</Text>
+                  <Money style={[styles.value, { color: palette.accent }]} amount={deliveryDiscount} currency={orderCurrency} negative />
+                </View>
+              )}
               <View style={styles.heroTotal}>
                 <Text style={styles.totalText}>{t('total')}</Text>
                 <Money style={styles.totalText} amount={order.total || 0} currency={orderCurrency} />

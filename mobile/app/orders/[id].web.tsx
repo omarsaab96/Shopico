@@ -51,6 +51,9 @@ export default function OrderDetailWeb() {
   if (!order) return null;
   const orderCurrency = typeof order.currency === "object" ? order.currency : undefined;
   const orderItems = Array.isArray(order.items) ? order.items : [];
+  const totalDiscount = Math.max(0, Number(order.discount || 0));
+  const deliveryDiscount = Math.min(totalDiscount, Math.max(0, Number(order.deliveryDiscount || 0)));
+  const productDiscount = Math.max(0, totalDiscount - deliveryDiscount);
   const orderNumber = String(order._id || orderId || "").slice(-6);
   const orderStatus = String(order.status || "");
   const orderAddress = order.address || "-";
@@ -95,6 +98,22 @@ export default function OrderDetailWeb() {
           ))}
         </View>
         <View style={styles.card}>
+          <View style={styles.itemRow}>
+            <Text style={styles.sectionLabel}>{t("subtotal")}</Text>
+            <Text style={styles.sectionValue}>{formatMoney(order.subtotal || 0, orderCurrency)}</Text>
+          </View>
+          <View style={styles.itemRow}>
+            <Text style={styles.sectionLabel}>{t("deliveryFee")}</Text>
+            <Text style={styles.sectionValue}>{formatMoney(order.deliveryFee || 0, orderCurrency)}</Text>
+          </View>
+          {productDiscount > 0 && <View style={styles.itemRow}>
+            <Text style={styles.sectionLabel}>{t("discount")}</Text>
+            <Text style={[styles.sectionValue, { color: palette.accent }]}>−{formatMoney(productDiscount, orderCurrency)}</Text>
+          </View>}
+          {deliveryDiscount > 0 && <View style={styles.itemRow}>
+            <Text style={styles.sectionLabel}>{t("deliveryFeeDiscount")}</Text>
+            <Text style={[styles.sectionValue, { color: palette.accent }]}>−{formatMoney(deliveryDiscount, orderCurrency)}</Text>
+          </View>}
           <Text style={styles.sectionTitle}>{t("total") ?? "Total"}</Text>
           <Text style={styles.sectionValue}>{formatMoney(order.total || 0, orderCurrency)}</Text>
         </View>
