@@ -139,7 +139,7 @@ export default function CategoryDetail() {
 
     return (
       <View style={{}}>
-        <View style={{flexDirection:'row',gap:10,alignItems:'center',marginBottom:12}}>
+        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 12 }}>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={tr("Back", "رجوع")}
@@ -250,6 +250,14 @@ export default function CategoryDetail() {
             activeOpacity={0.8}
             onPress={() => router.push(`/products/${item._id}`)}
           >
+            {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
+              <View style={styles.promoRow}>
+                <Text style={styles.promoBadge}>
+                  {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
+                </Text>
+              </View>
+            ) : null}
+
             <View
               style={[
                 styles.prodImgBox,
@@ -290,32 +298,27 @@ export default function CategoryDetail() {
               )}
             </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{ marginBottom:isRTL?5:0 }}>
               <View style={[styles.priceRow]}>
                 <Text style={[styles.productPrice, item.isPromoted && { color: palette.accent }]}>
                   {formatMoney(effectivePrice * quantityStep(item), selectedCurrency)}
                 </Text>
-
                 {item.isPromoted && item.promoPrice !== undefined &&
                   <Text style={styles.productOldPrice} numberOfLines={1}>
                     {formatMoney(item.price * quantityStep(item), selectedCurrency)}
                   </Text>}
               </View>
 
-              {priceBasis(item, isRTL) &&
-                <Text style={{ borderWidth: 1, borderColor: isDark ? palette.border : "rgba(15, 23, 42, 0.08)", paddingHorizontal: 4, borderRadius: 5, fontSize: 10 }}>
-                  {priceBasis(item, isRTL)}
-                </Text>
-              }
+              <View style={[styles.priceRow]}>
+                {priceBasis(item, isRTL) &&
+                  <Text style={{ borderWidth: 1, borderColor: isDark ? palette.border : "rgba(15, 23, 42, 0.08)", paddingHorizontal: 4, borderRadius: 5, fontSize: 10 }}>
+                    {priceBasis(item, isRTL)}
+                  </Text>
+                }
+              </View>
             </View>
 
-            {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
-              <View style={styles.promoRow}>
-                <Text style={styles.promoBadge}>
-                  {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
-                </Text>
-              </View>
-            ) : null}
+
 
             <Text style={styles.productName} numberOfLines={2}>
               {item.name}
@@ -396,7 +399,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
 
     searchWrap: {
-      flex:1,
+      flex: 1,
       position: "relative",
       height: 48,
       borderRadius: 999,
@@ -499,7 +502,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     priceRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 5,
+      gap: 10,
     },
     productPrice: {
       color: isDark ? "#fff" : "#000",
@@ -517,8 +520,11 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     promoRow: {
       flexDirection: row,
       justifyContent: "flex-start",
-      position: "relative",
-      marginTop: 4,
+      position: "absolute",
+      // marginTop: 4,
+      zIndex:1,
+      elevation:1,
+
     },
     promoBadge: {
       backgroundColor: palette.accent,
@@ -527,13 +533,16 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontWeight: "800",
       paddingHorizontal: 8,
       paddingVertical: 2,
-      borderRadius: 15,
+      borderTopLeftRadius: isRTL?0:15,
+      borderTopRightRadius: isRTL?15:0,
+      borderBottomLeftRadius: isRTL?15:0,
+      borderBottomRightRadius: isRTL?0:15
     },
     productName: {
       color: palette.text,
       fontWeight: isRTL ? "500" : "900",
       marginBottom: isRTL ? 0 : 4,
-      textAlign: "left",
+      // textAlign: "left",
     },
     addBtn: {
       backgroundColor: isDark ? "#444" : "#fff",
