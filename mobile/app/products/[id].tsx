@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
 import QuantityControl from "../../components/QuantityControl";
 import Text from "../../components/Text";
+import Money from "../../components/Money";
 import { formatQuantity, priceBasis, quantityStep, roundAmount } from "../../lib/productUnits";
 import api from "../../lib/api";
 import { useCart } from "../../lib/cart";
@@ -128,7 +129,7 @@ export default function ProductDetail() {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               {measured &&
-                <Text style={{ borderWidth: 1, borderColor: "rgba(15, 23, 42, 0.08)", paddingHorizontal: 4, borderRadius: 5, fontSize: 14 }}>
+                <Text style={{ borderWidth: 1, borderColor: "rgba(15, 23, 42, 0.08)", paddingHorizontal: 4, borderRadius: 5, fontSize: 14, lineHeight:18 }}>
                   {priceBasis(product, isRTL)}
                 </Text>
               }
@@ -146,14 +147,10 @@ export default function ProductDetail() {
                 </View>
               }
 
-              <Text style={styles.price}>
-                {formatMoney(price * quantityStep(product), selectedCurrency)}
-              </Text>
+              <Money style={styles.price} amount={price * quantityStep(product)} currency={selectedCurrency} />
 
               {discounted &&
-                <Text style={styles.oldPrice}>
-                  {formatMoney(originalPrice * quantityStep(product), selectedCurrency)}
-                </Text>
+                <Money style={styles.oldPrice} amount={originalPrice * quantityStep(product)} currency={selectedCurrency} />
               }
             </View>
           </View>
@@ -245,6 +242,7 @@ export default function ProductDetail() {
                   onChange={changeQuantity}
                   onValidationChange={setQuantityValid}
                   allowRemove={Boolean(existing)}
+                  inspans
                 />
               </View>
               <View style={styles.totalBlock}>
@@ -254,7 +252,7 @@ export default function ProductDetail() {
                 </Text> */}
 
                 <Text numberOfLines={1} adjustsFontSizeToFit style={styles.total}>
-                  = {formatMoney(total, selectedCurrency)}
+                  = <Money style={styles.total} amount={total} currency={selectedCurrency} />
                 </Text>
               </View>
             </View>
@@ -298,7 +296,7 @@ const createStyles = (p: any, rtl: boolean) => StyleSheet.create({
   thumbnails: { gap: 10, flexDirection: "row", paddingHorizontal: 2 },
   thumbnail: { width: 58, height: 58, borderRadius: 14, borderWidth: 1, borderColor: p.border, backgroundColor: p.card, padding: 5 },
   thumbnailSelected: { borderColor: p.accent, borderWidth: 2 }, thumbnailImage: { width: "100%", height: "100%" },
-  summary: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 40 },
+  summary: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 60 },
   availability: { flexDirection: "row", alignItems: "center", gap: 6 }, statusDot: { width: 6, height: 6, borderRadius: 3 }, availabilityText: { fontSize: 11, fontWeight: "700" },
   name: { color: p.text, fontSize: 25, lineHeight: 30, fontWeight: "800", textAlign: rtl ? "right" : "left", marginBottom: 5 },
   categories: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
@@ -318,7 +316,7 @@ const createStyles = (p: any, rtl: boolean) => StyleSheet.create({
   presets: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   preset: { flex: 1, alignItems: "center", paddingVertical: 5, borderWidth: 1, borderColor: p.border, borderRadius: 15, backgroundColor: p.card },
   presetSelected: { backgroundColor: "#FFF1E6", borderColor: p.accent },
-  presetText: { color: p.muted, fontSize: 12, fontWeight: "600" },
+  presetText: { color: p.muted, fontSize: 12, fontWeight: "600", },
   quantityBox: { flexDirection: "row", alignItems: 'center', gap: 10, alignSelf: "flex-start", minHeight: 38 },
   description: { color: p.muted, fontSize: 14, lineHeight: 24, textAlign: rtl ? "right" : "left" },
   totalBlock: { gap: 10, flexDirection: 'row', alignItems: 'center' },

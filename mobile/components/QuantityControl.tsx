@@ -9,7 +9,7 @@ import { quantityStep, quantityDisplayScale, formatQuantity, unitLabel, UnitProd
 import { useTheme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 
-export default function QuantityControl({ quantity, product, onChange, onValidationChange, allowRemove = true, compact = false, pill = false, fullwidth = false, incart = false }: { quantity: number; product: UnitProduct; onChange: (quantity: number) => void; onValidationChange?: (valid: boolean) => void; allowRemove?: boolean; compact?: boolean; pill?: boolean; fullwidth?: boolean; incart?: boolean }) {
+export default function QuantityControl({ quantity, product, onChange, onValidationChange, allowRemove = true, compact = false, pill = false, fullwidth = false, incart = false, inspans = false }: { quantity: number; product: UnitProduct; onChange: (quantity: number) => void; onValidationChange?: (valid: boolean) => void; allowRemove?: boolean; compact?: boolean; pill?: boolean; fullwidth?: boolean; incart?: boolean, inspans?: boolean }) {
   const { palette } = useTheme();
   const { isRTL } = useI18n();
   const [editing, setEditing] = useState(false);
@@ -117,7 +117,7 @@ export default function QuantityControl({ quantity, product, onChange, onValidat
               textAlign: "center",
               textAlignVertical: "center",
               height: pill ? 22 : 32,
-              lineHeight: 22,
+              lineHeight: 18,
               includeFontPadding: false,
               fontFamily: resolveFont(isRTL, "black"),
               fontSize: 16,
@@ -149,14 +149,14 @@ export default function QuantityControl({ quantity, product, onChange, onValidat
                 alignItems: "center",
                 justifyContent: "center"
               }}>
-              <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none" }}>
-                {formatQuantity(quantity, product, isRTL)}
+              <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight:18 }}>
+                {formatQuantity(quantity, product, isRTL, inspans)}
               </Text>
             </TouchableOpacity>
           )}
 
         {editing && !!unitLabel(product, isRTL) &&
-          <Text weight="black" style={{ color: palette.text, fontSize: 16 }}>
+          <Text weight="black" style={{ color: palette.text, fontSize: 16,lineHeight:18 }}>
             {unitLabel(product, isRTL, scale === 1000)}
           </Text>
         }

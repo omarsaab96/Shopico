@@ -6,6 +6,7 @@ import { useNotifications } from "../lib/notifications";
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import Money from "../components/Money";
 import {
   FlatList,
   View,
@@ -1471,6 +1472,12 @@ export default function Home() {
                               style={styles.productPressable}
                               activeOpacity={0.8}
                             >
+                              {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
+                                <Text style={styles.promoBadge}>
+                                  {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
+                                </Text>
+                              ) : null}
+
                               <View style={[
                                 styles.prodImgBox,
                                 !item.images?.[0]?.url && {
@@ -1559,32 +1566,24 @@ export default function Home() {
                               </View>
 
                               <View style={styles.priceRow}>
-                                <Text style={[styles.productPrice, item.isPromoted && { color: palette.accent }]}>
-                                  {formatMoney((item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price) * quantityStep(item), selectedCurrency)}
-                                </Text>
+                                <Money style={[styles.productPrice, item.isPromoted && { color: palette.accent }]} amount={(item.isPromoted && item.promoPrice !== undefined ? item.promoPrice : item.price) * quantityStep(item)} currency={selectedCurrency} />
 
-                                <Text style={[styles.productOldPrice]} numberOfLines={1}>
-                                  {item.isPromoted && item.promoPrice !== undefined
-                                    && formatMoney(item.price * quantityStep(item), selectedCurrency)
-                                  }
-                                </Text>
-
-                                <Text>
-                                  {priceBasis(item, isRTL)}
-                                </Text>
-                              </View>
-
-                              <View style={{ flexDirection: 'row', justifyContent: 'flex-start', position: 'relative', marginTop: 4 }}>
-                                {item.isPromoted && item.promoPrice !== undefined && item.price > 0 ? (
-                                  <Text style={[styles.promoBadge,]}>
-                                    {Math.round((1 - item.promoPrice / item.price) * 100)}% {t("off") ?? "off"}
-                                  </Text>
-                                ) : null}
+                                {item.isPromoted && item.promoPrice !== undefined &&
+                                  <Money style={styles.productOldPrice} amount={item.price * quantityStep(item)} currency={selectedCurrency} />
+                                }
                               </View>
 
                               <Text style={styles.productName} numberOfLines={2}>
                                 {item.name}
                               </Text>
+
+                              <View style={[styles.priceRow]}>
+                                {priceBasis(item, isRTL) &&
+                                  <Text style={{ borderWidth: 1, borderColor: isDark ? palette.border : "rgba(15, 23, 42, 0.08)", paddingVertical: Platform.OS == "ios" ? 2 : 0, paddingHorizontal: 4, borderRadius: 5, fontSize: 10 }}>
+                                    {priceBasis(item, isRTL)}
+                                  </Text>
+                                }
+                              </View>
 
                               {/* <Text style={styles.productDesc} numberOfLines={2}>
                                 {item.description ? item.description : '-'}
@@ -2465,7 +2464,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "center",
       marginBottom: 10,
       position: 'relative',
-      backgroundColor:'#fff'
+      backgroundColor: '#fff'
     },
     productImg: {
       height: 150,
@@ -2474,7 +2473,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       resizeMode: "contain",
       // borderWidth:1
     },
-    productName: { color: palette.text, fontWeight: isRTL ? "500" : "900", marginBottom: isRTL ? 0 : 4, textAlign: align },
+    productName: { color: palette.text, fontWeight: isRTL ? "500" : "900", marginBottom: 4, textAlign: align },
     productDesc: { color: palette.muted, fontSize: 12, marginBottom: isRTL ? 0 : 10, textAlign: align },
 
     priceRow: {
@@ -2496,12 +2495,13 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontSize: 12,
       fontWeight: "800",
       paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 15,
-      // borderWidth: 3,
-      // borderColor: palette.card,
-      // position: 'absolute',
-      // bottom: 0
+      paddingVertical: Platform.OS == "ios" ? 4 : 2, borderTopLeftRadius: isRTL ? 0 : 15,
+      borderTopRightRadius: isRTL ? 15 : 0,
+      borderBottomLeftRadius: isRTL ? 15 : 0,
+      borderBottomRightRadius: isRTL ? 0 : 15,
+      position: "absolute",
+      zIndex: 1,
+      elevation: 1,
     },
     productPrice: { color: isDark ? '#fff' : '#000', fontWeight: "900", fontSize: 18, lineHeight: 24 },
 

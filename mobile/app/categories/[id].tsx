@@ -13,6 +13,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Platform
 } from "react-native";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import Feather from "@expo/vector-icons/Feather";
@@ -298,7 +299,7 @@ export default function CategoryDetail() {
               )}
             </View>
 
-            <View style={{ marginBottom:isRTL?5:0 }}>
+            <View style={{ marginBottom: 4}}>
               <View style={[styles.priceRow]}>
                 <Text style={[styles.productPrice, item.isPromoted && { color: palette.accent }]}>
                   {formatMoney(effectivePrice * quantityStep(item), selectedCurrency)}
@@ -309,20 +310,21 @@ export default function CategoryDetail() {
                   </Text>}
               </View>
 
-              <View style={[styles.priceRow]}>
-                {priceBasis(item, isRTL) &&
-                  <Text style={{ borderWidth: 1, borderColor: isDark ? palette.border : "rgba(15, 23, 42, 0.08)", paddingHorizontal: 4, borderRadius: 5, fontSize: 10 }}>
-                    {priceBasis(item, isRTL)}
-                  </Text>
-                }
-              </View>
+              <Text style={styles.productName} numberOfLines={2}>
+                {item.name}
+              </Text>
+            </View>
+
+            <View style={[styles.priceRow]}>
+              {priceBasis(item, isRTL) &&
+                <Text style={{ borderWidth: 1, borderColor: isDark ? palette.border : "rgba(15, 23, 42, 0.08)", paddingVertical: Platform.OS == "ios" ? 2 : 0, paddingHorizontal: 4, borderRadius: 5, fontSize: 10 }}>
+                  {priceBasis(item, isRTL)}
+                </Text>
+              }
             </View>
 
 
 
-            <Text style={styles.productName} numberOfLines={2}>
-              {item.name}
-            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -522,8 +524,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "flex-start",
       position: "absolute",
       // marginTop: 4,
-      zIndex:1,
-      elevation:1,
+      zIndex: 1,
+      elevation: 1,
 
     },
     promoBadge: {
@@ -532,16 +534,15 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontSize: 12,
       fontWeight: "800",
       paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderTopLeftRadius: isRTL?0:15,
-      borderTopRightRadius: isRTL?15:0,
-      borderBottomLeftRadius: isRTL?15:0,
-      borderBottomRightRadius: isRTL?0:15
+      paddingVertical: Platform.OS == "ios" ? 4 : 2,
+      borderTopLeftRadius: isRTL ? 0 : 15,
+      borderTopRightRadius: isRTL ? 15 : 0,
+      borderBottomLeftRadius: isRTL ? 15 : 0,
+      borderBottomRightRadius: isRTL ? 0 : 15
     },
     productName: {
       color: palette.text,
       fontWeight: isRTL ? "500" : "900",
-      marginBottom: isRTL ? 0 : 4,
       // textAlign: "left",
     },
     addBtn: {
