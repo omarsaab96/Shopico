@@ -10,6 +10,7 @@ export type MoneyProps = Omit<TextProps, "children"> & {
   currency?: Currency;
   currencyScale?: number;
   currencyStyle?: StyleProp<TextStyle>;
+  negative?: boolean
 };
 
 export default function Money({
@@ -19,6 +20,7 @@ export default function Money({
   currencyStyle,
   style,
   weight,
+  negative = false,
   ...props
 }: MoneyProps) {
   const { convertFromPrimary, getCurrencySymbol } = useCurrency();
@@ -27,6 +29,7 @@ export default function Money({
 
   return (
     <Text {...props} weight={weight} style={[{ fontSize }, style]}>
+      {negative && "-"}
       {convertFromPrimary(amount, currency).toLocaleString(undefined, {
         maximumFractionDigits: 2,
       })}

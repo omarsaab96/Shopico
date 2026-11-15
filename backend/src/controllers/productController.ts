@@ -1,6 +1,6 @@
 import { parseProductUnit, ProductUnit, roundAmount } from "../utils/productUnits";
 import { catchAsync } from "../utils/catchAsync";
-import { Product } from "../models/Product";
+import { Product, type IProduct } from "../models/Product";
 import { Category } from "../models/Category";
 import { bulkCategorySchema, bulkPriceSchema, productSchema, productUpdateSchema } from "../validators/productValidators";
 import { sendSuccess } from "../utils/response";
@@ -8,7 +8,7 @@ import { AuditLog } from "../models/AuditLog";
 import { AuthRequest } from "../types/auth";
 import * as xlsx from "xlsx";
 import { getDefaultBranchId } from "../utils/branch";
-import { Types } from "mongoose";
+import { Types, type PipelineStage } from "mongoose";
 
 const NO_CATEGORY_FILTER = "__no_category__";
 
@@ -43,7 +43,10 @@ export const listProducts = catchAsync(async (req, res) => {
     page: rawPage,
     limit: rawLimit,
     includeUnavailable,
-  } = req.query as { q?: string; category?: string; hasImage?: string; page?: string; limit?: string; includeUnavailable?: string };
+    sort,
+    priceBelow,
+    priceAbove,
+  } = req.query as { q?: string; category?: string; hasImage?: string; page?: string; limit?: string; includeUnavailable?: string; sort?: string; priceBelow?: string; priceAbove?: string };
   const branchId = req.branchId || (await getDefaultBranchId());
   if (!branchId) return res.status(400).json({ success: false, message: "Branch not configured" });
   const filter: Record<string, unknown> = { branchId, isPublic: { $ne: false } };
@@ -55,6 +58,56 @@ export const listProducts = catchAsync(async (req, res) => {
   const page = Math.max(1, Number(rawPage) || 1);
   const limit = Math.min(100, Math.max(1, Number(rawLimit) || 20));
   const shouldPaginate = Boolean(rawPage) || Boolean(rawLimit);
+
+  const parsePriceBound = (value?: string) => {
+    if (value === undefined) return undefined;
+    const number = Number(value);
+    if (!value.trim() || !Number.isFinite(number) || number < 0) {
+      throw { status: 400, message: "Price bounds must be non-negative numbers" };
+    }
+    return number;
+  };
+  const below = parsePriceBound(priceBelow);
+  const above = parsePriceBound(priceAbove);
+  if (sort && !["relevance", "priceAsc", "priceDesc"].includes(sort)) {
+    return res.status(400).json({ success: false, message: "Invalid product sort" });
+  }
+
+  if (sort === "priceAsc" || sort === "priceDesc" || below !== undefined || above !== undefined) {
+    // Aggregation does not cast branch/category IDs. Reuse Mongoose's query casting.
+    const match = Product.find(filter).cast(Product);
+    const pipeline: PipelineStage[] = [
+      { $match: match },
+      { $set: { _displayPrice: { $multiply: [
+        { $cond: ["$isPromoted", { $ifNull: ["$promoPrice", "$price"] }, "$price"] },
+        { $cond: [{ $in: ["$unit", ["g", "ml"]] }, 100, 1] },
+      ] } } },
+    ];
+    if (below !== undefined || above !== undefined) {
+      pipeline.push({ $match: { _displayPrice: {
+        ...(below !== undefined ? { $lt: below } : {}),
+        ...(above !== undefined ? { $gt: above } : {}),
+      } } });
+    }
+    const ordering: Record<string, 1 | -1> = sort === "priceAsc" || sort === "priceDesc"
+      ? { _displayPrice: sort === "priceAsc" ? 1 : -1, _id: -1 }
+      : { createdAt: -1, _id: -1 };
+    pipeline.push({ $facet: {
+      items: [
+        { $sort: ordering },
+        ...(shouldPaginate ? [{ $skip: (page - 1) * limit }] : []),
+        { $limit: shouldPaginate ? limit : 100 },
+        { $unset: "_displayPrice" },
+      ],
+      count: [{ $count: "total" }],
+    } });
+    const [result] = await Product.aggregate(pipeline);
+    const items = await Product.populate(result.items as IProduct[], { path: "categories" });
+    const total = result.count[0]?.total || 0;
+    return sendSuccess(res, shouldPaginate
+      ? { items, total, page, limit, hasMore: (page - 1) * limit + items.length < total }
+      : items);
+  }
 
   if (shouldPaginate) {
     const total = await Product.countDocuments(filter);

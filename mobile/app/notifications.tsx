@@ -23,7 +23,7 @@ export default function NotificationsScreen() {
   return <Screen>
     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
 
-      <View style={{ flexDirection:  "row", alignItems: "center", gap: 10 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <TouchableOpacity
           style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border }}
           accessibilityRole="button"
@@ -33,20 +33,20 @@ export default function NotificationsScreen() {
           <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={21} color={palette.text} />
         </TouchableOpacity>
 
-          <Text weight="bold" style={{
-            color: palette.text,
-            fontSize: 22,
-            lineHeight: 22,
-            textAlign: "center",
-          }}>
-            {ar ? "الإشعارات" : "Notifications"}
-          </Text>
+        <Text weight="bold" style={{
+          color: palette.text,
+          fontSize: 22,
+          textAlign: "center",
+          lineHeight: 28
+        }}>
+          {ar ? "الإشعارات" : "Notifications"}
+        </Text>
       </View>
 
       {/* <TouchableOpacity onPress={() => router.push("/settings")} accessibilityLabel={ar ? "إعدادات الإشعارات" : "Notification settings"}>
         <Text style={{ color: palette.accent }}>{ar ? "الإعدادات" : "Settings"}</Text>
       </TouchableOpacity> */}
-      {unreadCount > 0 && <TouchableOpacity accessibilityRole="button" onPress={() => void readAll().catch(failed)} activeOpacity={0.85} style={{  }}>
+      {unreadCount > 0 && <TouchableOpacity accessibilityRole="button" onPress={() => void readAll().catch(failed)} activeOpacity={0.85} style={{}}>
         <Text style={{ color: palette.accent, fontWeight: "900", textAlign: "left" }}>
           {ar ? "قراءة الكل" : "Mark all as read"} ({unreadCount})
         </Text>

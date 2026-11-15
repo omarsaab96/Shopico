@@ -4,6 +4,8 @@ import mongoose, { Types } from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server-core";
 import { Product } from "../models/Product";
 import { Order } from "../models/Order";
+import { RewardToken } from "../models/RewardToken";
+import { redeemPointsCoupon, getPersonalCoupons } from "../services/pointsService";
 import { User } from "../models/User";
 import { Wallet } from "../models/Wallet";
 import { Branch } from "../models/Branch";
@@ -26,7 +28,7 @@ beforeAll(async () => {
   const systemBinary = process.env.MONGOMS_SYSTEM_BINARY || (process.platform === "win32" && existsSync(installed) ? installed : undefined);
   mongo = await MongoMemoryServer.create({ binary: { systemBinary, version: "8.0.17" } });
   await mongoose.connect(mongo.getUri());
-  await Promise.all([Product.init(), Wallet.init(), User.init()]);
+  await Promise.all([Product.init(), Wallet.init(), User.init(), Coupon.init()]);
 }, 120000);
 afterAll(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 beforeEach(async () => {
@@ -124,4 +126,161 @@ test("fractional delivery distance has identical estimated and charged fees", as
   expect(order.deliveryFee).toBe(estimate.deliveryFee);
   expect(order.total).toBe(205 + estimate.deliveryFee);
   expect((await Wallet.findOne({ user: userId }).orFail()).balance).toBe(1000 - order.total);
+});
+
+
+const submitWithReward = (paymentMethod: "WALLET" | "CASH_ON_DELIVERY" = "CASH_ON_DELIVERY", couponCodes?: string[]) =>
+  createOrder(userId, branchId, { address: "Test address", lat: 0, lng: 0, paymentMethod, items: inputs(), useReward: true, couponCodes });
+
+test("selected points reward reduces the order and wallet charge and consumes one token", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create([{ user: userId }, { user: userId }]);
+  const order = await submitWithReward("WALLET");
+  expect(order).toMatchObject({ subtotal: 205, discount: 50, total: 155, rewardApplied: true });
+  expect((await Wallet.findOne({ user: userId }).orFail()).balance).toBe(845);
+  expect(await RewardToken.countDocuments({ user: userId, consumed: true })).toBe(1);
+  expect(await RewardToken.countDocuments({ user: userId, consumed: false })).toBe(1);
+});
+
+test("a reward remains unused when checkout has not selected it", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  const order = await submit();
+  expect(order).toMatchObject({ total: 205, rewardApplied: false });
+  expect(await RewardToken.countDocuments({ consumed: false })).toBe(1);
+});
+
+test("reward discount stacks with coupons and cannot make the total negative", async () => {
+  await Settings.create({ branchId, rewardValue: 500 });
+  await RewardToken.create({ user: userId });
+  await Coupon.create({ branchId, code: "REWARD10", discountType: "PERCENT", discountValue: 10, isActive: true });
+  const order = await submitWithReward("CASH_ON_DELIVERY", ["REWARD10"]);
+  expect(order).toMatchObject({ couponDiscount: 20.5, discount: 520.5, total: 0, rewardApplied: true });
+  expect(await RewardToken.countDocuments({ consumed: true })).toBe(1);
+});
+
+test("missing reward rejects checkout instead of charging the undiscounted price", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await expect(submitWithReward("WALLET")).rejects.toMatchObject({ status: 409 });
+  expect(await Order.countDocuments()).toBe(0);
+  expect((await Wallet.findOne({ user: userId }).orFail()).balance).toBe(1000);
+});
+
+test("failed wallet payment releases the selected reward for retry", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  await Wallet.updateOne({ user: userId }, { balance: 0, balances: [{ currency: currencyId, amount: 0 }] });
+  await expect(submitWithReward("WALLET")).rejects.toBeDefined();
+  expect(await Order.countDocuments()).toBe(0);
+  expect(await RewardToken.countDocuments({ consumed: false })).toBe(1);
+  const retry = await submitWithReward();
+  expect(retry).toMatchObject({ total: 155, rewardApplied: true });
+});
+
+test("concurrent checkouts cannot spend the same reward twice", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  const results = await Promise.allSettled([submitWithReward(), submitWithReward()]);
+  expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+  expect(results.filter(result => result.status === "rejected")).toHaveLength(1);
+  expect(await Order.countDocuments({ rewardApplied: true })).toBe(1);
+  expect(await RewardToken.countDocuments({ consumed: true })).toBe(1);
+});
+
+
+test("redeeming points creates a personal one-time coupon even with an empty cart", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  const coupon = await redeemPointsCoupon(userId, branchId, "personal-coupon-request", String(currencyId));
+  expect(coupon).toMatchObject({ discountType: "FIXED", discountValue: 50, usageType: "SINGLE", maxUsesPerUser: 1, maxUsesGlobal: 1 });
+  expect(coupon.assignedUsers?.map(String)).toEqual([String(userId)]);
+  expect(await RewardToken.countDocuments({ consumed: true })).toBe(1);
+  expect((await getPersonalCoupons(userId, branchId)).map(c => c.code)).toEqual([coupon.code]);
+  expect(await getPersonalCoupons(new Types.ObjectId(), branchId)).toHaveLength(0);
+});
+
+test("retrying the same coupon conversion does not spend another reward", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create([{ user: userId }, { user: userId }]);
+  const first = await redeemPointsCoupon(userId, branchId, "retry-coupon-request");
+  const retry = await redeemPointsCoupon(userId, branchId, "retry-coupon-request");
+  expect(String(retry._id)).toBe(String(first._id));
+  expect(await Coupon.countDocuments()).toBe(1);
+  expect(await RewardToken.countDocuments({ consumed: false })).toBe(1);
+});
+
+test("coupon conversion preserves the reward value in the selected currency", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  const foreign = await Currency.create({ branchId, symbol: { en: "USD" }, exchangeRate: 10, isActive: true });
+  const coupon = await redeemPointsCoupon(userId, branchId, "currency-coupon-request", String(foreign._id));
+  expect(coupon.discountValue).toBe(5);
+  const order = await createOrder(userId, branchId, { address: "Test", lat: 0, lng: 0, paymentMethod: "CASH_ON_DELIVERY", currencyId: String(foreign._id), items: inputs(), couponCodes: [coupon.code] });
+  expect(order).toMatchObject({ subtotal: 205, couponDiscount: 50, total: 155 });
+});
+
+test("saved points coupons apply at checkout once and disappear from the drawer", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  const coupon = await redeemPointsCoupon(userId, branchId, "use-personal-coupon");
+  const order = await submit(inputs(), "WALLET", [coupon.code]);
+  expect(order).toMatchObject({ total: 155, couponDiscount: 50 });
+  expect(await getPersonalCoupons(userId, branchId)).toHaveLength(0);
+  await expect(submit(inputs(), "CASH_ON_DELIVERY", [coupon.code])).rejects.toMatchObject({ status: 409 });
+  expect((await Coupon.findById(coupon._id).orFail()).usedCount).toBe(1);
+});
+
+test("personal reward coupons reject another user's checkout", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  const coupon = await redeemPointsCoupon(userId, branchId, "private-coupon-request");
+  await expect(createOrder(new Types.ObjectId(), branchId, { address: "Test", lat: 0, lng: 0, paymentMethod: "CASH_ON_DELIVERY", items: inputs(), couponCodes: [coupon.code] })).rejects.toMatchObject({ status: 403 });
+});
+
+test("failed wallet payment leaves the issued coupon in the drawer for retry", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  const coupon = await redeemPointsCoupon(userId, branchId, "failed-payment-coupon");
+  await Wallet.updateOne({ user: userId }, { balance: 0, balances: [{ currency: currencyId, amount: 0 }] });
+  await expect(submit(inputs(), "WALLET", [coupon.code])).rejects.toBeDefined();
+  expect(await getPersonalCoupons(userId, branchId)).toHaveLength(1);
+  const retry = await submit(inputs(), "CASH_ON_DELIVERY", [coupon.code]);
+  expect(retry).toMatchObject({ total: 155 });
+});
+
+test("concurrent orders cannot redeem a personal points coupon twice", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  const coupon = await redeemPointsCoupon(userId, branchId, "concurrent-coupon-request");
+  const results = await Promise.allSettled([submit(inputs(), "CASH_ON_DELIVERY", [coupon.code]), submit(inputs(), "CASH_ON_DELIVERY", [coupon.code])]);
+  expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+  expect((await Coupon.findById(coupon._id).orFail()).usedCount).toBe(1);
+});
+
+test("failed coupon creation releases the points reward", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  const create = vi.spyOn(Coupon, "create").mockRejectedValueOnce(new Error("write failed"));
+  await expect(redeemPointsCoupon(userId, branchId, "failed-write-coupon-request")).rejects.toThrow("write failed");
+  create.mockRestore();
+  expect(await RewardToken.countDocuments({ consumed: false })).toBe(1);
+});
+
+
+test("concurrent retries create one coupon and preserve the other reward token", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create([{ user: userId }, { user: userId }]);
+  const results = await Promise.all([
+    redeemPointsCoupon(userId, branchId, "same-concurrent-request"),
+    redeemPointsCoupon(userId, branchId, "same-concurrent-request"),
+  ]);
+  expect(String(results[0]._id)).toBe(String(results[1]._id));
+  expect(await Coupon.countDocuments()).toBe(1);
+  expect(await RewardToken.countDocuments({ consumed: false })).toBe(1);
+});
+
+test("no available reward creates no personal coupon", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await expect(redeemPointsCoupon(userId, branchId, "no-reward-coupon-request")).rejects.toMatchObject({ status: 409 });
+  expect(await Coupon.countDocuments()).toBe(0);
 });

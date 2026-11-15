@@ -68,7 +68,7 @@ type Product = {
 };
 type SortOption = "relevance" | "priceAsc" | "priceDesc";
 type SkeletonProduct = { _id: string; __skeleton: true };
-type PriceFilter = "all" | "lt50k" | "lt100k" | "gte100k";
+type PriceFilter = "all" | "lt50" | "lt1000" | "gt1000";
 type SavedAddress = { _id: string; address: string; label?: string; lat: number; lng: number; updatedAt?: string; createdAt?: string };
 type Branch = { _id: string; name: string; address: string; lat: number; lng: number };
 type Announcement = {
@@ -103,6 +103,7 @@ export default function Home() {
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
+  const productRequestRef = useRef(0);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -381,8 +382,17 @@ export default function Home() {
 
   const fetchProducts = useCallback(
     (nextPage = 1, append = false) => {
+      const requestId = ++productRequestRef.current;
+      if (!append) setLoadingMore(false);
       const params: Record<string, any> = { page: nextPage, limit: 20 };
       if (debouncedSearch) params.q = debouncedSearch;
+      params.sort = sortOption;
+      // API prices are stored in primary currency; bounds follow the displayed currency.
+      const rate = Number(selectedCurrency?.exchangeRate || 1);
+      const multiplier = rate > 0 ? rate : 1;
+      if (priceFilter === "lt50") params.priceBelow = 50 * multiplier;
+      if (priceFilter === "lt1000") params.priceBelow = 1000 * multiplier;
+      if (priceFilter === "gt1000") params.priceAbove = 1000 * multiplier;
 
       if (append) {
         setLoadingMore(true);
@@ -395,6 +405,7 @@ export default function Home() {
       return api
         .get("/products", { params })
         .then((res) => {
+          if (requestId !== productRequestRef.current) return;
           const payload = res.data.data;
           const items = Array.isArray(payload) ? payload : payload?.items || [];
           const more = Array.isArray(payload) ? false : Boolean(payload?.hasMore);
@@ -404,10 +415,12 @@ export default function Home() {
           setPage(nextPage);
         })
         .catch(() => {
+          if (requestId !== productRequestRef.current) return;
           if (!append) setProducts([]);
           setHasMore(false);
         })
         .finally(() => {
+          if (requestId !== productRequestRef.current) return;
           if (append) {
             setLoadingMore(false);
           } else if (nextPage === 1 && debouncedSearch.length === 0) {
@@ -417,7 +430,7 @@ export default function Home() {
           }
         });
     },
-    [debouncedSearch]
+    [debouncedSearch, sortOption, priceFilter, selectedCurrency?._id, selectedCurrency?.exchangeRate]
   );
 
   const loadLatestAddress = useCallback(() => {
@@ -693,33 +706,6 @@ export default function Home() {
   //   extrapolate: "clamp",
   // });
 
-  const filteredAndSorted = useMemo(() => {
-    let list = products;
-    if (priceFilter !== "all") {
-      list = list.filter((p) => {
-        const displayPrice = p.isPromoted && p.promoPrice !== undefined ? p.promoPrice : p.price;
-        if (priceFilter === "lt50k") return displayPrice < 50000;
-        if (priceFilter === "lt100k") return displayPrice < 100000;
-        return displayPrice >= 100000;
-      });
-    }
-    const result = [...list];
-    if (sortOption === "priceAsc") {
-      result.sort((a, b) => {
-        const priceA = a.isPromoted && a.promoPrice !== undefined ? a.promoPrice : a.price;
-        const priceB = b.isPromoted && b.promoPrice !== undefined ? b.promoPrice : b.price;
-        return priceA - priceB;
-      });
-    }
-    if (sortOption === "priceDesc") {
-      result.sort((a, b) => {
-        const priceA = a.isPromoted && a.promoPrice !== undefined ? a.promoPrice : a.price;
-        const priceB = b.isPromoted && b.promoPrice !== undefined ? b.promoPrice : b.price;
-        return priceB - priceA;
-      });
-    }
-    return result;
-  }, [products, priceFilter, sortOption]);
 
   const driverDashboard = useMemo(() => {
     const deliveredOrders = driverOrders.filter((order) => order.status === "DELIVERED");
@@ -1028,7 +1014,7 @@ export default function Home() {
       <HomeBanners branchId={selectedBranch?._id} refreshing={refreshSkeleton} refreshKey={bannerRefreshKey} />
 
       <Text weight="black" style={[styles.sectionTitle, { marginBottom: 10 }]}>
-        {hasQuery ? `${t("products") ?? "Products"} (${filteredAndSorted.length})` : (t("freshPicks") ?? "Fresh picks")}
+        {hasQuery ? `${t("products") ?? "Products"} (${products.length})` : (t("freshPicks") ?? "Fresh picks")}
       </Text>
     </View>
   );
@@ -1404,7 +1390,7 @@ export default function Home() {
               <View style={{ flex: 1, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: palette.background, borderWidth: 1, borderColor: palette.background }}>
 
                 <FlatList<Product | SkeletonProduct>
-                  data={(refreshSkeleton || (loadingProducts && filteredAndSorted.length === 0)) ? skeletonProducts : filteredAndSorted}
+                  data={(refreshSkeleton || (loadingProducts && products.length === 0)) ? skeletonProducts : products}
                   numColumns={2}
                   showsVerticalScrollIndicator={false}
                   showsHorizontalScrollIndicator={false}
@@ -1601,7 +1587,7 @@ export default function Home() {
                           <ActivityIndicator color={palette.accent} />
                         </View>
                       ) : null}
-                      {!loadingProducts && hasQuery && filteredAndSorted.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
+                      {!loadingProducts && hasQuery && products.length === 0 ? <Text style={styles.emptyText}>{t("emptyProducts") ?? "No products found."}</Text> : null}
                     </View>
                   }
                   ListEmptyComponent={() => (
@@ -1668,13 +1654,13 @@ export default function Home() {
                       ))}
                     </View>
 
-                    <Text style={styles.sheetLabel}>{t("price") ?? "Price"}</Text>
+                    <Text style={styles.sheetLabel}>{t("price")} ({getCurrencySymbol(selectedCurrency)})</Text>
                     <View style={styles.sheetPills}>
                       {[
                         { id: "all", label: t("all") ?? "All" },
-                        { id: "lt50k", label: t("under50k") ?? "Under 50K" },
-                        { id: "lt100k", label: t("under100k") ?? "Under 100K" },
-                        { id: "gte100k", label: t("over100k") ?? "100K +" },
+                        { id: "lt50", label: t("under50") },
+                        { id: "lt1000", label: t("under1000") },
+                        { id: "gt1000", label: t("over1000") },
                       ].map((opt) => (
                         <TouchableOpacity
                           key={opt.id}
@@ -2351,7 +2337,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "center",
       paddingHorizontal: 5,
     },
-    filterDotText: { color: "#fff", fontWeight: "900", fontSize: 11 },
+    filterDotText: { color: "#fff", fontWeight: "900", fontSize: 12,lineHeight:22 },
 
     sectionHead: {
       flexDirection: 'row',

@@ -6,6 +6,8 @@ export type CouponMaxUsesScope = "PER_USER" | "GLOBAL";
 
 export interface ICoupon extends Document {
   code: string;
+  rewardToken?: Types.ObjectId;
+  rewardRequestKey?: string;
   title?: string;
   description?: string;
   discountType: CouponDiscountType;
@@ -32,6 +34,8 @@ export interface ICoupon extends Document {
 const CouponSchema = new Schema<ICoupon>(
   {
     code: { type: String, required: true, index: true },
+    rewardToken: { type: Schema.Types.ObjectId, ref: "RewardToken" },
+    rewardRequestKey: { type: String },
     title: { type: String },
     description: { type: String },
     discountType: { type: String, enum: ["PERCENT", "FIXED"], required: true },
@@ -56,5 +60,7 @@ const CouponSchema = new Schema<ICoupon>(
 );
 
 CouponSchema.index({ branchId: 1, code: 1 }, { unique: true });
+CouponSchema.index({ rewardToken: 1 }, { unique: true, sparse: true });
+CouponSchema.index({ rewardRequestKey: 1 }, { unique: true, sparse: true });
 
 export const Coupon = mongoose.model<ICoupon>("Coupon", CouponSchema);

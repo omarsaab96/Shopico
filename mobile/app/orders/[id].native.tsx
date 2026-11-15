@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   Image,
   Alert,
+  Platform
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, Polyline } from "react-native-maps";
@@ -35,6 +36,7 @@ import Fontisto from '@expo/vector-icons/Fontisto';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import LottieView from "lottie-react-native";
 import { useCurrency } from "../../lib/currency";
+import Money from "../../components/Money";
 
 const MAP_FALLBACK = { latitude: 0, longitude: 0 };
 const MAP_EDGE_PADDING = { top: 120, right: 50, bottom: 120, left: 50 };
@@ -151,7 +153,7 @@ export default function OrderDetail() {
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener("shopico:notification", () => {
-      if (orderId) void api.get(`/orders/${orderId}`).then(res => setOrder(res.data.data || {})).catch(() => {});
+      if (orderId) void api.get(`/orders/${orderId}`).then(res => setOrder(res.data.data || {})).catch(() => { });
     });
     return () => sub.remove();
   }, [orderId]);
@@ -620,7 +622,7 @@ export default function OrderDetail() {
                         {!!item?.refundedQuantity && <Text style={styles.itemQty}>{t("refundedQuantity")}: {formatQuantity(item.refundedQuantity, item, isRTL)}</Text>}
                       </View>
                     </View>
-                    <Text style={styles.itemPrice}>{formatMoney((item?.price || 0) * Math.max(0, (item?.quantity || 0) - (item?.refundedQuantity || 0)), orderCurrency)}</Text>
+                    <Money style={styles.itemPrice} amount={(item?.price || 0) * Math.max(0, (item?.quantity || 0) - (item?.refundedQuantity || 0))} currency={orderCurrency} />
                   </View>
                 );
               })}
@@ -629,17 +631,17 @@ export default function OrderDetail() {
             <View style={styles.detailsSection}>
               <View style={styles.row}>
                 <Text style={styles.label}>{t('subtotal')}</Text>
-                <Text style={styles.value}>{formatMoney(order.subtotal || 0, orderCurrency)}</Text>
+                <Money style={styles.value} amount={order.subtotal || 0} currency={orderCurrency} />
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>{t('deliveryFee')}</Text>
-                <Text style={styles.value}>{formatMoney(order.deliveryFee || 0, orderCurrency)}</Text>
+                <Money style={styles.value} amount={order.deliveryFee || 0} currency={orderCurrency} />
               </View>
               <View style={styles.heroTotal}>
-                <Text style={styles.totalText}>{t('total')} <Text style={styles.totalCurrency}>({getCurrencySymbol(orderCurrency)})</Text></Text>
-                <Text style={styles.totalText}>{formatMoney(order.total || 0, orderCurrency)}</Text>
+                <Text style={styles.totalText}>{t('total')}</Text>
+                <Money style={styles.totalText} amount={order.total || 0} currency={orderCurrency} />
               </View>
-              <View style={[styles.row, { marginBottom: 0 }]}>
+              <View style={[styles.row, { marginBottom: 0,}]}>
                 <Text style={styles.label}>{t('paymentMethod')}</Text>
                 {order.paymentMethod == 'CASH_ON_DELIVERY' && <View style={styles.valueWithIcon}>
                   <Text style={styles.value}>{t('cash')}</Text>
@@ -779,7 +781,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       color: palette.text,
       fontSize: 22,
       fontWeight: "900",
-      lineHeight: 26,
+      lineHeight: 28,
       marginBottom: 5
     },
     subtle: {
@@ -797,7 +799,9 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       borderBottomWidth: 1,
       borderColor: palette.border,
       borderStyle: 'dashed',
-      marginBottom: 5
+      marginBottom: 5,
+      paddingTop: (Platform.OS == "ios" && isRTL) ? 8 : 0,
+      paddingBottom: (Platform.OS == "ios" && isRTL) ? 2 : 0,
     },
     row: {
       flexDirection: 'row',

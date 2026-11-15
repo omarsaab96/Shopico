@@ -1,7 +1,7 @@
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, View, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { ActivityIndicator, View, StyleSheet, TouchableOpacity, Alert, Platform } from "react-native";
 import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
@@ -191,7 +191,7 @@ export default function Profile() {
 
             {user ? (
               <>
-                <View style={{ flexDirection: 'row', gap: 5, alignItems: 'flex-start', marginBottom: 20, }}>
+                <View style={{ flexDirection: 'row', gap: 5, alignItems: 'flex-start', marginBottom: 50, }}>
                   <View style={[styles.walletCard, { backgroundColor: membershipTone.cardBg, flex: 1 }]}>
 
                     <View style={[styles.walletGlowA, { backgroundColor: membershipTone.accent }]} />
@@ -466,10 +466,10 @@ export default function Profile() {
               <Text style={styles.sectionTitle}>{t("settings")}</Text>
               <View style={styles.profileLinks}>
                 {user && (
-                <TouchableOpacity style={styles.profileLink} onPress={() => router.push("/notificationsSettings")}>
-                  <Text style={styles.profileLinkText}>{lang === "ar" ? "الإشعارات" : "Notifications"}</Text>
-                  <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
-                </TouchableOpacity>
+                  <TouchableOpacity style={styles.profileLink} onPress={() => router.push("/notificationsSettings")}>
+                    <Text style={styles.profileLinkText}>{lang === "ar" ? "الإشعارات" : "Notifications"}</Text>
+                    <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
+                  </TouchableOpacity>
                 )}
 
                 {user && currencies.length > 1 && (
@@ -539,10 +539,10 @@ export default function Profile() {
                     </TouchableOpacity>
 
                     {user.role !== "driver" && (
-                    <TouchableOpacity style={[styles.profileLink]} onPress={() => { router.push("/addresses") }} >
-                      <Text style={styles.profileLinkText}>{t("savedAddresses") ?? "Addresses"}</Text>
-                      <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
-                    </TouchableOpacity>
+                      <TouchableOpacity style={[styles.profileLink]} onPress={() => { router.push("/addresses") }} >
+                        <Text style={styles.profileLinkText}>{t("savedAddresses") ?? "Addresses"}</Text>
+                        <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
+                      </TouchableOpacity>
                     )}
 
                     <TouchableOpacity style={[styles.profileLink]}
@@ -719,11 +719,12 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     pill: {
       paddingHorizontal: 10,
-      paddingBottom: isRTL ? 0 : 2,
       borderRadius: 15,
       borderWidth: 1,
       borderColor: palette.border,
       backgroundColor: palette.surface,
+      paddingVertical: isRTL ? Platform.OS == "ios" ? 8 : 2 : Platform.OS == "ios" ? 4:0,
+      paddingBottom: isRTL ? Platform.OS == "ios" ? 5 : 2 : Platform.OS == "ios" ? 5: 2,
     },
     pillActive: { backgroundColor: palette.accent, borderColor: palette.accent },
     pillText: { color: palette.text, fontWeight: "700" },
@@ -783,7 +784,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontSize: 24,
       fontWeight: "900",
       marginBottom: 12,
-      textAlign: align
+      textAlign: align,
+      lineHeight:28
     },
 
     username: {
@@ -959,9 +961,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     walletMini: {
       paddingTop: 5
     },
-    walletMiniLabel: { color: palette.muted, fontWeight: "800", fontSize: 10, textAlign: align },
-    walletMiniValue: { color: palette.text, fontWeight: "900", fontSize: 10, textAlign: align },
-    walletMiniHint: { color: palette.muted, fontWeight: "700", fontSize: 8, textAlign: align },
+    walletMiniLabel: { color: palette.muted, fontWeight: "500", fontSize: 10, textAlign: align },
+    walletMiniValue: { color: palette.text, fontWeight: "500", fontSize: 10, textAlign: align },
     sheetContainer: {
       padding: 16,
       // paddingBottom: insets.bottom,
@@ -1057,7 +1058,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     graceTitle: { color: palette.accent, fontWeight: "800", fontSize: 13 },
     graceCopy: { color: palette.text, fontSize: 12 },
-    walletFooterRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    walletFooterRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: (Platform.OS == 'ios' && isRTL) ? 5 : 0 },
     walletHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   });
 };

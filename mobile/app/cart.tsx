@@ -4,12 +4,12 @@ import { BottomSheetModal } from "../components/BottomSheetModal";
 import QuantityControl from "../components/QuantityControl";
 import { roundAmount } from "../lib/productUnits";
 import { Link } from "expo-router";
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, Pressable, TouchableOpacity, Image, FlatList, RefreshControl, ActivityIndicator, Animated, useWindowDimensions, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { ScrollView as GestureScrollView } from "react-native-gesture-handler";
 import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetFooter, BottomSheetView } from "@gorhom/bottom-sheet";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Button from "../components/Button";
 import Screen from "../components/Screen";
@@ -26,17 +26,24 @@ import LottieView from "lottie-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Entypo from '@expo/vector-icons/Entypo';
 import { useCurrency } from "../lib/currency";
+import Money from "../components/Money";
+import UserCouponsDrawer from "../components/UserCouponsDrawer";
 
 const COUPON_CARD_GAP = 15;
 const COUPON_CARD_MAX_WIDTH = 200;
 
 export default function CartScreen() {
   const router = useRouter();
+  const { checkout: checkoutRequest, couponCode: requestedCouponCode } = useLocalSearchParams<{ checkout?: string; couponCode?: string }>();
+  const pendingRewardCoupon = useRef("");
+  const isFocused = useIsFocused();
+  const checkoutRequestHandled = useRef(false);
   const { items, removeItem, clear, setQuantity, replaceItems, reload } = useCart();
   const { user } = useAuth();
   const sheetRef = useRef<BottomSheetModal>(null);
   const clearSheetRef = useRef<BottomSheetModal>(null);
   const checkoutSheetRef = useRef<BottomSheetModal>(null);
+  const [couponsDrawerOpen, setCouponsDrawerOpen] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<{ productId: string; variantId?: string } | null>(null);
   const [skipConfirm, setSkipConfirm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,7 +91,7 @@ export default function CartScreen() {
   const hasPromotionalSubtotal = originalSubtotal > subtotal;
   const { palette, isDark } = useTheme();
   const { t, isRTL } = useI18n();
-  const { selectedCurrency, getWalletBalance, getCurrencySymbol, convertFromPrimary, formatMoney } = useCurrency();
+  const { selectedCurrency, setSelectedCurrencyId, getWalletBalance, getCurrencySymbol, convertFromPrimary, formatMoney } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
   const renderBackdrop = useMemo(() => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
   const addressRefreshOnVisit = useRef(false);
@@ -473,6 +480,23 @@ export default function CartScreen() {
   };
 
   useEffect(() => {
+    if (checkoutRequest !== "coupon") {
+      checkoutRequestHandled.current = false;
+      return;
+    }
+    if (!isFocused || cartSyncLoading || !items.length || checkoutRequestHandled.current) return;
+    // Let the focus-triggered cart sync start before opening the sheet.
+    const frame = requestAnimationFrame(() => {
+      checkoutRequestHandled.current = true;
+      pendingRewardCoupon.current = requestedCouponCode || "";
+      router.setParams({ checkout: undefined, couponCode: undefined });
+      void openCheckout();
+      disableAutoApply();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [checkoutRequest, requestedCouponCode, isFocused, cartSyncLoading, items.length, user, hasUnavailableItems]);
+
+  useEffect(() => {
     if (!checkoutOpen || !user || !selectedAddress || !selectedBranch) {
       setDeliveryEstimate(null);
       setDeliveryEstimateLoading(false);
@@ -498,6 +522,23 @@ export default function CartScreen() {
     };
   }, [checkoutOpen, user, selectedAddress?._id, selectedBranch?._id]);
 
+  useEffect(() => {
+    if (!checkoutOpen || !deliveryEstimate || deliveryEstimateLoading || !pendingRewardCoupon.current) return;
+    const code = pendingRewardCoupon.current;
+    pendingRewardCoupon.current = "";
+    setApplyingCoupon(true);
+    api.post("/coupons/validate", {
+      code, subtotal, deliveryFee: deliveryEstimate.deliveryFee,
+      currencyId: selectedCurrency?._id,
+      items: items.filter(item => !item.unavailable).map(toCheckoutItem),
+    }).then(res => {
+      setSelectedCoupons([{ code, ...res.data.data }]);
+    }).catch(error => {
+      setCouponError(error?.response?.data?.message || t("invalidCoupon"));
+      setShowCouponOptions(true);
+    }).finally(() => setApplyingCoupon(false));
+  }, [checkoutOpen, deliveryEstimate, deliveryEstimateLoading, selectedCurrency?._id]);
+
   const distanceKm = deliveryEstimate?.distanceKm ?? 0;
   const deliveryFee = deliveryEstimate?.deliveryFee ?? 0;
   const hasFreeDeliveryCoupon = selectedCoupons.some((c) => c.freeDelivery);
@@ -508,7 +549,7 @@ export default function CartScreen() {
   const walletInsufficient = paymentMethod === "WALLET" && walletBalance < selectedCurrencyTotal;
   const formatSelectedWalletBalance = (amount: number) =>
     `${Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${getCurrencySymbol(selectedCurrency)}`;
-  const checkoutLoading = cartSyncLoading || addressesLoading || walletLoading || settingsLoading || branchLoading || deliveryEstimateLoading;
+  const checkoutLoading = applyingCoupon || cartSyncLoading || addressesLoading || walletLoading || settingsLoading || branchLoading || deliveryEstimateLoading;
   const allowMultipleCoupons = settings?.allowMultipleCoupons ?? false;
 
   const fetchAvailableCoupons = useCallback(() => {
@@ -564,14 +605,14 @@ export default function CartScreen() {
   }, [availableCoupons.length, showCouponOptions]);
 
   const renderCouponMetaDb = (coupon: { freeDelivery: boolean; discountType?: string; discountValue?: number; discount?: number }) => {
-    if (coupon.freeDelivery) return t("freeDelivery") ?? "Free delivery";
+    if (coupon.freeDelivery) return `${(t("freeDelivery") ?? "Free delivery")}`;
     if (coupon.discountType === "PERCENT") return `${Number(coupon.discountValue || 0)}`;
     return `-${formatMoney(Number(coupon.discount || 0), selectedCurrency)}`;
   };
 
-  const renderCouponMetaApplied = (coupon: { freeDelivery: boolean; discount?: number }) => {
-    if (coupon.freeDelivery) return t("freeDelivery") ?? "Free delivery";
-    return `-${formatMoney(Number(coupon.discount || 0), selectedCurrency)}`;
+  const renderCouponMetaApplied = (coupon: { freeDelivery: boolean; discount?: number; discountType?: string; discountValue?: number }) => {
+    if (coupon.freeDelivery) return `${(t("freeDelivery") ?? "Free delivery")}`;
+    return coupon.discountType === "PERCENT" ? `-${coupon.discountValue || 0}%` : `-${formatMoney(coupon.discount || 0, selectedCurrency)}`;
   };
 
   const renderCouponUsesLeft = (coupon: {
@@ -799,13 +840,12 @@ export default function CartScreen() {
 
               <View style={[styles.subtotalPriceStack, { flexDirection: 'row', gap: 5, alignItems: 'baseline' }]}>
                 {hasPromotionalSubtotal ? (
-                  <Text style={[styles.sheetOldPrice, { marginBottom: 0 }]}>
-                    {formatMoney(originalSubtotal, selectedCurrency)}
-                  </Text>
+                  <Money style={[styles.sheetOldPrice, { marginBottom: 0 }]} amount={originalSubtotal} currency={selectedCurrency} />
                 ) : null}
-                <Text weight="bold" style={[styles.sheetSubtotalValue]}>
+                {/* <Text weight="bold" style={[styles.sheetSubtotalValue]}>
                   {formatMoney(subtotal, selectedCurrency)}
-                </Text>
+                </Text> */}
+                <Money style={[styles.sheetSubtotalValue, { fontWeight: 700 }]} amount={subtotal} currency={selectedCurrency} />
               </View>
             </View>
 
@@ -813,12 +853,13 @@ export default function CartScreen() {
               <Text style={[styles.sheetText, { fontWeight: '700' }]}>
                 {t("discount")}
               </Text>
-              <Text style={styles.sheetText}>
+              {/* <Text style={styles.sheetText}>
                 {couponDiscountTotal > 0
                   ? `-${formatMoney(couponDiscountTotal, selectedCurrency)}`
                   : formatMoney(0, selectedCurrency)}
-              </Text>
+              </Text> */}
 
+              {couponDiscountTotal > 0 && <Money style={[styles.sheetText]} amount={couponDiscountTotal} currency={selectedCurrency} negative />}
             </View>}
 
             {/* {walletInsufficient && (
@@ -831,9 +872,13 @@ export default function CartScreen() {
               <Text style={[styles.sheetText, { fontWeight: '700' }]}>
                 {t("deliveryFee")}
               </Text>
-              <Text style={styles.sheetText}>
-                {hasFreeDeliveryCoupon ? (t("freeDelivery") ?? "Free delivery") : formatMoney(effectiveDeliveryFee || 0, selectedCurrency)}
-              </Text>
+              {hasFreeDeliveryCoupon ? (
+                <Text style={styles.sheetText}>
+                  {t("freeDelivery") ?? "Free delivery"}
+                </Text>
+              ) : (
+                <Money style={[styles.sheetText]} amount={effectiveDeliveryFee || 0} currency={selectedCurrency} />
+              )}
             </View>
 
             {checkoutError ? <Text style={styles.errorText}>{checkoutError}</Text> : null}
@@ -849,10 +894,13 @@ export default function CartScreen() {
               <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
                 {submitting ? t("placingOrder") : t("placeOrder")}
               </Text>
-
-              <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
-                {!submitting && ` • ${formatMoney(orderTotal, selectedCurrency)}`}
-              </Text>
+              {!submitting && <>
+                <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
+                  •
+                </Text>
+                <Money style={[styles.primaryBtnText]} amount={orderTotal} currency={selectedCurrency} />
+              </>
+              }
 
               {/* {!submitting && selectedCurrency?.symbol.en != "USD" && <Text style={[styles.primaryBtnText, { fontSize: 14, textAlign: 'center', opacity: 0.6, textDecorationLine: "line-through", lineHeight: 14 }]}>
                 {formatMoney(orderTotal * 100, selectedCurrency)}
@@ -870,14 +918,29 @@ export default function CartScreen() {
 
   return (
     <>
+      <UserCouponsDrawer visible={couponsDrawerOpen} onClose={() => setCouponsDrawerOpen(false)}
+        onSelect={coupon => {
+          setCouponsDrawerOpen(false);
+          if (!items.some(item => !item.unavailable)) {
+            Alert.alert(t("myCoupons"), t("addItemsToUseReward"));
+            return;
+          }
+          if (coupon.currency?._id) setSelectedCurrencyId(coupon.currency._id);
+          router.setParams({ checkout: "coupon", couponCode: coupon.code });
+        }} />
       <Screen>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <Text weight="bold" style={styles.title}>{t("cart")}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+          {user && <TouchableOpacity onPress={() => setCouponsDrawerOpen(true)} accessibilityRole="button" accessibilityLabel={t("myCoupons")}>
+            <Ionicons name="ticket-outline" size={24} color={palette.accent} />
+          </TouchableOpacity>}
           {items.length > 0 &&
             <TouchableOpacity onPress={confirmClear}>
               <Text style={{ color: palette.accent, fontWeight: 'bold' }}>{t("clearCart")}</Text>
             </TouchableOpacity>
           }
+          </View>
         </View>
 
         {items.length === 0 ? (
@@ -954,11 +1017,13 @@ export default function CartScreen() {
                     {!item.unavailable && (
                       <View style={styles.priceRow}>
                         {item.originalPrice && item.originalPrice > item.price ? (
-                          <Text style={styles.oldItemPrice}>{formatMoney(item.originalPrice * item.quantity, selectedCurrency)}</Text>
+                          // <Text style={styles.oldItemPrice}>{formatMoney(item.originalPrice * item.quantity, selectedCurrency)}</Text>
+                          <Money style={styles.oldItemPrice} amount={item.originalPrice * item.quantity} currency={selectedCurrency} />
                         ) : null}
-                        <Text weight="bold" style={styles.newItemPrice}>
+                        {/* <Text weight="bold" style={styles.newItemPrice}>
                           {formatMoney(roundAmount(item.price * item.quantity), selectedCurrency)}
-                        </Text>
+                        </Text> */}
+                        <Money style={styles.newItemPrice} amount={roundAmount(item.price * item.quantity)} currency={selectedCurrency} />
                       </View>
                     )}
                     {item.variantAttributes && Object.keys(item.variantAttributes).length > 0 ? (
@@ -982,9 +1047,12 @@ export default function CartScreen() {
           <Text style={styles.totalLabel}>{t("subtotal")}</Text>
           <View style={styles.subtotalPriceStack}>
             {hasPromotionalSubtotal ? (
-              <Text style={styles.totalOldValue}>{formatMoney(originalSubtotal, selectedCurrency)}</Text>
+              // <Text style={styles.totalOldValue}>{formatMoney(originalSubtotal, selectedCurrency)}</Text>
+              <Money style={styles.totalOldValue} amount={originalSubtotal} currency={selectedCurrency} />
             ) : null}
-            <Text weight="bold" style={styles.totalValue}>{formatMoney(subtotal, selectedCurrency)}</Text>
+            {/* <Text weight="bold" style={styles.totalValue}>{formatMoney(subtotal, selectedCurrency)}</Text> */}
+
+            <Money style={styles.totalValue} amount={subtotal} currency={selectedCurrency} />
           </View>
         </View>}
         {hasUnavailableItems ? (
@@ -1336,7 +1404,7 @@ export default function CartScreen() {
                           padding: 10,
                           borderRadius: 20
                         },
-                        paymentMethod === "WALLET" && { flexDirection: 'row', justifyContent: 'space-between' },
+                        paymentMethod === "WALLET" && { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
                         ]}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                             {paymentMethod === 'WALLET' ?
@@ -1356,10 +1424,13 @@ export default function CartScreen() {
                               {!walletLoading && walletInsufficient && <FontAwesome6 name="circle-exclamation" size={14} color="#ff5555" />}
                               {walletLoading ? (
                                 <ActivityIndicator color={palette.accent} size="small" />
-                              ) : (
+                              ) : (<>
                                 <Text style={[{ fontWeight: '700' }, !walletLoading && walletInsufficient && { color: '#ff5555' }]}>
-                                  {t("balance")}: {formatSelectedWalletBalance(walletBalance)}
+                                  {t("balance")}:
+                                  {/* {formatSelectedWalletBalance(walletBalance)} */}
                                 </Text>
+                                <Money style={[{ fontWeight: '700' }, !walletLoading && walletInsufficient && { color: '#ff5555' }]} amount={walletBalance} currency={selectedCurrency} />
+                              </>
                               )}
                             </View>
                           )}
@@ -1580,6 +1651,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       fontSize: 22,
       textAlign: isRTL ? "right" : "left",
       fontWeight: "900",
+      lineHeight:28
     },
     row: {
       backgroundColor: palette.card,
@@ -1863,7 +1935,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
     couponPillActive: { backgroundColor: palette.accent, borderColor: palette.accent },
     couponPillText: { color: palette.text, fontWeight: "700" },
     couponPillMeta: { color: palette.text, fontWeight: "700" },
-    couponList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    couponList: { flexDirection: 'column', flexWrap: "wrap", gap: 8 },
     pillRow: {
       padding: 10,
       borderRadius: 10,
@@ -1980,7 +2052,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       fontSize: 48,
       fontWeight: "800",
       color: palette.accent,
-      lineHeight: 48,
+      lineHeight: 52,
     },
     percentMinor: {
       fontSize: 20,

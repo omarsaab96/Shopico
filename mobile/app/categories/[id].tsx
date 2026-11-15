@@ -139,8 +139,8 @@ export default function CategoryDetail() {
     if (categories.length === 0) return null;
 
     return (
-      <View style={{}}>
-        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+      <View style={{ marginHorizontal: -16 }}>
+        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 12, paddingHorizontal: 16 }}>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={tr("Back", "رجوع")}
@@ -183,6 +183,7 @@ export default function CategoryDetail() {
             contentContainerStyle={styles.categoryPillRow}
             onLayout={(event) => setCategoryBandWidth(event.nativeEvent.layout.width)}
           >
+            <View style={{ width: 8 }}></View>
             {categories.map((category) => {
               const active = category._id === activeCategoryId;
               return (
@@ -213,6 +214,7 @@ export default function CategoryDetail() {
                 </TouchableOpacity>
               );
             })}
+            <View></View>
           </ScrollView>
         </View>
       </View>
@@ -299,7 +301,7 @@ export default function CategoryDetail() {
               )}
             </View>
 
-            <View style={{ marginBottom: 4}}>
+            <View style={{ marginBottom: 4 }}>
               <View style={[styles.priceRow]}>
                 <Text style={[styles.productPrice, item.isPromoted && { color: palette.accent }]}>
                   {formatMoney(effectivePrice * quantityStep(item), selectedCurrency)}
@@ -333,7 +335,7 @@ export default function CategoryDetail() {
 
   return (
     <Screen>
-      {/* <Text weight="black" style={styles.title}>{categoryName || t("products")}</Text> */}
+      <Text weight="black" style={styles.title}>{categoryName || t("products")}</Text>
 
       {renderCategoryBand()}
 
@@ -384,10 +386,12 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
 
   return StyleSheet.create({
     title: {
-      fontSize: 26,
+      fontSize: 22,
+      fontWeight: "900",
       color: palette.text,
       marginBottom: 12,
       textAlign: align,
+      lineHeight: 28
     },
     iconButton: {
       width: 42,
@@ -458,6 +462,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       color: palette.text,
       fontSize: 12,
       textAlign: "center",
+      lineHeight: 16
     },
     categoryPillTextActive: {
       color: isDark ? palette.text : "#fff",

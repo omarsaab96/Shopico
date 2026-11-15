@@ -38,13 +38,13 @@ export default function SettingsScreen() {
 
       <View style={styles.card}>
         <View style={styles.row}>
-          <Text style={styles.muted}>{t("pushNotifications")}</Text>
+          <Text style={styles.value}>{t("pushNotifications")}</Text>
           <Switch disabled={saving} value={pushEnabled} onValueChange={value => void change("pushEnabled", value)} />
         </View>
       </View>
       <View style={styles.card}>
         <View style={styles.row}>
-          <Text style={styles.muted}>
+          <Text style={styles.value}>
             {lang === "ar" ? "العروض والإعلانات" : "Promotions and announcements"}
           </Text>
           <Switch disabled={saving} value={promotionsEnabled} onValueChange={value => void change("promotionsEnabled", value)} />
@@ -106,7 +106,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
     header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
     backButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border },
     title: { flex: 1, color: palette.text, fontSize: 22, fontWeight: "800", textAlign: isRTL ? "right" : "left" },
-    card: { backgroundColor: palette.card, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: palette.border, gap: 8, marginBottom: 12 },
+    card: { gap: 8, marginBottom: 12 },
     muted: { color: palette.muted, textAlign: isRTL ? "right" : "left" },
     value: { color: palette.text, fontWeight: "700", textAlign: isRTL ? "right" : "left" },
     row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 },

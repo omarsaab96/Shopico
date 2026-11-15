@@ -1,3 +1,4 @@
+import { TextInput } from "../../components/TextInput";
 import OrderCancellation from "../../components/OrderCancellation";
 import { formatQuantity } from "../../lib/productUnits";
 import { DeviceEventEmitter } from "react-native";
@@ -7,11 +8,13 @@ import {
   AppState,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
 import LottieView from "lottie-react-native";
+import Animated, { FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
 import Screen from "../../components/Screen";
 import Text from "../../components/Text";
 import { useAuth } from "../../lib/auth";
@@ -25,18 +28,55 @@ import Entypo from "@expo/vector-icons/Entypo";
 import { useCurrency } from "../../lib/currency";
 
 
+const AnimatedPill = Animated.createAnimatedComponent(TouchableOpacity);
+const pillTransition = LinearTransition.duration(240).reduceMotion(ReduceMotion.System);
+
+const ORDER_STATUSES = ["", "PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"] as const;
+
+const STATUS_COLORS: Record<string, string> = {
+  PENDING: "#ff7a1f",
+  PROCESSING: "#2563eb",
+  SHIPPING: "#4f46e5",
+  DELIVERED: "#16a34a",
+  CANCELLED: "#ef4444",
+};
+
+const statusIcon = (status: string, color: string) => {
+  switch (status) {
+    case "PENDING": return <Entypo name="dots-three-horizontal" size={14} color={color} />;
+    case "PROCESSING": return <Feather name="loader" size={14} color={color} />;
+    case "SHIPPING": return <MaterialIcons name="delivery-dining" size={16} color={color} />;
+    case "DELIVERED": return <MaterialIcons name="done-all" size={16} color={color} />;
+    case "CANCELLED": return <MaterialCommunityIcons name="cancel" size={16} color={color} />;
+    default: return <Feather name="grid" size={14} color={color} />;
+  }
+};
+
 export default function Orders() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const statusScrollRef = useRef<ScrollView>(null);
   const appStateRef = useRef(AppState.currentState);
 
   const { user } = useAuth();
-  const { palette } = useTheme();
+  const { palette, isDark } = useTheme();
   const { t, isRTL, lang } = useI18n();
   const { selectedCurrency, formatMoney } = useCurrency();
-  const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
+  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
+
+  const filteredOrders = useMemo(() => {
+    const query = search.trim().replace(/^#/, "").toLocaleLowerCase();
+    return orders.filter(order => {
+      if (statusFilter && order.status !== statusFilter) return false;
+      return !query || String(order._id).toLocaleLowerCase().includes(query) ||
+        order.items?.some((item: any) =>
+          String(item.product?.name || "").toLocaleLowerCase().includes(query));
+    });
+  }, [orders, search, statusFilter]);
 
   const formatOrderDate = useCallback((value?: string) => {
     if (!value) return "";
@@ -136,6 +176,88 @@ export default function Orders() {
     <Screen>
       <Text style={styles.title}>{t("orders")}</Text>
 
+      {user && orders.length > 0 && (
+        <View style={styles.filters}>
+          <View style={styles.searchRow}>
+            <View style={styles.searchWrap}>
+              <Feather name="search" size={18} color={palette.muted} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                value={search}
+                onChangeText={setSearch}
+                placeholder={t("searchOrders")}
+                placeholderTextColor={palette.muted}
+                accessibilityLabel={t("searchOrders")}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+              {search.length > 0 && (
+                <TouchableOpacity
+                  style={styles.searchRight}
+                  onPress={() => setSearch("")}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("clear")}
+                  hitSlop={8}
+                >
+                  <Feather name="x" size={18} color={palette.text} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          <View
+            key={isRTL ? "rtl" : "ltr"}
+            // ref={statusScrollRef}
+            // horizontal
+            // style={styles.statusScroll}
+            style={styles.statusFilters}
+            // showsHorizontalScrollIndicator={false}
+            // contentContainerStyle={styles.statusFilters}
+            // onContentSizeChange={() => {
+            //   if (isRTL) statusScrollRef.current?.scrollToEnd({ animated: false });
+            // }}
+          >
+            {ORDER_STATUSES.map(status => {
+              const active = statusFilter === status;
+              const color = STATUS_COLORS[status] || palette.accent;
+              const foreground = active
+                ? status ? color : isDark ? palette.text : "#fff"
+                : palette.muted;
+              return (
+                <AnimatedPill
+                  key={status || "all"}
+                  layout={pillTransition}
+                  style={[
+                    styles.filterChip,
+                    active && (status
+                      ? { borderColor: color, backgroundColor: `${color}1A` }
+                      : { borderColor: isDark ? "#2f2f2f" : "transparent", backgroundColor: isDark ? "transparent" : "#000" }),
+                  ]}
+                  onPress={() => setStatusFilter(status)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(status || "all")}
+                  accessibilityState={{ selected: active }}
+                >
+                  {statusIcon(status, foreground)}
+                  {active && (
+                    <Animated.View
+                      entering={FadeIn.duration(180).reduceMotion(ReduceMotion.System)}
+                      exiting={FadeOut.duration(100).reduceMotion(ReduceMotion.System)}
+                    >
+                      <Text weight="black" style={[styles.filterLabel, { color: foreground }]} numberOfLines={1}>
+                        {t(status || "all")}
+                      </Text>
+                    </Animated.View>
+                  )}
+                </AnimatedPill>
+              );
+            })}
+          </View>
+
+        </View>
+      )}
+
       {!user ? (
         <View style={styles.emptyBox}>
           <LottieView
@@ -181,10 +303,18 @@ export default function Orders() {
         </View>
       ) : (
         <FlatList
-          data={orders}
+          data={filteredOrders}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          ListEmptyComponent={
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyTitle}>{t("noResults")}</Text>
+              <Text style={styles.emptyText}>{t("noMatchingOrdersHint")}</Text>
+            </View>
+          }
           keyExtractor={(o) => o._id}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-          contentContainerStyle={{ paddingBottom: 10 }}
+          contentContainerStyle={{ paddingBottom: 10, flexGrow: 1 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -293,7 +423,7 @@ export default function Orders() {
   );
 }
 
-const createStyles = (palette: any, isRTL: boolean) =>
+const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
   StyleSheet.create({
     title: {
       color: palette.text,
@@ -301,7 +431,57 @@ const createStyles = (palette: any, isRTL: boolean) =>
       fontWeight: "900",
       marginBottom: 12,
       textAlign: isRTL ? "right" : "left",
+      lineHeight:28
     },
+    filters: { marginHorizontal: -16, marginBottom: 15 },
+    searchRow: { flexDirection: "row", alignItems: "center", marginBottom: 12, paddingHorizontal: 16 },
+    searchWrap: {
+      flex: 1,
+      position: "relative",
+      height: 48,
+      borderRadius: 999,
+      backgroundColor: palette.card,
+      borderWidth: 1,
+      borderColor: palette.border,
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOpacity: isDark ? 0.18 : 0.08,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: isDark ? 2 : 1,
+    },
+    searchIcon: { position: "absolute", left: 14, top: 14 },
+    searchRight: { position: "absolute", right: 14, top: 14 },
+    searchInput: {
+      paddingHorizontal: 44,
+      color: palette.text,
+      textAlign: isRTL ? "right" : "left",
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    // Use explicit direction so Screen's RTL layout does not reverse the row twice.
+    statusScroll: { direction: "ltr" },
+    statusFilters: {
+      direction: "ltr",
+      flexDirection: isRTL ? "row-reverse" : "row",
+      flexGrow: 1,
+      gap: 8,
+      paddingHorizontal: 16,
+    },
+    filterChip: {
+      overflow: "hidden",
+      direction: "ltr",
+      flexDirection: isRTL ? "row-reverse" : "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: isDark ? palette.border : "rgba(15, 23, 42, 0.08)",
+      backgroundColor: palette.card,
+    },
+    filterLabel: { color: palette.text, fontSize: 12, textAlign: "center",lineHeight:16 },
 
     row: {
       backgroundColor: palette.card,
@@ -326,7 +506,6 @@ const createStyles = (palette: any, isRTL: boolean) =>
       height: 40,
       width: 40,
       justifyContent: 'center',
-      alignItems: 'flex-end',
     },
     meta: { color: palette.muted, fontSize: 12, lineHeight: 16, fontWeight: '500', opacity: 0.6 },
     textSeperator: { width: 3, height: 3, borderRadius: 20, backgroundColor: palette.text },
@@ -337,17 +516,20 @@ const createStyles = (palette: any, isRTL: boolean) =>
       color: palette.accent,
       fontSize: 14,
       fontWeight: "900",
+      lineHeight:22
     },
     itemName: {
       color: palette.text,
-      fontWeight: "600",
+      fontWeight: "400",
       fontSize: 14,
+      lineHeight:22
     },
     moreItemsText: {
       color: palette.muted,
       fontWeight: "600",
       fontSize: 13,
-      opacity: 0.6
+      opacity: 0.6,
+      lineHeight:20,
     },
     value: { color: "black", fontSize: 13, fontWeight: "600" },
 

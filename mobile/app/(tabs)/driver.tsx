@@ -672,6 +672,7 @@ const createStyles = (palette: any, isRTL: boolean) =>
       fontWeight: "900",
       color: palette.text,
       textAlign: isRTL ? "right" : "left",
+      lineHeight:28
     },
     header: {
       gap: 4,

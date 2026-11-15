@@ -325,6 +325,7 @@ export const listAvailableCoupons = catchAsync(async (req: AuthRequest, res) => 
 
   const available = [];
   for (const coupon of coupons) {
+    if (coupon.rewardToken && coupon.usedCount > 0) continue;
     if (coupon.assignedUsers && coupon.assignedUsers.length > 0) {
       const allowed = coupon.assignedUsers.some((id) => id.toString() === req.user?._id.toString());
       if (!allowed) continue;
@@ -413,6 +414,9 @@ export const validateCoupon = catchAsync(async (req: AuthRequest, res) => {
     }
   }
 
+  if (coupon.rewardToken && coupon.usedCount > 0) {
+    return res.status(409).json({ success: false, message: "Coupon already used" });
+  }
   const userUsedCount = await CouponRedemption.countDocuments({ coupon: coupon._id, user: req.user!._id });
   const legacyScope = coupon.maxUsesScope || "PER_USER";
   const maxUsesPerUser = coupon.maxUsesPerUser ?? (legacyScope === "PER_USER" ? coupon.maxUses : undefined);

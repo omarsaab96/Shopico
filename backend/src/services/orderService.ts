@@ -278,12 +278,15 @@ const handleWalletDebit = async (userId: Types.ObjectId, branchId: string, amoun
 };
 
 const tryConsumeRewardToken = async (userId: Types.ObjectId, rewardValue: number, apply: boolean) => {
-  if (!apply) return { applied: false, discount: 0 };
-  const token = await RewardToken.findOne({ user: userId, consumed: false });
-  if (!token) return { applied: false, discount: 0 };
-  token.consumed = true;
-  await token.save();
-  return { applied: true, discount: rewardValue };
+  if (!apply) return { applied: false, discount: 0, tokenId: undefined };
+  if (!(rewardValue > 0)) throw { status: 409, message: "Points reward is not available" };
+  const token = await RewardToken.findOneAndUpdate(
+    { user: userId, consumed: false },
+    { $set: { consumed: true } },
+    { new: true, sort: { createdAt: 1, _id: 1 } }
+  );
+  if (!token) throw { status: 409, message: "Points reward is no longer available. Please review your cart." };
+  return { applied: true, discount: rewardValue, tokenId: token._id };
 };
 
 const normalizeCouponCode = (code: string) => code.trim().toUpperCase();
@@ -301,6 +304,7 @@ const applyCoupon = async (
   const normalized = normalizeCouponCode(code);
   const coupon = await Coupon.findOne({ code: normalized, isActive: true, branchId });
   if (!coupon) throw { status: 404, message: "Coupon not found" };
+  if (coupon.rewardToken && coupon.usedCount > 0) throw { status: 409, message: "Coupon already used" };
   if (coupon.expiresAt && coupon.expiresAt.getTime() < Date.now()) {
     throw { status: 400, message: "Coupon expired" };
   }
@@ -471,40 +475,59 @@ export const createOrder = async (
   const discount = roundAmount(rewardResult.discount + couponResult.discount);
   const total = roundAmount(Math.max(0, subtotal + deliveryFee - discount));
 
-  let walletDebit: { amount: number; currency: Types.ObjectId; primaryCurrency: Types.ObjectId } | undefined;
-  if (payload.paymentMethod === "WALLET") {
-    walletDebit = await handleWalletDebit(userId, branchId, total, "ORDER", orderCurrency._id.toString());
-  }
+  const reservedRewardCoupons: Types.ObjectId[] = [];
+  const order = await (async () => {
+    for (const coupon of couponResult.coupons.filter(coupon => coupon.rewardToken)) {
+      const claimed = await Coupon.findOneAndUpdate(
+        { _id: coupon._id, usedCount: 0, isActive: true }, { $inc: { usedCount: 1 } }, { new: true }
+      );
+      if (!claimed) throw { status: 409, message: "Points coupon is no longer available" };
+      reservedRewardCoupons.push(coupon._id);
+    }
+    let walletDebit: { amount: number; currency: Types.ObjectId; primaryCurrency: Types.ObjectId } | undefined;
+    if (payload.paymentMethod === "WALLET") {
+      walletDebit = await handleWalletDebit(userId, branchId, total, "ORDER", orderCurrency._id.toString());
+    }
 
-  const order = await Order.create({
-    user: userId,
-    branchId,
-    currency: orderCurrency._id,
-    currencyExchangeRate: orderCurrency.isPrimary ? 1 : Number(orderCurrency.exchangeRate || 1),
-    cancellationUntil: new Date(Date.now() + CANCELLATION_WINDOW_MS),
-    walletDebitAmount: walletDebit?.amount,
-    walletDebitCurrency: walletDebit?.currency,
-    walletPrimaryCurrency: walletDebit?.primaryCurrency,
-    deliveryDiscount: couponResult.deliveryDiscount,
-    items,
-    status: "PENDING",
-    paymentMethod: payload.paymentMethod,
-    paymentStatus: payload.paymentMethod === "WALLET" ? "CONFIRMED" : "PENDING",
-    address,
-    addressRef: addressRef ?? null,
-    lat,
-    lng,
-    notes: payload.notes,
-    subtotal,
-    deliveryFee,
-    deliveryDistanceKm: distanceKm,
-    discount,
-    couponCode: couponResult.coupons[0]?.code,
-    couponCodes: couponResult.coupons.map((c) => c.code),
-    couponDiscount: couponResult.discount,
-    total,
-    rewardApplied: rewardResult.applied,
-    statusHistory: [{ status: "PENDING", at: new Date() }],
+    return await Order.create({
+      user: userId,
+      branchId,
+      currency: orderCurrency._id,
+      currencyExchangeRate: orderCurrency.isPrimary ? 1 : Number(orderCurrency.exchangeRate || 1),
+      cancellationUntil: new Date(Date.now() + CANCELLATION_WINDOW_MS),
+      walletDebitAmount: walletDebit?.amount,
+      walletDebitCurrency: walletDebit?.currency,
+      walletPrimaryCurrency: walletDebit?.primaryCurrency,
+      deliveryDiscount: couponResult.deliveryDiscount,
+      items,
+      status: "PENDING",
+      paymentMethod: payload.paymentMethod,
+      paymentStatus: payload.paymentMethod === "WALLET" ? "CONFIRMED" : "PENDING",
+      address,
+      addressRef: addressRef ?? null,
+      lat,
+      lng,
+      notes: payload.notes,
+      subtotal,
+      deliveryFee,
+      deliveryDistanceKm: distanceKm,
+      discount,
+      couponCode: couponResult.coupons[0]?.code,
+      couponCodes: couponResult.coupons.map((c) => c.code),
+      couponDiscount: couponResult.discount,
+      total,
+      rewardApplied: rewardResult.applied,
+      statusHistory: [{ status: "PENDING", at: new Date() }],
+    });
+  })().catch(async (error) => {
+    // A failed payment/order write must leave the selected reward available for retry.
+    if (reservedRewardCoupons.length) {
+      await Coupon.updateMany({ _id: { $in: reservedRewardCoupons } }, { $set: { usedCount: 0 } });
+    }
+    if (rewardResult.tokenId) {
+      await RewardToken.updateOne({ _id: rewardResult.tokenId }, { $set: { consumed: false } });
+    }
+    throw error;
   });
 
   if (couponResult.coupons.length) {
@@ -512,7 +535,7 @@ export const createOrder = async (
       couponResult.coupons.map((coupon) => ({ coupon: coupon._id, user: userId, order: order._id }))
     );
     await Coupon.updateMany(
-      { _id: { $in: couponResult.coupons.map((c) => c._id) } },
+      { _id: { $in: couponResult.coupons.map((c) => c._id), $nin: reservedRewardCoupons } },
       { $inc: { usedCount: 1 } }
     );
   }
