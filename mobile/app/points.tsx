@@ -1,6 +1,6 @@
 import Feather from "@expo/vector-icons/Feather";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Alert, DeviceEventEmitter, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, AppState, DeviceEventEmitter, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated, { Keyframe, LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Canvas, Path, Skia } from "@shopify/react-native-skia";
@@ -42,28 +42,47 @@ export default function PointsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [points, setPoints] = useState(0);
-  const [threshold, setThreshold] = useState(100);
+  const [threshold, setThreshold] = useState<number | null>(null);
+
+  const applySummary = useCallback((summary: any) => {
+    const nextThreshold = Number(summary.rewardThreshold);
+    if (!Number.isInteger(nextThreshold) || nextThreshold <= 0) {
+      throw new Error("Invalid reward threshold");
+    }
+    setPoints(summary.points || 0);
+    setThreshold(nextThreshold);
+    setRewardAvailable(Boolean(summary.rewardAvailable));
+  }, []);
 
   const load = useCallback(async (active: () => boolean = () => true) => {
     try {
-      const [summary, saved] = await Promise.all([api.get("/points"), api.get("/points/coupons")]);
+      const [summary, saved] = await Promise.allSettled([api.get("/points"), api.get("/points/coupons")]);
       if (!active()) return;
-      setPoints(summary.data.data.points || 0);
-      setThreshold(Math.max(1, Number(summary.data.data.rewardThreshold) || 100));
-      setRewardAvailable(Boolean(summary.data.data.rewardAvailable));
-      setCoupons(saved.data.data || []);
-      setLoadFailed(false);
+      if (saved.status === "fulfilled") setCoupons(saved.value.data.data || []);
+      if (summary.status === "fulfilled") applySummary(summary.value.data.data);
+      else {
+        setThreshold(null);
+        setRewardAvailable(false);
+      }
+      setLoadFailed(summary.status === "rejected" || saved.status === "rejected");
     } catch {
-      if (active()) setLoadFailed(true);
+      if (active()) {
+        setThreshold(null);
+        setRewardAvailable(false);
+        setLoadFailed(true);
+      }
     } finally {
       if (active()) setLoading(false);
     }
-  }, []);
+  }, [applySummary]);
 
   useFocusEffect(useCallback(() => {
     let active = true;
     void load(() => active);
-    return () => { active = false; };
+    const subscription = AppState.addEventListener("change", state => {
+      if (state === "active") void load(() => active);
+    });
+    return () => { active = false; subscription.remove(); };
   }, [load]));
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener("shopico:notification", () => { void load(); });
@@ -86,9 +105,7 @@ export default function PointsScreen() {
       // Keep the receipt visible even if the subsequent balance refresh fails.
       try {
         const summary = await api.get("/points");
-        setPoints(summary.data.data.points || 0);
-        setThreshold(Math.max(1, Number(summary.data.data.rewardThreshold) || 100));
-        setRewardAvailable(Boolean(summary.data.data.rewardAvailable));
+        applySummary(summary.data.data);
       } catch { setRewardAvailable(false); }
     } catch (error: any) {
       Alert.alert(t("redeemPoints"), error?.response?.data?.message || t("rewardApplyFailed"));
@@ -97,8 +114,8 @@ export default function PointsScreen() {
     }
   };
 
-  const progress = rewardAvailable ? 1 : (points % threshold) / threshold;
-  const remaining = rewardAvailable ? 0 : threshold - (points % threshold);
+  const progress = threshold === null ? 0 : rewardAvailable ? 1 : (points % threshold) / threshold;
+  const remaining = threshold === null ? null : rewardAvailable ? 0 : threshold - (points % threshold);
   const arc = useMemo(() => {
     const path = Skia.Path.Make();
     path.addArc({ x: STROKE / 2, y: STROKE / 2, width: SIZE - STROKE, height: SIZE - STROKE }, -90, progress * 360);
@@ -149,8 +166,8 @@ export default function PointsScreen() {
                 <Text weight="black" style={styles.balance} numberOfLines={1} adjustsFontSizeToFit>{points.toLocaleString()}</Text>
               </View>
               <Text style={styles.remaining}>
-                <Text weight="black" style={{ color: palette.accent }}>{remaining.toLocaleString()} </Text>
-                {t("pointsLeft")}
+                <Text weight="black" style={{ color: palette.accent }}>{remaining === null ? "—" : `${remaining.toLocaleString()} `}</Text>
+                {remaining !== null && t("pointsLeft")}
               </Text>
             </View>
             <View style={styles.ring} accessibilityRole="progressbar" accessibilityLabel={t("pointsBalance")}
@@ -161,7 +178,7 @@ export default function PointsScreen() {
               </Canvas>
               <View pointerEvents="none" style={styles.ringCenter}>
                 <Feather name={rewardAvailable ? "gift" : "award"} size={22} color={palette.accent} />
-                <Text weight="black" style={{ color: palette.text, fontSize: 18 }}>{Math.round(progress * 100)}%</Text>
+                <Text weight="black" style={{ color: palette.text, fontSize: 18 }}>{threshold === null ? "—" : `${Math.round(progress * 100)}%`}</Text>
               </View>
             </View>
           </View>

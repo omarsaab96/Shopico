@@ -2344,7 +2344,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       alignItems: "center",
       justifyContent: "space-between",
     },
-    sectionTitle: { color: palette.text, fontSize: 16, textAlign: align },
+    sectionTitle: { color: palette.text, fontSize: 16, textAlign: align,lineHeight:20 },
     sectionAction: { color: palette.accent, fontWeight: "900", textAlign: align },
 
     catGridClip: {
@@ -2568,7 +2568,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     promoViewport: { alignSelf: "stretch", flexGrow: 0, direction: "ltr" },
     promoSlide: { gap: 10, flexShrink: 0 },
     promoImageWrap: {
-      height: 140,
+      width: "100%",
+      aspectRatio: 1,
       borderRadius: 16,
       backgroundColor: palette.surface,
       alignItems: "center",
