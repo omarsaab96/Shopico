@@ -644,10 +644,10 @@ export const updateOrderStatus = async (
       order.driverStartedBy = null;
     }
   }
-  if (status === "SHIPPING" && !order.driverId) {
-    throw { status: 400, message: "A driver must be assigned before shipping" };
+  if (["PROCESSING", "SHIPPING"].includes(status) && !order.driverId) {
+    throw { status: 400, message: status === "PROCESSING" ? "A driver must be assigned before processing" : "A driver must be assigned before shipping" };
   }
-  if (status === "SHIPPING" && !driverId && !await User.exists({ _id: order.driverId, role: "driver", branchIds: order.branchId })) {
+  if (["PROCESSING", "SHIPPING"].includes(status) && !driverId && !await User.exists({ _id: order.driverId, role: "driver", branchIds: order.branchId })) {
     throw { status: 400, message: "Choose a driver from this branch" };
   }
   if (expectedDriverId && status === "SHIPPING" && !order.driverStartedAt) {
@@ -727,7 +727,7 @@ export const updateOrderDetails = async (
   if (payload.driverId !== undefined) {
     const previousDriverId = order.driverId;
     if (!payload.driverId) {
-      if (order.status === "SHIPPING") throw { status: 400, message: "A shipping order must keep an assigned driver" };
+      if (["PROCESSING", "SHIPPING"].includes(order.status)) throw { status: 400, message: "Processing and shipping orders must keep an assigned driver" };
       order.driverId = null as any;
       order.driverLocation = null;
       order.driverStartedAt = null;

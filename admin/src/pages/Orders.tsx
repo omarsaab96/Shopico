@@ -74,8 +74,8 @@ const OrdersPage = () => {
   const { can, canAny } = usePermissions();
   const { selectedBranchId } = useBranch();
   const [detailsOrderId, setDetailsOrderId] = useState<string | null>(null);
-  const [shippingOrder, setShippingOrder] = useState<{ order: Order; paymentStatus?: string } | null>(null);
-  useEffect(() => { setShippingOrder(null); }, [selectedBranchId]);
+  const [driverRequiredOrder, setDriverRequiredOrder] = useState<{ order: Order; status: "PROCESSING" | "SHIPPING"; paymentStatus?: string } | null>(null);
+  useEffect(() => { setDriverRequiredOrder(null); }, [selectedBranchId]);
   const canViewOrders = can("orders:view");
   const canUpdateOrders = canViewOrders && can("orders:update");
   const canViewUsersPage = can("users:view");
@@ -226,8 +226,8 @@ const OrdersPage = () => {
   }, [selectedBranchId, searchTerm, statusFilter, paymentFilter, currencyFilter, fromDate, toDate]);
 
   const update = async (order: Order, status: string, paymentStatus?: string, driverId?: string): Promise<boolean> => {
-    if (status === "SHIPPING" && !(driverId === undefined ? getDriverIdValue(order.driverId) : driverId)) {
-      setShippingOrder({ order, paymentStatus });
+    if ((status === "PROCESSING" || status === "SHIPPING") && !(driverId === undefined ? getDriverIdValue(order.driverId) : driverId)) {
+      setDriverRequiredOrder({ order, status, paymentStatus });
       mutatingRef.current = false;
       return false;
     }
@@ -269,6 +269,10 @@ const OrdersPage = () => {
 
   const saveDriverAssignment = async (order: Order, driverId: string) => {
     if (isDriverAssignmentLocked(order)) return;
+    if (!driverId && ["PROCESSING", "SHIPPING"].includes(order.status)) {
+      await confirmAction({ title: t("errorTitle"), message: t("orders.driverRequired"), confirmLabel: t("close") });
+      return;
+    }
     setAssigning((prev) => ({ ...prev, [order._id]: true }));
     mutatingRef.current = true;
     try {
@@ -298,7 +302,7 @@ const OrdersPage = () => {
 
   const saveEdit = async (order: Order) => {
     if (!editDraft) return;
-    if (editDraft.status === "SHIPPING") {
+    if (editDraft.status === "PROCESSING" || editDraft.status === "SHIPPING") {
       const saved = await update(order, editDraft.status, editDraft.paymentStatus, editDraft.driverId);
       if (saved || !editDraft.driverId) cancelEdit();
       return;
@@ -451,7 +455,7 @@ const OrdersPage = () => {
           </button>
         </form>
 
-        <div className="orders-view-switch" role="group" aria-label={t("orders.view")}>
+        <div className="orders-view-switch" role="group" aria-label={t("orders.view")} style={{ display: "none" }}>
           {(["basket", "table"] as const).map(option => (
             <button key={option} type="button" className={`orders-view-icon ${view === option ? "primary" : "ghost-btn"}`} aria-pressed={view === option}
               aria-label={t(`orders.${option}View`)} title={t(`orders.${option}View`)}
@@ -831,9 +835,9 @@ const OrdersPage = () => {
           </ModalSurface>
         </div>
       )}
-      {shippingOrder && <ShippingDriverModal onCancel={() => setShippingOrder(null)} onConfirm={async driverId => {
-        const saved = await update(shippingOrder.order, "SHIPPING", shippingOrder.paymentStatus, driverId);
-        if (saved) setShippingOrder(null);
+      {driverRequiredOrder && <ShippingDriverModal targetStatus={driverRequiredOrder.status} onCancel={() => setDriverRequiredOrder(null)} onConfirm={async driverId => {
+        const saved = await update(driverRequiredOrder.order, driverRequiredOrder.status, driverRequiredOrder.paymentStatus, driverId);
+        if (saved) setDriverRequiredOrder(null);
         return saved;
       }} />}
     </Card>

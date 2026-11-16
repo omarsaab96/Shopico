@@ -31,6 +31,28 @@ const makeOrder = (overrides: Record<string, unknown> = {}) => Order.create({
 });
 const start = (id: unknown) => updateOrderStatusAsDriver(String(id), driverId, "SHIPPING");
 
+describe("processing requires a driver", () => {
+  it("rejects processing without a driver and leaves the order pending", async () => {
+    const order = await makeOrder({ status: "PENDING", driverId: null });
+    await expect(updateOrderStatus(String(order._id), "PROCESSING")).rejects.toMatchObject({ status: 400 });
+    expect((await Order.findById(order._id))?.status).toBe("PENDING");
+  });
+  it("assigns a branch driver while moving to processing and prevents removing them", async () => {
+    const order = await makeOrder({ status: "PENDING", driverId: null });
+    await updateOrderStatus(String(order._id), "PROCESSING", undefined, String(branchId), String(driverId));
+    const saved = await Order.findById(order._id).orFail();
+    expect(saved.status).toBe("PROCESSING");
+    expect(String(saved.driverId)).toBe(String(driverId));
+    await expect(updateOrderDetails(String(order._id), { driverId: null }, String(branchId))).rejects.toMatchObject({ status: 400 });
+  });
+  it("accepts an existing branch driver but rejects a driver from another branch", async () => {
+    const order = await makeOrder({ status: "PENDING" });
+    await updateOrderStatus(String(order._id), "PROCESSING");
+    const other = await makeOrder({ status: "PENDING", branchId: new Types.ObjectId() });
+    await expect(updateOrderStatus(String(other._id), "PROCESSING")).rejects.toMatchObject({ status: 400 });
+  });
+});
+
 describe("one active delivery per driver", () => {
   it("requires the driver to start a staff-readied shipping order before completion or tracking", async () => {
     const order = await makeOrder();

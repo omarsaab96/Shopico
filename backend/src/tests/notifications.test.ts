@@ -132,6 +132,7 @@ test("assignment, reassignment, removal and payment notify the appropriate accou
 
 test("staff order edits keep customer and driver alerts without creating dashboard notifications or pushes", async () => {
   const item = await order();
+  await assignDriverToOrder(String(item._id), String(driver._id), String(branch));
   await drainNotificationOutboxes();
   await NotificationDevice.create({ user: staff._id, token: "ExpoPushToken[staff-device]" });
   await updateOrderStatus(String(item._id), "PROCESSING", "CONFIRMED", String(branch));
@@ -140,13 +141,14 @@ test("staff order edits keep customer and driver alerts without creating dashboa
   await drainNotificationOutboxes();
   await assignDriverToOrder(String(item._id), String(driver._id), String(branch));
   await drainNotificationOutboxes();
+  await updateOrderStatus(String(item._id), "PENDING", undefined, String(branch));
   await updateOrderDetails(String(item._id), { driverId: null }, String(branch));
   await drainNotificationOutboxes();
   await updateOrderDetails(String(item._id), { driverId: String(driver._id) }, String(branch));
   await drainNotificationOutboxes();
   expect(await Notification.countDocuments({ user: staff._id })).toBe(1); // Original new order only.
   expect(await NotificationPush.countDocuments({ user: staff._id })).toBe(0);
-  expect(await Notification.countDocuments({ user: customer._id, type: "ORDER_STATUS" })).toBe(1);
+  expect(await Notification.countDocuments({ user: customer._id, type: "ORDER_STATUS" })).toBe(2);
   expect(await Notification.countDocuments({ user: customer._id, type: "PAYMENT_CONFIRMED" })).toBe(1);
   expect(await Notification.countDocuments({ user: driver._id, type: "DRIVER_ASSIGNED" })).toBe(3);
 
@@ -214,7 +216,7 @@ test("disabling promotional pushes keeps the announcement in the inbox", async (
 
 test("API protects inbox ownership, staff permissions, preferences and device ownership", async () => {
   const item = await order();
-  await updateOrderStatus(String(item._id), "PROCESSING", undefined, String(branch));
+  await updateOrderStatus(String(item._id), "PROCESSING", undefined, String(branch), String(driver._id));
   await drainNotificationOutboxes();
   const otherItem = await Notification.findOne({ user: staff._id }).orFail();
   expect((await request(customer, `/${otherItem._id}/read`, { method: "PUT" })).status).toBe(404);

@@ -1237,7 +1237,7 @@ export default function Home() {
         </View>
         <Text style={[styles.driverStatLabel, { color: tone, flex: 1, paddingRight: isRTL ? 0 : 20, paddingLeft: isRTL ? 20 : 0 }]}>{label}</Text>
       </View>
-      <Text style={styles.driverStatValue} numberOfLines={value.split("\n").length} adjustsFontSizeToFit>
+      <Text style={styles.driverStatValue}>
         {value}
       </Text>
       {sublabel ? <Text style={styles.driverStatSub}>{sublabel}</Text> : null}

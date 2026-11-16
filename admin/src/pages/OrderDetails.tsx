@@ -62,8 +62,8 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
   const [statusDraft, setStatusDraft] = useState("");
   const [driverSaving, setDriverSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
-  const [shippingRequired, setShippingRequired] = useState(false);
-  useEffect(() => { setShippingRequired(false); }, [id]);
+  const [driverRequiredStatus, setDriverRequiredStatus] = useState<"PROCESSING" | "SHIPPING" | null>(null);
+  useEffect(() => { setDriverRequiredStatus(null); }, [id]);
   const [detailsError, setDetailsError] = useState("");
   const [detailsSuccess, setDetailsSuccess] = useState("");
   const [activePicker, setActivePicker] = useState<PickerType>(null);
@@ -253,6 +253,11 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
 
   const saveDriver = async (nextDriverId: string) => {
     if (!order || !canUpdateOrders || isDriverAssignmentLocked(order)) return;
+    if (!nextDriverId && ["PROCESSING", "SHIPPING"].includes(order.status)) {
+      setDetailsError(t("orders.driverRequired"));
+      setDriverDraft(driverId);
+      return;
+    }
     setDriverSaving(true);
     setDetailsError("");
     setDetailsSuccess("");
@@ -273,10 +278,10 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
 
   const saveStatus = async (nextStatus: string, selectedDriverId?: string): Promise<boolean> => {
     if (!order || !canUpdateOrders) return false;
-    if (nextStatus === "SHIPPING" && !driverId && !selectedDriverId) {
+    if ((nextStatus === "PROCESSING" || nextStatus === "SHIPPING") && !driverId && !selectedDriverId) {
       setStatusDraft(order.status);
       setActivePicker(null);
-      setShippingRequired(true);
+      setDriverRequiredStatus(nextStatus);
       return false;
     }
     setStatusSaving(true);
@@ -342,9 +347,9 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
         <h3 style={{ margin: 0 }}>{t("orders.orderDetails")} #{order._id.slice(-6)}</h3>
       </div>}
       {
-        shippingRequired && <ShippingDriverModal onCancel={() => { setShippingRequired(false); setStatusDraft(order.status); }} onConfirm={async selectedDriverId => {
-          const saved = await saveStatus("SHIPPING", selectedDriverId);
-          if (saved) setShippingRequired(false);
+        driverRequiredStatus && <ShippingDriverModal targetStatus={driverRequiredStatus} onCancel={() => { setDriverRequiredStatus(null); setStatusDraft(order.status); }} onConfirm={async selectedDriverId => {
+          const saved = await saveStatus(driverRequiredStatus, selectedDriverId);
+          if (saved) setDriverRequiredStatus(null);
           return saved;
         }} />
       }
