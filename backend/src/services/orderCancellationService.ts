@@ -1,8 +1,24 @@
 import { Types } from "mongoose";
 import { Order } from "../models/Order";
 import { settleOrderRefund } from "./refundSettlementService";
+import { CANCELLATION_SKIP_USER_ID } from "../utils/orderCancellation";
 
 const REQUEST_ID = "customer-cancellation";
+
+export async function skipCustomerCancellationWindow(orderId: string, userId: Types.ObjectId) {
+  if (String(userId) !== CANCELLATION_SKIP_USER_ID) throw { status: 403, message: "Skipping the cancellation window is not available" };
+  const now = new Date();
+  const updated = await Order.findOneAndUpdate({
+    _id: orderId, user: userId, status: "PENDING", cancelledByCustomer: { $ne: true }, cancellationUntil: { $gt: now },
+  }, {
+    $set: { cancellationUntil: now, "notificationOutbox.$[created].notBefore": now },
+    $inc: { __v: 1 },
+  }, { new: true, arrayFilters: [{ "created.type": "ORDER_CREATED" }] });
+  if (updated) return;
+  const order = await Order.findOne({ _id: orderId, user: userId });
+  if (!order) throw { status: 404, message: "Order not found" };
+  if (order.cancelledByCustomer || order.status !== "PENDING") throw { status: 409, message: "Order is no longer awaiting release" };
+}
 
 export async function cancelCustomerOrder(orderId: string, userId: Types.ObjectId) {
   const order = await Order.findOne({ _id: orderId, user: userId });

@@ -215,8 +215,22 @@ export default function EditProfile() {
               </View>
 
               <View style={styles.field}>
-                <PhoneFields country={phoneCountry} onCountryChange={setPhoneCountry} phone={phone} onPhoneChange={setPhone} />
-                <Text style={{ color: palette.muted }}>{t("phoneChangeVerificationHint")}</Text>
+                <View style={styles.labelRow}>
+                  <Text weight="bold" style={styles.label}>{t("phone")}</Text>
+                  {/* {user.phoneVerified ? (
+                    <View style={styles.verifiedPill}>
+                      <Feather name="check-circle" size={13} color="#16a34a" />
+                      <Text style={styles.verifiedPillText}>{t("verified")}</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={styles.verifyEmailBtn} onPress={() => router.push("/phone-verification" as any)} activeOpacity={0.85}>
+                      <Feather name="phone" size={13} color={palette.accent} />
+                      <Text style={styles.verifyEmailText}>{t("verifyPhone")}</Text>
+                    </TouchableOpacity>
+                  )} */}
+                </View>
+                <PhoneFields showLabel={false} country={phoneCountry} onCountryChange={setPhoneCountry} phone={phone} onPhoneChange={setPhone} />
+                {/* <Text style={{ color: palette.muted }}>{t("phoneChangeVerificationHint")}</Text> */}
               </View>
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -449,7 +463,7 @@ const createStyles = (palette: any, insets: any, isRTL: boolean, isDark: boolean
       borderRadius: 999,
       borderWidth: 1,
       borderColor: palette.accent,
-      backgroundColor: palette.surface,
+      // backgroundColor: palette.surface,
     },
     verifiedPillText: {
       color: "#16a34a",

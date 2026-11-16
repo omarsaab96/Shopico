@@ -5,16 +5,19 @@ import api from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { useTheme } from "../lib/theme";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useAuth } from "../lib/auth";
 
 type Props = { order: any; onUpdate: (order: any) => void; ordersPage: boolean; cartpage: boolean };
 
 export default function OrderCancellation({ order, onUpdate, ordersPage, cartpage }: Props) {
   const { isRTL } = useI18n();
   const { palette } = useTheme();
+  const { user } = useAuth();
   const [remaining, setRemaining] = useState(0);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
+  const [skipping, setSkipping] = useState(false);
   useEffect(() => {
     const end = Date.now() + Math.max(0, new Date(order?.cancellationUntil).getTime() - new Date(order?.serverTime || Date.now()).getTime());
     const tick = () => setRemaining(Math.max(0, Math.ceil((end - Date.now()) / 1000)));
@@ -43,6 +46,20 @@ export default function OrderCancellation({ order, onUpdate, ordersPage, cartpag
     } catch (err: any) {
       setError(err?.response?.data?.message || (isRTL ? "تعذر إلغاء الطلب. حاول مرة أخرى." : "Unable to cancel. Please try again."));
     } finally { setBusy(false); }
+  }
+
+  async function skipWindow() {
+    if (busy) return;
+    setBusy(true);
+    setSkipping(true);
+    setError("");
+    try {
+      const res = await api.post(`/orders/${order._id}/skip-cancellation`);
+      onUpdate(res.data.data);
+      DeviceEventEmitter.emit("shopico:notification", { type: "ORDER_STATUS" });
+    } catch (err: any) {
+      setError(err?.response?.data?.message || (isRTL ? "تعذر تخطي المهلة. حاول مجدداً." : "Unable to skip. Please try again."));
+    } finally { setBusy(false); setSkipping(false); }
   }
 
   if (order?.cancelledByCustomer) return (
@@ -75,7 +92,7 @@ export default function OrderCancellation({ order, onUpdate, ordersPage, cartpag
         <TouchableOpacity disabled={busy} onPress={() => confirming ? void cancel() : setConfirming(true)} accessibilityRole="button"
           style={{ flexDirection: 'row', gap: 10, flex: 1, alignItems: 'baseline', justifyContent: "center", padding: 8, borderRadius: 10, borderWidth: 1, borderColor: palette.border, opacity: busy ? 0.5 : 1 }}>
           <Text style={{ fontSize: 16, fontWeight: '700', lineHeight: 22, color: palette.muted, textAlign: "center" }}>
-            {busy ?
+            {skipping ? (isRTL ? "يرجى الانتظار…" : "Please wait…") : busy ?
               (isRTL ? "جارٍ الإلغاء…" : "Cancelling…")
               : confirming ?
                 (isRTL ? "تأكيد الإلغاء" : "Confirm cancellation")
@@ -101,6 +118,14 @@ export default function OrderCancellation({ order, onUpdate, ordersPage, cartpag
             {isRTL ? "الاحتفاظ بالطلب" : "Keep order"}</Text></TouchableOpacity>
         }
       </View>
+      {user?._id === "6a4ea890f4a44e8c4f179c1d" && !confirming && (
+        <TouchableOpacity onPress={() => void skipWindow()} disabled={busy} accessibilityRole="button"
+          style={{ padding: 10, borderRadius: 10, borderWidth: 1, borderColor: palette.accent, opacity: busy ? 0.5 : 1 }}>
+          <Text weight="bold" style={{ color: palette.accent, textAlign: "center" }}>
+            {skipping ? (isRTL ? "جارٍ التخطي…" : "Skipping…") : (isRTL ? "تخطي مهلة الدقيقتين (للتطوير)" : "Skip 2-minute wait (development)")}
+          </Text>
+        </TouchableOpacity>
+      )}
       {!!error && <Text style={{ color: palette.text }}>{error}</Text>}
     </View>
   );

@@ -572,7 +572,7 @@ export default function Profile() {
                       </View>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.profileLink} onPress={() => router.push("/phone-verification" as any)}>
+                    {false && <TouchableOpacity style={styles.profileLink} onPress={() => router.push("/phone-verification" as any)}>
                       <Text style={styles.profileLinkText}>{t("verifyPhone")}</Text>
                       <View style={styles.emailRow}>
                         {user?.phoneVerified ? (
@@ -587,7 +587,7 @@ export default function Profile() {
                           </View>
                         )}
                       </View>
-                    </TouchableOpacity>
+                    </TouchableOpacity>}
 
                     <TouchableOpacity style={[styles.profileLink, { borderBottomWidth: 0, justifyContent: 'flex-start', gap: 10 }]}
                       onPress={() => {
@@ -728,7 +728,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontSize: 14,
       color: palette.text,
       fontWeight: "600",
-      lineHeight:24
+      lineHeight: 24
     },
     inlineRow: {
       flexDirection: "row",
@@ -741,8 +741,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       borderWidth: 1,
       borderColor: palette.border,
       backgroundColor: palette.surface,
-      paddingVertical: isRTL ? Platform.OS == "ios" ? 8 : 2 : Platform.OS == "ios" ? 4:0,
-      paddingBottom: isRTL ? Platform.OS == "ios" ? 5 : 2 : Platform.OS == "ios" ? 5: 2,
+      paddingVertical: isRTL ? Platform.OS == "ios" ? 8 : 2 : Platform.OS == "ios" ? 4 : 0,
+      paddingBottom: isRTL ? Platform.OS == "ios" ? 5 : 2 : Platform.OS == "ios" ? 5 : 2,
     },
     pillActive: { backgroundColor: palette.accent, borderColor: palette.accent },
     pillText: { color: palette.text, fontWeight: "700" },
@@ -803,7 +803,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       fontWeight: "900",
       marginBottom: 12,
       textAlign: align,
-      lineHeight:28
+      lineHeight: 28
     },
 
     username: {

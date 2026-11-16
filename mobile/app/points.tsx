@@ -255,6 +255,7 @@ export default function PointsScreen() {
           <Text weight="black" style={styles.sectionTitle}>{t("myCoupons")}</Text>
           <View style={styles.count}><Text weight="bold" style={{ color: palette.accent, fontSize: 12 }}>{coupons.length}</Text></View>
         </View>
+
         <View style={styles.filterHeader}>
           <Text weight="bold" style={styles.filterLabel}>{t("filters")}</Text>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("couponDateOrder")}
@@ -263,6 +264,7 @@ export default function PointsScreen() {
             <Text style={styles.sortLabel}>{t(dateOrder === "newest" ? "newestCouponsFirst" : "oldestCouponsFirst")}</Text>
           </TouchableOpacity>
         </View>
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
           {couponFilters.map(filter => (
             <TouchableOpacity key={filter.value} accessibilityRole="button" accessibilityState={{ selected: couponFilter === filter.value }}
@@ -271,6 +273,7 @@ export default function PointsScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
         {loading ? <ActivityIndicator color={palette.accent} /> : loadFailed ? (
           <TouchableOpacity onPress={() => void load()} style={styles.empty} accessibilityRole="button">
             <Text style={styles.emptyText}>{t("couponsRefreshFailed")}</Text>
@@ -281,9 +284,11 @@ export default function PointsScreen() {
             <Text style={styles.emptyText}>{t("noSavedCoupons")}</Text>
           </View>
         ) : null}
+
         {!loading && !loadFailed && coupons.length > 0 && orderedCoupons.length === 0 && (
           <View style={styles.empty}><Text style={styles.emptyText}>{t("noMatchingCoupons")}</Text></View>
         )}
+
         {orderedCoupons.map(coupon => (
           <Animated.View key={coupon._id} entering={addedCouponIds.includes(coupon._id) ? couponJump(Math.min(addedCouponIds.indexOf(coupon._id), 8) * 100) : undefined}
             layout={LinearTransition.duration(280).reduceMotion(ReduceMotion.System)}>
@@ -291,6 +296,7 @@ export default function PointsScreen() {
           </Animated.View>
         ))}
       </ScrollView>
+      
       {confettiKey !== null && (
         <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.confetti}>
           <LottieView key={confettiKey} autoPlay loop={false} source={require("../assets/orderSuccess.json")}

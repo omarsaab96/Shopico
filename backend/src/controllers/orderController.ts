@@ -1,4 +1,4 @@
-import { cancelCustomerOrder } from "../services/orderCancellationService";
+import { cancelCustomerOrder, skipCustomerCancellationWindow } from "../services/orderCancellationService";
 import { previewOrderItemRefund, refundOrderItem } from "../services/orderRefundService";
 import { refundItemPreviewSchema, refundItemSchema } from "../validators/orderValidators";
 import { catchAsync } from "../utils/catchAsync";
@@ -142,4 +142,10 @@ export const cancelOrder = catchAsync(async (req: AuthRequest, res) => {
   await cancelCustomerOrder(req.params.id, req.user!._id);
   const order = await getOrderById(req.params.id, req.user!._id);
   sendSuccess(res, order ? { ...order.toObject(), serverTime: new Date() } : order, "Order cancelled");
+});
+
+export const skipCancellationWindow = catchAsync(async (req: AuthRequest, res) => {
+  await skipCustomerCancellationWindow(req.params.id, req.user!._id);
+  const order = await getOrderById(req.params.id, req.user!._id);
+  sendSuccess(res, order ? { ...order.toObject(), serverTime: new Date() } : order, "Cancellation window skipped");
 });

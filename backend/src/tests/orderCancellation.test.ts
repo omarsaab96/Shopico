@@ -2,7 +2,8 @@
 import { existsSync } from "fs";
 import mongoose, { Types } from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server-core";
-import { cancelCustomerOrder } from "../services/orderCancellationService";
+import { cancelCustomerOrder, skipCustomerCancellationWindow } from "../services/orderCancellationService";
+import { CANCELLATION_SKIP_USER_ID } from "../utils/orderCancellation";
 import { getAllOrders, getOrderById, updateOrderStatus, assignDriverToOrder } from "../services/orderService";
 import { drainNotificationOutboxes, activateNotifications } from "../notifications/worker";
 import { Notification } from "../models/Notification";
@@ -51,6 +52,33 @@ beforeEach(async () => {
 const cancel = (id = userId) => cancelCustomerOrder(String(order._id), id);
 const freshOrder = () => Order.findById(order._id).orFail();
 const freshWallet = () => Wallet.findOne({ user: userId }).orFail();
+
+test("only the development user can skip their own cancellation window and release staff notifications", async () => {
+  await expect(skipCustomerCancellationWindow(String(order._id), userId)).rejects.toMatchObject({ status: 403 });
+  const developerId = new Types.ObjectId(CANCELLATION_SKIP_USER_ID);
+  await expect(skipCustomerCancellationWindow(String(order._id), developerId)).rejects.toMatchObject({ status: 404 });
+  await Order.updateOne({ _id: order._id }, { $set: { user: developerId } });
+  const staff = await User.create({ name: "Staff", email: "skip-staff@test.com", role: "staff", branchIds: [branchId], permissions: ["orders:view"] });
+  await skipCustomerCancellationWindow(String(order._id), developerId);
+  const released = await freshOrder();
+  expect(released.cancellationUntil!.getTime()).toBeLessThanOrEqual(Date.now());
+  expect(released.status).toBe("PENDING");
+  expect(released.refunds).toHaveLength(0);
+  expect(await getAllOrders({ branchId })).toHaveLength(1);
+  await expect(cancelCustomerOrder(String(order._id), developerId)).rejects.toMatchObject({ status: 409 });
+  await skipCustomerCancellationWindow(String(order._id), developerId);
+  await drainNotificationOutboxes();
+  await drainNotificationOutboxes();
+  expect(await Notification.countDocuments({ user: staff._id, type: "ORDER_CREATED" })).toBe(1);
+});
+
+test("development skip cannot release a cancelled order", async () => {
+  await cancel();
+  const developerId = new Types.ObjectId(CANCELLATION_SKIP_USER_ID);
+  await Order.updateOne({ _id: order._id }, { $set: { user: developerId } });
+  await expect(skipCustomerCancellationWindow(String(order._id), developerId)).rejects.toMatchObject({ status: 409 });
+  expect(await getAllOrders({ branchId })).toHaveLength(0);
+});
 
 test("wallet cancellation preserves order history and refunds exactly once under concurrent retries", async () => {
   await Promise.all([cancel(), cancel(), cancel()]);

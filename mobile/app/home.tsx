@@ -1513,7 +1513,7 @@ export default function Home() {
                                             setQuantity(existing.productId, existing.quantity - quantityStep(item), existing.variantId)
                                           }
                                         >
-                                          {existing.quantity > 1 ?
+                                          {existing.quantity > quantityStep(item) ?
                                             <AntDesign name="minus" size={20} color={palette.text} />
                                             :
                                             <FontAwesome name="trash-o" size={20} color={palette.text} />
@@ -2365,7 +2365,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "center",
       paddingHorizontal: 5,
     },
-    filterDotText: { color: "#fff", fontWeight: "900", fontSize: 12, lineHeight: Platform.OS == "ios" ? 16 : 22 },
+    filterDotText: { color: "#fff", fontWeight: "900", fontSize: 12, lineHeight: Platform.OS == "ios" ? 16 : 16 },
 
     sectionHead: {
       flexDirection: 'row',
@@ -2562,7 +2562,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "center",
     },
     qtySym: { color: palette.text, fontSize: 18, fontWeight: "900" },
-    qtyVal: { color: palette.text, fontSize: 16, fontWeight: "900", minWidth: 24, textAlign: "center" },
+    qtyVal: { color: palette.text, fontSize: 16, fontWeight: "900", minWidth: 44, lineHeight:24, textAlign: "center" },
 
     emptyText: { color: palette.muted, paddingHorizontal: 16, textAlign: align, marginTop: 10 },
 

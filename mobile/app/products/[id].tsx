@@ -128,7 +128,7 @@ export default function ProductDetail() {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               {measured &&
-                <Text style={{ borderWidth: 1, borderColor: "rgba(15, 23, 42, 0.08)", paddingHorizontal: 4, borderRadius: 5, fontSize: 14, lineHeight:18 }}>
+                <Text style={{ borderWidth: 1, borderColor: "rgba(15, 23, 42, 0.08)", paddingHorizontal: 6,paddingBottom:2, borderRadius: 5, fontSize: 14, lineHeight:20 }}>
                   {priceBasis(product, isRTL)}
                 </Text>
               }
@@ -289,7 +289,7 @@ const createStyles = (p: any, rtl: boolean) => StyleSheet.create({
   heroImage: { width: "100%", height: "100%" },
   fallbackImage: { width: "52%", height: 110, opacity: 0.3 },
   saleBadge: { flexDirection: "row", gap: 6, alignItems: "center" },
-  saleText: { color: p.muted, fontSize: 12, },
+  saleText: { color: p.muted, fontSize: 12,lineHeight:18 },
   imageCount: { position: "absolute", bottom: 14, right: 14, backgroundColor: "#ffffffE6", borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5, flexDirection: "row", alignItems: "center", gap: 5 },
   imageCountText: { fontSize: 11, color: p.text },
   thumbnails: { gap: 10, flexDirection: "row", paddingHorizontal: 2 },
@@ -315,7 +315,7 @@ const createStyles = (p: any, rtl: boolean) => StyleSheet.create({
   presets: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   preset: { flex: 1, alignItems: "center", paddingVertical: 5, borderWidth: 1, borderColor: p.border, borderRadius: 15, backgroundColor: p.card },
   presetSelected: { backgroundColor: "#FFF1E6", borderColor: p.accent },
-  presetText: { color: p.muted, fontSize: 12, fontWeight: "600", },
+  presetText: { color: p.muted, fontSize: 12, fontWeight: "600", lineHeight:18 },
   quantityBox: { flexDirection: "row", alignItems: 'center', gap: 10, alignSelf: "flex-start", minHeight: 38 },
   description: { color: p.muted, fontSize: 14, lineHeight: 24, textAlign: rtl ? "right" : "left" },
   totalBlock: { gap: 10, flexDirection: 'row', alignItems: 'center' },

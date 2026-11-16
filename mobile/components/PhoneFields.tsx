@@ -16,9 +16,10 @@ type Props = {
   onPhoneChange: (phone: string) => void;
   confirmPhone?: string;
   onConfirmPhoneChange?: (phone: string) => void;
+  showLabel?: boolean;
 };
 
-export default function PhoneFields({ country, onCountryChange, phone, onPhoneChange, confirmPhone, onConfirmPhoneChange }: Props) {
+export default function PhoneFields({ country, onCountryChange, phone, onPhoneChange, confirmPhone, onConfirmPhoneChange, showLabel = true }: Props) {
   const { palette } = useTheme();
   const { t, lang, isRTL } = useI18n();
   const insets = useSafeAreaInsets();
@@ -30,7 +31,7 @@ export default function PhoneFields({ country, onCountryChange, phone, onPhoneCh
   const inputStyle = { backgroundColor: palette.surface, color: palette.text, borderColor: palette.border, borderWidth: 1, borderRadius: 12, padding: 12 };
   return (
     <View style={{ gap: 10 }}>
-      <Text weight="bold" style={{ color: palette.text }}>{t("phone")}</Text>
+      {showLabel && <Text weight="bold" style={{ color: palette.text }}>{t("phone")}</Text>}
       <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("phoneCountry")}
         onPress={() => { Keyboard.dismiss(); setSearch(""); setOpen(true); }}
         style={[inputStyle, { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }]}>

@@ -105,6 +105,7 @@ export default function CartCouponTeaser({ active, refreshing = false, floating 
             {/* <Shimmer width={contentSize.width} height={7} colorScheme={isDark ? "dark" : "light"} /> */}
             <Shimmer width={contentSize.width * 0.15} height={14} colorScheme={isDark ? "dark" : "light"} />
           </View>}
+
           {loading && floating && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { gap: 0 }]}>
             <Shimmer width={contentSize.width} height={14} colorScheme={isDark ? "dark" : "light"} />
             {/* <Shimmer width={contentSize.width} height={7} colorScheme={isDark ? "dark" : "light"} /> */}
@@ -117,8 +118,8 @@ export default function CartCouponTeaser({ active, refreshing = false, floating 
 
       {!floating && <>
         <View pointerEvents="none" style={[styles.perforation, { borderColor: palette.border }]}>
-          <View style={[styles.notch, { left: -21, backgroundColor: palette.background, borderRightColor: palette.border, borderBottomColor: palette.border }]} />
-          <View style={[styles.notch, { right: -21, backgroundColor: palette.background, borderLeftColor: palette.border, borderTopColor: palette.border }]} />
+          <View style={[styles.notch, { left: -21, backgroundColor: palette.background, borderRightColor: palette.border, borderBottomColor: palette.border, transform: [{ rotateZ: isRTL?'45deg':'-45deg' }] }]} />
+          <View style={[styles.notch, { right: -21, backgroundColor: palette.background, borderLeftColor: palette.border, borderTopColor: palette.border, transform: [{ rotateZ: isRTL?'45deg':'-45deg' }] }]} />
         </View>
         <View style={styles.tearOff} onLayout={({ nativeEvent }) => setFooterWidth(nativeEvent.layout.width)}>
           <View style={[styles.footerContent, { opacity: loading ? 0 : 1 }]}
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
   floatingHeading: { flexDirection: "row", direction: "ltr", alignItems: "center", gap: 5 },
   floatingValue: { flexDirection: "row", direction: "ltr", alignItems: "center", gap: 4, flexShrink: 0 },
   perforation: { borderTopWidth: 1, borderStyle: "dashed", position: "relative" },
-  notch: { position: "absolute", top: -9, width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'transparent', transform: [{ rotateZ: "-45deg" }] },
+  notch: { position: "absolute", top: -9, width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'transparent' },
   tearOff: { paddingVertical: 9 },
   footerContent: { flexDirection: "row", alignItems: "center", gap: 10 },
   footerShimmer: { position: "absolute", top: 9, left: 0, right: 0 },

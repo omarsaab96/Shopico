@@ -1,4 +1,5 @@
 export const CANCELLATION_WINDOW_MS = 2 * 60 * 1000;
+export const CANCELLATION_SKIP_USER_ID = "6a4ea890f4a44e8c4f179c1d";
 
 // Orders created before this feature have no deadline and remain visible.
 export const staffOrderFilter = (now = new Date()) => ({

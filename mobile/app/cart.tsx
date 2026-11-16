@@ -1,5 +1,6 @@
 import { TextInput } from "../components/TextInput";
 import OrderCancellation from "../components/OrderCancellation";
+import MinimumOrderBanner from "../components/MinimumOrderBanner";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import QuantityControl from "../components/QuantityControl";
 import { roundAmount } from "../lib/productUnits";
@@ -153,7 +154,7 @@ export default function CartScreen() {
   const [couponError, setCouponError] = useState("");
   const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [couponsLoading, setCouponsLoading] = useState(false);
-  const paymentMethods = ["WALLET", "CASH_ON_DELIVERY"] as const;
+  const paymentMethods = ["WALLET", "CASH_ON_DELIVERY", "SHAM_CASH"] as const;
   const { height: windowHeight } = useWindowDimensions();
   const [paymentMethod, setPaymentMethod] = useState<typeof paymentMethods[number]>("WALLET");
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
@@ -1134,12 +1135,7 @@ export default function CartScreen() {
         </View>}
         {items.length > 0 && <CartCouponTeaser active={isFocused && !checkoutOpen} refreshing={refreshing} />}
         {items.length > 0 && belowMinimumOrder ? (
-          <View accessibilityLiveRegion="polite">
-            <Text style={styles.cartWarning}>
-              {t("minimumOrderRequired")}: <Money amount={minimumOrderAmount} currency={selectedCurrency} />
-              {"\n"}{t("minimumOrderAddMore")}
-            </Text>
-          </View>
+          <MinimumOrderBanner subtotal={subtotal} minimum={minimumOrderAmount} />
         ) : null}
         {user && items.length > 0 && !settingsLoading && !settings ? (
           <Text style={styles.cartWarning}>{t("cartSettingsUnavailable")}</Text>
@@ -1498,12 +1494,14 @@ export default function CartScreen() {
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                             {paymentMethod === 'WALLET' ?
                               <Entypo name="wallet" size={20} color={palette.accentSoft} />
+                              : paymentMethod === 'SHAM_CASH' ?
+                              <Image source={require("../assets/shamcash.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
                               :
                               // <FontAwesome6 name="money-bill" size={20} color={palette.text} />
                               <Image source={require("../assets/bill.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
                             }
                             <Text weight="bold" style={{ color: palette.text }}>
-                              {paymentMethod === 'WALLET' ? t('wallet') : t('cashOnDelivery')}
+                              {paymentMethod === 'WALLET' ? t('wallet') : paymentMethod === 'SHAM_CASH' ? t('shamCash') : t('cashOnDelivery')}
                             </Text>
                           </View>
 
@@ -1544,13 +1542,15 @@ export default function CartScreen() {
                               }
                               {method === 'WALLET' ?
                                 <Entypo name="wallet" size={24} color={palette.accentSoft} />
+                                : method === 'SHAM_CASH' ?
+                                <Image source={require("../assets/shamcash.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
                                 :
                                 // <FontAwesome6 name="money-bill" size={20} color={palette.text} />
                                 <Image source={require("../assets/bill.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
                               }
 
                               <Text weight="bold" style={[styles.pillText, paymentMethod === method && styles.pillTextActive]}>
-                                {method === 'WALLET' ? t('wallet') : t('cashOnDelivery')}
+                                {method === 'WALLET' ? t('wallet') : method === 'SHAM_CASH' ? t('shamCash') : t('cashOnDelivery')}
                               </Text>
                             </TouchableOpacity>
                           ))}

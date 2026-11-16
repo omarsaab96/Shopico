@@ -96,8 +96,8 @@ export default function PersonalCouponCard({ coupon, onUse, isNew = false, disab
         </Text>}
       </View>
       <View style={[styles.perforation, { borderColor: palette.border }]}>
-        <View style={[styles.notch, { left: -27, backgroundColor: palette.background, borderColor: palette.border }]} />
-        <View style={[styles.notch, { right: -27, backgroundColor: palette.background, borderColor: palette.border }]} />
+        <View style={[styles.notch, { left: -27, backgroundColor: palette.background, borderColor: isNew?palette.accent :palette.border }]} />
+        <View style={[styles.notch, { right: -27, backgroundColor: palette.background, borderColor: isNew?palette.accent :palette.border }]} />
       </View>
       <View style={styles.bottom}>
         <Text style={{ color: palette.muted, fontSize: 11, flex: 1 }}>{coupon.usageType === "SINGLE" ? t("oneTimeCoupon") : Number.isFinite(usesLeft) ? `${t("couponUsesLeft")}: ${usesLeft}` : t("couponUnlimitedUses")}</Text>
