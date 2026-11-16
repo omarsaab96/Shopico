@@ -17,6 +17,8 @@ import { useI18n } from "../context/I18nContext";
 import { usePermissions } from "../hooks/usePermissions";
 import { useBranch } from "../context/BranchContext";
 
+const basketStatus = (order: Order) => order.status === "PROCESSING" && order.driverReadyAt ? "SHIPPING" : order.status;
+
 const statuses = ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"];
 const USER_ABOUT_VIEW_PERMISSIONS = ["users:about:view"] as const;
 const USER_BRANCHES_VIEW_PERMISSIONS = ["users:branches:view"] as const;
@@ -237,7 +239,9 @@ const OrdersPage = () => {
     setOrders((prev) =>
       prev.map((item) =>
         item._id === order._id
-          ? { ...item, status: status === "SHIPPING" && !item.driverStartedAt ? "PROCESSING" : status, paymentStatus: paymentStatus ?? item.paymentStatus }
+          ? { ...item, status: status === "SHIPPING" && !item.driverStartedAt ? "PROCESSING" : status,
+              driverReadyAt: status === "SHIPPING" ? item.driverReadyAt || new Date().toISOString() : ["PENDING", "PROCESSING", "CANCELLED"].includes(status) ? null : item.driverReadyAt,
+              paymentStatus: paymentStatus ?? item.paymentStatus }
           : item
       )
     );
@@ -254,7 +258,7 @@ const OrdersPage = () => {
       setOrders((prev) =>
         prev.map((item) =>
           item._id === order._id
-            ? { ...item, status: previousStatus, paymentStatus: previousPayment }
+            ? { ...item, status: previousStatus, driverReadyAt: order.driverReadyAt, paymentStatus: previousPayment }
             : item
         )
       );
@@ -482,7 +486,7 @@ const OrdersPage = () => {
             if (!order || !canUpdateOrders || boardUpdatingId) return;
             mutatingRef.current = true;
             setDraggedOrder(order);
-            setDragStatus(order.status);
+            setDragStatus(basketStatus(order));
           }}
           onDragOver={({ over }) => setDragStatus(over ? String(over.id) : null)}
           onDragCancel={() => { setDraggedOrder(null); setDragStatus(null); mutatingRef.current = false; }}
@@ -491,7 +495,7 @@ const OrdersPage = () => {
             setDraggedOrder(null);
             setDragStatus(null);
             const status = over ? String(over.id) : "";
-            if (!order || !canUpdateOrders || !statuses.includes(status) || status === order.status) {
+            if (!order || !canUpdateOrders || !statuses.includes(status) || status === basketStatus(order)) {
               mutatingRef.current = false;
               return;
             }
@@ -501,7 +505,7 @@ const OrdersPage = () => {
           }}>
           <div className="orders-board" aria-label={t("orders.basketView")} aria-busy={loading}>
             {statuses.map(status => {
-              const group = orders.filter(order => (order._id === draggedOrder?._id && dragStatus ? dragStatus : order.status) === status);
+              const group = orders.filter(order => (order._id === draggedOrder?._id && dragStatus ? dragStatus : basketStatus(order)) === status);
               return (
                 <OrderDropBasket key={status} status={status} label={tStatus(status)} disabled={!canUpdateOrders || boardUpdatingId !== null}>
                   <header className="orders-basket-header">
