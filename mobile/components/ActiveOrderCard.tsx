@@ -16,8 +16,8 @@ const statuses: Record<string, { color: string; background: string }> = {
   SHIPPING: { color: "#4f46e5", background: "rgba(79,70,229,0.1)" },
 };
 
-export default function ActiveOrderCard({ order, statusLabel, onPress }: {
-  order: OrderPreview; statusLabel: string; onPress?: () => void;
+export default function ActiveOrderCard({ order, statusLabel, onPress, embedded = false }: {
+  order: OrderPreview; statusLabel: string; onPress?: () => void; embedded?: boolean;
 }) {
   const { palette } = useTheme();
   const { t, lang, isRTL } = useI18n();
@@ -31,20 +31,20 @@ export default function ActiveOrderCard({ order, statusLabel, onPress }: {
   }) : "—";
   return (
     <TouchableOpacity accessibilityRole={onPress ? "button" : undefined} disabled={!onPress} onPress={onPress} activeOpacity={0.85}
-      style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }, embedded && { backgroundColor: "transparent", borderWidth: 0, padding: 0 }]}>
 
-      <View style={[styles.map, { borderColor: palette.border }]}>
+      {!embedded && <View style={[styles.map, { borderColor: palette.border }]}>
         <OrderMapPreview order={order} />
-      </View>
+      </View>}
 
       <View style={[styles.content, { direction: isRTL ? "rtl" : "ltr" }]}>
         <View style={styles.heading}>
-          
+
           <View style={styles.details}>
             <View style={styles.detailsHead}>
               <Text weight="bold" style={[styles.orderNumber, { color: palette.text }]}>{"\u2066"}#{order._id.slice(-6)}{"\u2069"}</Text>
-              <View style={[styles.textSeperator,{backgroundColor: palette.text}]}></View>
-              <Text weight="semibold" style={[styles.status, { color: palette.muted }]}>{statusLabel}</Text>
+              {!embedded&&<View style={[styles.textSeperator, { backgroundColor: palette.text }]}></View>}
+              {!embedded&&<Text weight="semibold" style={[styles.status, { color: palette.muted }]}>{statusLabel}</Text>}
             </View>
             <Text style={[styles.meta, { color: palette.muted, textAlign: isRTL ? "right" : "left" }]}>
               {t("orderLastUpdated")} {"\u2068"}{updated}{"\u2069"}
@@ -65,24 +65,25 @@ export default function ActiveOrderCard({ order, statusLabel, onPress }: {
               )}
             </View>
           </View>
-          <View style={[styles.statusIcon, { borderColor: status.color, backgroundColor: status.background }]}>
+
+          {!embedded && <View style={[styles.statusIcon, { borderColor: status.color, backgroundColor: status.background }]}>
             {order.status === "PENDING" ? <Entypo name="dots-three-horizontal" size={14} color={status.color} />
               : order.status === "PROCESSING" ? <Feather name="loader" size={17} color={status.color} />
                 : <MaterialIcons name="delivery-dining" size={18} color={status.color} />}
-          </View>
+          </View>}
         </View>
       </View>
       {onPress && <View style={styles.linkArrow}>
-        <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={18} color={palette.accent} />
+        <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={18} color={embedded ? '#4f46e5' : palette.accent} />
       </View>}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: "row", alignItems:'center',borderWidth: 1, borderRadius: 15, overflow: "hidden", padding: 5, gap: 10 },
+  card: { flexDirection: "row", alignItems: 'center', borderWidth: 1, borderRadius: 15, overflow: "hidden", padding: 5, gap: 10 },
   map: { width: 60, height: 60, borderRadius: 15, overflow: "hidden" },
-  content: { flex: 1, gap: 10},
+  content: { flex: 1, gap: 10 },
   linkArrow: { paddingHorizontal: 4, justifyContent: "center" },
   heading: { flexDirection: "row", gap: 8, alignItems: 'center' },
   statusIcon: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, alignItems: "center", justifyContent: "center" },
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
   metrics: { flexDirection: "row", flexWrap: "wrap", columnGap: 10, rowGap: 3, marginTop: 4 },
   metric: { flexDirection: "row", alignItems: "center", gap: 4 },
   metricText: { fontSize: 11, lineHeight: 17 },
-  detailsHead: { gap: 10, flexDirection: 'row', alignItems:'center'},
+  detailsHead: { gap: 10, flexDirection: 'row', alignItems: 'center' },
   orderNumber: { fontSize: 14, lineHeight: 18, writingDirection: "ltr" },
   status: { fontSize: 12, lineHeight: 18 },
   meta: { fontSize: 12, lineHeight: 18 },

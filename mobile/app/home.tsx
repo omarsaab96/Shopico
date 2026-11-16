@@ -1,3 +1,4 @@
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { TextInput } from "../components/TextInput";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { quantityStep, formatQuantity, priceBasis, ProductUnit } from "../lib/productUnits";
@@ -8,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Money from "../components/Money";
 import ActiveOrderBanner from "../components/ActiveOrderBanner";
+import ActiveDriverDeliveryBanner from "../components/ActiveDriverDeliveryBanner";
 import type { OrderPreview } from "../lib/orderPreview";
 import {
   FlatList,
@@ -1244,6 +1246,8 @@ export default function Home() {
     </View>
   );
 
+  const currentDriverDelivery = driverOrders.find(order => order.status === "SHIPPING" && order.driverStartedAt);
+
   const renderDriverDashboard = () => (
     <ScrollView
       style={styles.driverDashboardScroll}
@@ -1268,7 +1272,15 @@ export default function Home() {
         </TouchableOpacity>
       </View>
 
-      {/* <ActiveOrderBanner orders={driverOrders} /> */}
+      {currentDriverDelivery && (
+        <View style={styles.currentDeliverySection}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <MaterialIcons name="delivery-dining" size={20} color={isDark ? "#c4b5fd" : "#4f46e5"} />
+            <Text weight="black" style={{ color: isDark ? "#c4b5fd" : "#4f46e5", fontSize: 14, lineHeight: 20 }}>{t("driverCurrentlyDelivering")}</Text>
+          </View>
+          <ActiveDriverDeliveryBanner order={currentDriverDelivery} embedded />
+        </View>
+      )}
 
       <View style={styles.driverStatsGrid}>
         {renderDriverStatCard(
@@ -2020,6 +2032,17 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     driverDashboardScroll: {
       flex: 1,
+    },
+    currentDeliverySection: {
+      width: "100%",
+      marginTop: 12,
+      marginBottom: 4,
+      padding: 14,
+      gap: 8,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: "#4f46e5",
+      backgroundColor: isDark ? "#242239" : "#f0edff",
     },
     driverDashboardContent: {
       padding: 16,

@@ -5,15 +5,15 @@ import { useI18n } from "../lib/i18n";
 
 export type ActiveDriverDelivery = OrderPreview & { address?: string };
 
-export default function ActiveDriverDeliveryBanner({ order, currentOrderId }: {
-  order?: ActiveDriverDelivery | null; currentOrderId?: string;
+export default function ActiveDriverDeliveryBanner({ order, currentOrderId, embedded = false }: {
+  order?: ActiveDriverDelivery | null; currentOrderId?: string; embedded?: boolean;
 }) {
   const router = useRouter();
   const { t } = useI18n();
   if (!order || order.status !== "SHIPPING" || !order.driverStartedAt) return null;
   const current = order._id === currentOrderId;
   return (
-    <ActiveOrderCard order={order} statusLabel={t("driverDeliveryInProgress")}
+    <ActiveOrderCard order={order} embedded={embedded} statusLabel={t("driverDeliveryInProgress")}
       onPress={current ? undefined : () => router.push(`/driver-orders/${order._id}` as any)} />
   );
 }

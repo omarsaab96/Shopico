@@ -1,3 +1,4 @@
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { AppState, DeviceEventEmitter, TouchableOpacity, View } from "react-native";
@@ -14,7 +15,7 @@ export default function ActiveOrderBanner({ branchId, orders: providedOrders }: 
   const { user } = useAuth();
   const { selectedCurrency } = useCurrency();
   const { t, isRTL } = useI18n();
-  const { palette } = useTheme();
+  const { palette, isDark } = useTheme();
   const router = useRouter();
   const isDriver = user?.role === "driver";
   const scope = `${user?._id || ""}:${user?.role || ""}:${branchId || ""}:${selectedCurrency?._id || ""}`;
@@ -44,6 +45,12 @@ export default function ActiveOrderBanner({ branchId, orders: providedOrders }: 
 
   const order = providedOrders ? selectActiveOrder(providedOrders, isDriver) : state.scope === scope ? state.order : null;
   if (!user || !order) return null;
+  const statusLabel = t(isDriver && order.status === "SHIPPING"
+    ? order.driverStartedAt ? "driverDeliveryInProgress" : "driverReadyToDeliver"
+    : order.status === "SHIPPING" ? "orderOnTheWay" : order.status);
+  const statusIcon = order.status === "SHIPPING" ? "delivery-dining"
+    : order.status === "PROCESSING" ? "restaurant" : "schedule";
+  const headingColor = isDark ? "#c4b5fd" : "#4f46e5";
   return (
     <View style={{ gap: 10 }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -58,9 +65,16 @@ export default function ActiveOrderBanner({ branchId, orders: providedOrders }: 
         </TouchableOpacity>
       </View>
       
-      <ActiveOrderCard order={order}
-        statusLabel={t(isDriver && order.status === "SHIPPING" ? order.driverStartedAt ? "driverDeliveryInProgress" : "driverReadyToDeliver" : order.status)}
-        onPress={() => router.push(isDriver ? `/driver-orders/${order._id}` : `/orders/${order._id}`)} />
+      <View style={{ width: "100%", padding: 14, gap: 8, borderRadius: 16, borderWidth: 1,
+        borderColor: "#4f46e5", backgroundColor: isDark ? "#242239" : "#f0edff" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <MaterialIcons name={statusIcon} size={20} color={headingColor} />
+          <Text weight="black" style={{ color: headingColor, fontSize: 14, lineHeight: 20 }}>{statusLabel}</Text>
+        </View>
+        <ActiveOrderCard order={order} embedded
+          statusLabel={statusLabel}
+          onPress={() => router.push(isDriver ? `/driver-orders/${order._id}` : `/orders/${order._id}`)} />
+      </View>
     </View>
   );
 }
