@@ -10,6 +10,7 @@ import type { Currency } from "../lib/currency";
 export type PersonalCoupon = {
   _id: string;
   code: string;
+  createdAt?: string;
   title?: string;
   description?: string;
   expiresAt?: string;

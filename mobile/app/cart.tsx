@@ -27,6 +27,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Entypo from '@expo/vector-icons/Entypo';
 import { useCurrency, type Currency } from "../lib/currency";
 import Money from "../components/Money";
+import CartCouponTeaser from "../components/CartCouponTeaser";
 
 const COUPON_CARD_GAP = 15;
 const COUPON_CARD_MAX_WIDTH = 200;
@@ -1121,6 +1122,8 @@ export default function CartScreen() {
             <Money style={styles.totalValue} amount={subtotal} currency={selectedCurrency} />
           </View>
         </View>}
+        {items.length > 0 && <CartCouponTeaser items={items} subtotal={subtotal}
+          active={isFocused && !checkoutOpen && !refreshing} userId={user?._id} />}
         {hasUnavailableItems ? (
           <Text style={styles.cartWarning}>
             {t("removeUnavailableItemsBeforeCheckout") ?? "Remove or replace unavailable items before checkout."}
