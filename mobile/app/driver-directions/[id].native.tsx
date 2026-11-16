@@ -11,6 +11,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Text from "../../components/Text";
 import api from "../../lib/api";
+import { startDriverDelivery, reconcileDriverDelivery } from "../../lib/driverDelivery";
 import { driverDeliveryAction } from "../../lib/driverOrderGroups";
 import { pushDriverLocationOnce, startDriverTracking, stopDriverTracking } from "../../lib/driverTracking";
 import { useI18n } from "../../lib/i18n";
@@ -43,6 +44,8 @@ type DriverOrder = {
   _id: string;
   status?: string;
   driverStartedAt?: string | null;
+  updatedAt?: string;
+  driverId?: string | { _id?: string } | null;
   address?: string;
   lat?: number | string;
   lng?: number | string;
@@ -101,13 +104,14 @@ export default function DriverDirections() {
     if (!id) return;
     try {
       const res = await api.get(`/orders/${id}`);
-      setOrder(res.data.data);
-      if (res.data.data.status === "CANCELLED") {
+      const snapshot = reconcileDriverDelivery(res.data.data);
+      setOrder(snapshot);
+      if (snapshot.status === "CANCELLED") {
         setAccessMessage(t("driverOrderCancelled"));
         await stopDriverTracking(id).catch(() => { });
       } else {
         setAccessMessage("");
-        if (res.data.data.status === "DELIVERED") await stopDriverTracking(id).catch(() => { });
+        if (snapshot.status === "DELIVERED") await stopDriverTracking(id).catch(() => { });
       }
     } catch (error: any) {
       if ([403, 404].includes(error.response?.status)) {
@@ -236,8 +240,8 @@ export default function DriverDirections() {
     if (!id || startingDelivery || deliveryAction !== "start") return;
     setStartingDelivery(true);
     try {
-      const res = await api.put(`/orders/${id}/driver-status`, { status: "SHIPPING" });
-      setOrder(current => current ? { ...current, ...res.data.data } : res.data.data);
+      const saved = await startDriverDelivery<DriverOrder>(id);
+      setOrder(current => current ? { ...current, ...saved } : saved);
       DeviceEventEmitter.emit("shopico:notification");
       try { await startDriverTracking(id); }
       catch { Alert.alert(t("startDelivery"), t("driverTrackingPermission")); }
@@ -245,7 +249,7 @@ export default function DriverDirections() {
         syncDriverLocation(origin);
       }
     } catch (error: any) {
-      await loadOrder(); Alert.alert(t("networkError"), error.response?.data?.message || error.message);
+      await loadOrder(); Alert.alert(t("networkError"), error?.code === "DELIVERY_START_NOT_CONFIRMED" ? t("driverStartNotConfirmed") : error.response?.data?.message || error.message);
     } finally {
       setStartingDelivery(false);
     }
@@ -255,8 +259,9 @@ export default function DriverDirections() {
     if (!id || delivering || deliveryAction !== "deliver") return;
     setDelivering(true);
     try {
-      await api.put(`/orders/${id}/driver-status`, { status: "DELIVERED" });
-      setOrder(current => current ? { ...current, status: "DELIVERED" } : current);
+      const response = await api.put(`/orders/${id}/driver-status`, { status: "DELIVERED" });
+      const saved = reconcileDriverDelivery<DriverOrder>(response.data.data);
+      setOrder(current => current ? { ...current, ...saved } : saved);
       DeviceEventEmitter.emit("shopico:notification");
       await stopDriverTracking(id);
       router.back();

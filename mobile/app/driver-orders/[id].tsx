@@ -9,6 +9,7 @@ import api from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { useTheme } from "../../lib/theme";
+import { startDriverDelivery, reconcileDriverDelivery } from "../../lib/driverDelivery";
 import { driverDeliveryAction } from "../../lib/driverOrderGroups";
 import { startDriverTracking, stopDriverTracking } from "../../lib/driverTracking";
 
@@ -31,10 +32,11 @@ export default function DriverOrderDetails() {
     if (!id || user?.role !== "driver") { setLoading(false); return; }
     try {
       const [res, assigned] = await Promise.all([api.get(`/orders/${id}`), api.get("/orders/driver")]);
-      setActiveDelivery((assigned.data.data || []).find((item: ActiveDriverDelivery) => item.status === "SHIPPING" && item.driverStartedAt) || null);
+      setActiveDelivery((assigned.data.data || []).map((item: any) => reconcileDriverDelivery(item)).find((item: ActiveDriverDelivery) => item.status === "SHIPPING" && item.driverStartedAt) || null);
       setDeliveryAvailabilityLoaded(true);
-      setOrder(res.data.data); setMessage(""); setUnassigned(false);
-      if (["CANCELLED", "DELIVERED"].includes(res.data.data.status)) await stopDriverTracking(id).catch(() => {});
+      const snapshot = reconcileDriverDelivery(res.data.data);
+      setOrder(snapshot); setMessage(""); setUnassigned(false);
+      if (["CANCELLED", "DELIVERED"].includes(snapshot.status)) await stopDriverTracking(id).catch(() => {});
     } catch (error: any) {
       setDeliveryAvailabilityLoaded(false);
       if ([403, 404].includes(error.response?.status)) {
@@ -56,8 +58,9 @@ export default function DriverOrderDetails() {
     if (status === "SHIPPING" && (!deliveryAvailabilityLoaded || hasOtherDelivery)) return;
     setSaving(true); setMessage("");
     try {
-      const res = await api.put(`/orders/${id}/driver-status`, { status });
-      setOrder((current: any) => ({ ...current, ...res.data.data }));
+      const saved = status === "SHIPPING" ? await startDriverDelivery(id)
+        : reconcileDriverDelivery((await api.put(`/orders/${id}/driver-status`, { status })).data.data);
+      setOrder((current: any) => ({ ...current, ...saved }));
       DeviceEventEmitter.emit("shopico:notification");
       if (status === "SHIPPING" && Platform.OS !== "web") {
         try { await startDriverTracking(id); }
@@ -68,7 +71,7 @@ export default function DriverOrderDetails() {
         router.push({ pathname: "/driver-directions/[id]", params: { id } });
         void load();
       } else await load();
-    } catch (error: any) { await load(); Alert.alert(ar ? "تعذر تحديث الطلب" : "Could not update order", error.response?.data?.code === "DRIVER_ALREADY_DELIVERING" ? t("driverOneDeliveryAtATime") : error.response?.data?.message || (ar ? "حاول مجدداً." : "Please retry.")); }
+    } catch (error: any) { await load(); Alert.alert(ar ? "تعذر تحديث الطلب" : "Could not update order", error?.code === "DELIVERY_START_NOT_CONFIRMED" ? t("driverStartNotConfirmed") : error.response?.data?.code === "DRIVER_ALREADY_DELIVERING" ? t("driverOneDeliveryAtATime") : error.response?.data?.message || (ar ? "حاول مجدداً." : "Please retry.")); }
     finally { setSaving(false); }
   };
   const button = { padding: 16, borderRadius: 12, backgroundColor: palette.accent, alignItems: "center" as const, opacity: saving ? 0.5 : 1 };

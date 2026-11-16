@@ -1268,8 +1268,8 @@ export default function Home() {
         </TouchableOpacity>
       </View>
 
-      <ActiveOrderBanner orders={driverOrders} />
-      
+      {/* <ActiveOrderBanner orders={driverOrders} /> */}
+
       <View style={styles.driverStatsGrid}>
         {renderDriverStatCard(
           t("deliveredOrders") ?? "Delivered",

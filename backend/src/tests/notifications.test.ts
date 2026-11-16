@@ -423,3 +423,23 @@ test("mobile push registration follows its valid refresh token and rejects anoth
   expect((await request(driver, "/devices", { method: "POST", body: JSON.stringify(device) })).status).toBe(403);
   expect(String((await NotificationDevice.findOne({ token: device.token }).orFail()).user)).toBe(String(customer._id));
 });
+
+
+test("HTTP driver start returns the saved timestamp in details and the driver list", async () => {
+  const item = await order();
+  item.driverId = driver._id;
+  item.status = "SHIPPING";
+  await item.save();
+  const headers = { Authorization: `Bearer ${token(driver)}`, "Content-Type": "application/json" };
+  const response = await realFetch(`${base}/api/orders/${item._id}/driver-status`, {
+    method: "PUT", headers, body: JSON.stringify({ status: "SHIPPING" }),
+  });
+  expect(response.status).toBe(200);
+  const started = (await response.json()).data;
+  expect(started.driverStartedAt).toEqual(expect.any(String));
+  expect(String(started.driverStartedBy)).toBe(String(driver._id));
+  const detail = await realFetch(`${base}/api/orders/${item._id}`, { headers });
+  expect((await detail.json()).data.driverStartedAt).toBe(started.driverStartedAt);
+  const assigned = await realFetch(`${base}/api/orders/driver`, { headers });
+  expect((await assigned.json()).data.find((row: any) => row._id === String(item._id)).driverStartedAt).toBe(started.driverStartedAt);
+});

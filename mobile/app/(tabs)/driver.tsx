@@ -10,6 +10,7 @@ import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
+import { startDriverDelivery, reconcileDriverDelivery } from "../../lib/driverDelivery";
 import { groupDriverOrders, driverDeliveryAction, type DriverOrderGroup } from "../../lib/driverOrderGroups";
 import { startDriverTracking, stopDriverTracking } from "../../lib/driverTracking";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -33,6 +34,8 @@ type DriverOrder = {
   _id: string;
   status: string;
   driverStartedAt?: string | null;
+  updatedAt?: string;
+  driverId?: string | { _id?: string } | null;
   address: string;
   total: number;
   user?: { name?: string; phone?: string; email?: string } | string | null;
@@ -149,7 +152,7 @@ export default function DriverOrders() {
     if (showSpinner) setLoading(true);
     try {
       const res = await api.get("/orders/driver");
-      setOrders(res.data.data || []);
+      setOrders((res.data.data || []).map((order: DriverOrder) => reconcileDriverDelivery(order)));
     } finally {
       if (showSpinner) setLoading(false);
     }
@@ -312,8 +315,8 @@ export default function DriverOrders() {
     startingDeliveryRef.current = true;
     setUpdating((prev) => ({ ...prev, [order._id]: true }));
     try {
-      const res = await api.put(`/orders/${order._id}/driver-status`, { status: "SHIPPING" });
-      const startedOrder = { ...order, ...res.data.data };
+      const saved = await startDriverDelivery<DriverOrder>(order._id);
+      const startedOrder = { ...order, ...saved };
       setOrderGroup("ready");
       setOrders(current => current.map(item => item._id === order._id ? startedOrder : item));
       DeviceEventEmitter.emit("shopico:notification");
@@ -325,7 +328,7 @@ export default function DriverOrders() {
     } catch (error: any) {
       Alert.alert(
         t("startDelivery"),
-        error?.response?.data?.code === "DRIVER_ALREADY_DELIVERING" ? t("driverOneDeliveryAtATime") : error?.response?.data?.message || error?.message || t("driverTrackingPermission")
+        error?.code === "DELIVERY_START_NOT_CONFIRMED" ? t("driverStartNotConfirmed") : error?.response?.data?.code === "DRIVER_ALREADY_DELIVERING" ? t("driverOneDeliveryAtATime") : error?.response?.data?.message || error?.message || t("driverTrackingPermission")
       );
       void load(false).catch(() => {});
     } finally {
@@ -337,8 +340,9 @@ export default function DriverOrders() {
   const markDelivered = async (orderId: string) => {
     setUpdating((prev) => ({ ...prev, [orderId]: true }));
     try {
-      await api.put(`/orders/${orderId}/driver-status`, { status: "DELIVERED" });
-      setOrders(current => current.map(item => item._id === orderId ? { ...item, status: "DELIVERED" } : item));
+      const response = await api.put(`/orders/${orderId}/driver-status`, { status: "DELIVERED" });
+      const saved = reconcileDriverDelivery<DriverOrder>(response.data.data);
+      setOrders(current => current.map(item => item._id === orderId ? { ...item, ...saved } : item));
       DeviceEventEmitter.emit("shopico:notification");
       if (trackingRef.current) clearInterval(trackingRef.current);
       trackingRef.current = null;
@@ -661,8 +665,8 @@ export default function DriverOrders() {
                 return (
                   <TouchableOpacity key={group.value} accessibilityRole="tab" accessibilityState={{ selected }}
                     onPress={() => setOrderGroup(group.value)} activeOpacity={0.85}
-                    style={[styles.orderFilter, { backgroundColor: selected ? palette.accentSoft : palette.card, borderColor: selected ? palette.accent : palette.border }]}>
-                    <Text weight="bold" style={[styles.orderFilterLabel, { color: selected ? palette.accent : palette.muted }]}>
+                    style={[styles.orderFilter, { backgroundColor: selected ? "#000" : palette.card, borderColor: selected ? "#000" : palette.border }]}>
+                    <Text weight="bold" style={[styles.orderFilterLabel, { color: selected ? '#fff' : palette.muted }]}>
                       {group.label} ({groupedOrders[group.value].length})
                     </Text>
                   </TouchableOpacity>
@@ -710,7 +714,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       marginBottom: 2,
     },
     orderFilters: { flexDirection: "row", gap: 8, marginTop: 10, marginBottom: 6 },
-    orderFilter: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 6, paddingVertical: 7, justifyContent: "center", alignItems: "center" },
+    orderFilter: { flex: 1,borderWidth: 1, borderRadius: 14, paddingHorizontal: 4, paddingVertical: 4, justifyContent: "center", alignItems: "center" },
     orderFilterLabel: { fontSize: 12, lineHeight: 17, textAlign: "center" },
     subtitle: {
       color: palette.muted,
