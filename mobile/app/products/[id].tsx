@@ -27,8 +27,7 @@ export default function ProductDetail() {
   const [imageIndex, setImageIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<string[]>([]);
   const { addItem, items, setQuantity } = useCart();
-  const cartItemCount = items.length;
-  const cartSubtotal = roundAmount(items.reduce((sum, item) => item.unavailable ? sum : sum + roundAmount(item.price * item.quantity), 0));
+  const [floatingCartHeight, setFloatingCartHeight] = useState(0);
   const { palette } = useTheme();
   const { isRTL } = useI18n();
   const { selectedCurrency, formatMoney } = useCurrency();
@@ -100,7 +99,7 @@ export default function ProductDetail() {
       <Feather name="wifi-off" size={32} color={palette.muted} /><Text style={styles.sectionTitle}>{tr("Couldn’t load this product", "تعذر تحميل المنتج")}</Text>
       <TouchableOpacity accessibilityRole="button" onPress={() => void loadProduct()} style={styles.retry}><Text style={styles.buttonText}>{tr("Try again", "حاول مجدداً")}</Text></TouchableOpacity>
     </View> : <KeyboardAvoidingView style={styles.body} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, cartItemCount > 0 && { paddingBottom: 100 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, floatingCartHeight > 0 && { paddingBottom: Math.max(28, floatingCartHeight) }]}>
 
         <View style={styles.imageStage}>
           {/* <View style={styles.imageCircle} /> */}
@@ -264,7 +263,7 @@ export default function ProductDetail() {
         </View>}
 
       </ScrollView>
-      <FloatingCartBanner count={cartItemCount} subtotal={cartSubtotal} currency={selectedCurrency} onPress={() => router.push("/(tabs)/cart")} horizontalInset={20} />
+      <FloatingCartBanner horizontalInset={20} onOccupiedHeightChange={setFloatingCartHeight} />
     </KeyboardAvoidingView>}
   </SafeAreaView>;
 }

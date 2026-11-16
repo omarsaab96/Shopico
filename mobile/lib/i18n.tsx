@@ -31,8 +31,8 @@ const baseStrings = {
   store: "Store",
   cart: "Cart",
   viewYourCart: "View your cart",
-  cartCouponTeaser: "Add {amount} more to use your {discount} discount.",
-  cartCouponTeaserProducts: "Add {amount} more in eligible products to use your {discount} discount.",
+  cartCouponTeaser: "Add {amount} more to use",
+  cartCouponTeaserProducts: "Add {amount} more in eligible products to use",
   orders: "Orders",
   driver: "Driver",
   profile: "Profile",
@@ -301,8 +301,8 @@ const baseStrings = {
 };
 
 const arStrings: Record<string, string> = {
-  cartCouponTeaser: "أضف بقيمة {amount} أخرى لاستخدام خصمك بقيمة {discount}.",
-  cartCouponTeaserProducts: "أضف منتجات مؤهلة بقيمة {amount} أخرى لاستخدام خصمك بقيمة {discount}.",
+  cartCouponTeaser: "أضف {amount} أخرى للاستخدام",
+  cartCouponTeaserProducts: "أضف منتجات مؤهلة بقيمة {amount} أخرى للاستخدام",
   pointsRewardsFilter: "مكافآت النقاط",
   usableCouponsFilter: "متاحة للاستخدام الآن",
   couponDateOrder: "ترتيب حسب تاريخ الإنشاء",

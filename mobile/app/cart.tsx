@@ -1122,8 +1122,7 @@ export default function CartScreen() {
             <Money style={styles.totalValue} amount={subtotal} currency={selectedCurrency} />
           </View>
         </View>}
-        {items.length > 0 && <CartCouponTeaser items={items} subtotal={subtotal}
-          active={isFocused && !checkoutOpen && !refreshing} userId={user?._id} />}
+        {items.length > 0 && <CartCouponTeaser active={isFocused && !checkoutOpen} refreshing={refreshing} />}
         {hasUnavailableItems ? (
           <Text style={styles.cartWarning}>
             {t("removeUnavailableItemsBeforeCheckout") ?? "Remove or replace unavailable items before checkout."}

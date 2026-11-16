@@ -51,6 +51,7 @@ type Product = {
 
 export default function CategoryDetail() {
   const router = useRouter();
+  const [floatingCartHeight, setFloatingCartHeight] = useState(0);
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const insets = useSafeAreaInsets();
 
@@ -70,8 +71,6 @@ export default function CategoryDetail() {
   const categoryScrollRef = useRef<ScrollView>(null);
   const categoryPillLayouts = useRef<Record<string, { x: number; width: number }>>({});
   const [categoryBandWidth, setCategoryBandWidth] = useState(0);
-  const cartItemCount = items.length;
-  const cartSubtotal = items.reduce((sum, item) => (item.unavailable ? sum : sum + item.price * item.quantity), 0);
   const tr = (en: string, ar: string) => isRTL ? ar : en;
 
   const scrollCategoryPillIntoView = useCallback((categoryId: string, animated = true) => {
@@ -348,7 +347,7 @@ export default function CategoryDetail() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.productListContent,
-            cartItemCount > 0 && styles.productListContentWithCart,
+            floatingCartHeight > 0 && { paddingBottom: floatingCartHeight },
           ]}
           columnWrapperStyle={styles.productRow}
           // ListHeaderComponent={renderCategoryBand()}
@@ -364,7 +363,7 @@ export default function CategoryDetail() {
           }
         />
 
-        <FloatingCartBanner count={cartItemCount} subtotal={cartSubtotal} currency={selectedCurrency} onPress={() => router.push("/(tabs)/cart")} bottom={insets.bottom + 10} />
+        <FloatingCartBanner bottom={insets.bottom + 10} onOccupiedHeightChange={setFloatingCartHeight} />
       </View>
     </Screen>
   );
@@ -470,9 +469,6 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
 
     productListContent: {
       paddingBottom: 16,
-    },
-    productListContentWithCart: {
-      paddingBottom: 96,
     },
     contentWrap: {
       flex: 1,

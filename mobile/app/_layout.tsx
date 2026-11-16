@@ -34,6 +34,7 @@ import {
 } from "@expo-google-fonts/tajawal";
 import { AuthProvider } from "../lib/auth";
 import { CartProvider } from "../lib/cart";
+import { CartCouponProvider } from "../lib/cartCouponContext";
 import { ThemeProvider, useTheme } from "../lib/theme";
 import { I18nProvider, useI18n } from "../lib/i18n";
 import { CurrencyProvider } from "../lib/currency";
@@ -110,16 +111,18 @@ const I18nInner = () => {
           <NotificationProvider>
             <CurrencyProvider>
               <CartProvider>
-                <BottomSheetModalProvider key={lang}>
-                  <Stack
-                    key={lang}
-                    initialRouteName="(tabs)"
-                    screenOptions={{
-                      headerShown: false,
-                      gestureEnabled: true,
-                    }}
-                  />
-                </BottomSheetModalProvider>
+                <CartCouponProvider>
+                  <BottomSheetModalProvider key={lang}>
+                    <Stack
+                      key={lang}
+                      initialRouteName="(tabs)"
+                      screenOptions={{
+                        headerShown: false,
+                        gestureEnabled: true,
+                      }}
+                    />
+                  </BottomSheetModalProvider>
+                </CartCouponProvider>
               </CartProvider>
             </CurrencyProvider>
           </NotificationProvider>
@@ -133,9 +136,11 @@ const I18nInner = () => {
         <NotificationProvider>
           <CurrencyProvider>
             <CartProvider>
-              <BottomSheetModalProvider key={lang}>
-                <ThemedStack lang={lang} />
-              </BottomSheetModalProvider>
+              <CartCouponProvider>
+                <BottomSheetModalProvider key={lang}>
+                  <ThemedStack lang={lang} />
+                </BottomSheetModalProvider>
+              </CartCouponProvider>
             </CartProvider>
           </CurrencyProvider>
         </NotificationProvider>
