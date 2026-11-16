@@ -7,6 +7,7 @@ import { Link, useFocusEffect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Money from "../components/Money";
+import ActiveOrderBanner from "../components/ActiveOrderBanner";
 import {
   FlatList,
   View,
@@ -1007,11 +1008,15 @@ export default function Home() {
     );
   };
 
+  const renderOnGoingOrder = () => <ActiveOrderBanner branchId={selectedBranch?._id} />;
+
   const renderHeader = () => (
     <View style={[styles.headerWrap]}>
+      {renderOnGoingOrder()}
+
       {renderCategoriesGrid()}
 
-      <HomeBanners branchId={selectedBranch?._id} refreshing={refreshSkeleton} refreshKey={bannerRefreshKey} />
+      {!hasQuery&&<HomeBanners branchId={selectedBranch?._id} refreshing={refreshSkeleton} refreshKey={bannerRefreshKey} />}
 
       <Text weight="black" style={[styles.sectionTitle, { marginBottom: 10 }]}>
         {hasQuery ? `${t("products") ?? "Products"} (${products.length})` : (t("freshPicks") ?? "Fresh picks")}
@@ -1266,6 +1271,7 @@ export default function Home() {
         </TouchableOpacity>
       </View>
 
+      <ActiveOrderBanner orders={driverOrders} />
       <View style={styles.driverStatsGrid}>
         {renderDriverStatCard(
           t("deliveredOrders") ?? "Delivered",

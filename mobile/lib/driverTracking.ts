@@ -42,7 +42,7 @@ const watch = async () => {
   const permission = await Location.getForegroundPermissionsAsync();
   if (permission.status !== "granted" || currentGeneration !== generation || AppState.currentState !== "active") return;
   const subscription = await Location.watchPositionAsync({
-    accuracy: Location.Accuracy.High, distanceInterval: 10, timeInterval: 10000,
+    accuracy: Location.Accuracy.High, distanceInterval: 0, timeInterval: 5000,
   }, position => {
     if (currentGeneration === generation && activeOrderId === orderId && AppState.currentState === "active") {
       void pushDriverLocationOnce(orderId, position.coords).catch(() => {});

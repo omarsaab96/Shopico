@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
+import { DRIVER_DELIVERY_CONFLICT } from "../utils/driverDelivery";
 import { ApiResponse } from "../types";
 
 // Centralized error handler to keep consistent API responses
@@ -7,6 +8,10 @@ import { ApiResponse } from "../types";
 export const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ZodError) {
     return res.status(400).json({ success: false, message: "Validation failed", errors: err.issues });
+  }
+  if (err?.code === "DRIVER_ALREADY_DELIVERING" ||
+      (err?.code === 11000 && (err?.keyPattern?.driverId || err?.keyValue?.driverId || /one_shipping_order_per_driver/.test(err?.message || "")))) {
+    return res.status(409).json({ success: false, code: "DRIVER_ALREADY_DELIVERING", message: DRIVER_DELIVERY_CONFLICT });
   }
   if (err?.code === 11000) {
     const duplicateFields = Object.keys(err?.keyPattern || err?.keyValue || {});

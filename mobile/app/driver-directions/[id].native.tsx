@@ -183,8 +183,8 @@ export default function DriverDirections() {
         watchRef.current = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Highest,
-            distanceInterval: 5,
-            timeInterval: 3000,
+            distanceInterval: 0,
+            timeInterval: 5000,
           },
           (position) => {
             const next = {

@@ -5,6 +5,7 @@ import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert,
 import * as Location from "expo-location";
 import Constants from "expo-constants";
 import Screen from "../../components/Screen";
+import ActiveDriverDeliveryBanner from "../../components/ActiveDriverDeliveryBanner";
 import Text from "../../components/Text";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
@@ -89,6 +90,10 @@ export default function DriverOrders() {
   const [now, setNow] = useState(() => Date.now());
 
   const canDeliver = user?.role === "driver";
+  const startingDeliveryRef = useRef(false);
+  const activeDelivery = orders.find(order => order.status === "SHIPPING");
+  const hasActiveDelivery = Boolean(activeDelivery);
+  const deliveryActionPending = Object.values(updating).some(Boolean);
   useEffect(() => {
     if (!trackingOrderId) return;
     const active = orders.find(item => item._id === trackingOrderId);
@@ -199,7 +204,7 @@ export default function DriverOrders() {
         Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced,
-            timeInterval: 30000,
+            timeInterval: 5000,
             distanceInterval: 25,
           },
           (position) => {
@@ -303,6 +308,12 @@ export default function DriverOrders() {
   };
 
   const startTracking = async (order: DriverOrder) => {
+    if (startingDeliveryRef.current || deliveryActionPending) return;
+    if (orders.some(item => item.status === "SHIPPING" && item._id !== order._id)) {
+      Alert.alert(t("startDelivery"), t("driverOneDeliveryAtATime"));
+      return;
+    }
+    startingDeliveryRef.current = true;
     setUpdating((prev) => ({ ...prev, [order._id]: true }));
     try {
       await api.put(`/orders/${order._id}/driver-status`, { status: "SHIPPING" });
@@ -316,10 +327,12 @@ export default function DriverOrders() {
       openDirections(order);
     } catch (error: any) {
       Alert.alert(
-        t("locationDenied") ?? "Location denied",
-        error?.message || "Allow location access and keep Shopico open to share your delivery location."
+        t("startDelivery"),
+        error?.response?.data?.code === "DRIVER_ALREADY_DELIVERING" ? t("driverOneDeliveryAtATime") : error?.response?.data?.message || error?.message || t("driverTrackingPermission")
       );
+      void load(false).catch(() => {});
     } finally {
+      startingDeliveryRef.current = false;
       setUpdating((prev) => ({ ...prev, [order._id]: false }));
     }
   };
@@ -478,6 +491,7 @@ export default function DriverOrders() {
 
   return (
     <Screen>
+      <ActiveDriverDeliveryBanner order={activeDelivery} />
       <FlatList
         data={visibleOrders}
         keyExtractor={(item) => item._id}
@@ -633,12 +647,12 @@ export default function DriverOrders() {
 
                   {item.status === "PROCESSING" &&
                     <TouchableOpacity
-                      style={[styles.primaryBtn, { backgroundColor: palette.accent, borderColor: palette.accent }]}
+                      style={[styles.primaryBtn, { backgroundColor: palette.accent, borderColor: palette.accent }, (hasActiveDelivery || deliveryActionPending) && { opacity: 0.5 }]}
                       onPress={() => startTracking(item)}
-                      disabled={updating[item._id]}
+                      disabled={deliveryActionPending || hasActiveDelivery}
                     >
                       <Text style={[styles.primaryBtnText, { color: 'white' }]}>
-                        {updating[item._id] ? (t("starting") ?? "Starting...") : (t("startDelivery") ?? "Start delivery")}
+                        {updating[item._id] ? (t("starting") ?? "Starting...") : hasActiveDelivery ? t("driverOneDeliveryAtATime") : (t("startDelivery") ?? "Start delivery")}
                       </Text>
                     </TouchableOpacity>
                   }

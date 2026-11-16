@@ -1,3 +1,4 @@
+import { DriverDeliveryConflictError, SINGLE_DRIVER_DELIVERY_INDEX } from "../utils/driverDelivery";
 import { ProductUnit } from "../utils/productUnits";
 import { notificationOutbox } from "../notifications/outbox";
 import mongoose, { Document, Schema, Types } from "mongoose";
@@ -192,6 +193,19 @@ const OrderSchema = new Schema<IOrder>(
 OrderSchema.index({ "refunds.settlementStatus": 1 });
 OrderSchema.index({ branchId: 1, paymentMethod: 1, status: 1, paymentStatus: 1, driverId: 1 });
 OrderSchema.index({ branchId: 1, "cashSettlement.at": -1 });
+
+// Driver IDs are global, so this also prevents overlapping deliveries across branches.
+OrderSchema.index({ driverId: 1 }, {
+  name: SINGLE_DRIVER_DELIVERY_INDEX,
+  unique: true,
+  partialFilterExpression: { status: "SHIPPING", driverId: { $type: "objectId" } },
+});
+OrderSchema.pre("save", async function () {
+  if (this.status !== "SHIPPING" || !this.driverId) return;
+  if (!this.isNew && !this.isModified("status") && !this.isModified("driverId")) return;
+  const otherDelivery = await Order.exists({ _id: { $ne: this._id }, driverId: this.driverId, status: "SHIPPING" });
+  if (otherDelivery) throw new DriverDeliveryConflictError();
+});
 
 notificationOutbox(OrderSchema, "order");
 

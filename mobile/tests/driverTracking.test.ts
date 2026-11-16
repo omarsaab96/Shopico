@@ -42,6 +42,7 @@ afterEach(() => stopDriverTracking());
 
 test("foreground permission and watcher share driver coordinates", async () => {
   await startDriverTracking("order-a");
+  expect(mocks.watch).toHaveBeenCalledWith(expect.objectContaining({ timeInterval: 5000, distanceInterval: 0 }), expect.any(Function));
   mocks.callbacks[0]({ coords });
   await vi.waitFor(() => expect(mocks.put).toHaveBeenCalledWith(expect.stringContaining('/orders/order-a/driver-location'),
     { lat: 33.5, lng: 36.3 }, expect.anything()));

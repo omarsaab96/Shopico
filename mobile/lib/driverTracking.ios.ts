@@ -69,8 +69,8 @@ export const startDriverTracking = async (orderId: string) => {
 
   await Location.startLocationUpdatesAsync(DRIVER_LOCATION_TASK, {
     accuracy: Location.Accuracy.Highest,
-    distanceInterval: 10,
-    timeInterval: 10000,
+    distanceInterval: 0,
+    timeInterval: 5000,
     pausesUpdatesAutomatically: false,
     foregroundService: {
       notificationTitle: "Shopico delivery tracking",

@@ -235,7 +235,7 @@ export default function OrderDetail() {
       api.get(`/orders/${orderId}`).then((res) => {
         setOrder(res.data.data || {});
       });
-    }, 15000);
+    }, 5000);
   }, [orderId]);
 
   const stopPolling = useCallback(() => {
