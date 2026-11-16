@@ -74,7 +74,7 @@ export default function ActiveOrderCard({ order, statusLabel, onPress, embedded 
         </View>
       </View>
       {onPress && <View style={styles.linkArrow}>
-        <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={18} color={embedded ? '#4f46e5' : palette.accent} />
+        <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={18} color={status.color} />
       </View>}
     </TouchableOpacity>
   );
