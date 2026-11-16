@@ -50,7 +50,12 @@ export default function ActiveOrderBanner({ branchId, orders: providedOrders }: 
     : order.status === "SHIPPING" ? "orderOnTheWay" : order.status);
   const statusIcon = order.status === "SHIPPING" ? "delivery-dining"
     : order.status === "PROCESSING" ? "restaurant" : "schedule";
-  const headingColor = isDark ? "#c4b5fd" : "#4f46e5";
+  const cardColors = !isDriver && order.status === "PENDING"
+    ? { border: "#ff7a1f", heading: isDark ? "#fdba74" : "#c2410c", background: isDark ? "#35261e" : "#fff3e8" }
+    : !isDriver && order.status === "PROCESSING"
+      ? { border: "#2563eb", heading: isDark ? "#93c5fd" : "#2563eb", background: isDark ? "#1e293e" : "#eff6ff" }
+      : { border: "#4f46e5", heading: isDark ? "#c4b5fd" : "#4f46e5", background: isDark ? "#242239" : "#f0edff" };
+  const headingColor = cardColors.heading;
   return (
     <View style={{ gap: 10 }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -66,7 +71,7 @@ export default function ActiveOrderBanner({ branchId, orders: providedOrders }: 
       </View>
       
       <View style={{ width: "100%", padding: 14, gap: 8, borderRadius: 16, borderWidth: 1,
-        borderColor: "#4f46e5", backgroundColor: isDark ? "#242239" : "#f0edff" }}>
+        borderColor: cardColors.border, backgroundColor: cardColors.background }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
           <MaterialIcons name={statusIcon} size={20} color={headingColor} />
           <Text weight="black" style={{ color: headingColor, fontSize: 14, lineHeight: 20 }}>{statusLabel}</Text>
