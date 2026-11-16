@@ -1,6 +1,10 @@
+import type { Currency } from "./currency";
+
 export type OrderCoordinate = { latitude: number; longitude: number };
 export type OrderPreview = {
   _id: string; status: string; createdAt?: string; updatedAt?: string;
+  driverStartedAt?: string | null;
+  total?: number; currency?: Currency | string | null;
   lat?: number | string | null; lng?: number | string | null;
   driverLocation?: { lat?: number | string | null; lng?: number | string | null; updatedAt?: string } | null;
   addressRef?: string | { lat?: number | string | null; lng?: number | string | null } | null;

@@ -619,7 +619,7 @@ export const updateOrderStatus = async (
     if (String(order.driverId || "") !== expectedDriverId) throw { status: 403, message: "This order is no longer assigned to you" };
     if (order.status === "CANCELLED") throw { status: 400, message: "This order has been cancelled" };
     if (order.status === "DELIVERED" && status !== "DELIVERED") throw { status: 400, message: "This order is already completed" };
-    if (status === "DELIVERED" && !["SHIPPING", "DELIVERED"].includes(order.status)) throw { status: 400, message: "Start delivery before completing this order" };
+    if (status === "DELIVERED" && order.status !== "DELIVERED" && (order.status !== "SHIPPING" || !order.driverStartedAt)) throw { status: 400, message: "Start delivery before completing this order" };
     if (!["SHIPPING", "DELIVERED"].includes(status)) throw { status: 400, message: "Invalid driver status" };
   }
   if (driverId !== undefined) assertDriverCanChange(order, driverId);
@@ -638,13 +638,26 @@ export const updateOrderStatus = async (
     const driver = await User.findOne({ _id: driverId, role: "driver", branchIds: order.branchId });
     if (!driver) throw { status: 400, message: "Choose a driver from this branch" };
     order.driverId = driver._id;
-    if (String(previousDriverId || "") !== driverId) order.driverLocation = null;
+    if (String(previousDriverId || "") !== driverId) {
+      order.driverLocation = null;
+      order.driverStartedAt = null;
+      order.driverStartedBy = null;
+    }
   }
   if (status === "SHIPPING" && !order.driverId) {
     throw { status: 400, message: "A driver must be assigned before shipping" };
   }
   if (status === "SHIPPING" && !driverId && !await User.exists({ _id: order.driverId, role: "driver", branchIds: order.branchId })) {
     throw { status: 400, message: "Choose a driver from this branch" };
+  }
+  if (expectedDriverId && status === "SHIPPING" && !order.driverStartedAt) {
+    order.driverStartedAt = new Date();
+    order.driverStartedBy = new Types.ObjectId(expectedDriverId);
+  }
+  if (["PENDING", "PROCESSING"].includes(status)) {
+    order.driverStartedAt = null;
+    order.driverStartedBy = null;
+    order.driverLocation = null;
   }
   const previousStatus = order.status;
   order.status = status;
@@ -681,6 +694,10 @@ export const assignDriverToOrder = async (orderId: string, driverId: string, bra
 
   order.driverId = driver._id;
   order.driverLocation = null;
+  if (String(previousDriverId || "") !== String(driver._id)) {
+    order.driverStartedAt = null;
+    order.driverStartedBy = null;
+  }
   order.$locals.notifyStaff = false;
   await order.save();
   await syncDriverStatus(driver._id);
@@ -713,6 +730,8 @@ export const updateOrderDetails = async (
       if (order.status === "SHIPPING") throw { status: 400, message: "A shipping order must keep an assigned driver" };
       order.driverId = null as any;
       order.driverLocation = null;
+      order.driverStartedAt = null;
+      order.driverStartedBy = null;
       await order.save();
       if (previousDriverId) {
         await syncDriverStatus(previousDriverId);
@@ -722,6 +741,10 @@ export const updateOrderDetails = async (
       if (!driver) throw { status: 404, message: "Driver not found" };
       order.driverId = driver._id;
       order.driverLocation = null;
+      if (String(previousDriverId || "") !== String(driver._id)) {
+        order.driverStartedAt = null;
+        order.driverStartedBy = null;
+      }
       await order.save();
       await syncDriverStatus(driver._id);
       if (previousDriverId && previousDriverId.toString() !== driver._id.toString()) {
@@ -753,6 +776,7 @@ export const updateOrderDriverLocation = async (
     if (order.driverId.toString() !== userId.toString()) {
       throw { status: 403, message: "Forbidden" };
     }
+    if (order.status === "SHIPPING" && !order.driverStartedAt) throw { status: 400, message: "Start delivery before sharing location" };
     if (order.status !== "SHIPPING") {
       throw { status: 400, message: "Order is not shipping" };
     }

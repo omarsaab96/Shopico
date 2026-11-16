@@ -10,7 +10,7 @@ export default function ActiveDriverDeliveryBanner({ order, currentOrderId }: {
 }) {
   const router = useRouter();
   const { t } = useI18n();
-  if (!order || order.status !== "SHIPPING") return null;
+  if (!order || order.status !== "SHIPPING" || !order.driverStartedAt) return null;
   const current = order._id === currentOrderId;
   return (
     <ActiveOrderCard order={order} statusLabel={t("driverDeliveryInProgress")}

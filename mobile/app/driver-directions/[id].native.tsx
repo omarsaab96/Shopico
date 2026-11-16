@@ -11,6 +11,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Text from "../../components/Text";
 import api from "../../lib/api";
+import { driverDeliveryAction } from "../../lib/driverOrderGroups";
 import { pushDriverLocationOnce, startDriverTracking, stopDriverTracking } from "../../lib/driverTracking";
 import { useI18n } from "../../lib/i18n";
 import { useTheme } from "../../lib/theme";
@@ -41,6 +42,7 @@ type Coordinate = { latitude: number; longitude: number };
 type DriverOrder = {
   _id: string;
   status?: string;
+  driverStartedAt?: string | null;
   address?: string;
   lat?: number | string;
   lng?: number | string;
@@ -228,31 +230,29 @@ export default function DriverDirections() {
 
   const canUseDirections = Boolean(routeOrigin && destination && GOOGLE_MAPS_KEY && !routeError);
   const shouldDrawFallbackLine = Boolean(routeOrigin && destination && (!GOOGLE_MAPS_KEY || routeError));
-  const isProcessing = order?.status === "PROCESSING" || order?.status === "PENDING";
-  const isShipping = order?.status === "SHIPPING";
+  const deliveryAction = driverDeliveryAction(order);
 
   const startDelivery = useCallback(async () => {
-    if (!id || startingDelivery) return;
+    if (!id || startingDelivery || deliveryAction !== "start") return;
     setStartingDelivery(true);
     try {
-      await api.put(`/orders/${id}/driver-status`, { status: "SHIPPING" });
-      setOrder(current => current ? { ...current, status: "SHIPPING" } : current);
+      const res = await api.put(`/orders/${id}/driver-status`, { status: "SHIPPING" });
+      setOrder(current => current ? { ...current, ...res.data.data } : res.data.data);
       DeviceEventEmitter.emit("shopico:notification");
       try { await startDriverTracking(id); }
       catch { Alert.alert(t("startDelivery"), t("driverTrackingPermission")); }
       if (origin) {
         syncDriverLocation(origin);
       }
-      setOrder((current) => current ? { ...current, status: "SHIPPING" } : current);
     } catch (error: any) {
       await loadOrder(); Alert.alert(t("networkError"), error.response?.data?.message || error.message);
     } finally {
       setStartingDelivery(false);
     }
-  }, [id, origin, startingDelivery, syncDriverLocation]);
+  }, [id, origin, startingDelivery, syncDriverLocation, deliveryAction, loadOrder, t]);
 
   const markDelivered = useCallback(async () => {
-    if (!id || delivering) return;
+    if (!id || delivering || deliveryAction !== "deliver") return;
     setDelivering(true);
     try {
       await api.put(`/orders/${id}/driver-status`, { status: "DELIVERED" });
@@ -265,7 +265,7 @@ export default function DriverDirections() {
     } finally {
       setDelivering(false);
     }
-  }, [delivering, id, router]);
+  }, [delivering, id, router, deliveryAction, loadOrder, t]);
 
   const openInMaps = useCallback(() => {
     if (!destination) return;
@@ -396,13 +396,13 @@ export default function DriverDirections() {
           <TouchableOpacity style={styles.secondaryBtn} onPress={openInMaps} disabled={!destination}>
             <Text style={styles.secondaryBtnText}>{t("openInMaps") ?? "Open in Maps"}</Text>
           </TouchableOpacity>
-          {isProcessing ? (
+          {deliveryAction === "start" ? (
             <TouchableOpacity style={styles.startBtn} onPress={startDelivery} disabled={startingDelivery}>
               <Text style={styles.startBtnText}>
                 {startingDelivery ? (t("starting") ?? "Starting...") : (t("startDelivery") ?? "Start delivery")}
               </Text>
             </TouchableOpacity>
-          ) : isShipping ? (
+          ) : deliveryAction === "deliver" ? (
             <TouchableOpacity style={styles.deliveredBtn} onPress={markDelivered} disabled={delivering}>
               <Text style={styles.deliveredBtnText}>
                 {delivering ? (t("saving") ?? "Saving...") : (t("markDelivered") ?? "Mark delivered")}

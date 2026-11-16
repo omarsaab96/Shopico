@@ -52,14 +52,14 @@ export default function ActiveOrderBanner({ branchId, orders: providedOrders }: 
         </Text>
 
         <TouchableOpacity accessibilityRole="button" activeOpacity={0.85}
-          style={{ alignSelf: "center", paddingHorizontal: 18, paddingVertical: 8 }}
+          style={{ alignSelf: "center" }}
           onPress={() => router.push(isDriver ? "/(tabs)/driver" : "/(tabs)/orders")}>
-          <Text weight="black" style={{ color: palette.accent, textAlign: isRTL ? "right" : "left" }}>{t("viewAll")}</Text>
+          <Text weight="black" style={{ color: palette.accent }}>{t("viewAll")}</Text>
         </TouchableOpacity>
       </View>
       
       <ActiveOrderCard order={order}
-        statusLabel={t(isDriver && order.status === "SHIPPING" ? "driverDeliveryInProgress" : order.status)}
+        statusLabel={t(isDriver && order.status === "SHIPPING" ? order.driverStartedAt ? "driverDeliveryInProgress" : "driverReadyToDeliver" : order.status)}
         onPress={() => router.push(isDriver ? `/driver-orders/${order._id}` : `/orders/${order._id}`)} />
     </View>
   );

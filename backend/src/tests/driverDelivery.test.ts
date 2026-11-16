@@ -3,7 +3,7 @@ import mongoose, { Types } from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server-core";
 import { Order } from "../models/Order";
 import { User } from "../models/User";
-import { updateOrderStatusAsDriver, updateOrderStatus, assignDriverToOrder, updateOrderDetails } from "../services/orderService";
+import { updateOrderStatusAsDriver, updateOrderStatus, assignDriverToOrder, updateOrderDetails, updateOrderDriverLocation } from "../services/orderService";
 import { DriverDeliveryConflictError } from "../utils/driverDelivery";
 import { errorHandler } from "../middleware/errorHandler";
 
@@ -32,6 +32,41 @@ const makeOrder = (overrides: Record<string, unknown> = {}) => Order.create({
 const start = (id: unknown) => updateOrderStatusAsDriver(String(id), driverId, "SHIPPING");
 
 describe("one active delivery per driver", () => {
+  it("requires the driver to start a staff-readied shipping order before completion or tracking", async () => {
+    const order = await makeOrder();
+    await updateOrderStatus(String(order._id), "SHIPPING");
+    const ready = await Order.findById(order._id).orFail();
+    expect(ready.driverStartedAt).toBeNull();
+    await expect(updateOrderStatusAsDriver(String(order._id), driverId, "DELIVERED")).rejects.toMatchObject({ status: 400 });
+    await expect(updateOrderDriverLocation(String(order._id), driverId, 33, 36)).rejects.toMatchObject({ status: 400 });
+    await start(order._id);
+    const started = await Order.findById(order._id).orFail();
+    expect(started.status).toBe("SHIPPING");
+    expect(started.driverStartedAt).toBeInstanceOf(Date);
+    expect(String(started.driverStartedBy)).toBe(String(driverId));
+    await updateOrderDriverLocation(String(order._id), driverId, 33, 36);
+    await updateOrderStatusAsDriver(String(order._id), driverId, "DELIVERED");
+  });
+  it("preserves the original start time when a start request is retried", async () => {
+    const order = await makeOrder();
+    await start(order._id);
+    const original = (await Order.findById(order._id).orFail()).driverStartedAt;
+    await start(order._id);
+    expect((await Order.findById(order._id).orFail()).driverStartedAt).toEqual(original);
+  });
+  it("requires a new driver to start again after reassignment", async () => {
+    const order = await makeOrder();
+    await start(order._id);
+    const next = await User.create({ name: "Other driver", email: "other@example.com", role: "driver", branchIds: [branchId] });
+    await assignDriverToOrder(String(order._id), String(next._id));
+    const ready = await Order.findById(order._id).orFail();
+    expect(ready.driverStartedAt).toBeNull();
+    expect(ready.driverStartedBy).toBeNull();
+    await expect(updateOrderStatusAsDriver(String(order._id), next._id, "DELIVERED")).rejects.toMatchObject({ status: 400 });
+    await updateOrderStatusAsDriver(String(order._id), next._id, "SHIPPING");
+    expect(String((await Order.findById(order._id).orFail()).driverStartedBy)).toBe(String(next._id));
+  });
+
   it("allows queued assignments but blocks starting a second delivery", async () => {
     const first = await makeOrder();
     const second = await makeOrder();

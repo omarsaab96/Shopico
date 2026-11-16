@@ -116,7 +116,6 @@ export default function Orders() {
   const loadSilently = useCallback(async () => {
     if (!user) return;
 
-    console.log('start2')
     try {
       const res = await api.get("/orders", { params: { currencyId: selectedCurrency?._id } });
       const list = res.data.data || [];
@@ -212,11 +211,11 @@ export default function Orders() {
             // horizontal
             // style={styles.statusScroll}
             style={styles.statusFilters}
-            // showsHorizontalScrollIndicator={false}
-            // contentContainerStyle={styles.statusFilters}
-            // onContentSizeChange={() => {
-            //   if (isRTL) statusScrollRef.current?.scrollToEnd({ animated: false });
-            // }}
+          // showsHorizontalScrollIndicator={false}
+          // contentContainerStyle={styles.statusFilters}
+          // onContentSizeChange={() => {
+          //   if (isRTL) statusScrollRef.current?.scrollToEnd({ animated: false });
+          // }}
           >
             {ORDER_STATUSES.map(status => {
               const active = statusFilter === status;
@@ -402,8 +401,8 @@ export default function Orders() {
                   <Text style={[styles.value, {}]}>
                     {t("total")}: {formatMoney(item.total || 0, typeof item.currency === "object" ? item.currency : undefined)}
                   </Text>
-                  
-                  {item.status && item.status !== "CANCELLED" && <View style={{marginTop:10}}>
+
+                  {item.status && item.status !== "CANCELLED" && <View style={{ marginTop: 10 }}>
                     <OrderCancellation cartpage={false} ordersPage order={item} onUpdate={updated => setOrders(current => current.map(order =>
                       order._id === updated._id ? {
                         ...order, status: updated.status, cancelledByCustomer: updated.cancelledByCustomer,
@@ -431,7 +430,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       fontWeight: "900",
       marginBottom: 12,
       textAlign: isRTL ? "right" : "left",
-      lineHeight:28
+      lineHeight: 28
     },
     filters: { marginHorizontal: -16, marginBottom: 15 },
     searchRow: { flexDirection: "row", alignItems: "center", marginBottom: 12, paddingHorizontal: 16 },
@@ -481,7 +480,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       borderColor: isDark ? palette.border : "rgba(15, 23, 42, 0.08)",
       backgroundColor: palette.card,
     },
-    filterLabel: { color: palette.text, fontSize: 12, textAlign: "center",lineHeight:16 },
+    filterLabel: { color: palette.text, fontSize: 12, textAlign: "center", lineHeight: 16 },
 
     row: {
       backgroundColor: palette.card,
@@ -516,20 +515,20 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       color: palette.accent,
       fontSize: 14,
       fontWeight: "900",
-      lineHeight:22
+      lineHeight: 22
     },
     itemName: {
       color: palette.text,
       fontWeight: "400",
       fontSize: 14,
-      lineHeight:22
+      lineHeight: 22
     },
     moreItemsText: {
       color: palette.muted,
       fontWeight: "600",
       fontSize: 13,
       opacity: 0.6,
-      lineHeight:20,
+      lineHeight: 20,
     },
     value: { color: "black", fontSize: 13, fontWeight: "600" },
 

@@ -5,12 +5,12 @@ import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert,
 import * as Location from "expo-location";
 import Constants from "expo-constants";
 import Screen from "../../components/Screen";
-import ActiveDriverDeliveryBanner from "../../components/ActiveDriverDeliveryBanner";
 import Text from "../../components/Text";
 import api from "../../lib/api";
 import { useTheme } from "../../lib/theme";
 import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
+import { groupDriverOrders, driverDeliveryAction, type DriverOrderGroup } from "../../lib/driverOrderGroups";
 import { startDriverTracking, stopDriverTracking } from "../../lib/driverTracking";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Feather from '@expo/vector-icons/Feather';
@@ -32,6 +32,7 @@ const GOOGLE_MAPS_KEY =
 type DriverOrder = {
   _id: string;
   status: string;
+  driverStartedAt?: string | null;
   address: string;
   total: number;
   user?: { name?: string; phone?: string; email?: string } | string | null;
@@ -75,8 +76,9 @@ export default function DriverOrders() {
   const { user } = useAuth();
   const { palette, isDark } = useTheme();
   const { t, isRTL, lang } = useI18n();
-  const styles = useMemo(() => createStyles(palette, isRTL), [palette, isRTL]);
+  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
   const [orders, setOrders] = useState<DriverOrder[]>([]);
+  const [orderGroup, setOrderGroup] = useState<DriverOrderGroup>("ready");
   const [loading, setLoading] = useState(false);
   const [distanceLoading, setDistanceLoading] = useState(false);
   const [routeDistanceLoading, setRouteDistanceLoading] = useState(false);
@@ -91,7 +93,7 @@ export default function DriverOrders() {
 
   const canDeliver = user?.role === "driver";
   const startingDeliveryRef = useRef(false);
-  const activeDelivery = orders.find(order => order.status === "SHIPPING");
+  const activeDelivery = orders.find(order => order.status === "SHIPPING" && order.driverStartedAt);
   const hasActiveDelivery = Boolean(activeDelivery);
   const deliveryActionPending = Object.values(updating).some(Boolean);
   useEffect(() => {
@@ -236,20 +238,14 @@ export default function DriverOrders() {
     };
   }, [canDeliver]);
 
-  const visibleOrders = useMemo(
-    () => orders.filter((order) => ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED"].includes(order.status)),
-    [orders]
-  );
-
-  const pendingCount = useMemo(
-    () => visibleOrders.filter((order) => order.status !== "DELIVERED").length,
-    [visibleOrders]
-  );
-
-  const deliveredCount = useMemo(
-    () => visibleOrders.filter((order) => order.status === "DELIVERED").length,
-    [visibleOrders]
-  );
+  const groupedOrders = useMemo(() => groupDriverOrders(orders), [orders]);
+  const visibleOrders = groupedOrders[orderGroup];
+  const routeOrders = useMemo(() => activeDelivery ? [activeDelivery, ...visibleOrders] : visibleOrders, [activeDelivery, visibleOrders]);
+  const orderGroups: { value: DriverOrderGroup; label: string }[] = [
+    { value: "ready", label: t("driverReadyToDeliver") },
+    { value: "upcoming", label: t("driverUpcomingOrders") },
+    { value: "previous", label: t("driverPreviousOrders") },
+  ];
 
   const formatDuration = useCallback((startAt?: string, endAt?: string) => {
     if (!startAt) return "";
@@ -276,7 +272,7 @@ export default function DriverOrders() {
   }, []);
 
   const getDeliveryDuration = useCallback((order: DriverOrder) => {
-    const startedAt = getStatusTime(order, "SHIPPING");
+    const startedAt = order.driverStartedAt || (order.status === "DELIVERED" ? getStatusTime(order, "SHIPPING") : undefined);
     const deliveredAt = getStatusTime(order, "DELIVERED");
     return formatDuration(startedAt, order.status === "DELIVERED" ? deliveredAt : undefined);
   }, [formatDuration, getStatusTime]);
@@ -309,22 +305,23 @@ export default function DriverOrders() {
 
   const startTracking = async (order: DriverOrder) => {
     if (startingDeliveryRef.current || deliveryActionPending) return;
-    if (orders.some(item => item.status === "SHIPPING" && item._id !== order._id)) {
+    if (orders.some(item => item.status === "SHIPPING" && item.driverStartedAt && item._id !== order._id)) {
       Alert.alert(t("startDelivery"), t("driverOneDeliveryAtATime"));
       return;
     }
     startingDeliveryRef.current = true;
     setUpdating((prev) => ({ ...prev, [order._id]: true }));
     try {
-      await api.put(`/orders/${order._id}/driver-status`, { status: "SHIPPING" });
-      setOrders(current => current.map(item => item._id === order._id ? { ...item, status: "SHIPPING" } : item));
+      const res = await api.put(`/orders/${order._id}/driver-status`, { status: "SHIPPING" });
+      const startedOrder = { ...order, ...res.data.data };
+      setOrderGroup("ready");
+      setOrders(current => current.map(item => item._id === order._id ? startedOrder : item));
       DeviceEventEmitter.emit("shopico:notification");
-      await load(false);
       try { await startDriverTracking(order._id); }
       catch { Alert.alert(t("startDelivery"), t("driverTrackingPermission")); }
       setTrackingOrderId(order._id);
-      await load();
-      openDirections(order);
+      openDirections(startedOrder);
+      void load(false).catch(() => {});
     } catch (error: any) {
       Alert.alert(
         t("startDelivery"),
@@ -408,7 +405,7 @@ export default function DriverOrders() {
   }, []);
 
   useEffect(() => {
-    if (!visibleOrders.length) {
+    if (!routeOrders.length) {
       setRouteDistances({});
       return;
     }
@@ -417,7 +414,8 @@ export default function DriverOrders() {
       return;
     }
 
-    const routeInputs = visibleOrders
+    const routeInputs = routeOrders
+      .filter(order => order.status !== "DELIVERED")
       .map((order) => ({
         order,
         origin: getRouteOrigin(order),
@@ -455,7 +453,7 @@ export default function DriverOrders() {
     return () => {
       cancelled = true;
     };
-  }, [driverLocation, getRouteDistanceKm, visibleOrders]);
+  }, [driverLocation, getRouteDistanceKm, routeOrders]);
 
   const getDriverRouteDistanceKm = (order: DriverOrder) => {
     const customerCoordinate = getCustomerCoordinate(order);
@@ -478,6 +476,163 @@ export default function DriverOrders() {
     });
   };
 
+  const renderDriverOrderCard = (item: DriverOrder, highlighted = false) => {
+    const isShipping = item.status === "SHIPPING";
+    const deliveryAction = driverDeliveryAction(item);
+    const deliveryStarted = deliveryAction === "deliver";
+    const isTracking = trackingOrderId === item._id;
+    const driverRouteDistanceKm = getDriverRouteDistanceKm(item);
+    return (
+      <View style={[styles.card, highlighted && styles.currentDeliveryCard]}>
+        {highlighted && <View style={styles.currentDeliveryHeading}>
+          <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />
+          <Text weight="black" style={styles.currentDeliveryTitle}>{t("driverCurrentlyDelivering")}</Text>
+        </View>}
+        <View style={styles.cardRow}>
+          {/* <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => router.push(`/driver-orders/${item._id}` as any)}><Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text></TouchableOpacity>
+          </View> */}
+
+          <View style={{ flexDirection: 'row', gap: 15, marginBottom: 10, alignItems: 'center' }}>
+            <View style={[{
+              borderWidth: 2,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderColor: palette.border
+            },
+            item.status && item.status === "PENDING" && { borderColor: '#ff7a1f', backgroundColor: 'rgba(255, 122, 31, 0.1)' },
+            item.status && item.status === "PROCESSING" && { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
+            item.status && item.status === "SHIPPING" && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' },
+            item.status && item.status === "DELIVERED" && { borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' },
+            item.status && item.status === "CANCELLED" && { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+            ]}>
+              {item.status && item.status === "PENDING" && <Entypo name="dots-three-horizontal" size={16} color="#ff7a1f" />}
+              {item.status && item.status === "PROCESSING" && <Feather name="loader" size={20} color="#2563eb" />}
+              {item.status && item.status === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
+              {item.status && item.status === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
+              {item.status && item.status === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
+            </View>
+
+            <View style={{ flex: 1, gap: 2 }}>
+              <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
+                <TouchableOpacity onPress={() => router.push(`/driver-orders/${item._id}` as any)}><Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text></TouchableOpacity>
+                <View style={styles.textSeperator}></View>
+                <Text style={[
+                  styles.status,
+                  // item.status && item.status === "PENDING" && { color: '#ff7a1f' },
+                  // item.status && item.status === "PROCESSING" && { color: '#2563eb' },
+                  // item.status && item.status === "SHIPPING" && { color: '#4f46e5' },
+                  // item.status && item.status === "DELIVERED" && { color: '#16a34a' },
+                  // item.status && item.status === "CANCELLED" && { color: '#ef4444' },
+                ]}>
+                  {item.status === "DELIVERED" ? t("driverOrderCompleted") : isShipping ? t(deliveryStarted ? "driverDeliveryStarted" : "driverReadyToDeliver") : t(item.status) ?? item.status}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
+                <Text style={styles.meta}>{formatOrderDate(item.createdAt)}</Text>
+
+              </View>
+            </View>
+
+            {/* <View style={styles.arrow}>
+              <Entypo
+                name={isRTL ? "chevron-left" : "chevron-right"}
+                size={24}
+                color={palette.accent}
+              />
+            </View> */}
+            <Text style={[styles.cardMeta, item.status !== "DELIVERED" && styles.elapsedValue]}>
+              {getDeliveryDuration(item)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+          <Octicons name="location" size={24} color={palette.muted} style={{opacity:0.4}} />
+          <View style={{ gap: isRTL? 0 : 2, flex: 1 }}>
+            <View style={{}}>
+              <Text style={[styles.address]}>
+                {item.address}
+              </Text>
+            </View>
+
+            <Text style={styles.cardDistance}>
+              {distanceLoading || routeDistanceLoading ? (
+                <Skeleton width={50} height={15} colorScheme={isDark ? "dark" : "light"} />
+              ) : (
+                <>
+                  {driverRouteDistanceKm !== null ? formatDistanceKm(driverRouteDistanceKm) : "-"}{' '}
+                  {t('km')}
+                </>
+              )}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+          <FontAwesome name="user-circle-o" size={24} color={palette.muted} style={{opacity:0.4}}/>
+
+          <View style={{ gap: 2 }}>
+            <Text style={styles.addressLabel}>{getCustomerName(item)}</Text>
+            <Text style={styles.addressLabel}>{getCustomerPhone(item)}</Text>
+          </View>
+        </View>
+        {/*
+        <View style={styles.customerBox}>
+
+          <Text style={styles.customerName}></Text>
+          <Text style={styles.customerPhone}>{getCustomerPhone(item)}</Text>
+        </View> */}
+
+        {
+          ((item.status !== "DELIVERED" && getOrderCoordinate(item, "lat") !== undefined && getOrderCoordinate(item, "lng") !== undefined) ||
+            (item.status === "PROCESSING") ||
+            (isShipping)) &&
+
+          <View style={styles.btnRow}>
+            {item.status !== "DELIVERED" && getOrderCoordinate(item, "lat") !== undefined && getOrderCoordinate(item, "lng") !== undefined ? (
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={() => openDirections(item)}
+                disabled={updating[item._id]}
+              >
+                <Text style={styles.primaryBtnText}>{t("directions") ?? "Directions"}</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {deliveryAction === "start" &&
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: palette.accent, borderColor: palette.accent }, (hasActiveDelivery || deliveryActionPending) && { opacity: 0.5 }]}
+                onPress={() => startTracking(item)}
+                disabled={deliveryActionPending || hasActiveDelivery}
+              >
+                <Text style={[styles.primaryBtnText, { color: 'white' }]}>
+                  {updating[item._id] ? (t("starting") ?? "Starting...") : hasActiveDelivery ? t("driverOneDeliveryAtATime") : (t("startDelivery") ?? "Start delivery")}
+                </Text>
+              </TouchableOpacity>
+            }
+
+            {deliveryStarted &&
+              <TouchableOpacity
+                style={styles.dangerBtn}
+                onPress={() => markDelivered(item._id)}
+                disabled={updating[item._id]}
+              >
+                <Text style={styles.dangerBtnText}>
+                  {updating[item._id] ? (t("saving") ?? "Saving...") : (t("markDelivered") ?? "Mark delivered")}
+                </Text>
+              </TouchableOpacity>
+            }
+          </View>
+        }
+
+      </View>
+    );
+  };
+
   if (!canDeliver) {
     return (
       <Screen>
@@ -491,7 +646,6 @@ export default function DriverOrders() {
 
   return (
     <Screen>
-      <ActiveDriverDeliveryBanner order={activeDelivery} />
       <FlatList
         data={visibleOrders}
         keyExtractor={(item) => item._id}
@@ -500,9 +654,21 @@ export default function DriverOrders() {
           <View style={styles.header}>
             <Text style={styles.title}>{t("orders") ?? "Orders"}</Text>
             {Platform.OS === "android" && <Text style={styles.subtitle}>{t("driverTrackingForeground")}</Text>}
-            <Text style={styles.subtitle}>
-              {t("pendingOrders") ?? "Pending"}: {pendingCount} · {t("deliveredOrders") ?? "Delivered"}: {deliveredCount}
-            </Text>
+            {activeDelivery && renderDriverOrderCard(activeDelivery, true)}
+            <View style={styles.orderFilters}>
+              {orderGroups.map(group => {
+                const selected = orderGroup === group.value;
+                return (
+                  <TouchableOpacity key={group.value} accessibilityRole="tab" accessibilityState={{ selected }}
+                    onPress={() => setOrderGroup(group.value)} activeOpacity={0.85}
+                    style={[styles.orderFilter, { backgroundColor: selected ? palette.accentSoft : palette.card, borderColor: selected ? palette.accent : palette.border }]}>
+                    <Text weight="bold" style={[styles.orderFilterLabel, { color: selected ? palette.accent : palette.muted }]}>
+                      {group.label} ({groupedOrders[group.value].length})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         }
         ListEmptyComponent={
@@ -513,7 +679,7 @@ export default function DriverOrders() {
           ) : (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>{t("noOrders") ?? "No orders yet"}</Text>
-              <Text style={styles.emptyText}>{t("driverNoOrders") ?? "No assigned deliveries right now."}</Text>
+              <Text style={styles.emptyText}>{t("driverNoOrdersInGroup")}</Text>
             </View>
           )
         }
@@ -524,162 +690,13 @@ export default function DriverOrders() {
             tintColor={palette.accent}
           />
         }
-        renderItem={({ item }) => {
-          const isShipping = item.status === "SHIPPING";
-          const isTracking = trackingOrderId === item._id;
-          const driverRouteDistanceKm = getDriverRouteDistanceKm(item);
-          return (
-            <View style={styles.card}>
-              <View style={styles.cardRow}>
-                {/* <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                  <TouchableOpacity onPress={() => router.push(`/driver-orders/${item._id}` as any)}><Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text></TouchableOpacity>
-                </View> */}
-
-                <View style={{ flexDirection: 'row', gap: 15, marginBottom: 10, alignItems: 'center' }}>
-                  <View style={[{
-                    borderWidth: 2,
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderColor: palette.border
-                  },
-                  item.status && item.status === "PENDING" && { borderColor: '#ff7a1f', backgroundColor: 'rgba(255, 122, 31, 0.1)' },
-                  item.status && item.status === "PROCESSING" && { borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
-                  item.status && item.status === "SHIPPING" && { borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)' },
-                  item.status && item.status === "DELIVERED" && { borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' },
-                  item.status && item.status === "CANCELLED" && { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
-                  ]}>
-                    {item.status && item.status === "PENDING" && <Entypo name="dots-three-horizontal" size={16} color="#ff7a1f" />}
-                    {item.status && item.status === "PROCESSING" && <Feather name="loader" size={20} color="#2563eb" />}
-                    {item.status && item.status === "SHIPPING" && <MaterialIcons name="delivery-dining" size={20} color="#4f46e5" />}
-                    {item.status && item.status === "DELIVERED" && <MaterialIcons name="done-all" size={20} color="#16a34a" />}
-                    {item.status && item.status === "CANCELLED" && <MaterialCommunityIcons name="cancel" size={20} color="#ef4444" />}
-                  </View>
-
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
-                      <TouchableOpacity onPress={() => router.push(`/driver-orders/${item._id}` as any)}><Text style={styles.cardTitle}>#{item._id.slice(-6)}</Text></TouchableOpacity>
-                      <View style={styles.textSeperator}></View>
-                      <Text style={[
-                        styles.status,
-                        // item.status && item.status === "PENDING" && { color: '#ff7a1f' },
-                        // item.status && item.status === "PROCESSING" && { color: '#2563eb' },
-                        // item.status && item.status === "SHIPPING" && { color: '#4f46e5' },
-                        // item.status && item.status === "DELIVERED" && { color: '#16a34a' },
-                        // item.status && item.status === "CANCELLED" && { color: '#ef4444' },
-                      ]}>
-                        {item.status === "DELIVERED" ? t("driverOrderCompleted") : t(item.status) ?? item.status}
-                      </Text>
-                    </View>
-                    <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
-                      <Text style={styles.meta}>{formatOrderDate(item.createdAt)}</Text>
-
-                    </View>
-                  </View>
-
-                  {/* <View style={styles.arrow}>
-                    <Entypo
-                      name={isRTL ? "chevron-left" : "chevron-right"}
-                      size={24}
-                      color={palette.accent}
-                    />
-                  </View> */}
-                  <Text style={[styles.cardMeta, item.status !== "DELIVERED" && styles.elapsedValue]}>
-                    {getDeliveryDuration(item)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
-                <Octicons name="location" size={24} color={palette.muted} style={{opacity:0.4}} />
-                <View style={{ gap: isRTL? 0 : 2, flex: 1 }}>
-                  <View style={{}}>
-                    <Text style={[styles.address]}>
-                      {item.address}
-                    </Text>
-                  </View>
-
-                  <Text style={styles.cardDistance}>
-                    {distanceLoading || routeDistanceLoading ? (
-                      <Skeleton width={50} height={15} colorScheme={isDark ? "dark" : "light"} />
-                    ) : (
-                      <>
-                        {driverRouteDistanceKm !== null ? formatDistanceKm(driverRouteDistanceKm) : "-"}{' '}
-                        {t('km')}
-                      </>
-                    )}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
-                <FontAwesome name="user-circle-o" size={24} color={palette.muted} style={{opacity:0.4}}/>
-
-                <View style={{ gap: 2 }}>
-                  <Text style={styles.addressLabel}>{getCustomerName(item)}</Text>
-                  <Text style={styles.addressLabel}>{getCustomerPhone(item)}</Text>
-                </View>
-              </View>
-              {/* 
-              <View style={styles.customerBox}>
-
-                <Text style={styles.customerName}></Text>
-                <Text style={styles.customerPhone}>{getCustomerPhone(item)}</Text>
-              </View> */}
-
-              {
-                ((item.status !== "DELIVERED" && getOrderCoordinate(item, "lat") !== undefined && getOrderCoordinate(item, "lng") !== undefined) ||
-                  (item.status === "PROCESSING") ||
-                  (isShipping)) &&
-
-                <View style={styles.btnRow}>
-                  {item.status !== "DELIVERED" && getOrderCoordinate(item, "lat") !== undefined && getOrderCoordinate(item, "lng") !== undefined ? (
-                    <TouchableOpacity
-                      style={styles.primaryBtn}
-                      onPress={() => openDirections(item)}
-                      disabled={updating[item._id]}
-                    >
-                      <Text style={styles.primaryBtnText}>{t("directions") ?? "Directions"}</Text>
-                    </TouchableOpacity>
-                  ) : null}
-
-                  {item.status === "PROCESSING" &&
-                    <TouchableOpacity
-                      style={[styles.primaryBtn, { backgroundColor: palette.accent, borderColor: palette.accent }, (hasActiveDelivery || deliveryActionPending) && { opacity: 0.5 }]}
-                      onPress={() => startTracking(item)}
-                      disabled={deliveryActionPending || hasActiveDelivery}
-                    >
-                      <Text style={[styles.primaryBtnText, { color: 'white' }]}>
-                        {updating[item._id] ? (t("starting") ?? "Starting...") : hasActiveDelivery ? t("driverOneDeliveryAtATime") : (t("startDelivery") ?? "Start delivery")}
-                      </Text>
-                    </TouchableOpacity>
-                  }
-
-                  {isShipping &&
-                    <TouchableOpacity
-                      style={styles.dangerBtn}
-                      onPress={() => markDelivered(item._id)}
-                      disabled={updating[item._id]}
-                    >
-                      <Text style={styles.dangerBtnText}>
-                        {updating[item._id] ? (t("saving") ?? "Saving...") : (t("markDelivered") ?? "Mark delivered")}
-                      </Text>
-                    </TouchableOpacity>
-                  }
-                </View>
-              }
-
-            </View>
-          );
-        }}
+        renderItem={({ item }) => renderDriverOrderCard(item)}
       />
     </Screen>
   );
 }
 
-const createStyles = (palette: any, isRTL: boolean) =>
+const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
   StyleSheet.create({
     title: {
       fontSize: 22,
@@ -692,6 +709,9 @@ const createStyles = (palette: any, isRTL: boolean) =>
       gap: 4,
       marginBottom: 2,
     },
+    orderFilters: { flexDirection: "row", gap: 8, marginTop: 10, marginBottom: 6 },
+    orderFilter: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 6, paddingVertical: 7, justifyContent: "center", alignItems: "center" },
+    orderFilterLabel: { fontSize: 12, lineHeight: 17, textAlign: "center" },
     subtitle: {
       color: palette.muted,
       fontSize: 13,
@@ -729,6 +749,9 @@ const createStyles = (palette: any, isRTL: boolean) =>
       borderColor: palette.border,
       gap: 8,
     },
+    currentDeliveryCard: { width: "100%", marginTop: 12, marginBottom: 4, backgroundColor: isDark ? "#242239" : "#f0edff", borderColor: "#4f46e5" },
+    currentDeliveryHeading: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+    currentDeliveryTitle: { color: isDark ? "#c4b5fd" : "#4f46e5", fontSize: 14, lineHeight: 20 },
     cardRow: {
       flexDirection: "row",
       justifyContent: "space-between",

@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Money from "../components/Money";
 import ActiveOrderBanner from "../components/ActiveOrderBanner";
+import type { OrderPreview } from "../lib/orderPreview";
 import {
   FlatList,
   View,
@@ -82,13 +83,9 @@ type Announcement = {
   endsAt?: string;
   isEnabled?: boolean;
 };
-type DriverDashboardOrder = {
-  _id: string;
-  status: string;
+type DriverDashboardOrder = OrderPreview & {
   paymentMethod?: string;
   paymentStatus?: string;
-  currency?: CashCurrency | string | null;
-  total?: number;
 };
 
 export default function Home() {
@@ -1234,7 +1231,7 @@ export default function Home() {
     sublabel?: string
   ) => (
     <View style={styles.driverStatCard}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom:10 }}>
         <View style={[styles.driverStatIcon, { backgroundColor: `${tone}1A` }]}>
           <Feather name={icon} size={20} color={tone} />
         </View>
@@ -1272,6 +1269,7 @@ export default function Home() {
       </View>
 
       <ActiveOrderBanner orders={driverOrders} />
+      
       <View style={styles.driverStatsGrid}>
         {renderDriverStatCard(
           t("deliveredOrders") ?? "Delivered",
@@ -2092,6 +2090,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       color: palette.text,
       fontSize: 24,
       fontWeight: "900",
+      lineHeight:30
       // textAlign: align,
     },
     driverStatSub: {

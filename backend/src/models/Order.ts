@@ -65,6 +65,8 @@ export interface IOrder extends Document {
   addressRef?: Types.ObjectId | string | null;
   driverId?: Types.ObjectId | string;
   driverLocation?: IOrderDriverLocation | null;
+  driverStartedAt?: Date | null;
+  driverStartedBy?: Types.ObjectId | string | null;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: "PENDING" | "CONFIRMED";
@@ -157,6 +159,8 @@ const OrderSchema = new Schema<IOrder>(
     }, { _id: false })], default: [] },
     addressRef: { type: Schema.Types.ObjectId, ref: "Address", default: null },
     driverId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    driverStartedAt: { type: Date, default: null },
+    driverStartedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     driverLocation: { type: DriverLocationSchema, default: null },
     status: { type: String, enum: ["PENDING", "PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"], default: "PENDING" },
     paymentMethod: { type: String, required: true },
