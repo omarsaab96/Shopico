@@ -12,6 +12,7 @@ export interface ISettings extends Document {
   supportPhone: string;
   deliveryFreeKm: number;
   deliveryRatePerKm: number;
+  minimumOrderAmount: number;
   allowMultipleCoupons: boolean;
   membershipGraceDays: number;
   membershipThresholds: IMembershipThresholds;
@@ -42,6 +43,7 @@ const SettingsSchema = new Schema<ISettings>(
     supportPhone: { type: String, trim: true, default: "" },
     deliveryFreeKm: { type: Number, default: 1 },
     deliveryRatePerKm: { type: Number, default: 5000 },
+    minimumOrderAmount: { type: Number, min: 0, default: 0 },
     allowMultipleCoupons: { type: Boolean, default: false },
     membershipGraceDays: { type: Number, default: 14 },
     membershipThresholds: { type: MembershipThresholdSchema, default: () => ({}) },

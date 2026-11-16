@@ -6,6 +6,9 @@ export interface IUser extends Document {
   name: string;
   email: string;
   phone?: string;
+  phoneCountryCode?: string;
+  phoneCountry?: string;
+  phoneVerified: boolean;
   password?: string | null;
   passwordSetupToken?: string | null;
   passwordSetupExpires?: Date | null;
@@ -31,6 +34,9 @@ const UserSchema = new Schema<IUser>(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true, index: true },
     phone: { type: String },
+    phoneCountryCode: { type: String },
+    phoneCountry: { type: String },
+    phoneVerified: { type: Boolean, default: false },
     password: { type: String, required: false, default: null },
     passwordSetupToken: { type: String, required: false, default: null, index: true },
     passwordSetupExpires: { type: Date, required: false, default: null },

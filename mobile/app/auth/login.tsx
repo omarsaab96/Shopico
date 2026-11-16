@@ -2,7 +2,7 @@ import { TextInput } from "../../components/TextInput";
 import { BottomSheetModal } from "../../components/BottomSheetModal";
 import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { useMemo, useState, useRef, useCallback, useEffect } from "react";
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from "react-native";
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import Text from "../../components/Text";
 import { useAuth } from "../../lib/auth";
 import { useTheme } from "../../lib/theme";
@@ -162,9 +162,9 @@ export default function Login() {
 
   return (
     <>
-      <View style={[styles.safe]} >
-        <View style={styles.container}>
-          <View style={{ flex: 1, justifyContent: 'space-between', position: 'relative' }}>
+      <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+          <View style={{ flexGrow: 1, justifyContent: 'space-between', position: 'relative', gap: 24 }}>
             <Image source={require('../../assets/watermark4.png')} style={styles.watermark} />
 
             <View style={{}}>
@@ -349,8 +349,8 @@ export default function Login() {
             </BottomSheetModal>
 
           </View>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </>
   );
 }
@@ -365,7 +365,7 @@ const createStyles = (palette: any, isDark: any, isRTL: boolean, insets: any) =>
       // borderWidth:6
     },
     container: {
-      flex: 1,
+      flexGrow: 1,
       paddingTop: insets.top + 15,
       paddingBottom: insets.bottom + 15,
       paddingHorizontal: 16,

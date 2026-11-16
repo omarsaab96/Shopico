@@ -9,6 +9,7 @@ export const updateSettingsSchema = z.object({
   supportPhone: supportPhoneSchema.optional(),
   deliveryFreeKm: z.number().nonnegative(),
   deliveryRatePerKm: z.number().nonnegative(),
+  minimumOrderAmount: z.number().nonnegative().optional(),
   allowMultipleCoupons: z.boolean(),
   membershipGraceDays: z.number().int().nonnegative(),
   membershipThresholds: z.object({

@@ -712,7 +712,7 @@ const OrdersPage = () => {
                   </div>
                   <div className="detailsRow">
                     <div className="detailsLabel">{t("phone")}</div>
-                    <div className="detailsValue">{selectedUser.user.phone || t("noPhone")}</div>
+                    <div className="detailsValue">{selectedUser.user.phone ? `${selectedUser.user.phoneCountryCode || ""}${selectedUser.user.phone}` : t("noPhone")}</div>
                   </div>
                   <div className="detailsRow">
                     <div className="detailsLabel">{t("role")}</div>

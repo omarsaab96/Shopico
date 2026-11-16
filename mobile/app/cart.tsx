@@ -168,6 +168,9 @@ export default function CartScreen() {
   const unavailableItems = items.filter((item) => item.unavailable);
   const hasUnavailableItems = unavailableItems.length > 0;
   const subtotal = roundAmount(items.reduce((sum, i) => (i.unavailable ? sum : sum + roundAmount(i.price * i.quantity)), 0));
+  const minimumOrderAmount = roundAmount(Number(settings?.minimumOrderAmount ?? 0));
+  const belowMinimumOrder = subtotal < minimumOrderAmount;
+  const checkoutBlocked = hasUnavailableItems || belowMinimumOrder || settingsLoading || !settings;
   const originalSubtotal = items.reduce((sum, i) => {
     if (i.unavailable) return sum;
     const originalPrice = i.originalPrice && i.originalPrice > i.price ? i.originalPrice : i.price;
@@ -274,6 +277,7 @@ export default function CartScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    await loadSettings();
     if (user && items.length) {
       await syncCartWithServer();
     } else {
@@ -284,7 +288,7 @@ export default function CartScreen() {
 
   const loadSettings = () => {
     setSettingsLoading(true);
-    api.get("/settings")
+    return api.get("/settings")
       .then((res) => setSettings(res.data.data))
       .catch(() => setSettings(null))
       .finally(() => setSettingsLoading(false));
@@ -350,7 +354,6 @@ export default function CartScreen() {
   };
 
   useEffect(() => {
-    loadSettings();
     loadBranch();
   }, []);
 
@@ -466,6 +469,7 @@ export default function CartScreen() {
   useFocusEffect(
     useCallback(() => {
       addressRefreshOnVisit.current = false;
+      loadSettings();
       if (user && cartItemsLengthRef.current) {
         syncCartWithServerRef.current();
       }
@@ -535,7 +539,7 @@ export default function CartScreen() {
       router.push("/email-verification?returnTo=/(tabs)/cart" as any);
       return;
     }
-    if (!items.length || cartSyncLoading) return;
+    if (!items.length || cartSyncLoading || checkoutBlocked) return;
     if (hasUnavailableItems) {
       Alert.alert(
         t("cartUpdated") ?? "Cart updated",
@@ -584,7 +588,7 @@ export default function CartScreen() {
       checkoutRequestHandled.current = false;
       return;
     }
-    if (!isFocused || cartSyncLoading || !items.length || checkoutRequestHandled.current) return;
+    if (!isFocused || cartSyncLoading || checkoutBlocked || !items.length || checkoutRequestHandled.current) return;
     // Let the focus-triggered cart sync start before opening the sheet.
     const frame = requestAnimationFrame(() => {
       checkoutRequestHandled.current = true;
@@ -594,7 +598,7 @@ export default function CartScreen() {
       disableAutoApply();
     });
     return () => cancelAnimationFrame(frame);
-  }, [checkoutRequest, requestedCouponCode, isFocused, cartSyncLoading, items.length, user, hasUnavailableItems]);
+  }, [checkoutRequest, requestedCouponCode, isFocused, cartSyncLoading, items.length, user, hasUnavailableItems, checkoutBlocked]);
 
   useEffect(() => {
     if (!checkoutOpen || !user || !selectedAddress || !selectedBranch) {
@@ -893,6 +897,7 @@ export default function CartScreen() {
 
   const placeOrder = async () => {
     if (!user || !selectedAddress) return;
+    if (checkoutBlocked) return;
     if (!user.emailVerified) {
       checkoutSheetRef.current?.dismiss();
       router.push("/email-verification?returnTo=/(tabs)/cart" as any);
@@ -917,6 +922,10 @@ export default function CartScreen() {
         Boolean(latestSettings?.allowMultipleCoupons ?? false) !== allowMultipleCoupons && selectedCoupons.length > 1;
       setSettings(latestSettings);
       setDeliveryEstimate(latestEstimate);
+      if (subtotal < roundAmount(Number(latestSettings?.minimumOrderAmount ?? 0))) {
+        setCheckoutError(t("minimumOrderAddMore"));
+        return;
+      }
       if (deliveryChanged || couponPolicyChanged) {
         setSelectedCoupons([]);
         setAvailableCoupons([]);
@@ -1029,13 +1038,14 @@ export default function CartScreen() {
             </View>
 
             {checkoutError ? <Text style={styles.errorText}>{checkoutError}</Text> : null}
+            {belowMinimumOrder ? <Text style={styles.errorText}>{t("minimumOrderAddMore")}</Text> : null}
 
           </View>
 
           <TouchableOpacity
-            style={[styles.primaryBtn, (!selectedAddress || submitting || walletInsufficient || checkoutLoading) && { opacity: 0.8 }]}
+            style={[styles.primaryBtn, (!selectedAddress || submitting || walletInsufficient || checkoutLoading || checkoutBlocked) && { opacity: 0.8 }]}
             onPress={placeOrder}
-            disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading}
+            disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading || checkoutBlocked}
           >
             <View style={{ width: '100%', flexDirection: "row", alignItems: 'center', justifyContent: 'center',gap:10 }}>
               <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
@@ -1123,6 +1133,17 @@ export default function CartScreen() {
           </View>
         </View>}
         {items.length > 0 && <CartCouponTeaser active={isFocused && !checkoutOpen} refreshing={refreshing} />}
+        {items.length > 0 && belowMinimumOrder ? (
+          <View accessibilityLiveRegion="polite">
+            <Text style={styles.cartWarning}>
+              {t("minimumOrderRequired")}: <Money amount={minimumOrderAmount} currency={selectedCurrency} />
+              {"\n"}{t("minimumOrderAddMore")}
+            </Text>
+          </View>
+        ) : null}
+        {user && items.length > 0 && !settingsLoading && !settings ? (
+          <Text style={styles.cartWarning}>{t("cartSettingsUnavailable")}</Text>
+        ) : null}
         {hasUnavailableItems ? (
           <Text style={styles.cartWarning}>
             {t("removeUnavailableItemsBeforeCheckout") ?? "Remove or replace unavailable items before checkout."}
@@ -1144,8 +1165,8 @@ export default function CartScreen() {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={[styles.buttonCta, { flex: 1 }, hasUnavailableItems && { opacity: 0.6 }]}
-                onPress={openCheckout} disabled={hasUnavailableItems}
+                style={[styles.buttonCta, { flex: 1 }, checkoutBlocked && { opacity: 0.6 }]}
+                onPress={openCheckout} disabled={checkoutBlocked}
               >
                 <Text style={styles.buttonCtaText}>{t("checkout")}</Text>
               </TouchableOpacity>

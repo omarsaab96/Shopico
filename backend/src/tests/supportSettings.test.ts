@@ -19,5 +19,10 @@ describe("support phone settings", () => {
     const payload = { deliveryFreeKm: 1, deliveryRatePerKm: 0, allowMultipleCoupons: false, membershipGraceDays: 14, membershipThresholds: { silver: 1, gold: 2, platinum: 3, diamond: 4 }, pointsPerAmount: 1, rewardThresholdPoints: 1, rewardValue: 0 };
     expect(updateSettingsSchema.safeParse(payload).success).toBe(true);
     expect(updateSettingsSchema.parse({ ...payload, supportPhone: "+963944123456" }).supportPhone).toBe("+963944123456");
+    expect(updateSettingsSchema.parse({ ...payload, minimumOrderAmount: 150.5 }).minimumOrderAmount).toBe(150.5);
+    expect(updateSettingsSchema.parse({ ...payload, minimumOrderAmount: 0 }).minimumOrderAmount).toBe(0);
+    for (const minimumOrderAmount of [-1, Infinity, NaN, "100"]) {
+      expect(updateSettingsSchema.safeParse({ ...payload, minimumOrderAmount }).success).toBe(false);
+    }
   });
 });

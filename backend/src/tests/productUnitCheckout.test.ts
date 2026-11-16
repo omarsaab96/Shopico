@@ -5,6 +5,7 @@ import { MongoMemoryServer } from "mongodb-memory-server-core";
 import { Product } from "../models/Product";
 import { Order } from "../models/Order";
 import { RewardToken } from "../models/RewardToken";
+import { PointsTransaction } from "../models/PointsTransaction";
 import { redeemPointsCoupon, getPersonalCoupons } from "../services/pointsService";
 import { User } from "../models/User";
 import { Wallet } from "../models/Wallet";
@@ -38,7 +39,7 @@ beforeEach(async () => {
   await Promise.all(Object.values(mongoose.models).map(Model => Model.deleteMany({})));
   const branch = await Branch.create({ name: "Test", address: "Test", lat: 0, lng: 0 });
   branchId = String(branch._id);
-  const user = await User.create({ name: "Buyer", email: "units@test.com", role: "customer", branchIds: [branchId] });
+  const user = await User.create({ name: "Buyer", email: "units@test.com", role: "customer", branchIds: [branchId], points: 250 });
   userId = user._id;
   const currency = await Currency.create({ branchId, symbol: { en: "SYP" }, exchangeRate: 1, isPrimary: true, isActive: true });
   currencyId = currency._id;
@@ -55,6 +56,34 @@ const inputs = () => [
   { productId: String(liquid._id), unit: "ml" as const, quantity: 375 },
 ];
 const submit = (items = inputs(), paymentMethod: "WALLET" | "CASH_ON_DELIVERY" = "CASH_ON_DELIVERY", couponCodes?: string[]) => createOrder(userId, branchId, { address: "Test address", lat: 0, lng: 0, paymentMethod, items, couponCodes });
+
+test("minimum order rejects a small subtotal before charging or consuming rewards", async () => {
+  await Settings.create({ branchId, minimumOrderAmount: 206, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  await expect(createOrder(userId, branchId, {
+    address: "Test", lat: 0, lng: 0, paymentMethod: "WALLET", useReward: true, items: inputs(),
+  })).rejects.toMatchObject({ status: 400, message: "Order subtotal is below the minimum order amount" });
+  expect(await Order.countDocuments()).toBe(0);
+  expect((await Wallet.findOne({ user: userId }).orFail()).balance).toBe(1000);
+  expect(await RewardToken.countDocuments({ consumed: false })).toBe(1);
+});
+
+test("minimum order accepts the exact subtotal before coupons in any display currency", async () => {
+  await Settings.create({ branchId, minimumOrderAmount: 205, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  const foreign = await Currency.create({ branchId, symbol: { en: "USD" }, exchangeRate: 10, isActive: true });
+  const coupon = await redeemPointsCoupon(userId, branchId, "minimum-order-coupon", String(foreign._id));
+  const order = await createOrder(userId, branchId, {
+    address: "Test", lat: 0, lng: 0, paymentMethod: "CASH_ON_DELIVERY", currencyId: String(foreign._id),
+    items: inputs(), couponCodes: [coupon.code],
+  });
+  expect(order).toMatchObject({ subtotal: 205, couponDiscount: 50, total: 155 });
+});
+
+test("zero minimum permits small orders", async () => {
+  await Settings.create({ branchId, minimumOrderAmount: 0 });
+  expect(await submit([{ productId: String(piece._id), unit: "piece", quantity: 1 }])).toMatchObject({ subtotal: 12.5 });
+});
 
 test("mixed units produce matching cart, checkout and wallet totals; cancellation returns the full debit", async () => {
   const cart = await syncCart(userId, branchId, inputs());
@@ -198,6 +227,8 @@ test("redeeming points creates a personal one-time coupon even with an empty car
   expect(coupon.assignedUsers?.map(String)).toEqual([String(userId)]);
   expect(await RewardToken.countDocuments({ consumed: true })).toBe(1);
   expect((await getPersonalCoupons(userId, branchId)).map(c => c.code)).toEqual([coupon.code]);
+  expect((await User.findById(userId).orFail()).points).toBe(150);
+  expect(await PointsTransaction.findOne({ user: userId, type: "REDEEM" })).toMatchObject({ points: -100 });
   expect(await getPersonalCoupons(new Types.ObjectId(), branchId)).toHaveLength(0);
 });
 
@@ -209,6 +240,8 @@ test("retrying the same coupon conversion does not spend another reward", async 
   expect(String(retry._id)).toBe(String(first._id));
   expect(await Coupon.countDocuments()).toBe(1);
   expect(await RewardToken.countDocuments({ consumed: false })).toBe(1);
+  expect((await User.findById(userId).orFail()).points).toBe(150);
+  expect(await PointsTransaction.countDocuments({ type: "REDEEM" })).toBe(1);
 });
 
 test("coupon conversion preserves the reward value in the selected currency", async () => {
@@ -266,6 +299,8 @@ test("failed coupon creation releases the points reward", async () => {
   await expect(redeemPointsCoupon(userId, branchId, "failed-write-coupon-request")).rejects.toThrow("write failed");
   create.mockRestore();
   expect(await RewardToken.countDocuments({ consumed: false })).toBe(1);
+  expect((await User.findById(userId).orFail()).points).toBe(250);
+  expect(await PointsTransaction.countDocuments({ type: "REDEEM" })).toBe(0);
 });
 
 
@@ -279,6 +314,19 @@ test("concurrent retries create one coupon and preserve the other reward token",
   expect(String(results[0]._id)).toBe(String(results[1]._id));
   expect(await Coupon.countDocuments()).toBe(1);
   expect(await RewardToken.countDocuments({ consumed: false })).toBe(1);
+  expect((await User.findById(userId).orFail()).points).toBe(150);
+  expect(await PointsTransaction.countDocuments({ type: "REDEEM" })).toBe(1);
+});
+
+test("insufficient points cannot be redeemed even with an available reward token", async () => {
+  await Settings.create({ branchId, rewardValue: 50 });
+  await RewardToken.create({ user: userId });
+  await User.updateOne({ _id: userId }, { $set: { points: 35 } });
+  await expect(redeemPointsCoupon(userId, branchId, "insufficient-points")).rejects.toMatchObject({ status: 409 });
+  expect((await User.findById(userId).orFail()).points).toBe(35);
+  expect(await RewardToken.countDocuments({ consumed: false })).toBe(1);
+  expect(await Coupon.countDocuments()).toBe(0);
+  expect(await PointsTransaction.countDocuments({ type: "REDEEM" })).toBe(0);
 });
 
 test("no available reward creates no personal coupon", async () => {

@@ -46,7 +46,18 @@ export const redeemPointsCoupon = async (userId: Types.ObjectId, branchId: strin
     throw { status: 409, message: "No points reward is available" };
   }
   let coupon;
+  let pointsDeducted = false;
+  let redemption;
   try {
+    const debit = await User.updateOne(
+      { _id: userId, points: { $gte: settings.rewardThresholdPoints } },
+      { $inc: { points: -settings.rewardThresholdPoints } }
+    );
+    if (!debit.modifiedCount) throw { status: 409, message: "Not enough points to redeem this reward" };
+    pointsDeducted = true;
+    redemption = await PointsTransaction.create({
+      user: userId, points: -settings.rewardThresholdPoints, type: "REDEEM", reference: String(token._id),
+    });
     const rate = currency.isPrimary ? 1 : Number(currency.exchangeRate || 1);
     coupon = await Coupon.create({
       branchId, code: `POINTS-${String(token._id).toUpperCase()}`,
@@ -57,6 +68,8 @@ export const redeemPointsCoupon = async (userId: Types.ObjectId, branchId: strin
       rewardToken: token._id, rewardRequestKey: requestKey,
     });
   } catch (error) {
+    if (redemption) await PointsTransaction.deleteOne({ _id: redemption._id });
+    if (pointsDeducted) await User.updateOne({ _id: userId }, { $inc: { points: settings.rewardThresholdPoints } });
     await RewardToken.updateOne({ _id: token._id }, { $set: { consumed: false } });
     const retry = await Coupon.findOne({ rewardRequestKey: requestKey }).populate("currency");
     if (retry) return retry;

@@ -155,6 +155,18 @@ const SettingsPage = () => {
               disabled={!canManage}
             />
           </label>
+          <label>
+            {t("minimumOrderAmount")}
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={settings.minimumOrderAmount ?? 0}
+              onChange={(e) => updateField("minimumOrderAmount", Number(e.target.value))}
+              disabled={!canManage}
+            />
+            <span className="muted">{t("minimumOrderAmountHint")}</span>
+          </label>
           <div className="checkboxContainer">
             <input
               id="allowMultipleCoupons"

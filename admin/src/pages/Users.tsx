@@ -161,7 +161,7 @@ const UsersPage = () => {
     setEditDraft({
       name: selected?.user?.name || "",
       email: selected?.user?.email || "",
-      phone: selected?.user?.phone || "",
+      phone: selected?.user?.phone ? `${selected.user.phoneCountryCode || ""}${selected.user.phone}` : "",
       role: selected?.user?.role || "staff",
     });
     setEditError("");
@@ -598,7 +598,7 @@ const UsersPage = () => {
                             onChange={(e) => setEditDraft((prev) => ({ ...prev, phone: e.target.value }))}
                           />
                         ) : selected.user.phone ? (
-                          selected.user.phone
+                          `${selected.user.phoneCountryCode || ""}${selected.user.phone}`
                         ) : (
                           <div className="muted">{t("noPhone")}</div>
                         )}

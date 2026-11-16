@@ -39,7 +39,7 @@ type DriverOrder = {
   driverId?: string | { _id?: string } | null;
   address: string;
   total: number;
-  user?: { name?: string; phone?: string; email?: string } | string | null;
+  user?: { name?: string; phone?: string; phoneCountryCode?: string; email?: string } | string | null;
   createdAt?: string;
   statusHistory?: { status: string; at?: string }[];
   deliveryDistanceKm?: number;
@@ -289,7 +289,7 @@ export default function DriverOrders() {
   };
 
   const getCustomerPhone = (order: DriverOrder) => {
-    if (typeof order.user === "object" && order.user?.phone) return order.user.phone;
+    if (typeof order.user === "object" && order.user?.phone) return `${order.user.phoneCountryCode || ""}${order.user.phone}`;
     if (typeof order.addressRef === "object" && order.addressRef?.phone) return order.addressRef.phone;
     return "-";
   };

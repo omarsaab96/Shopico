@@ -572,6 +572,23 @@ export default function Profile() {
                       </View>
                     </TouchableOpacity>
 
+                    <TouchableOpacity style={styles.profileLink} onPress={() => router.push("/phone-verification" as any)}>
+                      <Text style={styles.profileLinkText}>{t("verifyPhone")}</Text>
+                      <View style={styles.emailRow}>
+                        {user?.phoneVerified ? (
+                          <View style={styles.verifiedPill}>
+                            <Feather name="check-circle" size={13} color="#16a34a" />
+                            <Text style={styles.verifiedPillText}>{t("verified")}</Text>
+                          </View>
+                        ) : (
+                          <View style={styles.verifyEmailBtn}>
+                            <Ionicons name="alert" size={18} color={palette.accent} />
+                            <Entypo name={isRTL ? "chevron-left" : "chevron-right"} size={20} color={palette.text} />
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+
                     <TouchableOpacity style={[styles.profileLink, { borderBottomWidth: 0, justifyContent: 'flex-start', gap: 10 }]}
                       onPress={() => {
                         void logout().catch(() => {

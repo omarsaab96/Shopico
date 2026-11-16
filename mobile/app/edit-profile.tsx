@@ -12,6 +12,8 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { useTheme } from "../lib/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import PhoneFields from "../components/PhoneFields";
+import { normalizePhone, profilePhone, type CountryCode } from "../lib/phone";
 
 export default function EditProfile() {
   const router = useRouter();
@@ -23,7 +25,8 @@ export default function EditProfile() {
   const styles = useMemo(() => createStyles(palette, insets, isRTL, isDark), [palette, insets, isRTL, isDark]);
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
-  const [phone, setPhone] = useState(user?.phone || "");
+  const [phone, setPhone] = useState(profilePhone(user).phone);
+  const [phoneCountry, setPhoneCountry] = useState<CountryCode>(profilePhone(user).country);
   const [error, setError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
@@ -51,6 +54,11 @@ export default function EditProfile() {
       setError(t("invalidForm") ?? "Please fill all fields correctly");
       return;
     }
+    if (trimmedPhone && !normalizePhone(trimmedPhone, phoneCountry)) {
+      setError(t("invalidPhone"));
+      return;
+    }
+    if (!trimmedPhone && user?.phone) { setError(t("invalidPhone")); return; }
 
     setSaving(true);
     setError("");
@@ -58,7 +66,7 @@ export default function EditProfile() {
       const res = await api.put("/auth/me", {
         name: trimmedName,
         email: trimmedEmail,
-        phone: trimmedPhone,
+        ...(trimmedPhone ? { phone: trimmedPhone, phoneCountry } : {}),
       });
       const profile = res.data.data.user;
       setUserProfile(profile);
@@ -207,15 +215,8 @@ export default function EditProfile() {
               </View>
 
               <View style={styles.field}>
-                <Text weight="bold" style={styles.label}>{t("phone")}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={phone}
-                  onChangeText={setPhone}
-                  placeholder={t("phone")}
-                  placeholderTextColor={palette.muted}
-                  keyboardType="phone-pad"
-                />
+                <PhoneFields country={phoneCountry} onCountryChange={setPhoneCountry} phone={phone} onPhoneChange={setPhone} />
+                <Text style={{ color: palette.muted }}>{t("phoneChangeVerificationHint")}</Text>
               </View>
 
               {error ? <Text style={styles.error}>{error}</Text> : null}

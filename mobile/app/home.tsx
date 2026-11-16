@@ -2445,8 +2445,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     },
     categoryViewAllBtn: {
       alignSelf: "center",
-      paddingHorizontal: 18,
-      paddingVertical: 8,
+      // paddingHorizontal: 18,
+      // paddingVertical: 8,
     },
 
     productRow: {

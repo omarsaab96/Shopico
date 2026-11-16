@@ -5,11 +5,14 @@ import { Wallet } from "../models/Wallet";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "./tokenService";
 import { AuditLog } from "../models/AuditLog";
 import { getDefaultBranchId } from "../utils/branch";
+import { normalizePhone } from "../utils/phone";
 
 export const createPasswordSetupToken = () => crypto.randomBytes(32).toString("hex");
 export const getPasswordSetupExpiry = () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-export const registerUser = async (name: string, email: string, password: string, phone?: string) => {
+export const registerUser = async (name: string, email: string, password: string, phone: string, phoneCountry: string) => {
+  const normalizedPhone = normalizePhone(phone, phoneCountry);
+  if (!normalizedPhone) throw { status: 400, message: "Invalid phone number" };
   const normalizedEmail = email.toLowerCase();
   const existing = await User.findOne({ email: normalizedEmail });
   if (existing) {
@@ -21,7 +24,8 @@ export const registerUser = async (name: string, email: string, password: string
     name,
     email: normalizedEmail,
     password: hashed,
-    phone,
+    ...normalizedPhone,
+    phoneVerified: false,
     role: "customer",
     branchIds: defaultBranchId ? [defaultBranchId] : [],
   });

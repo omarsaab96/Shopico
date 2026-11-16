@@ -11,6 +11,9 @@ export interface ApiUser {
   permissions?: string[];
   branchIds?: string[];
   phone?: string;
+  phoneCountryCode?: string;
+  phoneCountry?: string;
+  phoneVerified?: boolean;
   membershipLevel?: string;
   points?: number;
   setupToken?: string;
@@ -135,6 +138,7 @@ export interface Settings {
   _id: string;
   deliveryFreeKm: number;
   deliveryRatePerKm: number;
+  minimumOrderAmount: number;
   allowMultipleCoupons: boolean;
   membershipGraceDays: number;
   membershipThresholds: { silver: number; gold: number; platinum: number; diamond: number };

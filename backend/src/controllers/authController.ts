@@ -14,6 +14,7 @@ import bcrypt from "bcryptjs";
 import { Cart } from "../models/Cart";
 import jwt from "jsonwebtoken";
 import { NotificationDevice } from "../models/Notification";
+import { normalizePhone } from "../utils/phone";
 
 const EMAIL_VERIFICATION_OTP_TTL_MS = 10 * 60 * 1000;
 const EMAIL_VERIFICATION_RESEND_MS = 60 * 1000;
@@ -32,7 +33,7 @@ const setRefreshCookie = (res: Response, token: string) => {
 
 export const register = catchAsync(async (req: AuthRequest, res) => {
   const parsed = registerSchema.parse(req.body);
-  const result = await registerUser(parsed.name, parsed.email, parsed.password, parsed.phone);
+  const result = await registerUser(parsed.name, parsed.email, parsed.password, parsed.phone, parsed.phoneCountry);
   setRefreshCookie(res, result.refreshToken);
   sendSuccess(res, { user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken }, "Registered", 201);
 });
@@ -139,9 +140,15 @@ export const updateMe = catchAsync(async (req: AuthRequest, res) => {
   const payload = updateProfileSchema.parse(req.body);
   if (!req.user) return res.status(401).json({ success: false, message: "Unauthorized" });
 
-  const update: { name?: string; email?: string; phone?: string } = {};
+  const update: { name?: string; email?: string; phone?: string; phoneCountry?: string; phoneCountryCode?: string; phoneVerified?: boolean } = {};
   if (payload.name !== undefined) update.name = payload.name.trim();
-  if (payload.phone !== undefined) update.phone = payload.phone.trim();
+  if (payload.phone !== undefined && payload.phoneCountry) {
+    const phone = normalizePhone(payload.phone, payload.phoneCountry)!;
+    Object.assign(update, phone);
+    if (phone.phone !== req.user.phone || phone.phoneCountryCode !== req.user.phoneCountryCode || phone.phoneCountry !== req.user.phoneCountry) {
+      update.phoneVerified = false;
+    }
+  }
   if (payload.email !== undefined) {
     const email = payload.email.toLowerCase().trim();
     const exists = await User.findOne({ email, _id: { $ne: req.user._id } });

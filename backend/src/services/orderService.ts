@@ -142,8 +142,8 @@ export const getOrderById = async (id: string, userId?: Types.ObjectId, branchId
   const order = await Order.findOne(filter)
     .populate("currency")
     .populate("refunds.currency")
-    .populate("user", "name phone email")
-    .populate("driverId", "name phone email driverStatus ratingAverage ratingCount")
+    .populate("user", "name phone phoneCountryCode email")
+    .populate("driverId", "name phone phoneCountryCode email driverStatus ratingAverage ratingCount")
     .populate("branchId")
     .populate("items.product")
     .populate("addressRef");
@@ -467,6 +467,9 @@ export const createOrder = async (
   const branch = await Branch.findById(branchId).select("lat lng");
   if (!branch) throw { status: 404, message: "Branch not found" };
   const subtotal = roundAmount(items.reduce((sum, item) => sum + roundAmount(item.price * item.quantity), 0));
+  if (subtotal < roundAmount(settings.minimumOrderAmount ?? 0)) {
+    throw { status: 400, message: "Order subtotal is below the minimum order amount" };
+  }
   const distanceKm = await getRouteDistanceKm(
     { lat: branch.lat, lng: branch.lng },
     { lat, lng }
@@ -797,7 +800,7 @@ export const getOrdersForDriver = async (driverId: Types.ObjectId) => {
     .sort({ createdAt: -1 })
     .populate("currency")
     .populate("refunds.currency")
-    .populate("user", "name phone email")
+    .populate("user", "name phone phoneCountryCode email")
     .populate("items.product")
     .populate("addressRef");
   return orders.map((order) => {

@@ -12,6 +12,8 @@ import { AuditLog } from "../models/AuditLog";
 import { UserRole } from "../types";
 import { refreshMembershipFromWallet } from "../utils/membership";
 import { ensureWalletBalances } from "../services/walletService";
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
+import { normalizePhone } from "../utils/phone";
 
 const PERMISSION_CONTROLLED_USER_ROLES: UserRole[] = ["manager", "staff", "driver", "customer"];
 const CREATABLE_USER_ROLES: UserRole[] = ["manager", "staff", "driver", "customer"];
@@ -164,9 +166,15 @@ export const updateUser = catchAsync(async (req, res) => {
     payload.email = payload.email.toLowerCase();
   }
 
+  const update = { ...payload };
+  if (payload.phone !== undefined) {
+    const parsed = parsePhoneNumberFromString(payload.phone, { extract: false });
+    const normalized = parsed?.country ? normalizePhone(payload.phone, parsed.country) : null;
+    Object.assign(update, normalized || { phone: payload.phone, phoneCountryCode: "", phoneCountry: "" }, { phoneVerified: false });
+  }
   const user = await User.findOneAndUpdate(
     getScopedUserFilter(req, { _id: req.params.id, branchIds: req.branchId }),
-    payload,
+    update,
     { new: true }
   ).select("-password -passwordSetupToken -passwordSetupExpires");
   if (!user) return res.status(404).json({ success: false, message: "User not found" });

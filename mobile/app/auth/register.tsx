@@ -2,7 +2,7 @@ import { TextInput } from "../../components/TextInput";
 import { BottomSheetModal } from "../../components/BottomSheetModal";
 import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { useMemo, useState, useRef, useCallback } from "react";
-import { View, Image, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Image, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import Button from "../../components/Button";
 import Text from "../../components/Text";
 import api, { storeTokens } from "../../lib/api";
@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth";
 import { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
+import PhoneFields from "../../components/PhoneFields";
+import { normalizePhone, type CountryCode } from "../../lib/phone";
 
 export default function Register() {
   const params = useLocalSearchParams<{ email?: string }>();
@@ -22,6 +24,9 @@ export default function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState(params.email || "");
   const [password, setPassword] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState<CountryCode>("SY");
+  const [phone, setPhone] = useState("");
+  const [confirmPhone, setConfirmPhone] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const { palette } = useTheme();
@@ -36,12 +41,19 @@ export default function Register() {
   ] as const;
 
   const submit = async () => {
+    if (loggingIn) return;
     if (name.trim() == "" || email.trim() == "" || password.trim() == "") {
       setError(t("invalidForm"));
       return;
     }
+    const normalized = normalizePhone(phone, phoneCountry);
+    if (!normalized) { setError(t("invalidPhone")); return; }
+    const confirmation = normalizePhone(confirmPhone, phoneCountry);
+    if (!confirmation || normalized.phone !== confirmation.phone) { setError(t("phonesMismatch")); return; }
+    setLoggingIn(true);
+    setError("");
     try {
-      const res = await api.post("/auth/register", { name, email, password });
+      const res = await api.post("/auth/register", { name, email, password, phone, phoneCountry, confirmPhone });
       const { accessToken, refreshToken, user } = res.data.data;
       await storeTokens(accessToken, refreshToken);
       setUserProfile(user);
@@ -49,6 +61,8 @@ export default function Register() {
     } catch (err) {
       console.error(err);
       setError(t("registerFailed"));
+    } finally {
+      setLoggingIn(false);
     }
   };
 
@@ -73,9 +87,9 @@ export default function Register() {
 
   return (
     <>
-      <View style={[styles.safe]} >
-        <View style={styles.container}>
-          <View style={{ flex: 1, justifyContent: 'space-between', position: 'relative' }}>
+      <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+          <View style={{ flexGrow: 1, justifyContent: 'space-between', position: 'relative', gap: 24 }}>
             <Image source={require('../../assets/watermark4.png')} style={styles.watermark} />
 
             <View style={{}}>
@@ -113,6 +127,8 @@ export default function Register() {
                   placeholderTextColor={palette.muted}
                   autoCapitalize="none"
                 />
+                <PhoneFields country={phoneCountry} onCountryChange={setPhoneCountry} phone={phone} onPhoneChange={setPhone}
+                  confirmPhone={confirmPhone} onConfirmPhoneChange={setConfirmPhone} />
                 <View style={{ position: 'relative' }}>
                   <TextInput
                     style={styles.input}
@@ -143,7 +159,7 @@ export default function Register() {
             </View>
 
             <View style={{ gap: 10 }}>
-              <Button title={t("register")} onPress={submit} />
+              <Button title={loggingIn ? t("loggingIn") : t("register")} onPress={submit} disabled={loggingIn} />
 
               <View style={[styles.row, { justifyContent: 'center' }]}>
                 <View style={{ flexDirection: 'row', gap: 5, alignItems: 'baseline' }}>
@@ -194,8 +210,8 @@ export default function Register() {
               </BottomSheetView>
             </BottomSheetModal>
           </View>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
 
     </>
@@ -227,7 +243,7 @@ const createStyles = (palette: any, isRTL: boolean, insets: any) =>
       textAlign: "center"
     },
     container: {
-      flex: 1,
+      flexGrow: 1,
       paddingTop: insets.top + 15,
       paddingBottom: insets.bottom + 15,
       paddingHorizontal: 16,
