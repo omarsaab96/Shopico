@@ -59,6 +59,8 @@ describe("one active delivery per driver", () => {
     await updateOrderStatus(String(order._id), "SHIPPING");
     const ready = await Order.findById(order._id).orFail();
     expect(ready.driverStartedAt).toBeNull();
+    expect(ready.status).toBe("PROCESSING");
+    expect(ready.driverReadyAt).toBeInstanceOf(Date);
     await expect(updateOrderStatusAsDriver(String(order._id), driverId, "DELIVERED")).rejects.toMatchObject({ status: 400 });
     await expect(updateOrderDriverLocation(String(order._id), driverId, 33, 36)).rejects.toMatchObject({ status: 400 });
     await start(order._id);
@@ -128,11 +130,13 @@ describe("one active delivery per driver", () => {
     await start(third._id);
     expect(await Order.countDocuments({ driverId, status: "SHIPPING" })).toBe(1);
   });
-  it("blocks staff from shipping or assigning a shipping order to an occupied driver", async () => {
+  it("allows staff to queue a ready order but blocks assigning a shipping order to an occupied driver", async () => {
     const first = await makeOrder();
     const second = await makeOrder();
     await start(first._id);
-    await expect(updateOrderStatus(String(second._id), "SHIPPING")).rejects.toMatchObject({ status: 409 });
+    await updateOrderStatus(String(second._id), "SHIPPING");
+    expect((await Order.findById(second._id))?.status).toBe("PROCESSING");
+    await expect(start(second._id)).rejects.toMatchObject({ status: 409 });
     const otherDriver = await User.create({ name: "Other", email: "other@example.com", role: "driver", branchIds: [branchId] });
     const otherOrder = await makeOrder({ driverId: otherDriver._id, status: "SHIPPING" });
     await expect(assignDriverToOrder(String(otherOrder._id), String(driverId))).rejects.toMatchObject({ status: 409 });

@@ -33,6 +33,7 @@ const GOOGLE_MAPS_KEY =
 type DriverOrder = {
   _id: string;
   status: string;
+  driverReadyAt?: string | null;
   driverStartedAt?: string | null;
   updatedAt?: string;
   driverId?: string | { _id?: string } | null;
@@ -481,7 +482,7 @@ export default function DriverOrders() {
   };
 
   const renderDriverOrderCard = (item: DriverOrder, highlighted = false) => {
-    const isShipping = item.status === "SHIPPING";
+    const isShipping = item.status === "SHIPPING" || Boolean(item.status === "PROCESSING" && item.driverReadyAt);
     const deliveryAction = driverDeliveryAction(item);
     const deliveryStarted = deliveryAction === "deliver";
     const isTracking = trackingOrderId === item._id;

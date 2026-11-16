@@ -43,3 +43,9 @@ describe("driver delivery button lifecycle", () => {
     expect(driverDeliveryAction({ status, driverStartedAt: "2026-11-16T14:00:00Z" })).toBeNull();
   });
 });
+
+it("keeps released processing orders ready until the driver starts", () => {
+  const ready = { status: "PROCESSING", driverReadyAt: "2026-11-16T14:00:00Z" };
+  expect(groupDriverOrders([ready])).toEqual({ upcoming: [], ready: [ready], previous: [] });
+  expect(driverDeliveryAction(ready)).toBe("start");
+});

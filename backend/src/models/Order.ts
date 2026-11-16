@@ -65,6 +65,7 @@ export interface IOrder extends Document {
   addressRef?: Types.ObjectId | string | null;
   driverId?: Types.ObjectId | string;
   driverLocation?: IOrderDriverLocation | null;
+  driverReadyAt?: Date | null;
   driverStartedAt?: Date | null;
   driverStartedBy?: Types.ObjectId | string | null;
   status: OrderStatus;
@@ -159,6 +160,7 @@ const OrderSchema = new Schema<IOrder>(
     }, { _id: false })], default: [] },
     addressRef: { type: Schema.Types.ObjectId, ref: "Address", default: null },
     driverId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    driverReadyAt: { type: Date, default: null },
     driverStartedAt: { type: Date, default: null },
     driverStartedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     driverLocation: { type: DriverLocationSchema, default: null },

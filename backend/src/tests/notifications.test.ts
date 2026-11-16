@@ -297,9 +297,10 @@ test("shipping assigns the selected branch driver and changes status in one save
   const item = await order();
   await updateOrderStatus(String(item._id), "SHIPPING", undefined, String(branch), String(driver._id));
   const fresh = await Order.findById(item._id).orFail();
-  expect(fresh.status).toBe("SHIPPING");
+  expect(fresh.status).toBe("PROCESSING");
+  expect(fresh.driverReadyAt).toBeInstanceOf(Date);
   expect(String(fresh.driverId)).toBe(String(driver._id));
-  expect(fresh.statusHistory.map(entry => entry.status)).toEqual(["SHIPPING"]);
+  expect(fresh.statusHistory.map(entry => entry.status)).toEqual(["PROCESSING"]);
   await expect(updateOrderDetails(String(item._id), { driverId: null }, String(branch))).rejects.toMatchObject({ status: 400 });
   expect(String((await Order.findById(item._id).orFail()).driverId)).toBe(String(driver._id));
 });

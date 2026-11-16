@@ -43,6 +43,7 @@ type Coordinate = { latitude: number; longitude: number };
 type DriverOrder = {
   _id: string;
   status?: string;
+  driverReadyAt?: string | null;
   driverStartedAt?: string | null;
   updatedAt?: string;
   driverId?: string | { _id?: string } | null;

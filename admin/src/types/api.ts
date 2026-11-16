@@ -94,6 +94,8 @@ export interface Order {
   currency?: Currency | string;
   addressRef?: OrderAddressRef | string | null;
   driverId?: ApiUser | string | null;
+  driverReadyAt?: string | null;
+  driverStartedAt?: string | null;
   driverLocation?: { lat: number; lng: number; updatedAt?: string } | null;
   status: string;
   paymentMethod: string;

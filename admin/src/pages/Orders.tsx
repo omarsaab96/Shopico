@@ -237,7 +237,7 @@ const OrdersPage = () => {
     setOrders((prev) =>
       prev.map((item) =>
         item._id === order._id
-          ? { ...item, status, paymentStatus: paymentStatus ?? item.paymentStatus }
+          ? { ...item, status: status === "SHIPPING" && !item.driverStartedAt ? "PROCESSING" : status, paymentStatus: paymentStatus ?? item.paymentStatus }
           : item
       )
     );

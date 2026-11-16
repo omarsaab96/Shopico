@@ -650,6 +650,11 @@ export const updateOrderStatus = async (
   if (["PROCESSING", "SHIPPING"].includes(status) && !driverId && !await User.exists({ _id: order.driverId, role: "driver", branchIds: order.branchId })) {
     throw { status: 400, message: "Choose a driver from this branch" };
   }
+  // Staff release an order to the driver; only the driver's start ships it.
+  const markReady = !expectedDriverId && status === "SHIPPING" && !order.driverStartedAt;
+  if (markReady) status = "PROCESSING";
+  if (markReady) order.driverReadyAt = order.driverReadyAt || new Date();
+  else if (["PENDING", "PROCESSING", "CANCELLED"].includes(status)) order.driverReadyAt = null;
   if (expectedDriverId && status === "SHIPPING" && !order.driverStartedAt) {
     order.driverStartedAt = new Date();
     order.driverStartedBy = new Types.ObjectId(expectedDriverId);
