@@ -105,10 +105,10 @@ const createStyles = (palette: any, isRTL: boolean) =>
   StyleSheet.create({
     header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
     backButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border },
-    title: { flex: 1, color: palette.text, fontSize: 22, fontWeight: "800", textAlign: isRTL ? "right" : "left" },
+    title: { flex: 1, color: palette.text, fontSize: 22, fontWeight: "800", textAlign: isRTL ? "right" : "left", lineHeight:28},
     card: { gap: 8, marginBottom: 12 },
     muted: { color: palette.muted, textAlign: isRTL ? "right" : "left" },
-    value: { color: palette.text, fontWeight: "700", textAlign: isRTL ? "right" : "left" },
+    value: { color: palette.text, fontWeight: "700", textAlign: isRTL ? "right" : "left",lineHeight:20 },
     row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 },
     cardTitle: { color: palette.text, fontSize: 16, fontWeight: "700" },
     pill: {

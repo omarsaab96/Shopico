@@ -364,7 +364,7 @@ export default function CategoryDetail() {
           }
         />
 
-        <FloatingCartBanner count={cartItemCount} subtotal={formatMoney(cartSubtotal, selectedCurrency)} onPress={() => router.push("/(tabs)/cart")} bottom={insets.bottom + 10} />
+        <FloatingCartBanner count={cartItemCount} subtotal={cartSubtotal} currency={selectedCurrency} onPress={() => router.push("/(tabs)/cart")} bottom={insets.bottom + 10} />
       </View>
     </Screen>
   );

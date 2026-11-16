@@ -454,9 +454,9 @@ export default function OrderDetail() {
             {orderStatus === "SHIPPING" ? (
               <View style={styles.etaCard}>
                 <View style={styles.etaItem}>
-                  <Text style={styles.etaLabel}>ETA</Text>
+                  <Text style={styles.etaLabel}>{t("eta")}</Text>
                   <Text style={styles.etaValue}>
-                    {routeDuration !== null ? `${Math.round(routeDuration)} min` : "-"}
+                    {routeDuration !== null ? `${Math.round(routeDuration)} ${t("minutesShort")}` : "-"}
                   </Text>
                 </View>
                 <View style={styles.etaDivider} />

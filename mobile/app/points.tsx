@@ -1,4 +1,5 @@
 import Feather from "@expo/vector-icons/Feather";
+import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Alert, AppState, DeviceEventEmitter, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated, { Keyframe, LinearTransition, ReduceMotion } from "react-native-reanimated";
@@ -8,6 +9,7 @@ import Screen from "../components/Screen";
 import Text from "../components/Text";
 import PersonalCouponCard, { type PersonalCoupon } from "../components/PersonalCouponCard";
 import api from "../lib/api";
+import { requireRewardCount, redeemRewardBatch, type RewardBatch } from "../lib/pointsRewards";
 import { useCurrency } from "../lib/currency";
 import { useCart } from "../lib/cart";
 import { roundAmount } from "../lib/productUnits";
@@ -19,12 +21,12 @@ const SIZE = 112;
 const STROKE = 8;
 const RADIUS = (SIZE - STROKE) / 2;
 const CENTER = SIZE / 2;
-const couponJump = new Keyframe({
+const couponJump = (delay = 0) => new Keyframe({
   0: { opacity: 0, transform: [{ translateY: -110 }, { scale: 0.7 }] },
   55: { opacity: 1, transform: [{ translateY: 9 }, { scale: 1.03 }] },
   80: { opacity: 1, transform: [{ translateY: -4 }, { scale: 0.99 }] },
   100: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }] },
-}).duration(650).reduceMotion(ReduceMotion.System);
+}).duration(650).delay(delay).reduceMotion(ReduceMotion.System);
 
 export default function PointsScreen() {
   const router = useRouter();
@@ -33,10 +35,12 @@ export default function PointsScreen() {
   const { selectedCurrency, setSelectedCurrencyId } = useCurrency();
   const { items } = useCart();
   const scroll = useRef<ScrollView>(null);
-  const redeemRequestId = useRef<string | null>(null);
+  const redeemBatch = useRef<RewardBatch | null>(null);
+  const redeeming = useRef(false);
   const [coupons, setCoupons] = useState<PersonalCoupon[]>([]);
-  const [addedCouponId, setAddedCouponId] = useState<string | null>(null);
-  const [rewardAvailable, setRewardAvailable] = useState(false);
+  const [addedCouponIds, setAddedCouponIds] = useState<string[]>([]);
+  const [rewardCount, setRewardCount] = useState<number | null>(null);
+  const rewardAvailable = rewardCount !== null && rewardCount > 0;
   const [applyingReward, setApplyingReward] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,26 +53,27 @@ export default function PointsScreen() {
     if (!Number.isInteger(nextThreshold) || nextThreshold <= 0) {
       throw new Error("Invalid reward threshold");
     }
+    const count = requireRewardCount(summary);
     setPoints(summary.points || 0);
     setThreshold(nextThreshold);
-    setRewardAvailable(Boolean(summary.rewardAvailable));
+    setRewardCount(count);
   }, []);
 
   const load = useCallback(async (active: () => boolean = () => true) => {
     try {
       const [summary, saved] = await Promise.allSettled([api.get("/points"), api.get("/points/coupons")]);
-      if (!active()) return;
+      if (!active() || redeeming.current) return;
       if (saved.status === "fulfilled") setCoupons(saved.value.data.data || []);
       if (summary.status === "fulfilled") applySummary(summary.value.data.data);
       else {
         setThreshold(null);
-        setRewardAvailable(false);
+        setRewardCount(null);
       }
       setLoadFailed(summary.status === "rejected" || saved.status === "rejected");
     } catch {
       if (active()) {
         setThreshold(null);
-        setRewardAvailable(false);
+        setRewardCount(null);
         setLoadFailed(true);
       }
     } finally {
@@ -90,27 +95,49 @@ export default function PointsScreen() {
   }, [load]);
 
   const redeem = async () => {
-    if (applyingReward || !rewardAvailable) return;
+    if (redeeming.current || (!rewardAvailable && !redeemBatch.current)) return;
+    redeeming.current = true;
     setApplyingReward(true);
-    redeemRequestId.current ||= `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+    const makeRequestId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
     try {
-      const res = await api.post("/points/redeem", { requestId: redeemRequestId.current, currencyId: selectedCurrency?._id });
-      const coupon: PersonalCoupon = res.data.data;
-      redeemRequestId.current = null;
+      if (!redeemBatch.current) {
+        const summary = (await api.get("/points")).data.data;
+        applySummary(summary);
+        redeemBatch.current = {
+          requestId: makeRequestId(),
+          remaining: requireRewardCount(summary),
+          currencyId: selectedCurrency?._id,
+        };
+      }
       const reducedMotion = await AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
       scroll.current?.scrollTo({ y: 0, animated: !reducedMotion });
-      setAddedCouponId(coupon._id);
-      setCoupons(current => [coupon, ...current.filter(item => item._id !== coupon._id)]);
-      AccessibilityInfo.announceForAccessibility(t("couponAdded"));
-      // Keep the receipt visible even if the subsequent balance refresh fails.
+      setAddedCouponIds([]);
+      await redeemRewardBatch<PersonalCoupon>(
+        redeemBatch.current,
+        async (requestId, currencyId) => (await api.post("/points/redeem", { requestId, currencyId })).data.data,
+        async () => (await api.get("/points")).data.data,
+        coupon => {
+          // Set entering animation before mounting the new coupon.
+          setAddedCouponIds(current => [...current.filter(id => id !== coupon._id), coupon._id]);
+          setCoupons(current => [coupon, ...current.filter(item => item._id !== coupon._id)]);
+          if (redeemBatch.current?.remaining !== null) setRewardCount(redeemBatch.current?.remaining ?? null);
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
+          AccessibilityInfo.announceForAccessibility(t("couponAdded"));
+        },
+        makeRequestId,
+      );
+      redeemBatch.current = null;
+    } catch (error: any) {
+      // Keep the current request ID on uncertain failures so retry cannot spend another token.
+      if (error?.response?.status === 409) redeemBatch.current = null;
+      Alert.alert(t("redeemPoints"), error?.response?.data?.message || t("rewardApplyFailed"));
+    } finally {
       try {
         const summary = await api.get("/points");
         applySummary(summary.data.data);
-      } catch { setRewardAvailable(false); }
-    } catch (error: any) {
-      Alert.alert(t("redeemPoints"), error?.response?.data?.message || t("rewardApplyFailed"));
-    } finally {
+      } catch { setRewardCount(null); setLoadFailed(true); }
       setApplyingReward(false);
+      redeeming.current = false;
     }
   };
 
@@ -182,11 +209,26 @@ export default function PointsScreen() {
               </View>
             </View>
           </View>
-          {/* {rewardAvailable && <Text weight="bold" style={styles.ready}>{t("redeemAvailable")}</Text>} */}
-          <TouchableOpacity onPress={redeem} disabled={loading || applyingReward || !rewardAvailable}
-            style={[styles.redeem, (loading || applyingReward || !rewardAvailable) && { opacity: 0.5 }]} accessibilityRole="button">
+
+          {rewardCount === null ? (
+            loading ? <ActivityIndicator size="small" color={palette.accent} /> : (
+              <TouchableOpacity onPress={() => void load()} accessibilityRole="button">
+                <Text style={styles.ready}>{t("couponsRefreshFailed")}</Text>
+              </TouchableOpacity>
+            )
+          ) : (
+            <Text weight="bold" style={styles.ready}>
+              {t("rewardsAvailableCount").replace("{count}", rewardCount.toLocaleString())}
+            </Text>
+          )}
+
+          <TouchableOpacity onPress={redeem} disabled={loading || applyingReward || (!rewardAvailable && !redeemBatch.current)}
+            style={[styles.redeem, (loading || applyingReward || (!rewardAvailable && !redeemBatch.current)) && { opacity: 0.5 }]} accessibilityRole="button">
             {applyingReward ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="gift" size={18} color="#fff" />}
-            <Text weight="bold" style={{ color: "#fff", fontSize: 15 }}>{t("redeemPoints")}</Text>
+
+            <Text weight="bold" style={{ color: "#fff", fontSize: 15 }}>
+              {t((rewardCount ?? 0) > 1 || (redeemBatch.current?.remaining || 0) > 1 ? "redeemAllRewards" : "redeemPoints")}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -205,9 +247,9 @@ export default function PointsScreen() {
           </View>
         ) : null}
         {orderedCoupons.map(coupon => (
-          <Animated.View key={coupon._id} entering={coupon._id === addedCouponId ? couponJump : undefined}
+          <Animated.View key={coupon._id} entering={addedCouponIds.includes(coupon._id) ? couponJump(Math.min(addedCouponIds.indexOf(coupon._id), 8) * 100) : undefined}
             layout={LinearTransition.duration(280).reduceMotion(ReduceMotion.System)}>
-            <PersonalCouponCard coupon={coupon} disabled={couponTooLarge(coupon)} isNew={coupon._id === addedCouponId} onUse={() => useCoupon(coupon)} />
+            <PersonalCouponCard coupon={coupon} disabled={couponTooLarge(coupon)} isNew={addedCouponIds.includes(coupon._id)} onUse={() => useCoupon(coupon)} />
           </Animated.View>
         ))}
       </ScrollView>
@@ -218,7 +260,7 @@ export default function PointsScreen() {
 const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
   backButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: palette.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border },
-  title: { flex: 1, fontSize: 22, color: palette.text, textAlign: isRTL ? "right" : "left" },
+  title: { flex: 1, fontSize: 22, color: palette.text, textAlign: isRTL ? "right" : "left", lineHeight: 28 },
   content: { paddingBottom: 32, gap: 14 },
   card: {
     borderRadius: 20, padding: 20, borderWidth: 1, borderColor: isDark ? palette.border : "rgba(15,23,42,0.08)", overflow: "hidden",
@@ -236,7 +278,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) => StyleShe
   ready: { color: palette.accent, fontSize: 12, marginTop: 12 },
   redeem: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, backgroundColor: palette.accent, paddingVertical: 13, borderRadius: 13, marginTop: 18 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 2 },
-  sectionTitle: { color: palette.text, fontSize: 20 },
+  sectionTitle: { color: palette.text, fontSize: 20, lineHeight: 24 },
   count: { backgroundColor: isDark ? palette.surface : "#fff0e3", borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4 },
   empty: { padding: 24, borderWidth: 1, borderStyle: "dashed", borderColor: palette.border, borderRadius: 18, gap: 12, alignItems: "center" },
   emptyText: { color: palette.muted, textAlign: "center", fontSize: 13 },

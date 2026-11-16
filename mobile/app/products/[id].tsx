@@ -264,7 +264,7 @@ export default function ProductDetail() {
         </View>}
 
       </ScrollView>
-      <FloatingCartBanner count={cartItemCount} subtotal={formatMoney(cartSubtotal, selectedCurrency)} onPress={() => router.push("/(tabs)/cart")} horizontalInset={20} />
+      <FloatingCartBanner count={cartItemCount} subtotal={cartSubtotal} currency={selectedCurrency} onPress={() => router.push("/(tabs)/cart")} horizontalInset={20} />
     </KeyboardAvoidingView>}
   </SafeAreaView>;
 }
@@ -298,7 +298,7 @@ const createStyles = (p: any, rtl: boolean) => StyleSheet.create({
   thumbnailSelected: { borderColor: p.accent, borderWidth: 2 }, thumbnailImage: { width: "100%", height: "100%" },
   summary: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 60 },
   availability: { flexDirection: "row", alignItems: "center", gap: 6 }, statusDot: { width: 6, height: 6, borderRadius: 3 }, availabilityText: { fontSize: 11, fontWeight: "700" },
-  name: { color: p.text, fontSize: 25, lineHeight: 30, fontWeight: "800", textAlign: rtl ? "right" : "left", marginBottom: 5 },
+  name: { color: p.text, fontSize: 18, lineHeight: 26, fontWeight: "800", textAlign: rtl ? "right" : "left", marginBottom: 5 },
   categories: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   categoryBadge: { borderWidth: 1, borderColor: p.border, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 1 },
   categoryText: { color: p.muted, fontSize: 12, textAlign: rtl ? "right" : "left" },
@@ -307,7 +307,7 @@ const createStyles = (p: any, rtl: boolean) => StyleSheet.create({
     alignItems: "flex-end",
     gap: 0,
   },
-  price: { color: p.accent, fontSize: 25, fontWeight: "900", lineHeight: 25 },
+  price: { color: p.accent, fontSize: 20, fontWeight: "900", lineHeight: 25 },
   priceUnit: { color: p.muted, fontSize: 13 },
   oldPrice: { color: p.muted, fontSize: 14, textDecorationLine: "line-through" },
   section: { paddingTop: 20, borderTopWidth: 1, borderTopColor: p.border, gap: 14 }, sectionHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },

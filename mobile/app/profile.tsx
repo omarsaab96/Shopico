@@ -710,7 +710,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     profileLinkText: {
       fontSize: 14,
       color: palette.text,
-      fontWeight: "600"
+      fontWeight: "600",
+      lineHeight:24
     },
     inlineRow: {
       flexDirection: "row",

@@ -2337,14 +2337,14 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "center",
       paddingHorizontal: 5,
     },
-    filterDotText: { color: "#fff", fontWeight: "900", fontSize: 12,lineHeight:22 },
+    filterDotText: { color: "#fff", fontWeight: "900", fontSize: 12, lineHeight: Platform.OS == "ios" ? 16 : 22 },
 
     sectionHead: {
       flexDirection: 'row',
       alignItems: "center",
       justifyContent: "space-between",
     },
-    sectionTitle: { color: palette.text, fontSize: 16, textAlign: align,lineHeight:20 },
+    sectionTitle: { color: palette.text, fontSize: 16, textAlign: align, lineHeight: 30 },
     sectionAction: { color: palette.accent, fontWeight: "900", textAlign: align },
 
     catGridClip: {

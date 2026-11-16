@@ -5,7 +5,7 @@ import QuantityControl from "../components/QuantityControl";
 import { roundAmount } from "../lib/productUnits";
 import { Link } from "expo-router";
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, Pressable, TouchableOpacity, Image, FlatList, RefreshControl, ActivityIndicator, Animated, useWindowDimensions, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { ScrollView as GestureScrollView } from "react-native-gesture-handler";
 import { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetFooter, BottomSheetView } from "@gorhom/bottom-sheet";
@@ -25,11 +25,97 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import LottieView from "lottie-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Entypo from '@expo/vector-icons/Entypo';
-import { useCurrency } from "../lib/currency";
+import { useCurrency, type Currency } from "../lib/currency";
 import Money from "../components/Money";
 
 const COUPON_CARD_GAP = 15;
 const COUPON_CARD_MAX_WIDTH = 200;
+
+const cartItemKey = (item: CartItem) => `${item.productId}:${item.variantId || ""}`;
+const CartItemSeparator = () => <View style={{ height: 10 }} />;
+
+const CartItemRow = memo(function CartItemRow({ item, currency: selectedCurrency, onRemove, onSetQuantity }: {
+  item: CartItem;
+  currency?: Currency;
+  onRemove: (productId: string, variantId?: string) => void;
+  onSetQuantity: (productId: string, quantity: number, variantId?: string) => void;
+}) {
+  const router = useRouter();
+  const { palette, isDark } = useTheme();
+  const { t, isRTL } = useI18n();
+  const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
+  return (
+    <View style={[styles.cartItem, item.unavailable && styles.cartItemUnavailable]}>
+
+      {item.image ? (<View style={styles.itemImageWrap}>
+        <Image source={{ uri: item.image }} style={styles.itemImage} />
+      </View>
+      ) : (<View style={[styles.itemImageWrap, { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.surface }]}>
+        <MaterialIcons name="image-not-supported" size={24} color={palette.border} />
+      </View>
+      )}
+
+
+      <View style={{ flex: 1, gap: 10 }}>
+        <View style={styles.cartItemBody}>
+          <View style={styles.itemTitleRow}>
+            <Text weight="bold" style={[styles.name, item.unavailable && { color: isDark ? "#fecaca" : "#991b1b" }]}>{item.name}</Text>
+            {/* {item.unavailable ? (
+            <View style={styles.unavailableBadge}>
+              <Text weight="bold" style={styles.unavailableBadgeText}>
+                {t("unavailable") ?? "Unavailable"}
+              </Text>
+            </View>
+          ) : null} */}
+          </View>
+        </View>
+
+        <View style={styles.itemRow}>
+          <View style={item.unavailable ? styles.itemActions : undefined}>
+            {item.unavailable && <TouchableOpacity onPress={() => onRemove(item.productId, item.variantId)} style={styles.removeFromCartBtn}>
+              {/* <MaterialIcons name="delete" size={20} color="#000" /> */}
+              <FontAwesome name="trash-o" size={22} color={palette.text} />
+            </TouchableOpacity>}
+
+            {!item.unavailable ? (
+              <QuantityControl pill incart quantity={item.quantity} product={item}
+                onChange={quantity => quantity === 0
+                  ? onRemove(item.productId, item.variantId)
+                  : onSetQuantity(item.productId, quantity, item.variantId)} />
+            ) : (
+              <TouchableOpacity style={styles.replaceBtn} onPress={() => router.replace("/(tabs)/store")}>
+                <Text weight="bold" style={styles.replaceBtnText}>{t("replace") ?? "Replace"}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {!item.unavailable && (
+            <View style={styles.priceRow}>
+              {item.originalPrice && item.originalPrice > item.price ? (
+                // <Text style={styles.oldItemPrice}>{formatMoney(item.originalPrice * item.quantity, selectedCurrency)}</Text>
+                <Money style={styles.oldItemPrice} amount={item.originalPrice * item.quantity} currency={selectedCurrency} />
+              ) : null}
+              {/* <Text weight="bold" style={styles.newItemPrice}>
+                {formatMoney(roundAmount(item.price * item.quantity), selectedCurrency)}
+              </Text> */}
+              <Money style={styles.newItemPrice} amount={roundAmount(item.price * item.quantity)} currency={selectedCurrency} />
+            </View>
+          )}
+          {item.variantAttributes && Object.keys(item.variantAttributes).length > 0 ? (
+            <Text style={styles.muted}>
+              {Object.entries(item.variantAttributes).map(([key, value]) => `${key}: ${value}`).join(" / ")}
+            </Text>
+          ) : null}
+          {item.unavailable &&
+            <Text style={styles.unavailableText}>
+              {t("cartItemUnavailable") ?? "This item is no longer available."}
+            </Text>
+          }
+        </View>
+      </View>
+    </View>
+  );
+});
 
 export default function CartScreen() {
   const router = useRouter();
@@ -397,6 +483,21 @@ export default function CartScreen() {
     setPendingRemove({ productId, variantId });
     sheetRef.current?.present();
   };
+
+  // Forward stable row callbacks to the latest cart state and removal preference.
+  const cartRowActions = useRef({ confirmRemove, setQuantity });
+  useLayoutEffect(() => {
+    cartRowActions.current = { confirmRemove, setQuantity };
+  });
+  const removeCartRow = useCallback((productId: string, variantId?: string) => {
+    cartRowActions.current.confirmRemove(productId, variantId);
+  }, []);
+  const updateCartRow = useCallback((productId: string, quantity: number, variantId?: string) => {
+    cartRowActions.current.setQuantity(productId, quantity, variantId);
+  }, []);
+  const renderCartItem = useCallback(({ item }: { item: CartItem }) => (
+    <CartItemRow item={item} currency={selectedCurrency} onRemove={removeCartRow} onSetQuantity={updateCartRow} />
+  ), [selectedCurrency, removeCartRow, updateCartRow]);
 
   const handleRemoveConfirmed = () => {
     if (pendingRemove) removeItem(pendingRemove.productId, pendingRemove.variantId);
@@ -935,7 +1036,7 @@ export default function CartScreen() {
             onPress={placeOrder}
             disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading}
           >
-            <View style={{ width: '100%', flexDirection: "row", alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: '100%', flexDirection: "row", alignItems: 'center', justifyContent: 'center',gap:10 }}>
               <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
                 {submitting ? t("placingOrder") : t("placeOrder")}
               </Text>
@@ -1001,80 +1102,10 @@ export default function CartScreen() {
         ) : (
           <FlatList
             data={items}
-            keyExtractor={(i) => `${i.productId}:${i.variantId || ""}`}
-            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+            keyExtractor={cartItemKey}
+            ItemSeparatorComponent={CartItemSeparator}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} />}
-            renderItem={({ item }) => (
-              <View style={[styles.cartItem, item.unavailable && styles.cartItemUnavailable]}>
-
-                {item.image ? (<View style={styles.itemImageWrap}>
-                  <Image source={{ uri: item.image }} style={styles.itemImage} />
-                </View>
-                ) : (<View style={[styles.itemImageWrap, { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.surface }]}>
-                  <MaterialIcons name="image-not-supported" size={24} color={palette.border} />
-                </View>
-                )}
-
-
-                <View style={{ flex: 1, gap: 10 }}>
-                  <View style={styles.cartItemBody}>
-                    <View style={styles.itemTitleRow}>
-                      <Text weight="bold" style={[styles.name, item.unavailable && { color: isDark ? "#fecaca" : "#991b1b" }]}>{item.name}</Text>
-                      {/* {item.unavailable ? (
-                      <View style={styles.unavailableBadge}>
-                        <Text weight="bold" style={styles.unavailableBadgeText}>
-                          {t("unavailable") ?? "Unavailable"}
-                        </Text>
-                      </View>
-                    ) : null} */}
-                    </View>
-                  </View>
-
-                  <View style={styles.itemRow}>
-                    <View style={item.unavailable ? styles.itemActions : undefined}>
-                      {item.unavailable && <TouchableOpacity onPress={() => confirmRemove(item.productId, item.variantId)} style={styles.removeFromCartBtn}>
-                        {/* <MaterialIcons name="delete" size={20} color="#000" /> */}
-                        <FontAwesome name="trash-o" size={22} color={palette.text} />
-                      </TouchableOpacity>}
-
-                      {!item.unavailable ? (
-                        <QuantityControl pill incart quantity={item.quantity} product={item}
-                          onChange={quantity => quantity === 0
-                            ? confirmRemove(item.productId, item.variantId)
-                            : setQuantity(item.productId, quantity, item.variantId)} />
-                      ) : (
-                        <TouchableOpacity style={styles.replaceBtn} onPress={() => router.replace("/(tabs)/store")}>
-                          <Text weight="bold" style={styles.replaceBtnText}>{t("replace") ?? "Replace"}</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-
-                    {!item.unavailable && (
-                      <View style={styles.priceRow}>
-                        {item.originalPrice && item.originalPrice > item.price ? (
-                          // <Text style={styles.oldItemPrice}>{formatMoney(item.originalPrice * item.quantity, selectedCurrency)}</Text>
-                          <Money style={styles.oldItemPrice} amount={item.originalPrice * item.quantity} currency={selectedCurrency} />
-                        ) : null}
-                        {/* <Text weight="bold" style={styles.newItemPrice}>
-                          {formatMoney(roundAmount(item.price * item.quantity), selectedCurrency)}
-                        </Text> */}
-                        <Money style={styles.newItemPrice} amount={roundAmount(item.price * item.quantity)} currency={selectedCurrency} />
-                      </View>
-                    )}
-                    {item.variantAttributes && Object.keys(item.variantAttributes).length > 0 ? (
-                      <Text style={styles.muted}>
-                        {Object.entries(item.variantAttributes).map(([key, value]) => `${key}: ${value}`).join(" / ")}
-                      </Text>
-                    ) : null}
-                    {item.unavailable &&
-                      <Text style={styles.unavailableText}>
-                        {t("cartItemUnavailable") ?? "This item is no longer available."}
-                      </Text>
-                    }
-                  </View>
-                </View>
-              </View>
-            )}
+            renderItem={renderCartItem}
           />
         )}
 
@@ -1600,13 +1631,14 @@ export default function CartScreen() {
                             <GestureScrollView
                               ref={couponScrollRef}
                               horizontal
+                              style={styles.couponScroll}
                               showsHorizontalScrollIndicator={false}
                               contentContainerStyle={styles.couponSlider}
                               keyboardShouldPersistTaps="handled"
                               nestedScrollEnabled
                             >
                               {couponsLoading && (
-                                <View style={[styles.couponPill, styles.couponLoadingPill]}>
+                                <View style={[styles.couponPill, styles.couponLoadingPill, styles.couponSlide]}>
                                   <ActivityIndicator size="small" color={palette.accent} />
                                   <Text style={styles.sheetText}>{t("loading") ?? "Loading"}...</Text>
                                 </View>
@@ -1614,7 +1646,7 @@ export default function CartScreen() {
                               {orderedAvailableCoupons.map((c) => (
                                 // {isCouponSelected(c.code) &&}
                                 <Pressable key={c._id || c.code}
-                                  style={[styles.wrapper, !isCouponSelected(c.code) && couponExceedsSubtotal(c) && { opacity: 0.4 }]}
+                                  style={[styles.wrapper, styles.couponSlide, !isCouponSelected(c.code) && couponExceedsSubtotal(c) && { opacity: 0.4 }]}
                                   disabled={!isCouponSelected(c.code) && couponExceedsSubtotal(c)}
                                   accessibilityRole="button"
                                   accessibilityState={{ disabled: !isCouponSelected(c.code) && couponExceedsSubtotal(c), selected: isCouponSelected(c.code) }}
@@ -1943,7 +1975,10 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       backgroundColor: palette.card,
     },
     addressBtnText: { color: palette.accent },
-    couponSlider: { gap: COUPON_CARD_GAP, paddingHorizontal: 8 },
+    // Keep native scroll coordinates consistent, then mirror the track and restore each card.
+    couponScroll: { direction: "ltr", transform: [{ scaleX: isRTL ? -1 : 1 }] },
+    couponSlider: { direction: "ltr", flexDirection: "row", gap: COUPON_CARD_GAP, paddingHorizontal: 8 },
+    couponSlide: { direction: isRTL ? "rtl" : "ltr", transform: [{ scaleX: isRTL ? -1 : 1 }] },
     couponInput: {
       // width: 90,
       // height: 30,
@@ -2002,7 +2037,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       justifyContent: 'center',
       gap: 5
     },
-    primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: '900', lineHeight: 16 },
+    primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: '900', lineHeight: 22 },
     errorText: { color: "#ef4444", fontWeight: "600" },
     successWrap: {
       alignItems: "center",
@@ -2042,8 +2077,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       transform: [{ rotate: "-45deg" }],
       marginTop: 4,
     },
-    successTitle: { color: palette.text, fontSize: 20, textAlign: "center" },
-    successText: { color: palette.muted, textAlign: "center" },
+    successTitle: { color: palette.text, fontSize: 20, textAlign: "center",lineHeight:30 },
+    successText: { color: palette.muted, fontSize: 12, lineHeight:18, textAlign: "center", fontWeight: '600' },
     debugRow: {
       paddingHorizontal: 16,
       paddingTop: 8,
