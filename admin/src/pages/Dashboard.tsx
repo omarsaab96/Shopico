@@ -71,7 +71,7 @@ const DashboardPage = () => {
     return `${converted.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${getCurrencySymbol(resolved)}`;
   };
   const getPrimaryOrderRevenue = (order: Order) => {
-    if (order.status === "CANCELLED") return 0;
+    if (order.status !== "DELIVERED") return 0;
 
     const value = Number(order.total || 0);
     const currency = order.currency;
@@ -194,7 +194,7 @@ const DashboardPage = () => {
     });
     const buckets = Array.from({ length: days }, () => ({ revenue: 0, count: 0 }));
     orders.forEach((order) => {
-      if (order.status === "CANCELLED" || !order.createdAt) return;
+      if (order.status !== "DELIVERED" || !order.createdAt) return;
       const date = new Date(order.createdAt);
       const orderDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const diffDays = Math.floor((orderDay.getTime() - base.getTime()) / (24 * 60 * 60 * 1000));
