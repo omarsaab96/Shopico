@@ -210,16 +210,12 @@ export default function PointsScreen() {
             </View>
           </View>
 
-          {rewardCount === null ? (
+          {rewardCount === null && (
             loading ? <ActivityIndicator size="small" color={palette.accent} /> : (
               <TouchableOpacity onPress={() => void load()} accessibilityRole="button">
                 <Text style={styles.ready}>{t("couponsRefreshFailed")}</Text>
               </TouchableOpacity>
             )
-          ) : (
-            <Text weight="bold" style={styles.ready}>
-              {t("rewardsAvailableCount").replace("{count}", rewardCount.toLocaleString())}
-            </Text>
           )}
 
           <TouchableOpacity onPress={redeem} disabled={loading || applyingReward || (!rewardAvailable && !redeemBatch.current)}
@@ -228,6 +224,9 @@ export default function PointsScreen() {
 
             <Text weight="bold" style={{ color: "#fff", fontSize: 15 }}>
               {t((rewardCount ?? 0) > 1 || (redeemBatch.current?.remaining || 0) > 1 ? "redeemAllRewards" : "redeemPoints")}
+              {rewardCount != null && 
+                ` (${rewardCount?.toLocaleString()})`
+              }
             </Text>
           </TouchableOpacity>
         </View>
