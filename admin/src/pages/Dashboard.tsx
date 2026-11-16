@@ -194,7 +194,7 @@ const DashboardPage = () => {
     });
     const buckets = Array.from({ length: days }, () => ({ revenue: 0, count: 0 }));
     orders.forEach((order) => {
-      if (!order.createdAt) return;
+      if (order.status === "CANCELLED" || !order.createdAt) return;
       const date = new Date(order.createdAt);
       const orderDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const diffDays = Math.floor((orderDay.getTime() - base.getTime()) / (24 * 60 * 60 * 1000));
