@@ -70,7 +70,9 @@ const DashboardPage = () => {
     const converted = resolved.isPrimary ? value : value / (rate > 0 ? rate : 1);
     return `${converted.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${getCurrencySymbol(resolved)}`;
   };
-  const getPrimaryOrderTotal = (order: Order) => {
+  const getPrimaryOrderRevenue = (order: Order) => {
+    if (order.status === "CANCELLED") return 0;
+
     const value = Number(order.total || 0);
     const currency = order.currency;
     if (!currency || typeof currency === "string" || currency.isPrimary) return value;
@@ -170,7 +172,7 @@ const DashboardPage = () => {
       .catch(console.error);
   }, [selectedBranchId]);
 
-  const totalRevenue = canViewOrders ? orders.reduce((sum, order) => sum + getPrimaryOrderTotal(order), 0) : 0;
+  const totalRevenue = canViewOrders ? orders.reduce((sum, order) => sum + getPrimaryOrderRevenue(order), 0) : 0;
   const pending = canViewOrders
     ? orders.filter((o) => o.status !== "DELIVERED" && o.status !== "CANCELLED").length
     : 0;
@@ -198,7 +200,7 @@ const DashboardPage = () => {
       const diffDays = Math.floor((orderDay.getTime() - base.getTime()) / (24 * 60 * 60 * 1000));
       const idx = days - 1 + diffDays;
       if (idx >= 0 && idx < days) {
-        buckets[idx].revenue += getPrimaryOrderTotal(order);
+        buckets[idx].revenue += getPrimaryOrderRevenue(order);
         buckets[idx].count += 1;
       }
     });
