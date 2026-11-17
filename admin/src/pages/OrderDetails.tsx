@@ -288,7 +288,18 @@ const OrderDetailsPage = ({ orderId, embedded = false }: { orderId?: string; emb
     setDetailsError("");
     setDetailsSuccess("");
     try {
-      await updateOrderStatus(order._id, nextStatus, order.paymentStatus, selectedDriverId);
+      let paymentStatus = order.paymentStatus;
+      if (order.paymentMethod === "SHAM_CASH" && nextStatus !== "PENDING" && paymentStatus !== "CONFIRMED") {
+        const confirmed = await confirmAction({
+          title: t("orders.confirmShamCashTitle"),
+          message: t("orders.confirmShamCashMessage").replace("{order}", order._id.slice(-6))
+            .replace("{amount}", formatOrderMoney(order.total, order.currency)).replace("{status}", tStatus(nextStatus)),
+          confirmLabel: t("orders.confirmShamCashAction"), cancelLabel: t("cancel"),
+        });
+        if (!confirmed) { setStatusDraft(order.status); return false; }
+        paymentStatus = "CONFIRMED";
+      }
+      await updateOrderStatus(order._id, nextStatus, paymentStatus, selectedDriverId);
       await refreshOrder(order._id);
       setDetailsSuccess(t("save") || "Saved");
       return true;

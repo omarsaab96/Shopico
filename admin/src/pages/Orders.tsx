@@ -228,6 +228,17 @@ const OrdersPage = () => {
   }, [selectedBranchId, searchTerm, statusFilter, paymentFilter, currencyFilter, fromDate, toDate]);
 
   const update = async (order: Order, status: string, paymentStatus?: string, driverId?: string): Promise<boolean> => {
+    if (order.paymentMethod === "SHAM_CASH" && status !== "PENDING" && (paymentStatus ?? order.paymentStatus) !== "CONFIRMED") {
+      mutatingRef.current = true;
+      const confirmed = await confirmAction({
+        title: t("orders.confirmShamCashTitle"),
+        message: t("orders.confirmShamCashMessage").replace("{order}", order._id.slice(-6))
+          .replace("{amount}", formatOrderMoney(order.total, order.currency)).replace("{status}", tStatus(status)),
+        confirmLabel: t("orders.confirmShamCashAction"), cancelLabel: t("cancel"),
+      });
+      if (!confirmed) { mutatingRef.current = false; return false; }
+      paymentStatus = "CONFIRMED";
+    }
     if ((status === "PROCESSING" || status === "SHIPPING") && !(driverId === undefined ? getDriverIdValue(order.driverId) : driverId)) {
       setDriverRequiredOrder({ order, status, paymentStatus });
       mutatingRef.current = false;

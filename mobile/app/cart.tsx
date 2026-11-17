@@ -1,6 +1,7 @@
 import { TextInput } from "../components/TextInput";
 import OrderCancellation from "../components/OrderCancellation";
 import MinimumOrderBanner from "../components/MinimumOrderBanner";
+import ShamCashPaymentStep from "../components/ShamCashPaymentStep";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import QuantityControl from "../components/QuantityControl";
 import { roundAmount } from "../lib/productUnits";
@@ -160,6 +161,8 @@ export default function CartScreen() {
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [showCouponOptions, setShowCouponOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const submissionInFlight = useRef(false);
+  const [shamCashPayment, setShamCashPayment] = useState<{ amount: number; currency?: Currency; payloadKey: string } | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [showSuccessContent, setShowSuccessContent] = useState(false);
@@ -183,6 +186,7 @@ export default function CartScreen() {
   const { selectedCurrency, getWalletBalance, getCurrencySymbol, convertFromPrimary, formatMoney } = useCurrency();
   const styles = useMemo(() => createStyles(palette, isRTL, isDark), [palette, isRTL, isDark]);
   const renderBackdrop = useMemo(() => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />, []);
+  const renderCheckoutBackdrop = useMemo(() => (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior={submitting ? "none" : "close"} />, [submitting]);
   const addressRefreshOnVisit = useRef(false);
   const contentAnim = useRef(new Animated.Value(1)).current;
   const footerAnim = useRef(new Animated.Value(1)).current;
@@ -549,6 +553,7 @@ export default function CartScreen() {
       return;
     }
     setPaymentMethod("WALLET");
+    setShamCashPayment(null);
     setCheckoutSuccess(false);
     setShowSuccessContent(false);
     setHideFooter(false);
@@ -896,7 +901,8 @@ export default function CartScreen() {
     disableAutoApply();
   };
 
-  const placeOrder = async () => {
+  const placeOrder = async (shamCashPaid = false) => {
+    if (submissionInFlight.current) return;
     if (!user || !selectedAddress) return;
     if (checkoutBlocked) return;
     if (!user.emailVerified) {
@@ -908,9 +914,24 @@ export default function CartScreen() {
       setCheckoutError(t("removeUnavailableItemsBeforeCheckout") ?? "Remove or replace unavailable items before checkout.");
       return;
     }
+    submissionInFlight.current = true;
     setSubmitting(true);
     setCheckoutError(null);
     try {
+      const payload = {
+        addressId: selectedAddress._id,
+        paymentMethod,
+        currencyId: selectedCurrency?._id,
+        couponCodes: selectedCoupons.length ? selectedCoupons.map((c) => c.code) : undefined,
+        items: items.filter((i) => !i.unavailable).map(toCheckoutItem),
+      };
+      const payloadKey = JSON.stringify(payload);
+      if (shamCashPaid && (!shamCashPayment || paymentMethod !== "SHAM_CASH" || shamCashPayment.payloadKey !== payloadKey ||
+        shamCashPayment.amount !== orderTotal || shamCashPayment.currency?.exchangeRate !== selectedCurrency?.exchangeRate)) {
+        setShamCashPayment(null);
+        setCheckoutError(t("shamCashReviewChanged"));
+        return;
+      }
       const [settingsRes, estimateRes] = await Promise.all([
         api.get("/settings"),
         api.post("/orders/delivery-estimate", { addressId: selectedAddress._id }),
@@ -924,10 +945,12 @@ export default function CartScreen() {
       setSettings(latestSettings);
       setDeliveryEstimate(latestEstimate);
       if (subtotal < roundAmount(Number(latestSettings?.minimumOrderAmount ?? 0))) {
+        setShamCashPayment(null);
         setCheckoutError(t("minimumOrderAddMore"));
         return;
       }
       if (deliveryChanged || couponPolicyChanged) {
+        setShamCashPayment(null);
         setSelectedCoupons([]);
         setAvailableCoupons([]);
         setCheckoutError(
@@ -937,22 +960,22 @@ export default function CartScreen() {
         );
         return;
       }
-      const res = await api.post("/orders", {
-        addressId: selectedAddress._id,
-        paymentMethod,
-        currencyId: selectedCurrency?._id,
-        couponCodes: selectedCoupons.length ? selectedCoupons.map((c) => c.code) : undefined,
-        items: items.filter((i) => !i.unavailable).map(toCheckoutItem),
-      });
+      if (paymentMethod === "SHAM_CASH" && !shamCashPaid) {
+        setShamCashPayment({ amount: orderTotal, currency: selectedCurrency, payloadKey });
+        return;
+      }
+      const res = await api.post("/orders", payload);
       const created = res?.data?.data;
       setSuccessOrder(created);
       setSuccessOrderId(created?._id || created?.id || null);
+      setShamCashPayment(null);
       setCheckoutSuccess(true);
       clear();
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || "Could not place order";
       setCheckoutError(msg);
     } finally {
+      submissionInFlight.current = false;
       setSubmitting(false);
     }
   };
@@ -971,7 +994,7 @@ export default function CartScreen() {
   };
 
   const customFooter = (props: any) => {
-    if (hideFooter) return null;
+    if (hideFooter || shamCashPayment) return null;
     return (
       <BottomSheetFooter {...props}>
         <Animated.View
@@ -1045,7 +1068,7 @@ export default function CartScreen() {
 
           <TouchableOpacity
             style={[styles.primaryBtn, (!selectedAddress || submitting || walletInsufficient || checkoutLoading || checkoutBlocked) && { opacity: 0.8 }]}
-            onPress={placeOrder}
+            onPress={() => void placeOrder()}
             disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading || checkoutBlocked}
           >
             <View style={{ width: '100%', flexDirection: "row", alignItems: 'center', justifyContent: 'center',gap:10 }}>
@@ -1233,13 +1256,14 @@ export default function CartScreen() {
       <BottomSheetModal
         ref={checkoutSheetRef}
         // snapPoints={checkoutSnapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
+        enablePanDownToClose={!submitting}
+        backdropComponent={renderCheckoutBackdrop}
         enableDynamicSizing
         maxDynamicContentSize={windowHeight * 0.82}
         footerComponent={customFooter}
         onDismiss={() => {
           setSubmitting(false);
+          setShamCashPayment(null);
           setCheckoutSuccess(false);
           setShowSuccessContent(false);
           setHideFooter(false);
@@ -1267,7 +1291,13 @@ export default function CartScreen() {
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingBottom: 0 }}
           >
-            <Animated.View style={{ paddingBottom: footerPaddingAnim }}>
+            <Animated.View style={{ paddingBottom: shamCashPayment ? 24 : footerPaddingAnim }}>
+              {!showSuccessContent && shamCashPayment && (
+                <ShamCashPaymentStep amount={shamCashPayment.amount} currency={shamCashPayment.currency}
+                  busy={submitting} error={checkoutError}
+                  onCancel={() => { if (!submissionInFlight.current) { setShamCashPayment(null); setCheckoutError(null); } }}
+                  onPaid={() => void placeOrder(true)} />
+              )}
               {showSuccessContent && (
                 <Animated.View
                   style={[
@@ -1324,7 +1354,7 @@ export default function CartScreen() {
                 </Animated.View>
               )}
 
-              {!showSuccessContent && (
+              {!showSuccessContent && !shamCashPayment && (
                 <Animated.View
                   onLayout={(event) => setContentHeight(event.nativeEvent.layout.height)}
                   style={{

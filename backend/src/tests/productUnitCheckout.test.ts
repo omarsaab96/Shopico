@@ -13,7 +13,7 @@ import { Branch } from "../models/Branch";
 import { Currency } from "../models/Currency";
 import { Coupon } from "../models/Coupon";
 import { updateCart, syncCart } from "../services/cartService";
-import { createOrder, estimateOrderDelivery } from "../services/orderService";
+import { createOrder, estimateOrderDelivery, updateOrderStatus } from "../services/orderService";
 import { cancelCustomerOrder } from "../services/orderCancellationService";
 import { previewOrderItemRefund, refundOrderItem } from "../services/orderRefundService";
 import { Settings } from "../models/Settings";
@@ -56,6 +56,24 @@ const inputs = () => [
   { productId: String(liquid._id), unit: "ml" as const, quantity: 375 },
 ];
 const submit = (items = inputs(), paymentMethod: "WALLET" | "CASH_ON_DELIVERY" = "CASH_ON_DELIVERY", couponCodes?: string[]) => createOrder(userId, branchId, { address: "Test address", lat: 0, lng: 0, paymentMethod, items, couponCodes });
+
+test.each(["PROCESSING", "SHIPPING", "DELIVERED", "CANCELLED"] as const)("unapproved Sham Cash orders cannot move to %s", async status => {
+  const order = await Order.create({ user: userId, branchId, status: "PENDING", paymentMethod: "SHAM_CASH", paymentStatus: "PENDING", subtotal: 100, deliveryFee: 0, deliveryDistanceKm: 0, total: 100, address: "Test", items: [{ product: piece._id, quantity: 1, price: 100 }] });
+  await expect(updateOrderStatus(String(order._id), status, undefined, branchId)).rejects.toMatchObject({ status: 400, message: "Confirm the Sham Cash payment before moving this order out of pending" });
+  expect(await Order.findById(order._id)).toMatchObject({ status: "PENDING", paymentStatus: "PENDING" });
+});
+
+test("Sham Cash approval, driver assignment and processing are saved together", async () => {
+  const driver = await User.create({ name: "Driver", email: "sham-driver@test.com", role: "driver", branchIds: [branchId] });
+  const order = await Order.create({ user: userId, branchId, status: "PENDING", paymentMethod: "SHAM_CASH", paymentStatus: "PENDING", subtotal: 100, deliveryFee: 0, deliveryDistanceKm: 0, total: 100, address: "Test", items: [{ product: piece._id, quantity: 1, price: 100 }] });
+  await expect(updateOrderStatus(String(order._id), "PROCESSING", "CONFIRMED", branchId, String(new Types.ObjectId()))).rejects.toMatchObject({ status: 400 });
+  expect(await Order.findById(order._id)).toMatchObject({ status: "PENDING", paymentStatus: "PENDING" });
+  await updateOrderStatus(String(order._id), "PROCESSING", "CONFIRMED", branchId, String(driver._id));
+  expect(await Order.findById(order._id)).toMatchObject({ status: "PROCESSING", paymentStatus: "CONFIRMED", driverId: driver._id });
+  await expect(updateOrderStatus(String(order._id), "PROCESSING", "PENDING", branchId)).rejects.toMatchObject({ status: 400 });
+  await updateOrderStatus(String(order._id), "SHIPPING", undefined, branchId);
+  expect(await Order.findById(order._id)).toMatchObject({ paymentStatus: "CONFIRMED" });
+});
 
 test("minimum order rejects a small subtotal before charging or consuming rewards", async () => {
   await Settings.create({ branchId, minimumOrderAmount: 206, rewardValue: 50 });

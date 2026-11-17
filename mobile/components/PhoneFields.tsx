@@ -31,17 +31,17 @@ export default function PhoneFields({ country, onCountryChange, phone, onPhoneCh
   const inputStyle = { backgroundColor: palette.surface, color: palette.text, borderColor: palette.border, borderWidth: 1, borderRadius: 12, padding: 12 };
   return (
     <View style={{ gap: 10 }}>
-      {showLabel && <Text weight="bold" style={{ color: palette.text }}>{t("phone")}</Text>}
+      {showLabel && <Text weight="bold" style={{ color: palette.text, textAlign: isRTL ? "right" : "left" }}>{t("phone")}</Text>}
       <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("phoneCountry")}
         onPress={() => { Keyboard.dismiss(); setSearch(""); setOpen(true); }}
         style={[inputStyle, { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }]}>
-        <Text style={{ color: palette.text, flex: 1 }}>{countryName(country)} ({`+${getCountryCallingCode(country)}`})</Text>
+        <Text style={{ color: palette.text, flex: 1, textAlign: isRTL ? "right" : "left" }}>{countryName(country)} ({`\u2066+${getCountryCallingCode(country)}\u2069`})</Text>
         <Feather name="chevron-down" size={18} color={palette.muted} />
       </TouchableOpacity>
-      <TextInput style={[inputStyle, styles.number]} value={phone} onChangeText={onPhoneChange}
+      <TextInput style={[inputStyle, styles.number, { textAlign: isRTL ? "right" : "left" }]} value={phone} onChangeText={onPhoneChange}
         placeholder={t("phone")} accessibilityLabel={t("phone")} placeholderTextColor={palette.muted}
         keyboardType="phone-pad" autoComplete="tel-national" maxLength={64} />
-      {onConfirmPhoneChange && <TextInput style={[inputStyle, styles.number]} value={confirmPhone} onChangeText={onConfirmPhoneChange}
+      {onConfirmPhoneChange && <TextInput style={[inputStyle, styles.number, { textAlign: isRTL ? "right" : "left" }]} value={confirmPhone} onChangeText={onConfirmPhoneChange}
         placeholder={t("confirmPhone")} accessibilityLabel={t("confirmPhone")} placeholderTextColor={palette.muted}
         keyboardType="phone-pad" autoComplete="off" maxLength={64} />}
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
@@ -73,4 +73,4 @@ export default function PhoneFields({ country, onCountryChange, phone, onPhoneCh
   );
 }
 
-const styles = StyleSheet.create({ number: { textAlign: "left", writingDirection: "ltr", direction: "ltr" } });
+const styles = StyleSheet.create({ number: { writingDirection: "ltr", direction: "ltr" } });

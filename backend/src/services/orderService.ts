@@ -625,6 +625,9 @@ export const updateOrderStatus = async (
     if (status === "DELIVERED" && order.status !== "DELIVERED" && (order.status !== "SHIPPING" || !order.driverStartedAt)) throw { status: 400, message: "Start delivery before completing this order" };
     if (!["SHIPPING", "DELIVERED"].includes(status)) throw { status: 400, message: "Invalid driver status" };
   }
+  if (order.paymentMethod === "SHAM_CASH" && status !== "PENDING" && (paymentStatus ?? order.paymentStatus) !== "CONFIRMED") {
+    throw { status: 400, message: "Confirm the Sham Cash payment before moving this order out of pending" };
+  }
   if (driverId !== undefined) assertDriverCanChange(order, driverId);
   if (order.cashSettlement && paymentStatus && paymentStatus !== "CONFIRMED") {
     throw { status: 400, message: "A settled cash payment cannot be reopened" };
