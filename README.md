@@ -74,6 +74,16 @@ For Android publishing, follow [the release and policy checks](mobile/ANDROID_RE
 ## Deployment
 The project is deployed on a VPS using Nginx and PM2.
 
+For a single Nginx reverse proxy, set `TRUST_PROXY=1` in the backend environment
+and restrict direct access to the backend port. Nginx must overwrite
+`X-Forwarded-For` with the client address (for example,
+`proxy_set_header X-Forwarded-For $remote_addr;`). For multiple proxies, configure
+the trusted hop count for that topology; direct deployments should use `0`.
+Restart the backend after changing the environment. Without this setting, rate
+limits can group all clients under Nginx's address. Authentication and other API
+traffic each have a separate allowance of 200 requests per IP per 15 minutes in
+production; a 429 response includes `Retry-After` and a JSON error message.
+
 1) **Admin Deployment**<br/>
     The admin panel is a Vite React build built locally and deployed as static files served by Nginx on the VPS.
     

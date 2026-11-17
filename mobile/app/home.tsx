@@ -2365,7 +2365,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "center",
       paddingHorizontal: 5,
     },
-    filterDotText: { color: "#fff", fontWeight: "900", fontSize: 12, lineHeight: Platform.OS == "ios" ? 16 : 16 },
+    filterDotText: { color: "#fff", fontWeight: "900", fontSize: 12, lineHeight: isRTL ? 22 : 16 },
 
     sectionHead: {
       flexDirection: 'row',

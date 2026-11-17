@@ -149,7 +149,7 @@ export default function QuantityControl({ quantity, product, onChange, onValidat
                 alignItems: "center",
                 justifyContent: "center"
               }}>
-              <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight: isRTL ? 34 : 24, textAlign: 'center', minWidth: 44 }}>
+              <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight: isRTL ? 34 : 24, textAlign: 'center', minWidth: 44}}>
                 {formatQuantity(quantity, product, isRTL, inspans)}
               </Text>
             </TouchableOpacity>

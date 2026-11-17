@@ -11,13 +11,13 @@ const QuantitySpans = ({ quantity, product, ar }: { quantity: number; product: U
   const { palette } = useTheme();
   const scale = quantityDisplayScale(quantity, product);
   return (
-    <View style={{ flexDirection: 'row-reverse', alignItems: 'baseline', gap:4}}>
-      <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight: 18,paddingTop:1 }}>
+    <View style={{ flexDirection: 'row-reverse', justifyContent:'center',alignItems: 'baseline', gap:4}}>
+      <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight: 18,}}>
         {quantity / scale}
       </Text>
-      <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight: 18 }}>
+      {unitLabel(product, ar, scale === 1000)!=="" &&<Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight: 18 }}>
         {unitLabel(product, ar, scale === 1000)}
-      </Text>
+      </Text>}
     </View>
   );
 };
@@ -27,7 +27,7 @@ export const formatQuantity = (quantity: number, product: UnitProduct, ar = fals
   if (inspans && ar) {
     return <QuantitySpans quantity={quantity} product={product} ar={ar} />;
   }
-  return `${quantity / scale} ${unitLabel(product, ar, scale === 1000)}`.trim();
+  return `${quantity / scale} hi`.trim();
 };
 export const priceBasis = (product: UnitProduct, ar = false) => unitLabel(product, ar) ? `${quantityStep(product)} ${unitLabel(product, ar)}` : "";
 export const roundAmount = (value: number) => Math.round((value + Number.EPSILON) * 1e8) / 1e8;

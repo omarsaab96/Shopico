@@ -14,7 +14,7 @@ export default function StoreClosedNotice({ status }: { status?: OpeningStatus |
   }) : null;
   const message = lang === "ar"
     ? next ? `سيتم البدء بخدمة طلبك عند أقرب موعد فتح: ${next} بتوقيت ${status.timeZone=='Asia/Damascus'?'سوريا / الشام':'status.timeZone'}.` : "سيتم البدء بخدمة طلبك في أقرب وقت ممكن."
-    : next ? `Your order will be served as soon as possible when we reopen: ${next} (${status.timeZone}).` : "Your order will be served as soon as possible. No opening time is currently scheduled.";
+    : next ? `Your order will be served as soon as possible when we reopen: ${next} (${status.timeZone}).` : "Your order will be served as soon as possible.";
   const textAlign = isRTL ? "right" : "left";
   return (
     <View accessibilityRole="alert" style={[styles.banner, { backgroundColor: palette.border, borderColor: palette.border }]}>

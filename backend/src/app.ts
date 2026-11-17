@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import { createRateLimits } from "./middleware/rateLimits";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import { env } from "./config/env";
@@ -26,12 +26,7 @@ app.use(
   })
 );
 
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: process.env.NODE_ENV === "production" ? 200 : 5000,
-  })
-);
+app.use(createRateLimits());
 app.use(morgan("dev"));
 app.use(auditRequests);
 

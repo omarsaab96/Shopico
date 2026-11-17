@@ -669,6 +669,11 @@ export default function OrderDetail() {
                   <Entypo name="wallet" size={22} color={palette.accentSoft} />
                   {/* <Image source={require('../../assets/bill.png')} style={styles.methodIcon} /> */}
                 </View>}
+                {order.paymentMethod == 'SHAM_CASH' && <View style={styles.valueWithIcon}>
+                  <Text style={styles.value}>{t('shamCash')}</Text>
+                  {/* <Entypo name="wallet" size={22} color={palette.accentSoft} /> */}
+                  <Image source={require("../../assets/shamcash.png")} style={styles.methodIcon} />
+                </View>}
               </View>
             </View>
           </BottomSheetScrollView>
