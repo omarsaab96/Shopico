@@ -228,32 +228,42 @@ const BranchLocationPicker = ({
 };
 
 const OpeningHoursEditor = ({ value, onChange }: { value: Partial<Branch>; onChange: (value: Partial<Branch>) => void }) => {
+  const scheduleId = useId();
   const { lang } = useI18n();
   const ar = lang === "ar";
   const slots = value.openingHours || [];
   const days = ar ? ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  return <fieldset style={{ display: "grid", gap: 12 }}>
-    <legend>{ar ? "ساعات العمل" : "Opening hours"}</legend>
-    <label><input type="checkbox" checked={value.openingHours != null} onChange={e => onChange({ ...value, openingHours: e.target.checked ? [] : null })} />{ar ? "تحديد جدول أسبوعي" : "Set weekly opening hours"}</label>
+  return <div className="branch-opening-hours">
+    <div className="checkboxContainer">
+      <input id={scheduleId} type="checkbox" checked={value.openingHours != null} onChange={e => onChange({ ...value, openingHours: e.target.checked ? [] : null })} />
+      <label htmlFor={scheduleId}>{ar ? "تحديد جدول أسبوعي" : "Set weekly opening hours"}</label>
+    </div>
+    {value.openingHours == null && <p className="muted branch-hours-hint">{ar ? "بدون جدول، يعتبر الفرع مفتوحاً طوال الوقت." : "Without a schedule, the branch is treated as always open."}</p>}
     {value.openingHours != null && <>
       <label>{ar ? "المنطقة الزمنية" : "Timezone"}<input required value={value.timeZone || "Asia/Damascus"} onChange={e => onChange({ ...value, timeZone: e.target.value })} placeholder="Asia/Damascus" /></label>
-      <small>{ar ? "اليوم بدون فترات مغلق. وقت الإغلاق الأسبق يعني اليوم التالي." : "Days without slots are closed. A closing time earlier than opening ends the next day."}</small>
-      {days.map((day, dayIndex) => <div key={day} style={{ display: "grid", gap: 8 }}>
-        <strong>{day}</strong>
-        {slots.map((slot, index) => slot.day === dayIndex && <div key={index} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input aria-label={`${day} ${ar ? "فتح" : "opening"}`} type="time" required value={slot.start} onChange={e => onChange({ ...value, openingHours: slots.map((s, i) => i === index ? { ...s, start: e.target.value } : s) })} />
-          <span>–</span>
-          <input aria-label={`${day} ${ar ? "إغلاق" : "closing"}`} type="time" required value={slot.end} onChange={e => onChange({ ...value, openingHours: slots.map((s, i) => i === index ? { ...s, end: e.target.value } : s) })} />
-          <button type="button" className="ghost-btn" onClick={() => onChange({ ...value, openingHours: slots.filter((_, i) => i !== index) })}>{ar ? "حذف" : "Remove"}</button>
+      <p className="muted branch-hours-hint">{ar ? "اليوم بدون فترات مغلق. وقت الإغلاق الأسبق يعني اليوم التالي." : "Days without slots are closed. A closing time earlier than opening ends the next day."}</p>
+      <div className="branch-hours-week">{days.map((day, dayIndex) => <div key={dayIndex} className="branch-hours-day">
+        <div className="branch-hours-day-header">
+          <div className="branch-hours-day-title"><strong>{day}</strong>{!slots.some(slot => slot.day === dayIndex) && <span className="muted">{ar ? "مغلق" : "Closed"}</span>}</div>
+          <button type="button" className="ghost-btn" onClick={() => onChange({ ...value, openingHours: [...slots, { day: dayIndex, start: "09:00", end: "18:00" }] })}>{ar ? "إضافة فترة" : "Add slot"}</button>
+        </div>
+        {slots.map((slot, index) => slot.day === dayIndex && <div key={index} className="branch-hours-slot">
+          <label>{ar ? "من" : "From"}<input aria-label={`${day} ${ar ? "فتح" : "opening"}`} type="time" dir="ltr" required value={slot.start} onChange={e => onChange({ ...value, openingHours: slots.map((s, i) => i === index ? { ...s, start: e.target.value } : s) })} /></label>
+          <label>{ar ? "إلى" : "To"}<input aria-label={`${day} ${ar ? "إغلاق" : "closing"}`} type="time" dir="ltr" required value={slot.end} onChange={e => onChange({ ...value, openingHours: slots.map((s, i) => i === index ? { ...s, end: e.target.value } : s) })} /></label>
+          <button type="button" className="ghost-btn danger" aria-label={`${ar ? "حذف فترة" : "Remove slot"} ${day}`} onClick={() => onChange({ ...value, openingHours: slots.filter((_, i) => i !== index) })}>{ar ? "حذف" : "Remove"}</button>
+          {slot.end < slot.start && <span className="muted branch-hours-overnight">{ar ? "ينتهي في اليوم التالي" : "Ends the next day"}</span>}
         </div>)}
-        <button type="button" className="ghost-btn" onClick={() => onChange({ ...value, openingHours: [...slots, { day: dayIndex, start: "09:00", end: "18:00" }] })}>{ar ? "إضافة فترة" : "Add slot"}</button>
       </div>)}
+      </div>
     </>}
-  </fieldset>;
+  </div>;
 };
+
+type BranchEditorTab = "info" | "location" | "hours";
 
 const BranchesPage = () => {
   const editorFormId = useId();
+  const [editorTab, setEditorTab] = useState<BranchEditorTab>("info");
   const [branches, setBranches] = useState<Branch[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [draft, setDraft] = useState<Partial<Branch>>({ isActive: true, deliveryRadiusKm: 5 });
@@ -264,7 +274,7 @@ const BranchesPage = () => {
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [editError, setEditError] = useState("");
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { can } = usePermissions();
   const { refreshProfile } = useAuth();
   const { refreshBranches } = useBranch();
@@ -302,6 +312,7 @@ const BranchesPage = () => {
     try {
       setFormError("");
       if (draft.lat === undefined || draft.lng === undefined || Number.isNaN(draft.lat) || Number.isNaN(draft.lng)) {
+        setEditorTab("location");
         setFormError(t("branches.selectLocationOnMap"));
         return;
       }
@@ -313,6 +324,9 @@ const BranchesPage = () => {
       setShowNewModal(false);
       load(getFilterParams());
     } catch (err: any) {
+      const field = err?.response?.data?.errors?.[0]?.path?.[0];
+      if (field === "openingHours" || field === "timeZone") setEditorTab("hours");
+      else if (field === "address" || field === "lat" || field === "lng") setEditorTab("location");
       const message = err?.response?.data?.errors?.[0]?.message || err?.response?.data?.message || t("branches.couldNotSave");
       setFormError(message);
     } finally { setSaving(false); }
@@ -320,6 +334,7 @@ const BranchesPage = () => {
 
   const startEdit = (branch: Branch) => {
     if (!canManage) return;
+    setEditorTab("info");
     setShowNewModal(false);
     setEditingId(branch._id);
     setEditDraft({ ...branch, isActive: normalizeBoolean(branch.isActive, true) });
@@ -334,6 +349,7 @@ const BranchesPage = () => {
     try {
       setEditError("");
       if (editDraft.lat === undefined || editDraft.lng === undefined || Number.isNaN(editDraft.lat) || Number.isNaN(editDraft.lng)) {
+        setEditorTab("location");
         setEditError(t("branches.selectLocationOnMap"));
         return;
       }
@@ -350,6 +366,9 @@ const BranchesPage = () => {
       setEditDraft({});
       load(getFilterParams());
     } catch (err: any) {
+      const field = err?.response?.data?.errors?.[0]?.path?.[0];
+      if (field === "openingHours" || field === "timeZone") setEditorTab("hours");
+      else if (field === "address" || field === "lat" || field === "lng") setEditorTab("location");
       const message = err?.response?.data?.errors?.[0]?.message || err?.response?.data?.message || t("branches.couldNotUpdate");
       setEditError(message);
     } finally { setSaving(false); }
@@ -363,6 +382,7 @@ const BranchesPage = () => {
 
   const openNewModal = () => {
     if (!canManage || saving) return;
+    setEditorTab("info");
     cancelEdit();
     setDraft({ isActive: true, deliveryRadiusKm: 5 });
     setFormError("");
@@ -516,15 +536,39 @@ const BranchesPage = () => {
 
       {(showNewModal || editingId) && canManage && (
         <div className="modal-backdrop" onClick={closeEditor}>
-          <ModalSurface className="modal" onClick={(e) => e.stopPropagation()}>
+          <ModalSurface className="modal branch-edit-modal" aria-labelledby={`${editorFormId}-title`} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">{t(editingId ? "editBranch" : "newBranch")}</div>
+              <div className="modal-title" id={`${editorFormId}-title`}>{t(editingId ? "editBranch" : "newBranch")}</div>
               <button className="ghost-btn" type="button" onClick={closeEditor} disabled={saving}>
                 {t("close")}
               </button>
             </div>
-            <form id={editorFormId} className="form" onSubmit={editingId ? event => { event.preventDefault(); void saveEdit(); } : submit}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="tab-row" role="tablist" aria-label={t(editingId ? "editBranch" : "newBranch")}>
+              {(["info", "location", "hours"] as const).map((tab, index, tabs) => <button
+                key={tab} type="button" role="tab" className={`tab-btn ${editorTab === tab ? "active" : ""}`}
+                id={`${editorFormId}-${tab}-tab`} aria-controls={`${editorFormId}-${tab}-panel`} aria-selected={editorTab === tab} tabIndex={editorTab === tab ? 0 : -1}
+                onClick={() => setEditorTab(tab)}
+                onKeyDown={event => {
+                  const step = event.key === "ArrowRight" ? (lang === "ar" ? -1 : 1) : event.key === "ArrowLeft" ? (lang === "ar" ? 1 : -1) : 0;
+                  const next = event.key === "Home" ? tabs[0] : event.key === "End" ? tabs[2] : step ? tabs[(index + step + tabs.length) % tabs.length] : null;
+                  if (!next) return;
+                  event.preventDefault(); setEditorTab(next); document.getElementById(`${editorFormId}-${next}-tab`)?.focus();
+                }}
+              >{tab === "info" ? (lang === "ar" ? "معلومات" : "Info") : tab === "location" ? t("branches.location") : (lang === "ar" ? "ساعات العمل" : "Opening hours")}</button>)}
+            </div>
+            <form id={editorFormId} className="form branch-editor-form" noValidate onSubmit={event => {
+              event.preventDefault();
+              const form = event.currentTarget;
+              const invalid = form.querySelector<HTMLInputElement>("input:invalid");
+              if (invalid) {
+                setEditorTab(invalid.closest<HTMLElement>("[data-branch-tab]")?.dataset.branchTab as BranchEditorTab || "info");
+                requestAnimationFrame(() => invalid.reportValidity());
+                return;
+              }
+              if (editingId) void saveEdit(); else void submit(event);
+            }}>
+              <div role="tabpanel" id={`${editorFormId}-info-panel`} aria-labelledby={`${editorFormId}-info-tab`} data-branch-tab="info" hidden={editorTab !== "info"}>
+              <div className="branch-info-grid">
                 <label style={{ flex: 1 }}>
                   {t("name")}
                   <input autoFocus value={modalDraft.name || ""} onChange={(e) => setModalDraft({ ...modalDraft, name: e.target.value })} required />
@@ -544,12 +588,18 @@ const BranchesPage = () => {
                   />
                 </label>
               </div>
-              <label style={{ display: 'none' }}>
+              <div className="checkboxContainer">
+                <input id="branchActiveNew" type="checkbox" checked={Boolean(modalDraft.isActive)} onChange={(e) => setModalDraft({ ...modalDraft, isActive: e.target.checked })} />
+                <label htmlFor="branchActiveNew">{t("active")}</label>
+              </div>
+              </div>
+              <div role="tabpanel" id={`${editorFormId}-location-panel`} aria-labelledby={`${editorFormId}-location-tab`} data-branch-tab="location" hidden={editorTab !== "location"}>
+              <label>
                 {t("address")}
-                <input value={modalDraft.address || ""} onChange={(e) => setModalDraft({ ...modalDraft, address: e.target.value })} />
+                <input required value={modalDraft.address || ""} onChange={(e) => setModalDraft({ ...modalDraft, address: e.target.value })} />
               </label>
               <BranchLocationPicker
-                isOpen={showNewModal || Boolean(editingId)}
+                isOpen={editorTab === "location"}
                 value={{ lat: modalDraft.lat, lng: modalDraft.lng, address: modalDraft.address }}
                 onChange={(next) =>
                   setModalDraft((prev) => ({ ...prev, lat: next.lat, lng: next.lng, address: next.address }))
@@ -558,16 +608,9 @@ const BranchesPage = () => {
                 mapsError={mapsError}
               />
 
-              <OpeningHoursEditor value={modalDraft} onChange={setModalDraft} />
-
-              <div className="checkboxContainer">
-                <input
-                  id="branchActiveNew"
-                  type="checkbox"
-                  checked={Boolean(modalDraft.isActive)}
-                  onChange={(e) => setModalDraft({ ...modalDraft, isActive: e.target.checked })}
-                />
-                <label htmlFor="branchActiveNew">{t("active")}</label>
+              </div>
+              <div role="tabpanel" id={`${editorFormId}-hours-panel`} aria-labelledby={`${editorFormId}-hours-tab`} data-branch-tab="hours" hidden={editorTab !== "hours"}>
+                <OpeningHoursEditor value={modalDraft} onChange={setModalDraft} />
               </div>
               {modalError && <div className="error" role="alert">{modalError}</div>}
               

@@ -24,7 +24,7 @@ function compile(source, values) {
 }
 function setup(name, overrides = {}, fail = false, action = 'saveEdit') {
   const ast = page(name);
-  const state = { calls: [], error: '', busy: false, editingId: 'record-1', refreshed: false, modalOpen: true };
+  const state = { calls: [], error: '', busy: false, editingId: 'record-1', refreshed: false, modalOpen: true, editorTab: 'info' };
   const saved = async payload => { state.calls.push(payload); if (fail) throw { response: { data: { message: 'Save failed' } } }; return { ...payload, _id: 'record-1' }; };
   const ctx = {
     editingId: 'record-1', editDraft: {}, saving: false, canManage: true, banners: false, editUploadingId: null,
@@ -34,6 +34,7 @@ function setup(name, overrides = {}, fail = false, action = 'saveEdit') {
     setSaving: value => { state.busy = value; },
     setEditError: value => { state.error = value; }, setError: value => { state.error = value; },
     setEditingId: value => { state.editingId = value; }, setEditDraft: () => {},
+    setEditorTab: value => { state.editorTab = value; },
     setDraft: () => {}, uploadingNew: false,
     setFormError: value => { state.error = value; },
     setShowNewModal: value => { state.modalOpen = value; },
@@ -96,6 +97,7 @@ for (const [assignmentType, key] of [['USERS', 'assignedUsers'], ['PRODUCTS', 'a
 test('branch popup still requires a map location before saving', async () => {
   const { state, run } = setup('Branches', { editDraft: { name: 'Missing coordinates' } }); await run();
   assert.equal(state.calls.length, 0); assert.equal(state.error, 'branches.selectLocationOnMap'); assert.equal(state.busy, false);
+  assert.equal(state.editorTab, 'location');
 });
 
 for (const name of ['Announcements', 'Coupons', 'Categories', 'Branches', 'Currencies', 'Products']) {

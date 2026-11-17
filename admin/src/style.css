@@ -2108,6 +2108,120 @@ nav::-webkit-scrollbar {
   color: white;
 }
 
+.branch-edit-modal > .modal-content {
+  width: min(640px, calc(100vw - 50px));
+}
+
+.branch-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+
+.branch-editor-form [role="tabpanel"] {
+  min-width: 0;
+}
+
+.branch-editor-form .form {
+  padding: 0;
+}
+
+.branch-opening-hours,
+.branch-hours-week {
+  display: grid;
+  gap: 12px;
+}
+
+.branch-hours-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.branch-hours-day {
+  padding: 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: 10px;
+  background: var(--bg-card);
+  display: grid;
+  gap: 10px;
+}
+
+.branch-hours-day-header,
+.branch-hours-day-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.branch-hours-day-header {
+  justify-content: space-between;
+}
+
+.branch-hours-day-title .muted {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.branch-hours-slot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.branch-hours-slot label {
+  margin: 0;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.branch-hours-slot input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.branch-hours-slot .ghost-btn {
+  min-height: 38px;
+}
+
+.branch-hours-overnight {
+  grid-column: 1 / -1;
+  font-size: 12px;
+}
+
+.branch-edit-modal .tab-btn:focus-visible,
+.branch-edit-modal .ghost-btn:focus-visible,
+.branch-edit-modal .checkboxContainer input:focus-visible ~ label::before {
+  outline: 2px solid var(--orange-500);
+  outline-offset: 3px;
+}
+
+[data-theme="dark"] .branch-edit-modal .tab-row .tab-btn.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--text-primary);
+}
+
+@media (max-width: 480px) {
+  .branch-info-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .branch-hours-day {
+    padding: 10px;
+  }
+
+  .branch-hours-slot {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .branch-hours-slot .ghost-btn {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+
 .fullWidthInput {
   flex: 1;
 }
