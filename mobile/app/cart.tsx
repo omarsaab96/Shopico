@@ -81,7 +81,7 @@ const CartItemRow = memo(function CartItemRow({ item, currency: selectedCurrency
             </TouchableOpacity>}
 
             {!item.unavailable ? (
-              <QuantityControl pill incart quantity={item.quantity} product={item}
+              <QuantityControl pill incart inspans quantity={item.quantity} product={item}
                 onChange={quantity => quantity === 0
                   ? onRemove(item.productId, item.variantId)
                   : onSetQuantity(item.productId, quantity, item.variantId)} />

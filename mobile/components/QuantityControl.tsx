@@ -149,14 +149,14 @@ export default function QuantityControl({ quantity, product, onChange, onValidat
                 alignItems: "center",
                 justifyContent: "center"
               }}>
-              <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight:22 }}>
+              <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight: isRTL ? 34 : 24, textAlign: 'center', minWidth: 44 }}>
                 {formatQuantity(quantity, product, isRTL, inspans)}
               </Text>
             </TouchableOpacity>
           )}
 
         {editing && !!unitLabel(product, isRTL) &&
-          <Text weight="black" style={{ color: palette.text, fontSize: 16,lineHeight:18 }}>
+          <Text weight="black" style={{ color: palette.text, fontSize: 16, lineHeight: 18 }}>
             {unitLabel(product, isRTL, scale === 1000)}
           </Text>
         }

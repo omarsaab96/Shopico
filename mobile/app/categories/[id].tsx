@@ -583,7 +583,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
     qtyVal: {
       color: palette.text,
       fontSize: 16,
-      lineHeight:20,
+      lineHeight: isRTL ? 34 : 24,
       fontWeight: "900",
       minWidth: 44,
       textAlign: "center",

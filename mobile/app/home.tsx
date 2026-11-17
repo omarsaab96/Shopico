@@ -1015,7 +1015,7 @@ export default function Home() {
 
       {renderCategoriesGrid()}
 
-      {!hasQuery&&<HomeBanners branchId={selectedBranch?._id} refreshing={refreshSkeleton} refreshKey={bannerRefreshKey} />}
+      {!hasQuery && <HomeBanners branchId={selectedBranch?._id} refreshing={refreshSkeleton} refreshKey={bannerRefreshKey} />}
 
       <Text weight="black" style={[styles.sectionTitle, { marginBottom: 10 }]}>
         {hasQuery ? `${t("products") ?? "Products"} (${products.length})` : (t("freshPicks") ?? "Fresh picks")}
@@ -1233,7 +1233,7 @@ export default function Home() {
     sublabel?: string
   ) => (
     <View style={styles.driverStatCard}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom:10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
         <View style={[styles.driverStatIcon, { backgroundColor: `${tone}1A` }]}>
           <Feather name={icon} size={20} color={tone} />
         </View>
@@ -2113,7 +2113,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       color: palette.text,
       fontSize: 24,
       fontWeight: "900",
-      lineHeight:30
+      lineHeight: 30
       // textAlign: align,
     },
     driverStatSub: {
@@ -2562,7 +2562,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean, insets: any
       justifyContent: "center",
     },
     qtySym: { color: palette.text, fontSize: 18, fontWeight: "900" },
-    qtyVal: { color: palette.text, fontSize: 16, fontWeight: "900", minWidth: 44, lineHeight:24, textAlign: "center" },
+    qtyVal: { color: palette.text, fontSize: 16, fontWeight: "900", minWidth: 44, lineHeight: isRTL ? 34 : 24, textAlign: "center" },
 
     emptyText: { color: palette.muted, paddingHorizontal: 16, textAlign: align, marginTop: 10 },
 
