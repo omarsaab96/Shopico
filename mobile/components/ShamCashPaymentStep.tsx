@@ -39,7 +39,7 @@ export default function ShamCashPaymentStep({ amount, currency, busy, error, onC
     <Text style={{ color: palette.muted, textAlign: "center", lineHeight: 22 }}>{t("shamCashPaymentInstructions")}</Text>
     <View style={[styles.amount, { backgroundColor: palette.surface, borderColor: palette.border }]}>
       <Text style={{ color: palette.muted }}>{t("shamCashAmountToPay")}</Text>
-      <Money weight="bold" amount={amount} currency={currency} style={{ color: palette.text, fontSize: 24 }} />
+      <Money weight="bold" amount={amount} currency={currency} style={{ color: palette.text, fontSize: 24,lineHeight:30 }} />
     </View>
     <View style={styles.qr}>
       <Image source={require("../assets/shamcash-qr.png")} resizeMode="contain"
@@ -49,9 +49,8 @@ export default function ShamCashPaymentStep({ amount, currency, busy, error, onC
       {/* <Text weight="bold" style={{ color: palette.text, textAlign: isRTL ? "right" : "left" }}>{t("shamCashWalletAddress")}</Text> */}
       <TouchableOpacity onPress={() => void copyAddress()} accessibilityRole="button" accessibilityLabel={t("shamCashCopyAddress")}
         style={[styles.address, { backgroundColor:palette.surface, borderColor: palette.border }]}>
-        {isRTL&&<Feather name={copied ? "check" : "copy"} size={19} color={palette.accent} />}
+        <Feather name={copied ? "check" : "copy"} size={19} color={palette.accent} />
         <Text style={{ color: palette.text, fontSize: 16, fontWeight:500 }}>{WALLET_ADDRESS}</Text>
-        {!isRTL&&<Feather name={copied ? "check" : "copy"} size={19} color={palette.accent} />}
       </TouchableOpacity>
 
       {copyError && <Text accessibilityLiveRegion="polite" style={{ color: copyError ? "#ef4444" : palette.muted, fontSize: 12, textAlign: isRTL ? "right" : "left" }}>
