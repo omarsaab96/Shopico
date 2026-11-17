@@ -159,6 +159,8 @@ export interface Branch {
   lat: number;
   lng: number;
   openHours?: string;
+  openingHours?: { day: number; start: string; end: string }[] | null;
+  timeZone?: string;
   deliveryRadiusKm: number;
   isActive: boolean;
   createdAt?: string;

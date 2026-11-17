@@ -1,3 +1,4 @@
+import { getOpeningStatus } from "../utils/openingHours";
 import { Branch } from "../models/Branch";
 import { User } from "../models/User";
 import { branchSchema } from "../validators/branchValidators";
@@ -27,7 +28,7 @@ export const getMyBranches = catchAsync(async (req, res) => {
 
 export const createBranch = catchAsync(async (req, res) => {
   const payload = branchSchema.parse(req.body);
-  const branch = await Branch.create(payload);
+  const branch = await Branch.create({ ...payload, openingHours: payload.openingHours ?? undefined });
   if (req.user?._id) {
     await User.findByIdAndUpdate(req.user._id, {
       $addToSet: { branchIds: branch._id },
@@ -38,7 +39,11 @@ export const createBranch = catchAsync(async (req, res) => {
 
 export const updateBranch = catchAsync(async (req, res) => {
   const payload = branchSchema.partial().parse(req.body);
-  const branch = await Branch.findByIdAndUpdate(req.params.id, payload, { new: true });
+  const { openingHours, ...fields } = payload;
+  const update = openingHours === null
+    ? { $set: fields, $unset: { openingHours: 1 } }
+    : { $set: { ...fields, ...(openingHours !== undefined ? { openingHours } : {}) } };
+  const branch = await Branch.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!branch) return res.status(404).json({ success: false, message: "Branch not found" });
   sendSuccess(res, branch, "Branch updated");
 });
@@ -56,7 +61,7 @@ export const getNearestBranch = catchAsync(async (req, res) => {
   if (Number.isNaN(lat) || Number.isNaN(lng)) {
     return res.status(400).json({ success: false, message: "Valid lat and lng are required" });
   }
-  const branches = await Branch.find({ isActive: true }).select("name address lat lng phone deliveryRadiusKm isActive");
+  const branches = await Branch.find({ isActive: true }).select("name address lat lng phone deliveryRadiusKm isActive openingHours timeZone");
   if (branches.length === 0) {
     return res.status(404).json({ success: false, message: "No active branches" });
   }
@@ -69,12 +74,12 @@ export const getNearestBranch = catchAsync(async (req, res) => {
       nearest = branch;
     }
   }
-  return sendSuccess(res, { branch: nearest, distanceKm: minDistance });
+  return sendSuccess(res, { branch: { ...nearest.toObject(), openingStatus: getOpeningStatus(nearest) }, distanceKm: minDistance });
 });
 
 export const getPublicBranches = catchAsync(async (_req, res) => {
   const branches = await Branch.find({ isActive: true })
-    .select("name address lat lng phone deliveryRadiusKm isActive")
+    .select("name address lat lng phone deliveryRadiusKm isActive openingHours timeZone")
     .sort({ createdAt: 1 });
-  return sendSuccess(res, branches);
+  return sendSuccess(res, branches.map(branch => ({ ...branch.toObject(), openingStatus: getOpeningStatus(branch) })));
 });

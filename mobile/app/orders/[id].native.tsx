@@ -1,3 +1,4 @@
+import StoreClosedNotice from "../../components/StoreClosedNotice";
 import { formatQuantity } from "../../lib/productUnits";
 import OrderCancellation from "../../components/OrderCancellation";
 import { DeviceEventEmitter } from "react-native";
@@ -442,6 +443,7 @@ export default function OrderDetail() {
               { useNativeDriver: false }
             )}
           >
+            {order.status === "PENDING" && <StoreClosedNotice status={order.openingStatus} />}
             <OrderCancellation cartpage={false} ordersPage order={order} onUpdate={setOrder} />
             {routeErrorMessage ? (
               <View style={styles.routeWarning}>

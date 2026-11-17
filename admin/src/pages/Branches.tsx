@@ -227,6 +227,31 @@ const BranchLocationPicker = ({
   );
 };
 
+const OpeningHoursEditor = ({ value, onChange }: { value: Partial<Branch>; onChange: (value: Partial<Branch>) => void }) => {
+  const { lang } = useI18n();
+  const ar = lang === "ar";
+  const slots = value.openingHours || [];
+  const days = ar ? ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  return <fieldset style={{ display: "grid", gap: 12 }}>
+    <legend>{ar ? "ساعات العمل" : "Opening hours"}</legend>
+    <label><input type="checkbox" checked={value.openingHours != null} onChange={e => onChange({ ...value, openingHours: e.target.checked ? [] : null })} />{ar ? "تحديد جدول أسبوعي" : "Set weekly opening hours"}</label>
+    {value.openingHours != null && <>
+      <label>{ar ? "المنطقة الزمنية" : "Timezone"}<input required value={value.timeZone || "Asia/Damascus"} onChange={e => onChange({ ...value, timeZone: e.target.value })} placeholder="Asia/Damascus" /></label>
+      <small>{ar ? "اليوم بدون فترات مغلق. وقت الإغلاق الأسبق يعني اليوم التالي." : "Days without slots are closed. A closing time earlier than opening ends the next day."}</small>
+      {days.map((day, dayIndex) => <div key={day} style={{ display: "grid", gap: 8 }}>
+        <strong>{day}</strong>
+        {slots.map((slot, index) => slot.day === dayIndex && <div key={index} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input aria-label={`${day} ${ar ? "فتح" : "opening"}`} type="time" required value={slot.start} onChange={e => onChange({ ...value, openingHours: slots.map((s, i) => i === index ? { ...s, start: e.target.value } : s) })} />
+          <span>–</span>
+          <input aria-label={`${day} ${ar ? "إغلاق" : "closing"}`} type="time" required value={slot.end} onChange={e => onChange({ ...value, openingHours: slots.map((s, i) => i === index ? { ...s, end: e.target.value } : s) })} />
+          <button type="button" className="ghost-btn" onClick={() => onChange({ ...value, openingHours: slots.filter((_, i) => i !== index) })}>{ar ? "حذف" : "Remove"}</button>
+        </div>)}
+        <button type="button" className="ghost-btn" onClick={() => onChange({ ...value, openingHours: [...slots, { day: dayIndex, start: "09:00", end: "18:00" }] })}>{ar ? "إضافة فترة" : "Add slot"}</button>
+      </div>)}
+    </>}
+  </fieldset>;
+};
+
 const BranchesPage = () => {
   const editorFormId = useId();
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -280,7 +305,7 @@ const BranchesPage = () => {
         setFormError(t("branches.selectLocationOnMap"));
         return;
       }
-      const saved = await saveBranch(draft);
+      const saved = await saveBranch({ ...draft, openingHours: draft.openingHours ?? null });
       setBranches((prev) => [saved, ...prev]);
       await refreshProfile();
       await refreshBranches();
@@ -288,7 +313,7 @@ const BranchesPage = () => {
       setShowNewModal(false);
       load(getFilterParams());
     } catch (err: any) {
-      const message = err?.response?.data?.message || t("branches.couldNotSave");
+      const message = err?.response?.data?.errors?.[0]?.message || err?.response?.data?.message || t("branches.couldNotSave");
       setFormError(message);
     } finally { setSaving(false); }
   };
@@ -314,6 +339,7 @@ const BranchesPage = () => {
       }
       const saved = await saveBranch({
         ...editDraft,
+        openingHours: editDraft.openingHours ?? null,
         _id: editingId,
         isActive: normalizeBoolean(editDraft.isActive, true),
       });
@@ -324,7 +350,7 @@ const BranchesPage = () => {
       setEditDraft({});
       load(getFilterParams());
     } catch (err: any) {
-      const message = err?.response?.data?.message || t("branches.couldNotUpdate");
+      const message = err?.response?.data?.errors?.[0]?.message || err?.response?.data?.message || t("branches.couldNotUpdate");
       setEditError(message);
     } finally { setSaving(false); }
   };
@@ -532,14 +558,7 @@ const BranchesPage = () => {
                 mapsError={mapsError}
               />
 
-              {/* <label>
-                {t("openHours")}
-                <input
-                  value={modalDraft.openHours || ""}
-                  onChange={(e) => setModalDraft({ ...modalDraft, openHours: e.target.value })}
-                  placeholder="09:00 - 18:00"
-                />
-              </label> */}
+              <OpeningHoursEditor value={modalDraft} onChange={setModalDraft} />
 
               <div className="checkboxContainer">
                 <input

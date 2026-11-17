@@ -8,6 +8,8 @@ export interface BranchDoc {
   lat: number;
   lng: number;
   openHours?: string;
+  openingHours?: { day: number; start: string; end: string }[];
+  timeZone?: string;
   deliveryRadiusKm: number;
   isActive: boolean;
   createdAt: Date;
@@ -22,6 +24,8 @@ const branchSchema = new Schema<BranchDoc>(
     lat: { type: Number, required: true },
     lng: { type: Number, required: true },
     openHours: { type: String, trim: true },
+    openingHours: { type: [{ _id: false, day: Number, start: String, end: String }], default: undefined },
+    timeZone: { type: String, default: "Asia/Damascus" },
     deliveryRadiusKm: { type: Number, default: 5 },
     isActive: { type: Boolean, default: true },
   },

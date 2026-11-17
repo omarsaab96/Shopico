@@ -54,6 +54,7 @@ export interface ICashSettlement {
 }
 
 export interface IOrder extends Document {
+  openingStatus?: { isOpen: boolean; nextOpeningAt: string | null; timeZone: string };
   user: Types.ObjectId | string;
   items: IOrderItem[];
   branchId: Types.ObjectId | string;
@@ -130,6 +131,7 @@ const DriverLocationSchema = new Schema<IOrderDriverLocation>(
 
 const OrderSchema = new Schema<IOrder>(
   {
+    openingStatus: { isOpen: Boolean, nextOpeningAt: String, timeZone: String },
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     items: { type: [OrderItemSchema], required: true },
     branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, index: true },

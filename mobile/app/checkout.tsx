@@ -1,3 +1,4 @@
+import StoreClosedNotice, { type OpeningStatus } from "../components/StoreClosedNotice";
 import { TextInput } from "../components/TextInput";
 import { roundAmount } from "../lib/productUnits";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -31,7 +32,7 @@ export default function Checkout() {
   const [autoApplyDisabled, setAutoApplyDisabled] = useState(false);
   const [couponError, setCouponError] = useState("");
   const [applyingCoupon, setApplyingCoupon] = useState(false);
-  const [deliveryEstimate, setDeliveryEstimate] = useState<{ distanceKm: number; deliveryFee: number } | null>(null);
+  const [deliveryEstimate, setDeliveryEstimate] = useState<{ distanceKm: number; deliveryFee: number; openingStatus?: OpeningStatus } | null>(null);
   const { palette } = useTheme();
   const { t, isRTL } = useI18n();
   const { formatMoney, primaryCurrency, selectedCurrency } = useCurrency();
@@ -219,14 +220,14 @@ export default function Checkout() {
       return;
     }
     if (!selected) return;
-    await api.post("/orders", {
+    const response = await api.post("/orders", {
       addressId: selected._id,
       paymentMethod,
       couponCode: couponDiscount > 0 || couponFreeDelivery ? couponCode.trim() : undefined,
       items: items.map(toCheckoutItem),
     });
     clear();
-    router.replace("/(tabs)/orders");
+    router.replace(`/orders/${response.data.data._id}` as any);
   };
 
   return (
@@ -317,7 +318,7 @@ export default function Checkout() {
         {couponError ? <Text style={styles.errorText}>{couponError}</Text> : null}
         {couponFreeDelivery ? (
           <Text style={styles.muted}>
-            {t("freeDelivery") ?? "Free delivery"} ✓
+            {t("freeDelivery") ?? "Free delivery"} âœ“
           </Text>
         ) : null}
         {couponDiscount > 0 ? (
@@ -359,6 +360,7 @@ export default function Checkout() {
           {t("oldPrice")}: {formatMoney(toOld(total), primaryCurrency)}
         </Text>
       </View>
+      <StoreClosedNotice status={deliveryEstimate?.openingStatus} />
       <Button title={t("placeOrder")} onPress={placeOrder} />
     </Screen>
   );

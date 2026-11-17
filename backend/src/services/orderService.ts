@@ -16,6 +16,7 @@ import { Coupon } from "../models/Coupon";
 import { CouponRedemption } from "../models/CouponRedemption";
 import { calculatePointsEarned } from "../utils/pricing";
 import { getRouteDistanceKm } from "../utils/routeDistance";
+import { getOpeningStatus } from "../utils/openingHours";
 import { Branch } from "../models/Branch";
 import { ensureWalletBalances, getPrimaryCurrency, getWalletCurrencyBalance } from "./walletService";
 import { DriverStatus, OrderStatus, PaymentMethod } from "../types";
@@ -464,7 +465,7 @@ export const createOrder = async (
 
   const items = await buildOrderItems(payload.items, userId, branchId);
   const settings = await getSettingsSnapshot(branchId);
-  const branch = await Branch.findById(branchId).select("lat lng");
+  const branch = await Branch.findById(branchId).select("lat lng openingHours timeZone");
   if (!branch) throw { status: 404, message: "Branch not found" };
   const subtotal = roundAmount(items.reduce((sum, item) => sum + roundAmount(item.price * item.quantity), 0));
   if (subtotal < roundAmount(settings.minimumOrderAmount ?? 0)) {
@@ -509,6 +510,7 @@ export const createOrder = async (
 
     return await Order.create({
       user: userId,
+      openingStatus: getOpeningStatus(branch),
       branchId,
       currency: orderCurrency._id,
       currencyExchangeRate: orderCurrency.isPrimary ? 1 : Number(orderCurrency.exchangeRate || 1),
@@ -583,7 +585,7 @@ export const estimateOrderDelivery = async (
   }
 
   const settings = await getSettingsSnapshot(branchId);
-  const branch = await Branch.findById(branchId).select("lat lng");
+  const branch = await Branch.findById(branchId).select("lat lng openingHours timeZone");
   if (!branch) throw { status: 404, message: "Branch not found" };
 
   const distanceKm = await getRouteDistanceKm(
@@ -592,7 +594,7 @@ export const estimateOrderDelivery = async (
   );
   const deliveryFee = calculateDeliveryFee(distanceKm, settings.deliveryFreeKm, settings.deliveryRatePerKm);
 
-  return { distanceKm, deliveryFee };
+  return { distanceKm, deliveryFee, openingStatus: getOpeningStatus(branch) };
 };
 
 const assertDriverCanChange = (

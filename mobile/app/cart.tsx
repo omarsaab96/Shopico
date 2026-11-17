@@ -1,3 +1,4 @@
+import StoreClosedNotice, { type OpeningStatus } from "../components/StoreClosedNotice";
 import { TextInput } from "../components/TextInput";
 import OrderCancellation from "../components/OrderCancellation";
 import MinimumOrderBanner from "../components/MinimumOrderBanner";
@@ -144,7 +145,7 @@ export default function CartScreen() {
   const [walletLoading, setWalletLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [branchLoading, setBranchLoading] = useState(false);
-  const [deliveryEstimate, setDeliveryEstimate] = useState<{ distanceKm: number; deliveryFee: number } | null>(null);
+  const [deliveryEstimate, setDeliveryEstimate] = useState<{ distanceKm: number; deliveryFee: number; openingStatus?: OpeningStatus } | null>(null);
   const [deliveryEstimateLoading, setDeliveryEstimateLoading] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [cartSyncLoading, setCartSyncLoading] = useState(false);
@@ -1061,6 +1062,7 @@ export default function CartScreen() {
               )}
             </View>
 
+            <StoreClosedNotice status={deliveryEstimate?.openingStatus} />
             {checkoutError ? <Text style={styles.errorText}>{checkoutError}</Text> : null}
             {belowMinimumOrder ? <Text style={styles.errorText}>{t("minimumOrderAddMore")}</Text> : null}
 
@@ -1335,7 +1337,8 @@ export default function CartScreen() {
                       />)}
                   </Animated.View>
                   <Text weight="bold" style={styles.successTitle}>{successOrder?.cancelledByCustomer ? (isRTL ? "\u062a\u0645 \u0625\u0644\u063a\u0627\u0621 \u0627\u0644\u0637\u0644\u0628" : "Order cancelled") : (t("orderPlaced") ?? "Order placed!")}</Text>
-                  {!successOrder?.cancelledByCustomer && <Text style={styles.successText}>{t("orderPlacedCopy") ?? "Your order is confirmed and on its way."}</Text>}
+                  {!successOrder?.cancelledByCustomer && <StoreClosedNotice status={successOrder?.openingStatus} />}
+                  {!successOrder?.cancelledByCustomer && successOrder?.openingStatus?.isOpen !== false && <Text style={styles.successText}>{t("orderPlacedCopy") ?? "Your order is confirmed and on its way."}</Text>}
                   {successOrder && <View style={{ width: "100%" }}>
                     <OrderCancellation cartpage ordersPage={false} order={successOrder} onUpdate={setSuccessOrder} />
                   </View>}
