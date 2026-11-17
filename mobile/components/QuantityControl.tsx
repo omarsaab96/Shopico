@@ -116,8 +116,8 @@ export default function QuantityControl({ quantity, product, onChange, onValidat
               backgroundColor: "transparent",
               textAlign: "center",
               textAlignVertical: "center",
-              height: pill ? 22 : 32,
-              lineHeight: 18,
+              minHeight: pill ? undefined : 32,
+              lineHeight: isRTL ? 18 : 22,
               includeFontPadding: false,
               fontFamily: resolveFont(isRTL, "black"),
               fontSize: 16,
@@ -128,7 +128,8 @@ export default function QuantityControl({ quantity, product, onChange, onValidat
               padding: pill ? 0 : compact ? 4 : 8,
               borderWidth: pill ? 0 : 1,
               borderColor: palette.border,
-              borderRadius: 8
+              borderRadius: 8,
+              minWidth: 44,
             }}
           /> : (
             <TouchableOpacity
@@ -149,9 +150,13 @@ export default function QuantityControl({ quantity, product, onChange, onValidat
                 alignItems: "center",
                 justifyContent: "center"
               }}>
-              <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight: isRTL ? 34 : 24, textAlign: 'center', minWidth: 44}}>
-                {formatQuantity(quantity, product, isRTL, inspans)}
-              </Text>
+              {isRTL ? (
+                formatQuantity(quantity, product, isRTL, inspans)
+              ) : (
+                <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight: isRTL ? 34 : 24, textAlign: 'center', minWidth: 44 }}>
+                  {formatQuantity(quantity, product, isRTL, inspans)}
+                </Text>
+              )}
             </TouchableOpacity>
           )}
 

@@ -11,7 +11,7 @@ const QuantitySpans = ({ quantity, product, ar }: { quantity: number; product: U
   const { palette } = useTheme();
   const scale = quantityDisplayScale(quantity, product);
   return (
-    <View style={{ flexDirection: 'row-reverse', justifyContent:'center',alignItems: 'center', gap:4}}>
+    <View style={{ flexDirection: 'row-reverse', justifyContent:'center', alignItems: 'center', gap:4}}>
       <Text weight="black" style={{ color: palette.text, fontSize: 16, textDecorationLine: "none", lineHeight: 18, paddingTop:ar?4:0}}>
         {quantity / scale}
       </Text>
