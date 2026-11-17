@@ -229,13 +229,17 @@ const BranchLocationPicker = ({
 
 const OpeningHoursEditor = ({ value, onChange }: { value: Partial<Branch>; onChange: (value: Partial<Branch>) => void }) => {
   const scheduleId = useId();
+  const retainedHours = useRef<NonNullable<Branch["openingHours"]>>([]);
   const { lang } = useI18n();
   const ar = lang === "ar";
   const slots = value.openingHours || [];
   const days = ar ? ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   return <div className="branch-opening-hours">
     <div className="checkboxContainer">
-      <input id={scheduleId} type="checkbox" checked={value.openingHours != null} onChange={e => onChange({ ...value, openingHours: e.target.checked ? [] : null })} />
+      <input id={scheduleId} type="checkbox" checked={value.openingHours != null} onChange={e => {
+        if (!e.target.checked) retainedHours.current = value.openingHours ?? [];
+        onChange({ ...value, openingHours: e.target.checked ? retainedHours.current : null });
+      }} />
       <label htmlFor={scheduleId}>{ar ? "تحديد جدول أسبوعي" : "Set weekly opening hours"}</label>
     </div>
     {value.openingHours == null && <p className="muted branch-hours-hint">{ar ? "بدون جدول، يعتبر الفرع مفتوحاً طوال الوقت." : "Without a schedule, the branch is treated as always open."}</p>}
@@ -610,7 +614,7 @@ const BranchesPage = () => {
 
               </div>
               <div role="tabpanel" id={`${editorFormId}-hours-panel`} aria-labelledby={`${editorFormId}-hours-tab`} data-branch-tab="hours" hidden={editorTab !== "hours"}>
-                <OpeningHoursEditor value={modalDraft} onChange={setModalDraft} />
+                <OpeningHoursEditor key={editingId || "new"} value={modalDraft} onChange={setModalDraft} />
               </div>
               {modalError && <div className="error" role="alert">{modalError}</div>}
               

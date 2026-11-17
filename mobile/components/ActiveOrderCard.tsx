@@ -37,7 +37,7 @@ export default function ActiveOrderCard({ order, statusLabel, onPress, embedded 
         <OrderMapPreview order={order} />
       </View>}
 
-      <View style={[styles.content, { direction: isRTL ? "rtl" : "ltr" }]}>
+      <View style={[styles.content, { direction: isRTL ? "rtl" : "ltr"}]}>
         <View style={styles.heading}>
 
           <View style={styles.details}>
@@ -81,18 +81,18 @@ export default function ActiveOrderCard({ order, statusLabel, onPress, embedded 
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: "row", alignItems: 'center', borderWidth: 1, borderRadius: 15, overflow: "hidden", padding: 5, gap: 10 },
+  card: { flexDirection: "row", alignItems: 'center', borderRadius: 0, overflow: "hidden", padding: 5, gap: 10 },
   map: { width: 60, height: 60, borderRadius: 15, overflow: "hidden" },
   content: { flex: 1, gap: 10 },
   linkArrow: { paddingHorizontal: 4, justifyContent: "center" },
   heading: { flexDirection: "row", gap: 8, alignItems: 'center' },
   statusIcon: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  details: { flex: 1, gap: 0 },
+  details: { flex: 1, gap: 0, },
   metrics: { flexDirection: "row", flexWrap: "wrap", columnGap: 10, rowGap: 3, marginTop: 4 },
   metric: { flexDirection: "row", alignItems: "center", gap: 4 },
   metricText: { fontSize: 11, lineHeight: 17 },
   detailsHead: { gap: 10, flexDirection: 'row', alignItems: 'center' },
-  orderNumber: { fontSize: 14, lineHeight: 18, writingDirection: "ltr" },
+  orderNumber: { fontSize: 14, lineHeight: 18, writingDirection: "ltr",  },
   status: { fontSize: 12, lineHeight: 18 },
   meta: { fontSize: 12, lineHeight: 18 },
   textSeperator: { width: 3, height: 3, borderRadius: 20 },

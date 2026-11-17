@@ -74,7 +74,7 @@ export default function ActiveOrderBanner({ branchId, orders: providedOrders }: 
         borderColor: cardColors.border, backgroundColor: cardColors.background }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
           <MaterialIcons name={statusIcon} size={20} color={headingColor} />
-          <Text weight="black" style={{ color: headingColor, fontSize: 14, lineHeight: 20 }}>{statusLabel}</Text>
+          <Text weight="black" style={{ color: headingColor, fontSize: 14, lineHeight: 20, flex:1 }}>{statusLabel}</Text>
         </View>
         <ActiveOrderCard order={order} embedded
           statusLabel={statusLabel}

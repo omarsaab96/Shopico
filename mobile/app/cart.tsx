@@ -1062,38 +1062,39 @@ export default function CartScreen() {
               )}
             </View>
 
-            <StoreClosedNotice status={deliveryEstimate?.openingStatus} />
             {checkoutError ? <Text style={styles.errorText}>{checkoutError}</Text> : null}
             {belowMinimumOrder ? <Text style={styles.errorText}>{t("minimumOrderAddMore")}</Text> : null}
 
           </View>
-
-          <TouchableOpacity
-            style={[styles.primaryBtn, (!selectedAddress || submitting || walletInsufficient || checkoutLoading || checkoutBlocked) && { opacity: 0.8 }]}
-            onPress={() => void placeOrder()}
-            disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading || checkoutBlocked}
-          >
-            <View style={{ width: '100%', flexDirection: "row", alignItems: 'center', justifyContent: 'center',gap:10 }}>
-              <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
-                {submitting ? t("placingOrder") : t("placeOrder")}
-              </Text>
-              {!submitting && <>
+          <View>
+            <StoreClosedNotice status={deliveryEstimate?.openingStatus} />
+            <TouchableOpacity
+              style={[styles.primaryBtn, (!selectedAddress || submitting || walletInsufficient || checkoutLoading || checkoutBlocked) && { opacity: 0.8 }]}
+              onPress={() => void placeOrder()}
+              disabled={!selectedAddress || submitting || walletInsufficient || checkoutLoading || checkoutBlocked}
+            >
+              <View style={{ width: '100%', flexDirection: "row", alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                 <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
-                  •
+                  {submitting ? t("placingOrder") : t("placeOrder")}
                 </Text>
-                <Money style={[styles.primaryBtnText]} amount={orderTotal} currency={selectedCurrency} />
-              </>
-              }
+                {!submitting && <>
+                  <Text style={[styles.primaryBtnText, { textAlign: 'center' }]}>
+                    •
+                  </Text>
+                  <Money style={[styles.primaryBtnText]} amount={orderTotal} currency={selectedCurrency} />
+                </>
+                }
 
-              {/* {!submitting && selectedCurrency?.symbol.en != "USD" && <Text style={[styles.primaryBtnText, { fontSize: 14, textAlign: 'center', opacity: 0.6, textDecorationLine: "line-through", lineHeight: 14 }]}>
+                {/* {!submitting && selectedCurrency?.symbol.en != "USD" && <Text style={[styles.primaryBtnText, { fontSize: 14, textAlign: 'center', opacity: 0.6, textDecorationLine: "line-through", lineHeight: 14 }]}>
                 {formatMoney(orderTotal * 100, selectedCurrency)}
               </Text>} */}
 
-              {submitting && <ActivityIndicator color={'#fff'} size={'small'} style={{}} />}
-            </View>
+                {submitting && <ActivityIndicator color={'#fff'} size={'small'} style={{}} />}
+              </View>
 
-            {/* </View> */}
-          </TouchableOpacity>
+              {/* </View> */}
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       </BottomSheetFooter>
     );
@@ -1105,14 +1106,14 @@ export default function CartScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <Text weight="bold" style={styles.title}>{t("cart")}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-          {/* {user && <TouchableOpacity onPress={() => router.push("/points")} accessibilityRole="button" accessibilityLabel={t("myCoupons")}>
+            {/* {user && <TouchableOpacity onPress={() => router.push("/points")} accessibilityRole="button" accessibilityLabel={t("myCoupons")}>
             <Ionicons name="ticket-outline" size={24} color={palette.accent} />
           </TouchableOpacity>} */}
-          {items.length > 0 &&
-            <TouchableOpacity onPress={confirmClear}>
-              <Text style={{ color: palette.accent, fontWeight: 'bold' }}>{t("clearCart")}</Text>
-            </TouchableOpacity>
-          }
+            {items.length > 0 &&
+              <TouchableOpacity onPress={confirmClear}>
+                <Text style={{ color: palette.accent, fontWeight: 'bold' }}>{t("clearCart")}</Text>
+              </TouchableOpacity>
+            }
           </View>
         </View>
 
@@ -1528,10 +1529,10 @@ export default function CartScreen() {
                             {paymentMethod === 'WALLET' ?
                               <Entypo name="wallet" size={20} color={palette.accentSoft} />
                               : paymentMethod === 'SHAM_CASH' ?
-                              <Image source={require("../assets/shamcash.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
-                              :
-                              // <FontAwesome6 name="money-bill" size={20} color={palette.text} />
-                              <Image source={require("../assets/bill.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
+                                <Image source={require("../assets/shamcash.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
+                                :
+                                // <FontAwesome6 name="money-bill" size={20} color={palette.text} />
+                                <Image source={require("../assets/bill.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
                             }
                             <Text weight="bold" style={{ color: palette.text }}>
                               {paymentMethod === 'WALLET' ? t('wallet') : paymentMethod === 'SHAM_CASH' ? t('shamCash') : t('cashOnDelivery')}
@@ -1576,10 +1577,10 @@ export default function CartScreen() {
                               {method === 'WALLET' ?
                                 <Entypo name="wallet" size={24} color={palette.accentSoft} />
                                 : method === 'SHAM_CASH' ?
-                                <Image source={require("../assets/shamcash.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
-                                :
-                                // <FontAwesome6 name="money-bill" size={20} color={palette.text} />
-                                <Image source={require("../assets/bill.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
+                                  <Image source={require("../assets/shamcash.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
+                                  :
+                                  // <FontAwesome6 name="money-bill" size={20} color={palette.text} />
+                                  <Image source={require("../assets/bill.png")} style={{ width: 25, height: 25, objectFit: 'contain' }} />
                               }
 
                               <Text weight="bold" style={[styles.pillText, paymentMethod === method && styles.pillTextActive]}>
@@ -1780,7 +1781,7 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       fontSize: 22,
       textAlign: isRTL ? "right" : "left",
       fontWeight: "900",
-      lineHeight:28
+      lineHeight: 28
     },
     row: {
       backgroundColor: palette.card,
@@ -2133,8 +2134,8 @@ const createStyles = (palette: any, isRTL: boolean, isDark: boolean) =>
       transform: [{ rotate: "-45deg" }],
       marginTop: 4,
     },
-    successTitle: { color: palette.text, fontSize: 20, textAlign: "center",lineHeight:30 },
-    successText: { color: palette.muted, fontSize: 12, lineHeight:18, textAlign: "center", fontWeight: '600' },
+    successTitle: { color: palette.text, fontSize: 20, textAlign: "center", lineHeight: 30 },
+    successText: { color: palette.muted, fontSize: 12, lineHeight: 18, textAlign: "center", fontWeight: '600' },
     debugRow: {
       paddingHorizontal: 16,
       paddingTop: 8,
