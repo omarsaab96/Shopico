@@ -191,7 +191,7 @@ export default function EditProfile() {
               <View style={styles.field}>
                 <View style={styles.labelRow}>
                   <Text weight="bold" style={styles.label}>{t("email")}</Text>
-                  {user.emailVerified ? (
+                  {/* {user.emailVerified ? (
                     <View style={styles.verifiedPill}>
                       <Feather name="check-circle" size={13} color="#16a34a" />
                       <Text style={styles.verifiedPillText}>{t("verified") ?? "Verified"}</Text>
@@ -201,7 +201,7 @@ export default function EditProfile() {
                       <Feather name="mail" size={13} color={palette.accent} />
                       <Text style={styles.verifyEmailText}>{t("verifyEmail") ?? "Verify email"}</Text>
                     </TouchableOpacity>
-                  )}
+                  )} */}
                 </View>
                 <TextInput
                   style={styles.input}

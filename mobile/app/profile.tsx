@@ -545,7 +545,7 @@ export default function Profile() {
                       </TouchableOpacity>
                     )}
 
-                    <TouchableOpacity style={[styles.profileLink]}
+                    {false&&<TouchableOpacity style={[styles.profileLink]}
                       onPress={
                         () => {
                           if (!user?.emailVerified) {
@@ -570,7 +570,7 @@ export default function Profile() {
                           </View>
                         )}
                       </View>
-                    </TouchableOpacity>
+                    </TouchableOpacity>}
 
                     {false && <TouchableOpacity style={styles.profileLink} onPress={() => router.push("/phone-verification" as any)}>
                       <Text style={styles.profileLinkText}>{t("verifyPhone")}</Text>

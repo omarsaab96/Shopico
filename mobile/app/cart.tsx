@@ -541,10 +541,10 @@ export default function CartScreen() {
       router.push("/auth/login");
       return;
     }
-    if (!user.emailVerified) {
-      router.push("/email-verification?returnTo=/(tabs)/cart" as any);
-      return;
-    }
+    // if (!user.emailVerified) {
+    //   router.push("/email-verification?returnTo=/(tabs)/cart" as any);
+    //   return;
+    // }
     if (!items.length || cartSyncLoading || checkoutBlocked) return;
     if (hasUnavailableItems) {
       Alert.alert(
@@ -906,11 +906,11 @@ export default function CartScreen() {
     if (submissionInFlight.current) return;
     if (!user || !selectedAddress) return;
     if (checkoutBlocked) return;
-    if (!user.emailVerified) {
-      checkoutSheetRef.current?.dismiss();
-      router.push("/email-verification?returnTo=/(tabs)/cart" as any);
-      return;
-    }
+    // if (!user.emailVerified) {
+    //   checkoutSheetRef.current?.dismiss();
+    //   router.push("/email-verification?returnTo=/(tabs)/cart" as any);
+    //   return;
+    // }
     if (hasUnavailableItems) {
       setCheckoutError(t("removeUnavailableItemsBeforeCheckout") ?? "Remove or replace unavailable items before checkout.");
       return;
