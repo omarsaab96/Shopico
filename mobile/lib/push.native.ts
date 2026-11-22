@@ -3,6 +3,7 @@ import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import api, { isSessionEnding } from "./api";
+import type { DevicePushToken } from "expo-notifications";
 
 type NotificationsApi = typeof import("expo-notifications");
 let notificationApi: Promise<NotificationsApi | null> | undefined;
@@ -23,10 +24,10 @@ function serial<T>(task: () => Promise<T>): Promise<T> {
   operations = result.catch(() => {});
   return result;
 }
-export function registerPush(language: string, requestPermission = false): Promise<string> {
-  return serial(() => register(language, requestPermission));
+export function registerPush(language: string, requestPermission = false, devicePushToken?: DevicePushToken): Promise<string> {
+  return serial(() => register(language, requestPermission, devicePushToken));
 }
-async function register(language: string, requestPermission: boolean): Promise<string> {
+async function register(language: string, requestPermission: boolean, devicePushToken?: DevicePushToken): Promise<string> {
   if (isSessionEnding()) return "signed-out";
   const session = await SecureStore.getItemAsync("accessToken");
   if (!session) return "signed-out";
@@ -40,7 +41,9 @@ async function register(language: string, requestPermission: boolean): Promise<s
   if (!permission.granted) return "permission-required";
   const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
   if (!projectId) throw new Error("Missing Expo project ID");
-  const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  // Fetching a native token emits a token event. Reuse the event's token to
+  // avoid recursively fetching it again from the rotation listener.
+  const token = (await Notifications.getExpoPushTokenAsync({ projectId, devicePushToken })).data;
   if (isSessionEnding() || session !== await SecureStore.getItemAsync("accessToken")) return "signed-out";
   const refreshToken = await SecureStore.getItemAsync("refreshToken");
   await api.post("/notifications/devices", { token, language, refreshToken: refreshToken || undefined });
@@ -61,7 +64,7 @@ export async function updateBadge(count: number): Promise<void> {
   const Notifications = await getNotifications();
   if (Notifications) await Notifications.setBadgeCountAsync(count);
 }
-export function listenPush(received: (data: any) => void, opened: (data: any) => void, rotated: () => void): () => void {
+export function listenPush(received: (data: any) => void, opened: (data: any) => void, rotated: (token: DevicePushToken) => void): () => void {
   let active = true;
   const subscriptions: Array<{ remove: () => void }> = [];
   void getNotifications().then(Notifications => {

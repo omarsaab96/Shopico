@@ -5,6 +5,7 @@ import api from "./api";
 import { useAuth } from "./auth";
 import { useI18n } from "./i18n";
 import { listenPush, registerPush, updateBadge } from "./push";
+import type { DevicePushToken } from "expo-notifications";
 
 export interface NotificationItem { _id: string; type: string; title: { en: string; ar: string }; body: { en: string; ar: string }; createdAt: string; readAt: string | null; data: { orderId?: string; screen?: string } }
 interface Value {
@@ -59,12 +60,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     let active = true;
     setLoading(true);
     void refresh().finally(() => { if (active) setLoading(false); });
-    const register = async (request = false) => {
+    const register = async (request = false, devicePushToken?: DevicePushToken) => {
       try {
         const res = await api.get("/notifications/preferences");
         if (!active) return;
         setPushEnabled(res.data.data.pushEnabled); setPromotionsEnabled(res.data.data.promotionsEnabled);
-        if (res.data.data.pushEnabled) { const status = await registerPush(lang, request); if (active) setPushStatus(status); }
+        if (res.data.data.pushEnabled) { const status = await registerPush(lang, request, devicePushToken); if (active) setPushStatus(status); }
       } catch { if (active) setPushStatus("error"); }
     };
     void register(true);
@@ -73,7 +74,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       // Fetch the authorized inbox item before navigating a push payload.
       if (!data?.notificationId || !/^[a-f\d]{24}$/i.test(String(data.notificationId))) return;
       void api.put(`/notifications/${data.notificationId}/read`).then(res => { if (active) { navigateData(res.data.data.data); emitUpdate(); } }).catch(() => {});
-    }, () => { void register(); });
+    }, token => { void register(false, token); });
     const appState = AppState.addEventListener("change", state => { if (state === "active") { emitUpdate(); void register(); } });
     const renewed = DeviceEventEmitter.addListener("shopico:session-renewed", () => { void register(); });
     const timer = setInterval(() => { if (AppState.currentState === "active") void refresh(); }, 30000);

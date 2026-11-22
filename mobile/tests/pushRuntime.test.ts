@@ -69,3 +69,34 @@ test('unmounting while native push loads does not leave event listeners behind',
   expect(mocks.receipt).not.toHaveBeenCalled();
   expect(mocks.response).not.toHaveBeenCalled();
 });
+
+test('token events reuse the supplied native token without starting a registration loop', async () => {
+  const push = await import('../lib/push.native');
+  const nativeToken = { type: 'android' as const, data: 'native-token' };
+  const rotations: Promise<string>[] = [];
+  mocks.token.mockImplementation(async (options) => {
+    // Expo emits a token event when it has to fetch the native token.
+    if (!options.devicePushToken) {
+      if (mocks.token.mock.calls.length > 3) throw new Error('Recursive token fetch');
+      mocks.rotation.mock.calls[0][0](nativeToken);
+    }
+    return { data: 'ExpoPushToken[test]' };
+  });
+  const stop = push.listenPush(vi.fn(), vi.fn(), token => {
+    rotations.push(push.registerPush('en', false, token));
+  });
+  await push.updateBadge(0);
+  expect(await push.registerPush('en')).toBe('registered');
+  await Promise.all(rotations);
+  expect(rotations).toHaveLength(1);
+  expect(mocks.token).toHaveBeenCalledTimes(2);
+  expect(mocks.token).toHaveBeenLastCalledWith({ projectId: 'project', devicePushToken: nativeToken });
+
+  // A later genuine rotation still registers the new token.
+  const nextToken = { ...nativeToken, data: 'rotated-token' };
+  mocks.rotation.mock.calls[0][0](nextToken);
+  await Promise.all(rotations);
+  expect(mocks.token).toHaveBeenLastCalledWith({ projectId: 'project', devicePushToken: nextToken });
+  expect(mocks.post).toHaveBeenCalledTimes(3);
+  stop();
+});
